@@ -1,0 +1,117 @@
+# METADATA:
+project_name: sensor-temp-humidity-profile
+version: 2
+editor: dendriForge
+author: schemasmith
+ASLversion: 0.1.0
+
+## 1. IDENTIFICATION:
+id: sensor-temp-humidity
+name: "Universal Temp/Humidity Sensor (Temperatura e humidade)"
+family: sensors
+subfamily: environment
+category: sensor
+standard: "Hybrid (Maker/Industrial)"
+url: null
+image: sensor-temp-humidity.svg
+symbol: sensor-temp-humidity-symbol.svg
+symbol_standard: IEC
+
+## 2. PARAMETERS:
+params:
+  output_type:
+    label: "Output Interface"
+    default: "digital-1Wire"
+    options: ["digital-1Wire", "I2C", "analog-0-10V", "analog-4-20mA"]
+    type: enum
+    editable: true
+  temp_range_min:
+    label: "Temp Min"
+    unit: "°C"
+    default: -20
+    min: -40
+    max: 0
+    type: float
+    editable: true
+  temp_range_max:
+    label: "Temp Max"
+    unit: "°C"
+    default: 80
+    min: 50
+    max: 120
+    type: float
+    editable: true
+  supply_voltage:
+    label: "Supply Voltage"
+    unit: V
+    default: 5
+    options: [3.3, 5, 12, 24]
+    type: enum
+    editable: true
+
+## 3. ELECTRICAL PORTS:
+ports[4|]{id|direction|type|voltage_max|current_max|notes}:
+  VCC|input|power|"{supply_voltage}"|"100mA"|"supply +"
+  GND|input|ground|null|null|"supply -"
+  SIG1|bidirectional|i2c|"{supply_voltage}"|"20mA"|"Temp analog / 1-Wire Data / I2C SDA"
+  SIG2|bidirectional|i2c|"{supply_voltage}"|"20mA"|"Humidity analog / I2C SCL (leave open for 1-Wire)"
+
+## 4. SIMULATION BEHAVIOR:
+simulation:
+  model: script
+  bidirectional: true
+  dynamic: true
+  thermal_model: false
+  noise_model: false
+  states[3]:
+    - idle
+    - measuring
+    - fault
+
+## 5. LIMITS & WARNINGS:
+limits:
+  max_voltage: "{supply_voltage}"
+  max_current: "100mA"
+  max_power: null
+  max_temp: 85
+  min_temp: -25
+  ip_rating: "IP54"
+  safety_category: null
+warnings[3]:
+  - "If using digital-1Wire (like DHT modules), only SIG1 is used for data."
+  - "If using I2C, SIG1 acts as SDA and SIG2 acts as SCL. External pull-ups may be required."
+  - "Ensure analog ground is properly referenced if used with PLCs."
+
+## 6. CONNECTIONS & COMPATIBILITY:
+connections:
+  allowed_with: ["ind-ai-bank", "plc-*", "mcu-*", "maker-*", "arduino-*"]
+  forbidden_with: ["ac-source"]
+  requires: ["dc-source"]
+  typical_context: ["hvac", "greenhouse", "maker-weather-station", "industrial-climate"]
+
+## 7. VISUAL & CANVAS:
+canvas:
+  width: 50
+  height: 50
+  ports_layout: custom
+  port_VCC: {x: 0, y: 10}
+  port_GND: {x: 0, y: 40}
+  port_SIG1: {x: 50, y: 15}
+  port_SIG2: {x: 50, y: 35}
+  label_position: top
+  value_display: "T/H ({output_type})"
+  animated: true
+
+## 8. AGENT SKILLS:
+dendriForge:
+  componentFamilySkillId: sensors-family
+  componentProfileId: sensor-temp-humidity
+  simulationEngine: digital-io
+  paletteGroup: "Sensors > Environment"
+  tags[6]:
+    - sensor
+    - temperature
+    - humidity
+    - environment
+    - maker
+    - industrial
