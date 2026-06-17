@@ -8,30 +8,28 @@ ASLversion: 0.1.0
 ## 1. HARDWARE INTERFACE:
 # Format: pin | type | io_mode | label | target_role
 hardware[1|]{pin|type|io_mode|label|target_role}:
-  25|digital|output|"LED Integrado"|status-led
+  13|BOOL|DO|%"ledPin"|digital-out
+
 
 ## 2. SYSTEM DATA:
 data:
   TIME_UNIT: ms
-  BLINK_INTERVAL: 500
-  led_state: false
+  BLINK_INTERVAL: T#1000ms
+  %"ledPin": FALSE
 
 ## 3. INITIALIZATION SYSTEM:
 setup[3]:
-  - pinMode(25, OUTPUT)
-  - digitalWrite(25, LOW)
-  - delay(1000)
+  - CFG_DIGITAL_OUTPUT(13)
+  - SET_BOOL(13, FALSE)
+  - WAIT_TIME(T#1000ms)
 
 ## 4. BEHAVIORAL LOGIC (LOOP):
-loop[2]:
-  - toggle_led()
-  - delay(BLINK_INTERVAL)
+loop[3]:
+  - F_TOGGLE_BOOL(%"ledPin")
+  - SET_BOOL(13, %"ledPin")
+  - WAIT_TIME(BLINK_INTERVAL)
 
 ## 5. PROCEDURAL FUNCTIONS:
 functions:
-  toggle_led[5]:
-  - led_state = not led_state
-  - if led_state:
-  - digitalWrite(25, HIGH)
-  - else:
-  - digitalWrite(25, LOW)
+  F_TOGGLE_BOOL[1]:
+    - RETURN NOT %"ledPin"
