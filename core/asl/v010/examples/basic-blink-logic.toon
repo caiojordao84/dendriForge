@@ -6,30 +6,27 @@ author: USER_1129_20260519
 ASLversion: 0.1.0
 
 ## 1. HARDWARE INTERFACE:
-# Format: pin | type | io_mode | label | target_role
 hardware[1|]{pin|type|io_mode|label|target_role}:
-  13|BOOL|DO|%"ledPin"|digital-out
-
+  13|BOOL|DO|"ledPin"|digital-out
 
 ## 2. SYSTEM DATA:
-data:
-  TIME_UNIT: ms
-  BLINK_INTERVAL: T#1000ms
-  %"ledPin": FALSE
+data[3|]{name|type|scope|init_value|unit}:
+  TIME_UNIT|STRING|CONST|"ms"|-
+  BLINK_INTERVAL|TIME|CONST|T#1000ms|ms
+  ledState|BOOL|VAR|FALSE|-
 
 ## 3. INITIALIZATION SYSTEM:
-setup[3]:
+setup[2]:
   - CFG_DIGITAL_OUTPUT(13)
   - SET_BOOL(13, FALSE)
-  - WAIT_TIME(T#1000ms)
 
 ## 4. BEHAVIORAL LOGIC (LOOP):
 loop[3]:
-  - F_TOGGLE_BOOL(%"ledPin")
-  - SET_BOOL(13, %"ledPin")
+  - ledState = F_TOGGLE_BOOL(ledState)
+  - SET_BOOL(13, ledState)
   - WAIT_TIME(BLINK_INTERVAL)
 
 ## 5. PROCEDURAL FUNCTIONS:
 functions:
-  F_TOGGLE_BOOL[1]:
-    - RETURN NOT %"ledPin"
+  F_TOGGLE_BOOL(val)[1]:
+    - RETURN NOT val
