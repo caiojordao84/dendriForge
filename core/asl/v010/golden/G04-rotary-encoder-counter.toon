@@ -4,9 +4,6 @@ version: 1
 editor: dendriForge
 author: dendriForge Golden Suite
 ASLversion: 0.1.0
-# GOLDEN TEST: Covers GPIO interrupt-driven quadrature rotary encoder,
-# counters, debounce via TIME_DIFF, and LCD display output.
-# Primary: GPIO + counters   Secondary: ISR CHANGE, TIME_DIFF, LCD, CLAMP
 
 ## 1. HARDWARE INTERFACE:
 hardware[6|]{pin|type|io_mode|label|target_role}:
@@ -32,7 +29,7 @@ data[11|]{name|type|scope|init_value|unit}:
   encAState|BOOL|VAR|FALSE|-
 
 ## 3. INITIALIZATION SYSTEM:
-setup[5]:
+setup[10]:
   - CFG_I2C(0, 0, 1, 400000)
   - CFG_LCD(0x27, 16, 2)
   - CFG_DIGITAL_INPUT_PULLUP(20)
@@ -58,7 +55,7 @@ loop[9]:
 
 ## 5. PROCEDURAL FUNCTIONS:
 functions:
-  isr_enc_a()[6]:
+  isr_enc_a()[7]:
     - encAState = GET_BOOL(20)
     - IF encAState AND NOT lastEncA:
     - IF GET_BOOL(21): encoderCount = encoderCount - 1
