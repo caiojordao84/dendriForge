@@ -1,0 +1,101 @@
+# METADATA:
+project_name: G11-multi-isr-priority-test
+version: 1
+editor: dendriForge
+author: dendriForge Golden Suite
+ASLversion: 0.1.0
+# GOLDEN TEST: Covers all three EDGE modes (RISING, FALLING, CHANGE) across
+# multiple ISRs, CFG_DETACH_INTERRUPT, volatile flag propagation, and
+# priority-ordered flag dispatch in the main loop.
+# Primary: Multiple ISRs with RISING/FALLING/CHANGE
+# Secondary: CFG_DETACH_INTERRUPT, volatile flags, debounce, SET_BOOL, SERIAL_PRINTLN
+
+## 1. HARDWARE INTERFACE:
+hardware[6|]{pin|type|io_mode|label|target_role}:
+  10|digital|DI|"pinRising"|int-rising
+  11|digital|DI|"pinFalling"|int-falling
+  12|digital|DI|"pinChange"|int-change
+  13|digital|DO|"ledRising"|digital-out
+  14|digital|DO|"ledFalling"|digital-out
+  15|digital|DO|"ledChange"|digital-out
+
+## 2. SYSTEM DATA:
+data[18|]{name|type|scope|init_value|unit}:
+  DEBOUNCE|TIME|CONST|T#50ms|ms
+  LOOP_DELAY|TIME|CONST|T#10ms|ms
+  DETACH_THRESHOLD|UINT|CONST|20|-
+  flagRising|BOOL|VAR|FALSE|-
+  flagFalling|BOOL|VAR|FALSE|-
+  flagChange|BOOL|VAR|FALSE|-
+  lastRising|DWORD|VAR|0|ms
+  lastFalling|DWORD|VAR|0|ms
+  lastChange|DWORD|VAR|0|ms
+  countRising|UINT|VAR|0|-
+  countFalling|UINT|VAR|0|-
+  countChange|UINT|VAR|0|-
+  nowMs|DWORD|VAR|0|ms
+  changeState|BOOL|VAR|FALSE|-
+  risingDetached|BOOL|VAR|FALSE|-
+  totalEvents|UINT|VAR|0|-
+  prevTotal|UINT|VAR|0|-
+  eventLine|STRING|VAR|""-
+
+## 3. INITIALIZATION SYSTEM:
+setup[9]:
+  - CFG_SERIAL(115200)
+  - CFG_DIGITAL_INPUT_PULLUP(10)
+  - CFG_DIGITAL_INPUT_PULLUP(11)
+  - CFG_DIGITAL_INPUT(12)
+  - CFG_DIGITAL_OUTPUT(13)
+  - CFG_DIGITAL_OUTPUT(14)
+  - CFG_DIGITAL_OUTPUT(15)
+  - CFG_ATTACH_INTERRUPT(10, isr_rising, RISING)
+  - CFG_ATTACH_INTERRUPT(11, isr_falling, FALLING)
+  - CFG_ATTACH_INTERRUPT(12, isr_change, CHANGE)
+  - SERIAL_PRINTLN("event,count,ts_ms")
+
+## 4. BEHAVIORAL LOGIC (LOOP):
+loop[24]:
+  - IF flagRising:
+  - flagRising = FALSE
+  - SET_BOOL(13, NOT GET_BOOL(13))
+  - countRising = countRising + 1
+  - IF countRising >= DETACH_THRESHOLD AND NOT risingDetached:
+  - CFG_DETACH_INTERRUPT(10)
+  - risingDetached = TRUE
+  - SERIAL_PRINTLN("rising_detached")
+  - IF flagFalling:
+  - flagFalling = FALSE
+  - SET_BOOL(14, NOT GET_BOOL(14))
+  - countFalling = countFalling + 1
+  - IF flagChange:
+  - flagChange = FALSE
+  - changeState = GET_BOOL(12)
+  - SET_BOOL(15, changeState)
+  - countChange = countChange + 1
+  - totalEvents = countRising + countFalling + countChange
+  - IF totalEvents <> prevTotal:
+  - eventLine = CONCAT(TO_STRING(totalEvents), ",r=", TO_STRING(countRising), ",f=", TO_STRING(countFalling), ",c=", TO_STRING(countChange))
+  - SERIAL_PRINTLN(eventLine)
+  - prevTotal = totalEvents
+  - WAIT_TIME(LOOP_DELAY)
+
+## 5. PROCEDURAL FUNCTIONS:
+functions:
+  isr_rising()[4]:
+    - nowMs = GET_SYS_TIME()
+    - IF TIME_DIFF(nowMs, lastRising) > DEBOUNCE:
+    - flagRising = TRUE
+    - lastRising = nowMs
+
+  isr_falling()[4]:
+    - nowMs = GET_SYS_TIME()
+    - IF TIME_DIFF(nowMs, lastFalling) > DEBOUNCE:
+    - flagFalling = TRUE
+    - lastFalling = nowMs
+
+  isr_change()[4]:
+    - nowMs = GET_SYS_TIME()
+    - IF TIME_DIFF(nowMs, lastChange) > DEBOUNCE:
+    - flagChange = TRUE
+    - lastChange = nowMs

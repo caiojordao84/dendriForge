@@ -1,0 +1,103 @@
+# METADATA:
+project_name: G12-isr-ring-buffer-capture
+version: 1
+editor: dendriForge
+author: dendriForge Golden Suite
+ASLversion: 0.1.0
+# GOLDEN TEST: Covers ISR-driven ring buffer capture using a head/tail
+# counter pattern, overflow detection, drain loop in main, and
+# SERIAL_PRINTLN structured dump. Tests volatile multi-var ISR writes,
+# FOR drain loop, and buffer-full guard.
+# Primary: ISR ring buffer   Secondary: Counter, REPEAT, SERIAL_PRINTLN, overflow flag
+
+## 1. HARDWARE INTERFACE:
+hardware[3|]{pin|type|io_mode|label|target_role}:
+  14|digital|DI|"capturePin"|int-rising
+  15|digital|DO|"ledOverflow"|digital-out
+  16|digital|DO|"ledDraining"|digital-out
+
+## 2. SYSTEM DATA:
+data[18|]{name|type|scope|init_value|unit}:
+  BUF_SIZE|UINT|CONST|16|-
+  DRAIN_DELAY|TIME|CONST|T#5ms|ms
+  BAUD_RATE|DINT|CONST|115200|-
+  LOOP_DELAY|TIME|CONST|T#20ms|ms
+  buf0|DWORD|VAR|0|ms
+  buf1|DWORD|VAR|0|ms
+  buf2|DWORD|VAR|0|ms
+  buf3|DWORD|VAR|0|ms
+  buf4|DWORD|VAR|0|ms
+  buf5|DWORD|VAR|0|ms
+  buf6|DWORD|VAR|0|ms
+  buf7|DWORD|VAR|0|ms
+  bufHead|UINT|VAR|0|-
+  bufTail|UINT|VAR|0|-
+  bufOverflow|BOOL|VAR|FALSE|-
+  captureCount|UINT|VAR|0|-
+  drainCount|UINT|VAR|0|-
+  nowUs|DWORD|VAR|0|us
+
+## 3. INITIALIZATION SYSTEM:
+setup[5]:
+  - CFG_SERIAL(115200)
+  - CFG_DIGITAL_INPUT(14)
+  - CFG_DIGITAL_OUTPUT(15)
+  - CFG_DIGITAL_OUTPUT(16)
+  - CFG_ATTACH_INTERRUPT(14, isr_capture, RISING)
+  - SERIAL_PRINTLN("idx,ts_us")
+
+## 4. BEHAVIORAL LOGIC (LOOP):
+loop[18]:
+  - IF bufOverflow:
+  - SET_BOOL(15, TRUE)
+  - SERIAL_PRINTLN("OVERFLOW")
+  - bufOverflow = FALSE
+  - IF bufHead <> bufTail:
+  - SET_BOOL(16, TRUE)
+  - WHILE bufHead <> bufTail:
+  - drain_next()
+  - WAIT_TIME(DRAIN_DELAY)
+  - SET_BOOL(16, FALSE)
+  - ELSE:
+  - SET_BOOL(15, FALSE)
+  - SET_BOOL(16, FALSE)
+  - WAIT_TIME(LOOP_DELAY)
+
+## 5. PROCEDURAL FUNCTIONS:
+functions:
+  isr_capture()[6]:
+    - nowUs = GET_SYS_TIME_US()
+    - nextHead = MOD(bufHead + 1, BUF_SIZE)
+    - IF nextHead = bufTail:
+    - bufOverflow = TRUE
+    - RETURN
+    - buf_write(bufHead, nowUs)
+    - bufHead = nextHead
+    - captureCount = captureCount + 1
+
+  buf_write(idx, val)[9]:
+    - IF idx = 0: buf0 = val
+    - ELSIF idx = 1: buf1 = val
+    - ELSIF idx = 2: buf2 = val
+    - ELSIF idx = 3: buf3 = val
+    - ELSIF idx = 4: buf4 = val
+    - ELSIF idx = 5: buf5 = val
+    - ELSIF idx = 6: buf6 = val
+    - ELSIF idx = 7: buf7 = val
+
+  buf_read(idx)[9]:
+    - IF idx = 0: RETURN buf0
+    - ELSIF idx = 1: RETURN buf1
+    - ELSIF idx = 2: RETURN buf2
+    - ELSIF idx = 3: RETURN buf3
+    - ELSIF idx = 4: RETURN buf4
+    - ELSIF idx = 5: RETURN buf5
+    - ELSIF idx = 6: RETURN buf6
+    - ELSIF idx = 7: RETURN buf7
+    - RETURN 0
+
+  drain_next()[4]:
+    - SERIAL_PRINTLN(CONCAT(TO_STRING(drainCount), ",", TO_STRING(buf_read(bufTail))))
+    - bufTail = MOD(bufTail + 1, BUF_SIZE)
+    - drainCount = drainCount + 1
+    - IF drainCount >= captureCount: SET_BOOL(15, FALSE)
