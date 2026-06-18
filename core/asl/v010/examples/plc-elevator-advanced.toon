@@ -6,77 +6,76 @@ author: Elevator Operator
 ASLversion: 0.1.0
 
 ## 1. HARDWARE INTERFACE:
-# Format: pin | type | io_mode | label | target_role
 hardware[26|]{pin|type|io_mode|label|target_role}:
-  0|digital|input|"Pos Sensor Floor 0"|sensor-pos
-  1|digital|input|"Pos Sensor Floor 1"|sensor-pos
-  2|digital|input|"Pos Sensor Floor 2"|sensor-pos
-  3|digital|input|"Pos Sensor Floor 3"|sensor-pos
-  4|digital|input|"Cabin Button 0"|btn-no
-  5|digital|input|"Cabin Button 1"|btn-no
-  6|digital|input|"Cabin Button 2"|btn-no
-  7|digital|input|"Cabin Button 3"|btn-no
-  8|digital|input|"Hall Button 0"|btn-no
-  9|digital|input|"Hall Button 1"|btn-no
-  10|digital|input|"Hall Button 2"|btn-no
-  11|digital|input|"Hall Button 3"|btn-no
-  12|digital|input|"IR Receiver (Curtain)"|ir-rx
-  13|digital|output|"Cabin LED 0"|led-out
-  14|digital|output|"Cabin LED 1"|led-out
-  15|digital|output|"Cabin LED 2"|led-out
-  16|digital|output|"Cabin LED 3"|led-out
-  17|digital|output|"Hall LED 0"|led-out
-  18|digital|output|"Hall LED 1"|led-out
-  19|digital|output|"Hall LED 2"|led-out
-  20|digital|output|"Hall LED 3"|led-out
-  21|digital|output|"Up Motor Relay"|relay-coil
-  22|digital|output|"Down Motor Relay"|relay-coil
-  23|digital|output|"Door Open Relay"|relay-coil
-  24|digital|output|"Door Close Relay"|relay-coil
-  25|digital|output|"IR Transmitter"|ir-tx
+  0|digital|DI|"sensorFloor0"|sensor-pos
+  1|digital|DI|"sensorFloor1"|sensor-pos
+  2|digital|DI|"sensorFloor2"|sensor-pos
+  3|digital|DI|"sensorFloor3"|sensor-pos
+  4|digital|DI|"cabinBtn0"|btn-no
+  5|digital|DI|"cabinBtn1"|btn-no
+  6|digital|DI|"cabinBtn2"|btn-no
+  7|digital|DI|"cabinBtn3"|btn-no
+  8|digital|DI|"hallBtn0"|btn-no
+  9|digital|DI|"hallBtn1"|btn-no
+  10|digital|DI|"hallBtn2"|btn-no
+  11|digital|DI|"hallBtn3"|btn-no
+  12|digital|DI|"irRxPin"|ir-rx
+  13|digital|DO|"cabinLed0"|led-out
+  14|digital|DO|"cabinLed1"|led-out
+  15|digital|DO|"cabinLed2"|led-out
+  16|digital|DO|"cabinLed3"|led-out
+  17|digital|DO|"hallLed0"|led-out
+  18|digital|DO|"hallLed1"|led-out
+  19|digital|DO|"hallLed2"|led-out
+  20|digital|DO|"hallLed3"|led-out
+  21|digital|DO|"motorUpRelay"|relay-coil
+  22|digital|DO|"motorDnRelay"|relay-coil
+  23|digital|DO|"doorOpenRelay"|relay-coil
+  24|digital|DO|"doorCloseRelay"|relay-coil
+  25|digital|DO|"irTxPin"|ir-tx
 
 ## 2. SYSTEM DATA:
-data:
-  TIME_UNIT: ms
-  DOOR_DELAY_MS: 3000
-  state: 0
-  current_floor: 0
-  door_timer: 0
-  call_0: false
-  call_1: false
-  call_2: false
-  call_3: false
-  ir_blocked: false
+data[10|]{name|type|scope|init_value|unit}:
+  DOOR_DELAY|TIME|CONST|T#3000ms|ms
+  LOOP_INTERVAL|TIME|CONST|T#10ms|ms
+  elevState|UINT|VAR|0|-
+  currentFloor|UINT|VAR|0|-
+  doorTimer|TIME|VAR|T#0ms|ms
+  call0|BOOL|VAR|FALSE|-
+  call1|BOOL|VAR|FALSE|-
+  call2|BOOL|VAR|FALSE|-
+  call3|BOOL|VAR|FALSE|-
+  irBlocked|BOOL|VAR|FALSE|-
 
 ## 3. INITIALIZATION SYSTEM:
 setup[27]:
-  - pinMode(0, INPUT)
-  - pinMode(1, INPUT)
-  - pinMode(2, INPUT)
-  - pinMode(3, INPUT)
-  - pinMode(4, INPUT)
-  - pinMode(5, INPUT)
-  - pinMode(6, INPUT)
-  - pinMode(7, INPUT)
-  - pinMode(8, INPUT)
-  - pinMode(9, INPUT)
-  - pinMode(10, INPUT)
-  - pinMode(11, INPUT)
-  - pinMode(12, INPUT)
-  - pinMode(13, OUTPUT)
-  - pinMode(14, OUTPUT)
-  - pinMode(15, OUTPUT)
-  - pinMode(16, OUTPUT)
-  - pinMode(17, OUTPUT)
-  - pinMode(18, OUTPUT)
-  - pinMode(19, OUTPUT)
-  - pinMode(20, OUTPUT)
-  - pinMode(21, OUTPUT)
-  - pinMode(22, OUTPUT)
-  - pinMode(23, OUTPUT)
-  - pinMode(24, OUTPUT)
-  - pinMode(25, OUTPUT)
-  - digitalWrite(25, HIGH)
+  - CFG_DIGITAL_INPUT(0)
+  - CFG_DIGITAL_INPUT(1)
+  - CFG_DIGITAL_INPUT(2)
+  - CFG_DIGITAL_INPUT(3)
+  - CFG_DIGITAL_INPUT(4)
+  - CFG_DIGITAL_INPUT(5)
+  - CFG_DIGITAL_INPUT(6)
+  - CFG_DIGITAL_INPUT(7)
+  - CFG_DIGITAL_INPUT(8)
+  - CFG_DIGITAL_INPUT(9)
+  - CFG_DIGITAL_INPUT(10)
+  - CFG_DIGITAL_INPUT(11)
+  - CFG_DIGITAL_INPUT(12)
+  - CFG_DIGITAL_OUTPUT(13)
+  - CFG_DIGITAL_OUTPUT(14)
+  - CFG_DIGITAL_OUTPUT(15)
+  - CFG_DIGITAL_OUTPUT(16)
+  - CFG_DIGITAL_OUTPUT(17)
+  - CFG_DIGITAL_OUTPUT(18)
+  - CFG_DIGITAL_OUTPUT(19)
+  - CFG_DIGITAL_OUTPUT(20)
+  - CFG_DIGITAL_OUTPUT(21)
+  - CFG_DIGITAL_OUTPUT(22)
+  - CFG_DIGITAL_OUTPUT(23)
+  - CFG_DIGITAL_OUTPUT(24)
+  - CFG_DIGITAL_OUTPUT(25)
+  - SET_BOOL(25, TRUE)
 
 ## 4. BEHAVIORAL LOGIC (LOOP):
 loop[8]:
@@ -87,113 +86,113 @@ loop[8]:
   - decide_movement()
   - handle_doors()
   - write_outputs()
-  - delay(10)
+  - WAIT_TIME(LOOP_INTERVAL)
 
 ## 5. PROCEDURAL FUNCTIONS:
 functions:
   read_sensors()[9]:
-    - if digitalRead(0):
-    - current_floor = 0
-    - if digitalRead(1):
-    - current_floor = 1
-    - if digitalRead(2):
-    - current_floor = 2
-    - if digitalRead(3):
-    - current_floor = 3
-    - ir_blocked = digitalRead(12)
+    - IF GET_BOOL(0):
+    - currentFloor = 0
+    - IF GET_BOOL(1):
+    - currentFloor = 1
+    - IF GET_BOOL(2):
+    - currentFloor = 2
+    - IF GET_BOOL(3):
+    - currentFloor = 3
+    - irBlocked = GET_BOOL(12)
 
   register_calls()[8]:
-    - if digitalRead(4) or digitalRead(8):
-    - call_0 = true
-    - if digitalRead(5) or digitalRead(9):
-    - call_1 = true
-    - if digitalRead(6) or digitalRead(10):
-    - call_2 = true
-    - if digitalRead(7) or digitalRead(11):
-    - call_3 = true
+    - IF GET_BOOL(4) OR GET_BOOL(8):
+    - call0 = TRUE
+    - IF GET_BOOL(5) OR GET_BOOL(9):
+    - call1 = TRUE
+    - IF GET_BOOL(6) OR GET_BOOL(10):
+    - call2 = TRUE
+    - IF GET_BOOL(7) OR GET_BOOL(11):
+    - call3 = TRUE
 
   update_leds()[24]:
-    - if call_0:
-    - digitalWrite(13, HIGH)
-    - digitalWrite(17, HIGH)
-    - else:
-    - digitalWrite(13, LOW)
-    - digitalWrite(17, LOW)
-    - if call_1:
-    - digitalWrite(14, HIGH)
-    - digitalWrite(18, HIGH)
-    - else:
-    - digitalWrite(14, LOW)
-    - digitalWrite(18, LOW)
-    - if call_2:
-    - digitalWrite(15, HIGH)
-    - digitalWrite(19, HIGH)
-    - else:
-    - digitalWrite(15, LOW)
-    - digitalWrite(19, LOW)
-    - if call_3:
-    - digitalWrite(16, HIGH)
-    - digitalWrite(20, HIGH)
-    - else:
-    - digitalWrite(16, LOW)
-    - digitalWrite(20, LOW)
+    - IF call0:
+    - SET_BOOL(13, TRUE)
+    - SET_BOOL(17, TRUE)
+    - ELSE:
+    - SET_BOOL(13, FALSE)
+    - SET_BOOL(17, FALSE)
+    - IF call1:
+    - SET_BOOL(14, TRUE)
+    - SET_BOOL(18, TRUE)
+    - ELSE:
+    - SET_BOOL(14, FALSE)
+    - SET_BOOL(18, FALSE)
+    - IF call2:
+    - SET_BOOL(15, TRUE)
+    - SET_BOOL(19, TRUE)
+    - ELSE:
+    - SET_BOOL(15, FALSE)
+    - SET_BOOL(19, FALSE)
+    - IF call3:
+    - SET_BOOL(16, TRUE)
+    - SET_BOOL(20, TRUE)
+    - ELSE:
+    - SET_BOOL(16, FALSE)
+    - SET_BOOL(20, FALSE)
 
   check_arrival()[12]:
-    - if current_floor == 0 and call_0:
-    - call_0 = false
+    - IF currentFloor == 0 AND call0:
+    - call0 = FALSE
     - open_doors()
-    - if current_floor == 1 and call_1:
-    - call_1 = false
+    - IF currentFloor == 1 AND call1:
+    - call1 = FALSE
     - open_doors()
-    - if current_floor == 2 and call_2:
-    - call_2 = false
+    - IF currentFloor == 2 AND call2:
+    - call2 = FALSE
     - open_doors()
-    - if current_floor == 3 and call_3:
-    - call_3 = false
+    - IF currentFloor == 3 AND call3:
+    - call3 = FALSE
     - open_doors()
 
   open_doors()[2]:
-    - state = 3
-    - door_timer = currentTime()
+    - elevState = 3
+    - doorTimer = GET_TIMESTAMP()
 
   decide_movement()[13]:
-    - if state == 0:
-    - if current_floor == 0 and (call_1 or call_2 or call_3):
-    - state = 1
-    - if current_floor == 1 and (call_2 or call_3):
-    - state = 1
-    - if current_floor == 1 and call_0:
-    - state = 2
-    - if current_floor == 2 and call_3:
-    - state = 1
-    - if current_floor == 2 and (call_0 or call_1):
-    - state = 2
-    - if current_floor == 3 and (call_0 or call_1 or call_2):
-    - state = 2
+    - IF elevState == 0:
+    - IF currentFloor == 0 AND (call1 OR call2 OR call3):
+    - elevState = 1
+    - IF currentFloor == 1 AND (call2 OR call3):
+    - elevState = 1
+    - IF currentFloor == 1 AND call0:
+    - elevState = 2
+    - IF currentFloor == 2 AND call3:
+    - elevState = 1
+    - IF currentFloor == 2 AND (call0 OR call1):
+    - elevState = 2
+    - IF currentFloor == 3 AND (call0 OR call1 OR call2):
+    - elevState = 2
 
   handle_doors()[5]:
-    - if state == 3:
-    - if ir_blocked:
-    - door_timer = currentTime()
-    - if (currentTime() - door_timer) > DOOR_DELAY_MS:
-    - state = 0
+    - IF elevState == 3:
+    - IF irBlocked:
+    - doorTimer = GET_TIMESTAMP()
+    - IF (GET_TIMESTAMP() - doorTimer) > DOOR_DELAY:
+    - elevState = 0
 
   write_outputs()[18]:
-    - if state == 1:
-    - digitalWrite(21, HIGH)
-    - digitalWrite(22, LOW)
-    - if state == 2:
-    - digitalWrite(21, LOW)
-    - digitalWrite(22, HIGH)
-    - if state == 0 or state == 3:
-    - digitalWrite(21, LOW)
-    - digitalWrite(22, LOW)
-    - if state == 3:
-    - digitalWrite(23, HIGH)
-    - digitalWrite(24, LOW)
-    - if state == 0:
-    - digitalWrite(23, LOW)
-    - digitalWrite(24, HIGH)
-    - if state == 1 or state == 2:
-    - digitalWrite(23, LOW)
-    - digitalWrite(24, LOW)
+    - IF elevState == 1:
+    - SET_BOOL(21, TRUE)
+    - SET_BOOL(22, FALSE)
+    - IF elevState == 2:
+    - SET_BOOL(21, FALSE)
+    - SET_BOOL(22, TRUE)
+    - IF elevState == 0 OR elevState == 3:
+    - SET_BOOL(21, FALSE)
+    - SET_BOOL(22, FALSE)
+    - IF elevState == 3:
+    - SET_BOOL(23, TRUE)
+    - SET_BOOL(24, FALSE)
+    - IF elevState == 0:
+    - SET_BOOL(23, FALSE)
+    - SET_BOOL(24, TRUE)
+    - IF elevState == 1 OR elevState == 2:
+    - SET_BOOL(23, FALSE)
+    - SET_BOOL(24, FALSE)
