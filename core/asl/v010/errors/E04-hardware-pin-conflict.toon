@@ -1,0 +1,34 @@
+# ERROR CORPUS: E04
+# Expected error: ERR_HARDWARE_PIN_CONFLICT
+# Trigger: pin 5 is declared twice in the hardware block with
+# conflicting roles (pwm-out and digital-out). The parser must detect
+# the duplicate pin number and emit ERR_HARDWARE_PIN_CONFLICT naming
+# the pin, the first declaration, and the conflicting second declaration.
+
+# METADATA:
+project_name: E04-hardware-pin-conflict
+version: 1
+editor: dendriForge
+author: dendriForge Error Corpus
+ASLversion: 0.1.0
+
+## 1. HARDWARE INTERFACE:
+hardware[3|]{pin|type|io_mode|label|target_role}:
+  2|digital|DO|"ledPin"|digital-out
+  5|digital|DO|"pwmOut"|pwm-out
+  5|digital|DO|"ledStatus"|digital-out
+  # ^^^ pin 5 declared twice: first as pwm-out, then as digital-out
+
+## 2. SYSTEM DATA:
+data[1|]{name|type|scope|init_value|unit}:
+  LOOP_DELAY|TIME|CONST|T#500ms|ms
+
+## 3. INITIALIZATION SYSTEM:
+setup[2]:
+  - CFG_DIGITAL_OUTPUT(2)
+  - CFG_PWM_OUTPUT(5, 1000)
+
+## 4. BEHAVIORAL LOGIC (LOOP):
+loop[2]:
+  - SET_BOOL(2, TRUE)
+  - WAIT_TIME(LOOP_DELAY)

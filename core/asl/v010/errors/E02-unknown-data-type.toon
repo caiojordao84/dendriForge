@@ -1,0 +1,34 @@
+# ERROR CORPUS: E02
+# Expected error: ERR_DATA_UNKNOWN_TYPE
+# Trigger: data entry uses 'WORD32' which is not a valid ASL v0.1.0 type.
+# Valid types: BOOL, UINT, INT, DINT, DWORD, REAL, STRING, TIME.
+# The parser must reject the file and emit ERR_DATA_UNKNOWN_TYPE naming
+# the offending type token and the variable that declared it.
+
+# METADATA:
+project_name: E02-unknown-data-type
+version: 1
+editor: dendriForge
+author: dendriForge Error Corpus
+ASLversion: 0.1.0
+
+## 1. HARDWARE INTERFACE:
+hardware[1|]{pin|type|io_mode|label|target_role}:
+  2|digital|DO|"ledPin"|digital-out
+
+## 2. SYSTEM DATA:
+data[3|]{name|type|scope|init_value|unit}:
+  LOOP_DELAY|TIME|CONST|T#500ms|ms
+  counter|WORD32|VAR|0|-
+  # ^^^ WORD32 is not a valid ASL v0.1.0 type — should be DWORD or UINT
+  ledState|BOOL|VAR|FALSE|-
+
+## 3. INITIALIZATION SYSTEM:
+setup[1]:
+  - CFG_DIGITAL_OUTPUT(2)
+
+## 4. BEHAVIORAL LOGIC (LOOP):
+loop[3]:
+  - counter = counter + 1
+  - SET_BOOL(2, ledState)
+  - WAIT_TIME(LOOP_DELAY)

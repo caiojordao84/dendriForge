@@ -1,0 +1,36 @@
+# ERROR CORPUS: E06
+# Expected error: ERR_CONST_WRITE_VIOLATION
+# Trigger: loop body attempts to assign a new value to MAX_COUNT which
+# is declared as CONST scope. The parser must detect any write to a
+# CONST-scoped variable and emit ERR_CONST_WRITE_VIOLATION naming the
+# variable, its declared scope, and the statement index of the violation.
+
+# METADATA:
+project_name: E06-invalid-scope-write-const
+version: 1
+editor: dendriForge
+author: dendriForge Error Corpus
+ASLversion: 0.1.0
+
+## 1. HARDWARE INTERFACE:
+hardware[1|]{pin|type|io_mode|label|target_role}:
+  2|digital|DO|"ledPin"|digital-out
+
+## 2. SYSTEM DATA:
+data[3|]{name|type|scope|init_value|unit}:
+  MAX_COUNT|UINT|CONST|100|-
+  LOOP_DELAY|TIME|CONST|T#500ms|ms
+  counter|UINT|VAR|0|-
+
+## 3. INITIALIZATION SYSTEM:
+setup[1]:
+  - CFG_DIGITAL_OUTPUT(2)
+
+## 4. BEHAVIORAL LOGIC (LOOP):
+loop[5]:
+  - counter = counter + 1
+  - IF counter > MAX_COUNT:
+  - MAX_COUNT = MAX_COUNT + 10
+  # ^^^ ERR_CONST_WRITE_VIOLATION: MAX_COUNT is CONST and cannot be assigned
+  - counter = 0
+  - WAIT_TIME(LOOP_DELAY)

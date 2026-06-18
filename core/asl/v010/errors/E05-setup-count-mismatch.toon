@@ -1,0 +1,35 @@
+# ERROR CORPUS: E05
+# Expected error: ERR_BLOCK_COUNT_MISMATCH
+# Trigger: setup[2] declares 2 statements but the block body contains 4.
+# The parser must compare the declared count in the block header against
+# the actual number of parsed statements and emit ERR_BLOCK_COUNT_MISMATCH
+# with the block name, declared count, and actual count.
+
+# METADATA:
+project_name: E05-setup-count-mismatch
+version: 1
+editor: dendriForge
+author: dendriForge Error Corpus
+ASLversion: 0.1.0
+
+## 1. HARDWARE INTERFACE:
+hardware[2|]{pin|type|io_mode|label|target_role}:
+  2|digital|DO|"ledA"|digital-out
+  3|digital|DO|"ledB"|digital-out
+
+## 2. SYSTEM DATA:
+data[1|]{name|type|scope|init_value|unit}:
+  LOOP_DELAY|TIME|CONST|T#500ms|ms
+
+## 3. INITIALIZATION SYSTEM:
+setup[2]:
+  # ^^^ declares 2 statements but body has 4
+  - CFG_DIGITAL_OUTPUT(2)
+  - CFG_DIGITAL_OUTPUT(3)
+  - SET_BOOL(2, FALSE)
+  - SET_BOOL(3, FALSE)
+
+## 4. BEHAVIORAL LOGIC (LOOP):
+loop[2]:
+  - SET_BOOL(2, TRUE)
+  - WAIT_TIME(LOOP_DELAY)

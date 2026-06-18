@@ -1,0 +1,29 @@
+# ERROR CORPUS: E01
+# Expected error: ERR_METADATA_MISSING_FIELD
+# Trigger: 'version' field is absent from the METADATA block.
+# The parser must reject any file where a required METADATA key is missing
+# and emit ERR_METADATA_MISSING_FIELD with the name of the absent key.
+
+# METADATA:
+project_name: E01-missing-metadata-field
+# version: INTENTIONALLY OMITTED
+editor: dendriForge
+author: dendriForge Error Corpus
+ASLversion: 0.1.0
+
+## 1. HARDWARE INTERFACE:
+hardware[1|]{pin|type|io_mode|label|target_role}:
+  2|digital|DO|"ledPin"|digital-out
+
+## 2. SYSTEM DATA:
+data[1|]{name|type|scope|init_value|unit}:
+  LOOP_DELAY|TIME|CONST|T#1000ms|ms
+
+## 3. INITIALIZATION SYSTEM:
+setup[1]:
+  - CFG_DIGITAL_OUTPUT(2)
+
+## 4. BEHAVIORAL LOGIC (LOOP):
+loop[2]:
+  - SET_BOOL(2, TRUE)
+  - WAIT_TIME(LOOP_DELAY)

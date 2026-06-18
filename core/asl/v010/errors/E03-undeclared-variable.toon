@@ -1,0 +1,33 @@
+# ERROR CORPUS: E03
+# Expected error: ERR_UNDECLARED_VARIABLE
+# Trigger: loop body references 'undeclaredVar' which does not appear
+# in the data block. The parser must emit ERR_UNDECLARED_VARIABLE with
+# the variable name and the line/statement index where it is first used.
+
+# METADATA:
+project_name: E03-undeclared-variable
+version: 1
+editor: dendriForge
+author: dendriForge Error Corpus
+ASLversion: 0.1.0
+
+## 1. HARDWARE INTERFACE:
+hardware[1|]{pin|type|io_mode|label|target_role}:
+  2|digital|DO|"ledPin"|digital-out
+
+## 2. SYSTEM DATA:
+data[2|]{name|type|scope|init_value|unit}:
+  LOOP_DELAY|TIME|CONST|T#500ms|ms
+  ledState|BOOL|VAR|FALSE|-
+
+## 3. INITIALIZATION SYSTEM:
+setup[1]:
+  - CFG_DIGITAL_OUTPUT(2)
+
+## 4. BEHAVIORAL LOGIC (LOOP):
+loop[4]:
+  - ledState = NOT ledState
+  - SET_BOOL(2, ledState)
+  - undeclaredVar = undeclaredVar + 1
+  # ^^^ 'undeclaredVar' was never declared in the data block
+  - WAIT_TIME(LOOP_DELAY)

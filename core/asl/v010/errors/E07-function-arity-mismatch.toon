@@ -1,0 +1,49 @@
+# ERROR CORPUS: E07
+# Expected error: ERR_FUNCTION_ARITY_MISMATCH
+# Trigger: 'compute_scaled' is declared with 2 parameters (raw, scale)
+# but is called with 3 arguments at two call sites, and 1 argument at
+# a third call site. The parser must check actual vs declared arity at
+# every call site and emit ERR_FUNCTION_ARITY_MISMATCH with the function
+# name, declared arity, and actual arity for each violating call.
+
+# METADATA:
+project_name: E07-function-arity-mismatch
+version: 1
+editor: dendriForge
+author: dendriForge Error Corpus
+ASLversion: 0.1.0
+
+## 1. HARDWARE INTERFACE:
+hardware[2|]{pin|type|io_mode|label|target_role}:
+  0|digital|BI|"uartTxPin"|uart-tx
+  34|analog|DI|"sensorPin"|adc:t
+
+## 2. SYSTEM DATA:
+data[5|]{name|type|scope|init_value|unit}:
+  BAUD_RATE|DINT|CONST|115200|-
+  LOOP_DELAY|TIME|CONST|T#500ms|ms
+  SCALE_A|REAL|CONST|0.1|-
+  SCALE_B|REAL|CONST|0.2|-
+  result|REAL|VAR|0.0|-
+
+## 3. INITIALIZATION SYSTEM:
+setup[2]:
+  - CFG_SERIAL(115200)
+  - CFG_ADC_INPUT(34)
+
+## 4. BEHAVIORAL LOGIC (LOOP):
+loop[6]:
+  - result = compute_scaled(READ_ADC(34), SCALE_A, 99.0)
+  # ^^^ ERR_FUNCTION_ARITY_MISMATCH: compute_scaled declared arity=2, called with 3
+  - SERIAL_PRINTLN(TO_STRING_FMT(result, 3))
+  - result = compute_scaled(READ_ADC(34))
+  # ^^^ ERR_FUNCTION_ARITY_MISMATCH: compute_scaled declared arity=2, called with 1
+  - SERIAL_PRINTLN(TO_STRING_FMT(result, 3))
+  - result = compute_scaled(READ_ADC(34), SCALE_B)
+  # correct call: arity=2 matches declaration
+  - WAIT_TIME(LOOP_DELAY)
+
+## 5. PROCEDURAL FUNCTIONS:
+functions:
+  compute_scaled(raw, scale)[2]:
+    - RETURN MAP_RANGE(INT_TO_REAL(raw), 0.0, 65535.0, 0.0, scale)
