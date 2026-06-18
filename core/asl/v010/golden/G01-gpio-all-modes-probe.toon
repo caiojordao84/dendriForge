@@ -1,0 +1,61 @@
+# METADATA:
+project_name: G01-gpio-all-modes-probe
+version: 1
+editor: dendriForge
+author: dendriForge Golden Suite
+ASLversion: 0.1.0
+# GOLDEN TEST: Covers all three io_mode values (DI, DO, BI),
+# GET_BOOL, SET_BOOL, and basic IF/ELSE chain.
+# Primary: GPIO all modes   Secondary: IF/ELSE, GET_BOOL, SET_BOOL, WAIT_TIME
+
+## 1. HARDWARE INTERFACE:
+hardware[6|]{pin|type|io_mode|label|target_role}:
+  2|digital|DI|"inputPin"|digital-int
+  3|digital|DO|"outputPin"|digital-out
+  4|digital|BI|"biDirPin"|digital-out
+  5|digital|DO|"ledA"|digital-out
+  6|digital|DO|"ledB"|digital-out
+  7|digital|DO|"ledC"|digital-out
+
+## 2. SYSTEM DATA:
+data[6|]{name|type|scope|init_value|unit}:
+  BLINK_DELAY|TIME|CONST|T#200ms|ms
+  PROBE_DELAY|TIME|CONST|T#50ms|ms
+  inputState|BOOL|VAR|FALSE|-
+  biDirState|BOOL|VAR|FALSE|-
+  cycleCount|UINT|VAR|0|-
+  MAX_CYCLES|UINT|CONST|100|-
+
+## 3. INITIALIZATION SYSTEM:
+setup[6]:
+  - CFG_DIGITAL_INPUT(2)
+  - CFG_DIGITAL_OUTPUT(3)
+  - CFG_DIGITAL_INPUT(4)
+  - CFG_DIGITAL_OUTPUT(5)
+  - CFG_DIGITAL_OUTPUT(6)
+  - CFG_DIGITAL_OUTPUT(7)
+
+## 4. BEHAVIORAL LOGIC (LOOP):
+loop[20]:
+  - inputState = GET_BOOL(2)
+  - biDirState = GET_BOOL(4)
+  - IF inputState AND biDirState:
+  - SET_BOOL(5, TRUE)
+  - SET_BOOL(6, FALSE)
+  - SET_BOOL(7, FALSE)
+  - ELSIF inputState AND NOT biDirState:
+  - SET_BOOL(5, FALSE)
+  - SET_BOOL(6, TRUE)
+  - SET_BOOL(7, FALSE)
+  - ELSIF NOT inputState AND biDirState:
+  - SET_BOOL(5, FALSE)
+  - SET_BOOL(6, FALSE)
+  - SET_BOOL(7, TRUE)
+  - ELSE:
+  - SET_BOOL(5, FALSE)
+  - SET_BOOL(6, FALSE)
+  - SET_BOOL(7, FALSE)
+  - SET_BOOL(3, inputState)
+  - cycleCount = cycleCount + 1
+  - IF cycleCount >= MAX_CYCLES: cycleCount = 0
+  - WAIT_TIME(PROBE_DELAY)

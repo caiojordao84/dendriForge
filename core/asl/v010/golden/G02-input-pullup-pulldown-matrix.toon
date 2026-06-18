@@ -1,0 +1,59 @@
+# METADATA:
+project_name: G02-input-pullup-pulldown-matrix
+version: 1
+editor: dendriForge
+author: dendriForge Golden Suite
+ASLversion: 0.1.0
+# GOLDEN TEST: Covers CFG_DIGITAL_INPUT_PULLUP and CFG_DIGITAL_INPUT_PULLDOWN,
+# software debounce using GET_SYS_TIME + TIME_DIFF, and edge detection.
+# Primary: PULLUP/PULLDOWN config   Secondary: Debounce, GET_SYS_TIME, TIME_DIFF, ISR
+
+## 1. HARDWARE INTERFACE:
+hardware[5|]{pin|type|io_mode|label|target_role}:
+  8|digital|DI|"btnPullUp"|int-falling
+  9|digital|DI|"btnPullDown"|int-rising
+  10|digital|DO|"ledPullUp"|digital-out
+  11|digital|DO|"ledPullDown"|digital-out
+  12|digital|DO|"ledBoth"|digital-out
+
+## 2. SYSTEM DATA:
+data[9|]{name|type|scope|init_value|unit}:
+  DEBOUNCE_MS|TIME|CONST|T#50ms|ms
+  statePullUp|BOOL|VAR|FALSE|-
+  statePullDown|BOOL|VAR|FALSE|-
+  lastTimePullUp|DWORD|VAR|0|ms
+  lastTimePullDown|DWORD|VAR|0|ms
+  flagPullUp|BOOL|VAR|FALSE|-
+  flagPullDown|BOOL|VAR|FALSE|-
+  nowPullUp|DWORD|VAR|0|ms
+  nowPullDown|DWORD|VAR|0|ms
+
+## 3. INITIALIZATION SYSTEM:
+setup[5]:
+  - CFG_DIGITAL_INPUT_PULLUP(8)
+  - CFG_DIGITAL_INPUT_PULLDOWN(9)
+  - CFG_DIGITAL_OUTPUT(10)
+  - CFG_DIGITAL_OUTPUT(11)
+  - CFG_DIGITAL_OUTPUT(12)
+
+## 4. BEHAVIORAL LOGIC (LOOP):
+loop[18]:
+  - nowPullUp = GET_SYS_TIME()
+  - nowPullDown = GET_SYS_TIME()
+  - statePullUp = NOT GET_BOOL(8)
+  - statePullDown = GET_BOOL(9)
+  - IF statePullUp AND TIME_DIFF(nowPullUp, lastTimePullUp) > DEBOUNCE_MS:
+  - flagPullUp = NOT flagPullUp
+  - lastTimePullUp = nowPullUp
+  - IF statePullDown AND TIME_DIFF(nowPullDown, lastTimePullDown) > DEBOUNCE_MS:
+  - flagPullDown = NOT flagPullDown
+  - lastTimePullDown = nowPullDown
+  - SET_BOOL(10, flagPullUp)
+  - SET_BOOL(11, flagPullDown)
+  - SET_BOOL(12, AND(flagPullUp, flagPullDown))
+
+## 5. PROCEDURAL FUNCTIONS:
+functions:
+  reset_flags()[2]:
+    - flagPullUp = FALSE
+    - flagPullDown = FALSE

@@ -1,0 +1,74 @@
+# METADATA:
+project_name: G04-rotary-encoder-counter
+version: 1
+editor: dendriForge
+author: dendriForge Golden Suite
+ASLversion: 0.1.0
+# GOLDEN TEST: Covers GPIO interrupt-driven quadrature rotary encoder,
+# counters, debounce via TIME_DIFF, and LCD display output.
+# Primary: GPIO + counters   Secondary: ISR CHANGE, TIME_DIFF, LCD, CLAMP
+
+## 1. HARDWARE INTERFACE:
+hardware[6|]{pin|type|io_mode|label|target_role}:
+  0|digital|BI|"sdaPin"|i2c-sda
+  1|digital|BI|"sclPin"|i2c-scl
+  20|digital|DI|"encA"|int-change
+  21|digital|DI|"encB"|digital-int
+  22|digital|DI|"encBtn"|int-falling
+  23|digital|DO|"ledIndicator"|digital-out
+
+## 2. SYSTEM DATA:
+data[11|]{name|type|scope|init_value|unit}:
+  COUNT_MIN|INT|CONST|-100|-
+  COUNT_MAX|INT|CONST|100|-
+  DEBOUNCE_BTN|TIME|CONST|T#200ms|ms
+  LOOP_DELAY|TIME|CONST|T#20ms|ms
+  encoderCount|INT|VAR|0|-
+  lastEncA|BOOL|VAR|FALSE|-
+  btnPressed|BOOL|VAR|FALSE|-
+  lastBtnTime|DWORD|VAR|0|ms
+  displayDirty|BOOL|VAR|TRUE|-
+  nowTime|DWORD|VAR|0|ms
+  encAState|BOOL|VAR|FALSE|-
+
+## 3. INITIALIZATION SYSTEM:
+setup[5]:
+  - CFG_I2C(0, 0, 1, 400000)
+  - CFG_LCD(0x27, 16, 2)
+  - CFG_DIGITAL_INPUT_PULLUP(20)
+  - CFG_DIGITAL_INPUT_PULLUP(21)
+  - CFG_DIGITAL_INPUT_PULLUP(22)
+  - CFG_DIGITAL_OUTPUT(23)
+  - CFG_ATTACH_INTERRUPT(20, isr_enc_a, CHANGE)
+  - CFG_ATTACH_INTERRUPT(22, isr_btn, FALLING)
+  - LCD_CLEAR()
+  - LCD_PRINT(0, 0, "Count:")
+
+## 4. BEHAVIORAL LOGIC (LOOP):
+loop[9]:
+  - IF displayDirty:
+  - LCD_PRINT(7, 0, CONCAT(TO_STRING(encoderCount), "   "))
+  - SET_BOOL(23, encoderCount > 0)
+  - displayDirty = FALSE
+  - IF btnPressed:
+  - encoderCount = 0
+  - displayDirty = TRUE
+  - btnPressed = FALSE
+  - WAIT_TIME(LOOP_DELAY)
+
+## 5. PROCEDURAL FUNCTIONS:
+functions:
+  isr_enc_a()[6]:
+    - encAState = GET_BOOL(20)
+    - IF encAState AND NOT lastEncA:
+    - IF GET_BOOL(21): encoderCount = encoderCount - 1
+    - ELSE: encoderCount = encoderCount + 1
+    - encoderCount = CLAMP(encoderCount, COUNT_MIN, COUNT_MAX)
+    - lastEncA = encAState
+    - displayDirty = TRUE
+
+  isr_btn()[4]:
+    - nowTime = GET_SYS_TIME()
+    - IF TIME_DIFF(nowTime, lastBtnTime) > DEBOUNCE_BTN:
+    - btnPressed = TRUE
+    - lastBtnTime = nowTime

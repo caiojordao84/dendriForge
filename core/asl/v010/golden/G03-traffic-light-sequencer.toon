@@ -1,0 +1,75 @@
+# METADATA:
+project_name: G03-traffic-light-sequencer
+version: 1
+editor: dendriForge
+author: dendriForge Golden Suite
+ASLversion: 0.1.0
+# GOLDEN TEST: Covers GPIO output sequencing driven by a state machine,
+# named TIME constants, WAIT_TIME, and multi-phase timed transitions.
+# Primary: GPIO output sequencing + state machine
+# Secondary: WAIT_TIME, named TIME consts, WHILE, REPEAT, SET_BOOL
+
+## 1. HARDWARE INTERFACE:
+hardware[6|]{pin|type|io_mode|label|target_role}:
+  13|digital|DO|"redA"|digital-out
+  14|digital|DO|"yellowA"|digital-out
+  15|digital|DO|"greenA"|digital-out
+  16|digital|DO|"redB"|digital-out
+  17|digital|DO|"yellowB"|digital-out
+  18|digital|DO|"greenB"|digital-out
+
+## 2. SYSTEM DATA:
+data[10|]{name|type|scope|init_value|unit}:
+  T_RED|TIME|CONST|T#5000ms|ms
+  T_YELLOW|TIME|CONST|T#1500ms|ms
+  T_GREEN|TIME|CONST|T#4000ms|ms
+  T_BLINK|TIME|CONST|T#300ms|ms
+  BLINK_COUNT|UINT|CONST|4|-
+  STATE_RED_A|UINT|CONST|0|-
+  STATE_GREEN_A|UINT|CONST|1|-
+  STATE_YELLOW_A|UINT|CONST|2|-
+  state|UINT|VAR|0|-
+  blinksDone|UINT|VAR|0|-
+
+## 3. INITIALIZATION SYSTEM:
+setup[6]:
+  - CFG_DIGITAL_OUTPUT(13)
+  - CFG_DIGITAL_OUTPUT(14)
+  - CFG_DIGITAL_OUTPUT(15)
+  - CFG_DIGITAL_OUTPUT(16)
+  - CFG_DIGITAL_OUTPUT(17)
+  - CFG_DIGITAL_OUTPUT(18)
+
+## 4. BEHAVIORAL LOGIC (LOOP):
+loop[17]:
+  - IF state = STATE_RED_A:
+  - set_phase(TRUE, FALSE, FALSE, FALSE, FALSE, TRUE)
+  - WAIT_TIME(T_RED)
+  - state = STATE_GREEN_A
+  - ELSIF state = STATE_GREEN_A:
+  - set_phase(FALSE, FALSE, TRUE, TRUE, FALSE, FALSE)
+  - WAIT_TIME(T_GREEN)
+  - state = STATE_YELLOW_A
+  - ELSIF state = STATE_YELLOW_A:
+  - set_phase(FALSE, FALSE, TRUE, TRUE, FALSE, FALSE)
+  - blinksDone = 0
+  - FOR _i0 := 0 TO BLINK_COUNT:
+  - SET_BOOL(15, FALSE)
+  - SET_BOOL(16, FALSE)
+  - WAIT_TIME(T_BLINK)
+  - SET_BOOL(15, TRUE)
+  - SET_BOOL(16, TRUE)
+  - WAIT_TIME(T_BLINK)
+  - set_phase(FALSE, TRUE, FALSE, FALSE, TRUE, FALSE)
+  - WAIT_TIME(T_YELLOW)
+  - state = STATE_RED_A
+
+## 5. PROCEDURAL FUNCTIONS:
+functions:
+  set_phase(rA, yA, gA, rB, yB, gB)[6]:
+    - SET_BOOL(13, rA)
+    - SET_BOOL(14, yA)
+    - SET_BOOL(15, gA)
+    - SET_BOOL(16, rB)
+    - SET_BOOL(17, yB)
+    - SET_BOOL(18, gB)
