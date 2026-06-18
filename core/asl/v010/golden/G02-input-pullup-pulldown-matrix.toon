@@ -4,9 +4,6 @@ version: 1
 editor: dendriForge
 author: dendriForge Golden Suite
 ASLversion: 0.1.0
-# GOLDEN TEST: Covers CFG_DIGITAL_INPUT_PULLUP and CFG_DIGITAL_INPUT_PULLDOWN,
-# software debounce using GET_SYS_TIME + TIME_DIFF, and edge detection.
-# Primary: PULLUP/PULLDOWN config   Secondary: Debounce, GET_SYS_TIME, TIME_DIFF, ISR
 
 ## 1. HARDWARE INTERFACE:
 hardware[5|]{pin|type|io_mode|label|target_role}:
@@ -37,7 +34,7 @@ setup[5]:
   - CFG_DIGITAL_OUTPUT(12)
 
 ## 4. BEHAVIORAL LOGIC (LOOP):
-loop[18]:
+loop[13]:
   - nowPullUp = GET_SYS_TIME()
   - nowPullDown = GET_SYS_TIME()
   - statePullUp = NOT GET_BOOL(8)
