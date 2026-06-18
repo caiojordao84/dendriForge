@@ -1,0 +1,114 @@
+# METADATA:
+project_name: G08-stopwatch-lap-timer
+version: 1
+editor: dendriForge
+author: dendriForge Golden Suite
+ASLversion: 0.1.0
+# GOLDEN TEST: Covers GET_SYS_TIME, TIME_DIFF (rollover-safe pattern),
+# lap counter, ISR-driven state transitions, and LCD display.
+# Primary: Timer GET_SYS_TIME + TIME_DIFF
+# Secondary: Counters, button ISR, LCD, RETAIN lap records
+
+## 1. HARDWARE INTERFACE:
+hardware[6|]{pin|type|io_mode|label|target_role}:
+  0|digital|BI|"sdaPin"|i2c-sda
+  1|digital|BI|"sclPin"|i2c-scl
+  10|digital|DI|"btnStart"|int-falling
+  11|digital|DI|"btnLap"|int-falling
+  12|digital|DI|"btnReset"|int-falling
+  13|digital|DO|"ledRunning"|digital-out
+
+## 2. SYSTEM DATA:
+data[17|]{name|type|scope|init_value|unit}:
+  DEBOUNCE|TIME|CONST|T#80ms|ms
+  LOOP_DELAY|TIME|CONST|T#50ms|ms
+  MAX_LAPS|UINT|CONST|9|-
+  STATE_IDLE|UINT|CONST|0|-
+  STATE_RUNNING|UINT|CONST|1|-
+  STATE_PAUSED|UINT|CONST|2|-
+  swState|UINT|VAR|0|-
+  startTime|DWORD|VAR|0|ms
+  elapsedMs|DWORD|VAR|0|ms
+  lapCount|UINT|VAR|0|-
+  lapTime|DWORD|VAR|0|ms
+  lastLapMs|DWORD|VAR|0|ms
+  lastBtnStart|DWORD|VAR|0|ms
+  lastBtnLap|DWORD|VAR|0|ms
+  lastBtnReset|DWORD|VAR|0|ms
+  nowMs|DWORD|VAR|0|ms
+  displayDirty|BOOL|VAR|TRUE|-
+
+## 3. INITIALIZATION SYSTEM:
+setup[8]:
+  - CFG_I2C(0, 0, 1, 400000)
+  - CFG_LCD(0x27, 16, 2)
+  - CFG_DIGITAL_INPUT_PULLUP(10)
+  - CFG_DIGITAL_INPUT_PULLUP(11)
+  - CFG_DIGITAL_INPUT_PULLUP(12)
+  - CFG_DIGITAL_OUTPUT(13)
+  - CFG_ATTACH_INTERRUPT(10, isr_btn_start, FALLING)
+  - CFG_ATTACH_INTERRUPT(11, isr_btn_lap, FALLING)
+  - CFG_ATTACH_INTERRUPT(12, isr_btn_reset, FALLING)
+  - LCD_CLEAR()
+  - LCD_PRINT(0, 0, "Stopwatch Ready")
+
+## 4. BEHAVIORAL LOGIC (LOOP):
+loop[14]:
+  - nowMs = GET_SYS_TIME()
+  - IF swState = STATE_RUNNING:
+  - elapsedMs = TIME_DIFF(nowMs, startTime)
+  - displayDirty = TRUE
+  - SET_BOOL(13, TRUE)
+  - ELSIF swState = STATE_PAUSED:
+  - SET_BOOL(13, FALSE)
+  - ELSE:
+  - SET_BOOL(13, FALSE)
+  - IF displayDirty:
+  - update_display()
+  - displayDirty = FALSE
+  - WAIT_TIME(LOOP_DELAY)
+
+## 5. PROCEDURAL FUNCTIONS:
+functions:
+  isr_btn_start()[8]:
+    - nowMs = GET_SYS_TIME()
+    - IF TIME_DIFF(nowMs, lastBtnStart) > DEBOUNCE:
+    - IF swState = STATE_IDLE:
+    - startTime = nowMs
+    - swState = STATE_RUNNING
+    - ELSIF swState = STATE_RUNNING:
+    - swState = STATE_PAUSED
+    - ELSIF swState = STATE_PAUSED:
+    - startTime = TIME_DIFF(nowMs, elapsedMs)
+    - swState = STATE_RUNNING
+    - lastBtnStart = nowMs
+
+  isr_btn_lap()[6]:
+    - nowMs = GET_SYS_TIME()
+    - IF TIME_DIFF(nowMs, lastBtnLap) > DEBOUNCE:
+    - IF swState = STATE_RUNNING AND lapCount < MAX_LAPS:
+    - lapTime = TIME_DIFF(elapsedMs, lastLapMs)
+    - lastLapMs = elapsedMs
+    - lapCount = lapCount + 1
+    - lastBtnLap = nowMs
+
+  isr_btn_reset()[5]:
+    - nowMs = GET_SYS_TIME()
+    - IF TIME_DIFF(nowMs, lastBtnReset) > DEBOUNCE:
+    - swState = STATE_IDLE
+    - elapsedMs = 0
+    - lapCount = 0
+    - lastLapMs = 0
+    - lastBtnReset = nowMs
+
+  format_time(ms)[3]:
+    - secs = REAL_TO_INT(INT_TO_REAL(ms) / 1000.0)
+    - tenths = REAL_TO_INT(INT_TO_REAL(MOD(ms, 1000)) / 100.0)
+    - RETURN CONCAT(TO_STRING(secs), ".", TO_STRING(tenths), "s")
+
+  update_display()[4]:
+    - LCD_PRINT(0, 0, CONCAT("Time: ", format_time(elapsedMs), "   "))
+    - IF lapCount > 0:
+    - LCD_PRINT(0, 1, CONCAT("Lap ", TO_STRING(lapCount), ": ", format_time(lapTime), "  "))
+    - ELSE:
+    - LCD_PRINT(0, 1, "Lap: --         ")

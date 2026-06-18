@@ -1,0 +1,95 @@
+# METADATA:
+project_name: G10-watchdog-heartbeat-monitor
+version: 1
+editor: dendriForge
+author: dendriForge Golden Suite
+ASLversion: 0.1.0
+# GOLDEN TEST: Covers software watchdog via GET_SYS_TIME + TIME_DIFF,
+# RETAIN scope for persistent reboot counter, alarm escalation states,
+# and SERIAL_PRINTLN diagnostics on timeout.
+# Primary: Timer overflow / software watchdog + RETAIN
+# Secondary: GET_SYS_TIME, TIME_DIFF, RETAIN, SERIAL_PRINTLN, state escalation
+
+## 1. HARDWARE INTERFACE:
+hardware[4|]{pin|type|io_mode|label|target_role}:
+  2|digital|DI|"heartbeatPin"|int-rising
+  3|digital|DO|"ledHealthy"|digital-out
+  4|digital|DO|"ledAlarm"|digital-out
+  5|digital|DO|"buzzerPin"|pwm-out
+
+## 2. SYSTEM DATA:
+data[16|]{name|type|scope|init_value|unit}:
+  WDT_TIMEOUT|TIME|CONST|T#2000ms|ms
+  WDT_CRITICAL|TIME|CONST|T#5000ms|ms
+  BAUD_RATE|DINT|CONST|115200|-
+  LOOP_DELAY|TIME|CONST|T#100ms|ms
+  BUZZER_FREQ|UINT|CONST|1000|Hz
+  ALARM_NONE|UINT|CONST|0|-
+  ALARM_WARN|UINT|CONST|1|-
+  ALARM_CRIT|UINT|CONST|2|-
+  rebootCount|UINT|RETAIN|0|-
+  lastHeartbeat|DWORD|VAR|0|ms
+  alarmState|UINT|VAR|0|-
+  silenceAlarm|BOOL|VAR|FALSE|-
+  nowMs|DWORD|VAR|0|ms
+  missedBeats|UINT|VAR|0|-
+  wdtElapsed|DWORD|VAR|0|ms
+  prevAlarmState|UINT|VAR|0|-
+
+## 3. INITIALIZATION SYSTEM:
+setup[7]:
+  - CFG_SERIAL(115200)
+  - CFG_DIGITAL_INPUT_PULLDOWN(2)
+  - CFG_DIGITAL_OUTPUT(3)
+  - CFG_DIGITAL_OUTPUT(4)
+  - CFG_PWM_OUTPUT(5, 1000)
+  - CFG_ATTACH_INTERRUPT(2, isr_heartbeat, RISING)
+  - rebootCount = rebootCount + 1
+  - SERIAL_PRINTLN(CONCAT("Boot #", TO_STRING(rebootCount)))
+  - lastHeartbeat = GET_SYS_TIME()
+
+## 4. BEHAVIORAL LOGIC (LOOP):
+loop[22]:
+  - nowMs = GET_SYS_TIME()
+  - wdtElapsed = TIME_DIFF(nowMs, lastHeartbeat)
+  - prevAlarmState = alarmState
+  - IF wdtElapsed >= WDT_CRITICAL:
+  - alarmState = ALARM_CRIT
+  - missedBeats = missedBeats + 1
+  - ELSIF wdtElapsed >= WDT_TIMEOUT:
+  - alarmState = ALARM_WARN
+  - ELSE:
+  - alarmState = ALARM_NONE
+  - missedBeats = 0
+  - IF alarmState = ALARM_NONE:
+  - SET_BOOL(3, TRUE)
+  - SET_BOOL(4, FALSE)
+  - SET_PWM_DUTY(5, 0)
+  - ELSIF alarmState = ALARM_WARN:
+  - SET_BOOL(3, FALSE)
+  - SET_BOOL(4, TRUE)
+  - SET_PWM_DUTY(5, 0)
+  - ELSIF alarmState = ALARM_CRIT AND NOT silenceAlarm:
+  - SET_BOOL(3, FALSE)
+  - SET_BOOL(4, TRUE)
+  - SET_PWM_DUTY(5, 32768)
+  - IF alarmState <> prevAlarmState:
+  - log_alarm_transition(prevAlarmState, alarmState)
+  - WAIT_TIME(LOOP_DELAY)
+
+## 5. PROCEDURAL FUNCTIONS:
+functions:
+  isr_heartbeat()[2]:
+    - lastHeartbeat = GET_SYS_TIME()
+    - silenceAlarm = FALSE
+
+  log_alarm_transition(fromState, toState)[3]:
+    - SERIAL_PRINTLN(CONCAT("WDT [t=", TO_STRING(GET_SYS_TIME()), "ms] ", alarm_name(fromState), " -> ", alarm_name(toState)))
+    - IF toState = ALARM_CRIT:
+    - SERIAL_PRINTLN(CONCAT("  missed_beats=", TO_STRING(missedBeats), " reboot_count=", TO_STRING(rebootCount)))
+
+  alarm_name(s)[4]:
+    - IF s = ALARM_NONE: RETURN "HEALTHY"
+    - ELSIF s = ALARM_WARN: RETURN "WARN"
+    - ELSIF s = ALARM_CRIT: RETURN "CRITICAL"
+    - RETURN "UNKNOWN"

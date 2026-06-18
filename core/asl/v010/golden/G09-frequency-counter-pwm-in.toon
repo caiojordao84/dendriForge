@@ -1,0 +1,76 @@
+# METADATA:
+project_name: G09-frequency-counter-pwm-in
+version: 1
+editor: dendriForge
+author: dendriForge Golden Suite
+ASLversion: 0.1.0
+# GOLDEN TEST: Covers pulse counting via ISR, frequency calculation using
+# GET_SYS_TIME + TIME_DIFF over a fixed gate window, duty-cycle measurement,
+# and SERIAL_PRINTLN structured output.
+# Primary: Counter + timer gate window
+# Secondary: ISR RISING, TIME_DIFF, GET_SYS_TIME, SERIAL_PRINTLN, REAL math
+
+## 1. HARDWARE INTERFACE:
+hardware[3|]{pin|type|io_mode|label|target_role}:
+  14|digital|DI|"signalIn"|int-rising
+  15|digital|DI|"signalFall"|int-falling
+  16|digital|DO|"ledGate"|digital-out
+
+## 2. SYSTEM DATA:
+data[15|]{name|type|scope|init_value|unit}:
+  GATE_WINDOW|TIME|CONST|T#1000ms|ms
+  SERIAL_BAUD|DINT|CONST|115200|-
+  LOOP_DELAY|TIME|CONST|T#10ms|ms
+  pulseCount|UINT|VAR|0|-
+  lastRiseTime|DWORD|VAR|0|ms
+  lastFallTime|DWORD|VAR|0|ms
+  gateStart|DWORD|VAR|0|ms
+  gateReady|BOOL|VAR|FALSE|-
+  freqHz|REAL|VAR|0.0|Hz
+  periodUs|DWORD|VAR|0|us
+  highTimeUs|DWORD|VAR|0|us
+  dutyCyclePct|REAL|VAR|0.0|pct
+  nowMs|DWORD|VAR|0|ms
+  nowUs|DWORD|VAR|0|us
+  logLine|STRING|VAR|""-
+
+## 3. INITIALIZATION SYSTEM:
+setup[5]:
+  - CFG_SERIAL(115200)
+  - CFG_DIGITAL_INPUT(14)
+  - CFG_DIGITAL_INPUT(15)
+  - CFG_DIGITAL_OUTPUT(16)
+  - CFG_ATTACH_INTERRUPT(14, isr_rise, RISING)
+  - CFG_ATTACH_INTERRUPT(15, isr_fall, FALLING)
+  - gateStart = GET_SYS_TIME()
+  - SERIAL_PRINTLN("freq_hz,period_us,duty_pct")
+
+## 4. BEHAVIORAL LOGIC (LOOP):
+loop[14]:
+  - nowMs = GET_SYS_TIME()
+  - IF TIME_DIFF(nowMs, gateStart) >= GATE_WINDOW:
+  - freqHz = INT_TO_REAL(pulseCount) / (INT_TO_REAL(GATE_WINDOW) / 1000.0)
+  - IF pulseCount > 0 AND periodUs > 0:
+  - dutyCyclePct = MAP_RANGE(INT_TO_REAL(highTimeUs), 0.0, INT_TO_REAL(periodUs), 0.0, 100.0)
+  - ELSE:
+  - dutyCyclePct = 0.0
+  - logLine = CONCAT(TO_STRING_FMT(freqHz, 2), ",", TO_STRING(periodUs), ",", TO_STRING_FMT(dutyCyclePct, 1))
+  - SERIAL_PRINTLN(logLine)
+  - pulseCount = 0
+  - gateStart = nowMs
+  - SET_BOOL(16, gateReady)
+  - gateReady = NOT gateReady
+  - WAIT_TIME(LOOP_DELAY)
+
+## 5. PROCEDURAL FUNCTIONS:
+functions:
+  isr_rise()[3]:
+    - nowUs = GET_SYS_TIME_US()
+    - IF lastRiseTime > 0: periodUs = TIME_DIFF(nowUs, lastRiseTime)
+    - lastRiseTime = nowUs
+    - pulseCount = pulseCount + 1
+
+  isr_fall()[2]:
+    - nowUs = GET_SYS_TIME_US()
+    - IF lastRiseTime > 0: highTimeUs = TIME_DIFF(nowUs, lastRiseTime)
+    - lastFallTime = nowUs
