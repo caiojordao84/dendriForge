@@ -1,0 +1,85 @@
+# METADATA:
+project_name: G14-uart-csv-data-streamer
+version: 1
+editor: dendriForge
+author: dendriForge Golden Suite
+ASLversion: 0.1.0
+# GOLDEN TEST: Covers structured CSV streaming over SERIAL_PRINTLN,
+# multi-ADC sampling, GET_SYS_TIME timestamp column, TO_STRING_FMT
+# precision formatting, SERIAL_READ for flow-control pause/resume,
+# and SERIAL_FLUSH.
+# Primary: Serial TX data logger   Secondary: ADC, GET_SYS_TIME, TO_STRING_FMT, CONCAT, flow control
+
+## 1. HARDWARE INTERFACE:
+hardware[5|]{pin|type|io_mode|label|target_role}:
+  0|digital|BI|"uartTxPin"|uart-tx
+  1|digital|BI|"uartRxPin"|uart-rx
+  34|analog|DI|"sensorA"|adc:t
+  35|analog|DI|"sensorB"|adc:t
+  36|analog|DI|"sensorC"|adc:t
+
+## 2. SYSTEM DATA:
+data[18|]{name|type|scope|init_value|unit}:
+  BAUD_RATE|DINT|CONST|115200|-
+  SAMPLE_INTERVAL|TIME|CONST|T#200ms|ms
+  SAMPLE_COUNT|UINT|CONST|4|-
+  ADC_REF_V|REAL|CONST|3.3|V
+  ADC_FULL_SCALE|REAL|CONST|65535.0|-
+  LOG_HEADER|STRING|CONST|"ts_ms,seq,vA_V,vB_V,vC_V,vA_raw,vB_raw,vC_raw"|-
+  CTRL_PAUSE|STRING|CONST|"PAUSE"|-
+  CTRL_RESUME|STRING|CONST|"RESUME"|-
+  CTRL_HEADER|STRING|CONST|"HEADER"|-
+  streaming|BOOL|VAR|TRUE|-
+  seqNum|UINT|VAR|0|-
+  rawA|UINT|VAR|0|-
+  rawB|UINT|VAR|0|-
+  rawC|UINT|VAR|0|-
+  vA|REAL|VAR|0.0|V
+  vB|REAL|VAR|0.0|V
+  vC|REAL|VAR|0.0|V
+  ctrlCmd|STRING|VAR|""-
+
+## 3. INITIALIZATION SYSTEM:
+setup[5]:
+  - CFG_SERIAL(115200)
+  - CFG_ADC_INPUT(34)
+  - CFG_ADC_INPUT(35)
+  - CFG_ADC_INPUT(36)
+  - SERIAL_PRINTLN(LOG_HEADER)
+
+## 4. BEHAVIORAL LOGIC (LOOP):
+loop[20]:
+  - IF SERIAL_AVAILABLE() > 0:
+  - ctrlCmd = SERIAL_READLN()
+  - SERIAL_FLUSH()
+  - handle_ctrl(ctrlCmd)
+  - IF streaming:
+  - rawA = sample_avg(34)
+  - rawB = sample_avg(35)
+  - rawC = sample_avg(36)
+  - vA = MAP_RANGE(INT_TO_REAL(rawA), 0.0, ADC_FULL_SCALE, 0.0, ADC_REF_V)
+  - vB = MAP_RANGE(INT_TO_REAL(rawB), 0.0, ADC_FULL_SCALE, 0.0, ADC_REF_V)
+  - vC = MAP_RANGE(INT_TO_REAL(rawC), 0.0, ADC_FULL_SCALE, 0.0, ADC_REF_V)
+  - seqNum = seqNum + 1
+  - SERIAL_PRINTLN(CONCAT(TO_STRING(GET_SYS_TIME()), ",", TO_STRING(seqNum), ",", TO_STRING_FMT(vA, 4), ",", TO_STRING_FMT(vB, 4), ",", TO_STRING_FMT(vC, 4), ",", TO_STRING(rawA), ",", TO_STRING(rawB), ",", TO_STRING(rawC)))
+  - WAIT_TIME(SAMPLE_INTERVAL)
+
+## 5. PROCEDURAL FUNCTIONS:
+functions:
+  sample_avg(pin)[5]:
+    - acc = 0
+    - FOR _i0 := 0 TO SAMPLE_COUNT:
+    - acc = acc + READ_ADC(pin)
+    - RETURN acc / SAMPLE_COUNT
+
+  handle_ctrl(cmd)[8]:
+    - IF cmd = CTRL_PAUSE:
+    - streaming = FALSE
+    - SERIAL_PRINTLN("PAUSED")
+    - ELSIF cmd = CTRL_RESUME:
+    - streaming = TRUE
+    - SERIAL_PRINTLN("RESUMED")
+    - ELSIF cmd = CTRL_HEADER:
+    - SERIAL_PRINTLN(LOG_HEADER)
+    - ELSE:
+    - SERIAL_PRINTLN(CONCAT("UNKNOWN_CTRL: ", cmd))

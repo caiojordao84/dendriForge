@@ -1,0 +1,92 @@
+# METADATA:
+project_name: G13-uart-echo-command-parser
+version: 1
+editor: dendriForge
+author: dendriForge Golden Suite
+ASLversion: 0.1.0
+# GOLDEN TEST: Covers CFG_SERIAL, SERIAL_AVAILABLE, SERIAL_READLN,
+# SERIAL_PRINT, SERIAL_PRINTLN, SERIAL_FLUSH, command dispatch via
+# string comparison, and CONCAT-built responses.
+# Primary: Serial RX/TX command parser
+# Secondary: SERIAL_AVAILABLE, SERIAL_READLN, STR comparison, CONCAT, SET_BOOL
+
+## 1. HARDWARE INTERFACE:
+hardware[4|]{pin|type|io_mode|label|target_role}:
+  0|digital|BI|"uartTxPin"|uart-tx
+  1|digital|BI|"uartRxPin"|uart-rx
+  2|digital|DO|"ledStatus"|digital-out
+  3|digital|DO|"ledError"|digital-out
+
+## 2. SYSTEM DATA:
+data[14|]{name|type|scope|init_value|unit}:
+  BAUD_RATE|DINT|CONST|115200|-
+  LOOP_DELAY|TIME|CONST|T#10ms|ms
+  CMD_ON|STRING|CONST|"LED:ON"|-
+  CMD_OFF|STRING|CONST|"LED:OFF"|-
+  CMD_STATUS|STRING|CONST|"STATUS"|-
+  CMD_RESET|STRING|CONST|"RESET"|-
+  CMD_PING|STRING|CONST|"PING"|-
+  ledState|BOOL|VAR|FALSE|-
+  errorCount|UINT|VAR|0|-
+  cmdCount|UINT|VAR|0|-
+  uptime|DWORD|VAR|0|ms
+  rxLine|STRING|VAR|""-
+  response|STRING|VAR|""-
+  lastCmd|STRING|VAR|""-
+
+## 3. INITIALIZATION SYSTEM:
+setup[4]:
+  - CFG_SERIAL(115200)
+  - CFG_DIGITAL_OUTPUT(2)
+  - CFG_DIGITAL_OUTPUT(3)
+  - SET_BOOL(2, FALSE)
+  - SET_BOOL(3, FALSE)
+  - SERIAL_PRINTLN("dendriForge UART parser ready")
+  - SERIAL_PRINTLN("Commands: LED:ON LED:OFF STATUS RESET PING")
+
+## 4. BEHAVIORAL LOGIC (LOOP):
+loop[10]:
+  - uptime = GET_SYS_TIME()
+  - IF SERIAL_AVAILABLE() > 0:
+  - rxLine = SERIAL_READLN()
+  - SERIAL_FLUSH()
+  - process_command(rxLine)
+  - WAIT_TIME(LOOP_DELAY)
+
+## 5. PROCEDURAL FUNCTIONS:
+functions:
+  process_command(cmd)[18]:
+    - IF cmd = CMD_PING:
+    - SERIAL_PRINTLN("PONG")
+    - ELSIF cmd = CMD_ON:
+    - ledState = TRUE
+    - SET_BOOL(2, TRUE)
+    - SET_BOOL(3, FALSE)
+    - response = CONCAT("OK LED ON t=", TO_STRING(uptime), "ms")
+    - SERIAL_PRINTLN(response)
+    - ELSIF cmd = CMD_OFF:
+    - ledState = FALSE
+    - SET_BOOL(2, FALSE)
+    - SET_BOOL(3, FALSE)
+    - response = CONCAT("OK LED OFF t=", TO_STRING(uptime), "ms")
+    - SERIAL_PRINTLN(response)
+    - ELSIF cmd = CMD_STATUS:
+    - SERIAL_PRINTLN(CONCAT("uptime=", TO_STRING(uptime), "ms cmds=", TO_STRING(cmdCount), " errs=", TO_STRING(errorCount), " led=", SEL(ledState, "OFF", "ON")))
+    - ELSIF cmd = CMD_RESET:
+    - ledState = FALSE
+    - errorCount = 0
+    - cmdCount = 0
+    - SET_BOOL(2, FALSE)
+    - SET_BOOL(3, FALSE)
+    - SERIAL_PRINTLN("RESET OK")
+    - ELSE:
+    - errorCount = errorCount + 1
+    - SET_BOOL(3, TRUE)
+    - SERIAL_PRINTLN(CONCAT("ERR unknown cmd: ", cmd))
+    - lastCmd = cmd
+    - cmdCount = cmdCount + 1
+
+  echo_status()[3]:
+    - SERIAL_PRINT("last_cmd: ")
+    - SERIAL_PRINTLN(lastCmd)
+    - SERIAL_PRINTLN(CONCAT("err_rate=", TO_STRING_FMT(MAP_RANGE(INT_TO_REAL(errorCount), 0.0, INT_TO_REAL(MAX(cmdCount, 1)), 0.0, 100.0), 1), "%"))
