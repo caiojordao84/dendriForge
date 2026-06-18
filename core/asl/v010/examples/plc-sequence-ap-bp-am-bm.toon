@@ -6,82 +6,81 @@ author: TJUICE
 ASLversion: 0.1.0
 
 ## 1. HARDWARE INTERFACE:
-# Format: pin | type | io_mode | label | target_role
 hardware[9|]{pin|type|io_mode|label|target_role}:
-  0|digital|input|"Start Button"|btn-start
-  1|digital|input|"Sensor A0 (Retracted)"|sensor-a0
-  2|digital|input|"Sensor A1 (Extended)"|sensor-a1
-  3|digital|input|"Sensor B0 (Retracted)"|sensor-b0
-  4|digital|input|"Sensor B1 (Extended)"|sensor-b1
-  14|digital|output|"Valve A+ (Extend)"|valve-a-plus
-  15|digital|output|"Valve A- (Retract)"|valve-a-minus
-  16|digital|output|"Valve B+ (Extend)"|valve-b-plus
-  17|digital|output|"Valve B- (Retract)"|valve-b-minus
+  0|digital|DI|"startBtn"|btn-start
+  1|digital|DI|"sensorA0"|sensor-a0
+  2|digital|DI|"sensorA1"|sensor-a1
+  3|digital|DI|"sensorB0"|sensor-b0
+  4|digital|DI|"sensorB1"|sensor-b1
+  14|digital|DO|"valveAplus"|valve-a-plus
+  15|digital|DO|"valveAminus"|valve-a-minus
+  16|digital|DO|"valveBplus"|valve-b-plus
+  17|digital|DO|"valveBminus"|valve-b-minus
 
 ## 2. SYSTEM DATA:
-data:
-  TIME_UNIT: ms
-  step: 0
-  start_btn: false
-  a0: false
-  a1: false
-  b0: false
-  b1: false
-  out_a: false
-  out_b: false
+data[9|]{name|type|scope|init_value|unit}:
+  LOOP_INTERVAL|TIME|CONST|T#10ms|ms
+  seqStep|UINT|VAR|0|-
+  startBtn|BOOL|VAR|FALSE|-
+  snsA0|BOOL|VAR|FALSE|-
+  snsA1|BOOL|VAR|FALSE|-
+  snsB0|BOOL|VAR|FALSE|-
+  snsB1|BOOL|VAR|FALSE|-
+  outA|BOOL|VAR|FALSE|-
+  outB|BOOL|VAR|FALSE|-
 
 ## 3. INITIALIZATION SYSTEM:
 setup[9]:
-  - pinMode(0, INPUT)
-  - pinMode(1, INPUT)
-  - pinMode(2, INPUT)
-  - pinMode(3, INPUT)
-  - pinMode(4, INPUT)
-  - pinMode(14, OUTPUT)
-  - pinMode(15, OUTPUT)
-  - pinMode(16, OUTPUT)
-  - pinMode(17, OUTPUT)
+  - CFG_DIGITAL_INPUT(0)
+  - CFG_DIGITAL_INPUT(1)
+  - CFG_DIGITAL_INPUT(2)
+  - CFG_DIGITAL_INPUT(3)
+  - CFG_DIGITAL_INPUT(4)
+  - CFG_DIGITAL_OUTPUT(14)
+  - CFG_DIGITAL_OUTPUT(15)
+  - CFG_DIGITAL_OUTPUT(16)
+  - CFG_DIGITAL_OUTPUT(17)
 
 ## 4. BEHAVIORAL LOGIC (LOOP):
 loop[4]:
   - read_inputs()
   - process_state_machine()
   - write_outputs()
-  - delay(10)
+  - WAIT_TIME(LOOP_INTERVAL)
 
 ## 5. PROCEDURAL FUNCTIONS:
 functions:
   read_inputs()[5]:
-    - start_btn = digitalRead(0)
-    - a0 = digitalRead(1)
-    - a1 = digitalRead(2)
-    - b0 = digitalRead(3)
-    - b1 = digitalRead(4)
+    - startBtn = GET_BOOL(0)
+    - snsA0 = GET_BOOL(1)
+    - snsA1 = GET_BOOL(2)
+    - snsB0 = GET_BOOL(3)
+    - snsB1 = GET_BOOL(4)
 
   process_state_machine()[10]:
-    - if step == 0 and start_btn and a0 and b0:
-    - step = 1
-    - if step == 1 and a1:
-    - step = 2
-    - if step == 2 and b1:
-    - step = 3
-    - if step == 3 and a0:
-    - step = 4
-    - if step == 4 and b0:
-    - step = 0
+    - IF seqStep == 0 AND startBtn AND snsA0 AND snsB0:
+    - seqStep = 1
+    - IF seqStep == 1 AND snsA1:
+    - seqStep = 2
+    - IF seqStep == 2 AND snsB1:
+    - seqStep = 3
+    - IF seqStep == 3 AND snsA0:
+    - seqStep = 4
+    - IF seqStep == 4 AND snsB0:
+    - seqStep = 0
 
   write_outputs()[14]:
-    - out_a = (step == 1) or (step == 2)
-    - out_b = (step == 2) or (step == 3)
-    - if out_a:
-    - digitalWrite(14, HIGH)
-    - digitalWrite(15, LOW)
-    - else:
-    - digitalWrite(14, LOW)
-    - digitalWrite(15, HIGH)
-    - if out_b:
-    - digitalWrite(16, HIGH)
-    - digitalWrite(17, LOW)
-    - else:
-    - digitalWrite(16, LOW)
-    - digitalWrite(17, HIGH)
+    - outA = (seqStep == 1) OR (seqStep == 2)
+    - outB = (seqStep == 2) OR (seqStep == 3)
+    - IF outA:
+    - SET_BOOL(14, TRUE)
+    - SET_BOOL(15, FALSE)
+    - ELSE:
+    - SET_BOOL(14, FALSE)
+    - SET_BOOL(15, TRUE)
+    - IF outB:
+    - SET_BOOL(16, TRUE)
+    - SET_BOOL(17, FALSE)
+    - ELSE:
+    - SET_BOOL(16, FALSE)
+    - SET_BOOL(17, TRUE)
