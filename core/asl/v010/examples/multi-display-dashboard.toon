@@ -87,7 +87,7 @@ functions:
     - calculatedTemp = (1.0 / invT) - 273.15
     - RETURN calculatedTemp
 
-  update_light_label(pct)[3]:
+  update_light_label(pct)[5]:
     - IF pct >= 75:
     - RETURN "Bright"
     - IF pct >= 40 AND pct < 75:
