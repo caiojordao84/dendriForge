@@ -1,0 +1,63 @@
+# METADATA:
+project_name: G07-servo-sweep-sine
+version: 1
+editor: dendriForge
+author: dendriForge Golden Suite
+ASLversion: 0.1.0
+# GOLDEN TEST: Covers CFG_PWM_OUTPUT for servo control, SET_PWM_DUTY
+# computed from a sine wave profile, REAL math (SIN, EXPT, MAP_RANGE),
+# REAL_TO_INT, and named REAL constants.
+# Primary: PWM servo + REAL math   Secondary: SIN, MAP_RANGE, REAL_TO_INT, ADC speed control
+
+## 1. HARDWARE INTERFACE:
+hardware[3|]{pin|type|io_mode|label|target_role}:
+  15|digital|DO|"servoPin"|pwm-out
+  32|analog|DI|"speedPot"|adc:t
+  33|analog|DI|"ampPot"|adc:t
+
+## 2. SYSTEM DATA:
+data[15|]{name|type|scope|init_value|unit}:
+  PWM_FREQ_SERVO|UINT|CONST|50|Hz
+  DUTY_US_MIN|UINT|CONST|1638|-
+  DUTY_US_MAX|UINT|CONST|8192|-
+  ANGLE_MIN|REAL|CONST|0.0|deg
+  ANGLE_MAX|REAL|CONST|180.0|deg
+  PI|REAL|CONST|3.14159265|-
+  TWO_PI|REAL|CONST|6.28318530|-
+  STEP_DELAY_MIN|TIME|CONST|T#5ms|ms
+  STEP_DELAY_MAX|TIME|CONST|T#50ms|ms
+  STEPS_PER_CYCLE|UINT|CONST|200|-
+  phase|REAL|VAR|0.0|rad
+  phaseStep|REAL|VAR|0.031416|rad
+  amplitude|REAL|VAR|90.0|deg
+  targetAngle|REAL|VAR|90.0|deg
+  stepDelay|TIME|VAR|T#15ms|ms
+
+## 3. INITIALIZATION SYSTEM:
+setup[3]:
+  - CFG_PWM_OUTPUT(15, 50)
+  - CFG_ADC_INPUT(32)
+  - CFG_ADC_INPUT(33)
+
+## 4. BEHAVIORAL LOGIC (LOOP):
+loop[14]:
+  - phaseStep = MAP_RANGE(INT_TO_REAL(READ_ADC(32)), 0.0, 65535.0, 0.005, 0.2)
+  - amplitude = MAP_RANGE(INT_TO_REAL(READ_ADC(33)), 0.0, 65535.0, 10.0, 90.0)
+  - phase = phase + phaseStep
+  - IF phase >= TWO_PI: phase = phase - TWO_PI
+  - targetAngle = 90.0 + amplitude * SIN(phase)
+  - targetAngle = CLAMP(targetAngle, ANGLE_MIN, ANGLE_MAX)
+  - set_servo_angle(targetAngle)
+  - stepDelay = REAL_TO_INT(MAP_RANGE(INT_TO_REAL(READ_ADC(32)), 0.0, 65535.0, 5.0, 50.0))
+  - WAIT_TIME(stepDelay)
+
+## 5. PROCEDURAL FUNCTIONS:
+functions:
+  set_servo_angle(angleDeg)[3]:
+    - angleDeg = CLAMP(angleDeg, ANGLE_MIN, ANGLE_MAX)
+    - duty = REAL_TO_INT(MAP_RANGE(angleDeg, ANGLE_MIN, ANGLE_MAX, INT_TO_REAL(DUTY_US_MIN), INT_TO_REAL(DUTY_US_MAX)))
+    - SET_PWM_DUTY(15, duty)
+
+  get_servo_duty_pct()[2]:
+    - currentDuty = GET_PWM_DUTY(15)
+    - RETURN MAP_RANGE(INT_TO_REAL(currentDuty), INT_TO_REAL(DUTY_US_MIN), INT_TO_REAL(DUTY_US_MAX), 0.0, 100.0)

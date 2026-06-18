@@ -1,0 +1,88 @@
+# METADATA:
+project_name: G05-pwm-fade-breathing-led
+version: 1
+editor: dendriForge
+author: dendriForge Golden Suite
+ASLversion: 0.1.0
+# GOLDEN TEST: Covers CFG_PWM_OUTPUT, SET_PWM_DUTY, SET_PWM_FREQ,
+# GET_PWM_DUTY, duty sweep with CLAMP, REPEAT, and WAIT_TIME.
+# Primary: PWM duty sweep (breathing LED)
+# Secondary: CLAMP, REPEAT, WAIT_TIME, GET_PWM_DUTY, direction reversal
+
+## 1. HARDWARE INTERFACE:
+hardware[4|]{pin|type|io_mode|label|target_role}:
+  2|digital|DO|"ledRed"|pwm-out
+  3|digital|DO|"ledGreen"|pwm-out
+  4|digital|DO|"ledBlue"|pwm-out
+  5|digital|DI|"modeBtn"|int-rising
+
+## 2. SYSTEM DATA:
+data[12|]{name|type|scope|init_value|unit}:
+  PWM_FREQ|UINT|CONST|1000|Hz
+  DUTY_MIN|UINT|CONST|0|-
+  DUTY_MAX|UINT|CONST|65535|-
+  DUTY_STEP|UINT|CONST|512|-
+  STEP_DELAY|TIME|CONST|T#10ms|ms
+  HOLD_DELAY|TIME|CONST|T#300ms|ms
+  dutyRed|UINT|VAR|0|-
+  dutyGreen|UINT|VAR|0|-
+  dutyBlue|UINT|VAR|0|-
+  mode|UINT|VAR|0|-
+  MODE_COUNT|UINT|CONST|3|-
+  direction|INT|VAR|1|-
+
+## 3. INITIALIZATION SYSTEM:
+setup[7]:
+  - CFG_PWM_OUTPUT(2, 1000)
+  - CFG_PWM_OUTPUT(3, 1000)
+  - CFG_PWM_OUTPUT(4, 1000)
+  - CFG_DIGITAL_INPUT_PULLUP(5)
+  - CFG_ATTACH_INTERRUPT(5, isr_mode_btn, RISING)
+  - SET_PWM_DUTY(2, 0)
+  - SET_PWM_DUTY(3, 0)
+  - SET_PWM_DUTY(4, 0)
+
+## 4. BEHAVIORAL LOGIC (LOOP):
+loop[20]:
+  - IF mode = 0:
+  - dutyRed = dutyRed + REAL_TO_INT(INT_TO_REAL(DUTY_STEP) * INT_TO_REAL(direction))
+  - dutyRed = CLAMP(dutyRed, DUTY_MIN, DUTY_MAX)
+  - IF dutyRed >= DUTY_MAX OR dutyRed <= DUTY_MIN: direction = direction * -1
+  - SET_PWM_DUTY(2, dutyRed)
+  - SET_PWM_DUTY(3, 0)
+  - SET_PWM_DUTY(4, 0)
+  - ELSIF mode = 1:
+  - breath_channel(2, 3, 4)
+  - ELSIF mode = 2:
+  - crossfade_rgb()
+  - WAIT_TIME(STEP_DELAY)
+
+## 5. PROCEDURAL FUNCTIONS:
+functions:
+  isr_mode_btn()[1]:
+    - mode = MOD(mode + 1, MODE_COUNT)
+
+  breath_channel(pinR, pinG, pinB)[10]:
+    - dutyRed = 0
+    - FOR _i0 := 0 TO 128:
+    - dutyRed = CLAMP(dutyRed + DUTY_STEP, DUTY_MIN, DUTY_MAX)
+    - SET_PWM_DUTY(pinR, dutyRed)
+    - WAIT_TIME(STEP_DELAY)
+    - FOR _i0 := 0 TO 128:
+    - dutyRed = CLAMP(dutyRed - DUTY_STEP, DUTY_MIN, DUTY_MAX)
+    - SET_PWM_DUTY(pinR, dutyRed)
+    - WAIT_TIME(STEP_DELAY)
+    - WAIT_TIME(HOLD_DELAY)
+
+  crossfade_rgb()[12]:
+    - dutyRed = DUTY_MAX
+    - dutyGreen = 0
+    - dutyBlue = 0
+    - FOR _i0 := 0 TO 128:
+    - dutyRed = CLAMP(dutyRed - DUTY_STEP, DUTY_MIN, DUTY_MAX)
+    - dutyGreen = CLAMP(dutyGreen + DUTY_STEP, DUTY_MIN, DUTY_MAX)
+    - SET_PWM_DUTY(2, dutyRed)
+    - SET_PWM_DUTY(3, dutyGreen)
+    - SET_PWM_DUTY(4, dutyBlue)
+    - WAIT_TIME(STEP_DELAY)
+    - WAIT_TIME(HOLD_DELAY)

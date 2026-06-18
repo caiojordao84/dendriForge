@@ -1,0 +1,64 @@
+# METADATA:
+project_name: G06-adc-multi-channel-logger
+version: 1
+editor: dendriForge
+author: dendriForge Golden Suite
+ASLversion: 0.1.0
+# GOLDEN TEST: Covers CFG_ADC_INPUT on multiple pins, READ_ADC,
+# multi-sample averaging with REPEAT, MAP_RANGE, and SERIAL_PRINTLN
+# for structured CSV data logging.
+# Primary: ADC multi-channel   Secondary: READ_ADC, MAP_RANGE, averaging, SERIAL_PRINTLN
+
+## 1. HARDWARE INTERFACE:
+hardware[4|]{pin|type|io_mode|label|target_role}:
+  34|analog|DI|"adcCh0"|adc:t
+  35|analog|DI|"adcCh1"|adc:t
+  36|analog|DI|"adcCh2"|adc:t
+  37|analog|DI|"adcCh3"|adc:t
+
+## 2. SYSTEM DATA:
+data[16|]{name|type|scope|init_value|unit}:
+  SAMPLE_COUNT|UINT|CONST|8|-
+  LOG_INTERVAL|TIME|CONST|T#100ms|ms
+  ADC_MIN|UINT|CONST|0|-
+  ADC_MAX|UINT|CONST|65535|-
+  VOLT_MIN|REAL|CONST|0.0|V
+  VOLT_MAX|REAL|CONST|3.3|V
+  BAUD_RATE|DINT|CONST|115200|-
+  rawSum0|UINT|VAR|0|-
+  rawSum1|UINT|VAR|0|-
+  rawSum2|UINT|VAR|0|-
+  rawSum3|UINT|VAR|0|-
+  volt0|REAL|VAR|0.0|V
+  volt1|REAL|VAR|0.0|V
+  volt2|REAL|VAR|0.0|V
+  volt3|REAL|VAR|0.0|V
+  logLine|STRING|VAR|""-
+
+## 3. INITIALIZATION SYSTEM:
+setup[5]:
+  - CFG_SERIAL(115200)
+  - CFG_ADC_INPUT(34)
+  - CFG_ADC_INPUT(35)
+  - CFG_ADC_INPUT(36)
+  - CFG_ADC_INPUT(37)
+  - SERIAL_PRINTLN("ts_ms,ch0_V,ch1_V,ch2_V,ch3_V")
+
+## 4. BEHAVIORAL LOGIC (LOOP):
+loop[18]:
+  - rawSum0 = 0
+  - rawSum1 = 0
+  - rawSum2 = 0
+  - rawSum3 = 0
+  - FOR _i0 := 0 TO SAMPLE_COUNT:
+  - rawSum0 = rawSum0 + READ_ADC(34)
+  - rawSum1 = rawSum1 + READ_ADC(35)
+  - rawSum2 = rawSum2 + READ_ADC(36)
+  - rawSum3 = rawSum3 + READ_ADC(37)
+  - volt0 = MAP_RANGE(INT_TO_REAL(rawSum0 / SAMPLE_COUNT), INT_TO_REAL(ADC_MIN), INT_TO_REAL(ADC_MAX), VOLT_MIN, VOLT_MAX)
+  - volt1 = MAP_RANGE(INT_TO_REAL(rawSum1 / SAMPLE_COUNT), INT_TO_REAL(ADC_MIN), INT_TO_REAL(ADC_MAX), VOLT_MIN, VOLT_MAX)
+  - volt2 = MAP_RANGE(INT_TO_REAL(rawSum2 / SAMPLE_COUNT), INT_TO_REAL(ADC_MIN), INT_TO_REAL(ADC_MAX), VOLT_MIN, VOLT_MAX)
+  - volt3 = MAP_RANGE(INT_TO_REAL(rawSum3 / SAMPLE_COUNT), INT_TO_REAL(ADC_MIN), INT_TO_REAL(ADC_MAX), VOLT_MIN, VOLT_MAX)
+  - logLine = CONCAT(TO_STRING(GET_SYS_TIME()), ",", TO_STRING_FMT(volt0, 4), ",", TO_STRING_FMT(volt1, 4), ",", TO_STRING_FMT(volt2, 4), ",", TO_STRING_FMT(volt3, 4))
+  - SERIAL_PRINTLN(logLine)
+  - WAIT_TIME(LOG_INTERVAL)
