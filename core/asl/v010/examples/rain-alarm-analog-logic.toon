@@ -32,7 +32,7 @@ loop[3]:
 
 ## 5. PROCEDURAL FUNCTIONS:
 functions:
-  set_buzzer_state(value)[4]:
+  set_buzzer_state(value)[5]:
     - IF value > RAIN_THRESHOLD:
     - SET_PWM_DUTY(15, BUZZER_DUTY)
     - ELSE:
