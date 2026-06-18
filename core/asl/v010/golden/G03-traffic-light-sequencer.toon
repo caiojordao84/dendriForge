@@ -4,10 +4,6 @@ version: 1
 editor: dendriForge
 author: dendriForge Golden Suite
 ASLversion: 0.1.0
-# GOLDEN TEST: Covers GPIO output sequencing driven by a state machine,
-# named TIME constants, WAIT_TIME, and multi-phase timed transitions.
-# Primary: GPIO output sequencing + state machine
-# Secondary: WAIT_TIME, named TIME consts, WHILE, REPEAT, SET_BOOL
 
 ## 1. HARDWARE INTERFACE:
 hardware[6|]{pin|type|io_mode|label|target_role}:
@@ -41,7 +37,7 @@ setup[6]:
   - CFG_DIGITAL_OUTPUT(18)
 
 ## 4. BEHAVIORAL LOGIC (LOOP):
-loop[17]:
+loop[21]:
   - IF state = STATE_RED_A:
   - set_phase(TRUE, FALSE, FALSE, FALSE, FALSE, TRUE)
   - WAIT_TIME(T_RED)
