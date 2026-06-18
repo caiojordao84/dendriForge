@@ -6,34 +6,35 @@ author: Mugwara323
 ASLversion: 0.1.0
 
 ## 1. HARDWARE INTERFACE:
-# Format: pin | type | io_mode | label | target_role
 hardware[2|]{pin|type|io_mode|label|target_role}:
-  26|analog|input|"Rain Sensor AOUT"|"adc:t"
-  15|digital|output|"Buzzer VP"|pwm-out
+  26|analog|input|"rainSensorPin"|adc:t
+  15|digital|output|"buzzerPin"|pwm-out
 
 ## 2. SYSTEM DATA:
-data:
-  TIME_UNIT: ms
-  RAIN_THRESHOLD: 30000
-  BUZZER_DUTY: 32768
-  rain_intensity: 0
+data[5|]{name|type|scope|init_value|unit}:
+  RAIN_THRESHOLD|UINT|CONST|30000|-
+  BUZZER_DUTY|UINT|CONST|32768|-
+  LOOP_INTERVAL|TIME|CONST|T#100ms|ms
+  rainIntensity|UINT|VAR|0|-
+  buzzerActive|BOOL|VAR|FALSE|-
 
 ## 3. INITIALIZATION SYSTEM:
 setup[3]:
-  - pinMode(15, OUTPUT)
-  - pwmFreq(15, 1000)
-  - pwmWrite(15, 0)
+  - CFG_PWM_OUTPUT(15, 1000)
+  - CFG_ADC_INPUT(26)
+  - SET_PWM_DUTY(15, 0)
 
 ## 4. BEHAVIORAL LOGIC (LOOP):
 loop[3]:
-  - rain_intensity = readADC(26)
-  - set_buzzer_state(rain_intensity)
-  - delay(100)
+  - rainIntensity = READ_ADC(26)
+  - buzzerActive = set_buzzer_state(rainIntensity)
+  - WAIT_TIME(LOOP_INTERVAL)
 
 ## 5. PROCEDURAL FUNCTIONS:
 functions:
   set_buzzer_state(value)[4]:
-    - if value > RAIN_THRESHOLD:
-    - pwmWrite(15, BUZZER_DUTY)
-    - else:
-    - pwmWrite(15, 0)
+    - IF value > RAIN_THRESHOLD:
+    - SET_PWM_DUTY(15, BUZZER_DUTY)
+    - ELSE:
+    - SET_PWM_DUTY(15, 0)
+    - RETURN value > RAIN_THRESHOLD
