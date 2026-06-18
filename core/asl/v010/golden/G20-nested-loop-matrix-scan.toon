@@ -1,0 +1,186 @@
+# METADATA:
+project_name: G20-nested-loop-matrix-scan
+version: 1
+editor: dendriForge
+author: dendriForge Golden Suite
+ASLversion: 0.1.0
+# GOLDEN TEST: Exercises deeply nested FOR loops (3 levels), nested
+# function calls (call depth 4), WHILE inside FOR, BREAK and CONTINUE
+# equivalents via early RETURN guard, and flat-array simulation via
+# indexed dispatch (4x4 matrix stored as 16 scalar vars).
+# Primary: Nested FOR/WHILE, call depth, flat-matrix dispatch
+# Secondary: ADC, SERIAL_PRINTLN, GET_SYS_TIME, MAP_RANGE, CLAMP
+
+## 1. HARDWARE INTERFACE:
+hardware[7|]{pin|type|io_mode|label|target_role}:
+  0|digital|BI|"uartTxPin"|uart-tx
+  1|digital|BI|"uartRxPin"|uart-rx
+  30|analog|DI|"adcR0C0"|adc:t
+  31|analog|DI|"adcR0C1"|adc:t
+  32|analog|DI|"adcR1C0"|adc:t
+  33|analog|DI|"adcR1C1"|adc:t
+  2|digital|DO|"ledScan"|digital-out
+
+## 2. SYSTEM DATA:
+data[32|]{name|type|scope|init_value|unit}:
+  BAUD_RATE|DINT|CONST|115200|-
+  LOOP_DELAY|TIME|CONST|T#200ms|ms
+  ROWS|UINT|CONST|4|-
+  COLS|UINT|CONST|4|-
+  SCAN_PASSES|UINT|CONST|3|-
+  THRESHOLD|REAL|CONST|0.5|-
+  V_REF|REAL|CONST|3.3|V
+  m00|REAL|VAR|0.0|- 
+  m01|REAL|VAR|0.0|-
+  m02|REAL|VAR|0.0|-
+  m03|REAL|VAR|0.0|-
+  m10|REAL|VAR|0.0|-
+  m11|REAL|VAR|0.0|-
+  m12|REAL|VAR|0.0|-
+  m13|REAL|VAR|0.0|-
+  m20|REAL|VAR|0.0|-
+  m21|REAL|VAR|0.0|-
+  m22|REAL|VAR|0.0|-
+  m23|REAL|VAR|0.0|-
+  m30|REAL|VAR|0.0|-
+  m31|REAL|VAR|0.0|-
+  m32|REAL|VAR|0.0|-
+  m33|REAL|VAR|0.0|-
+  rowMax0|REAL|VAR|0.0|-
+  rowMax1|REAL|VAR|0.0|-
+  rowMax2|REAL|VAR|0.0|-
+  rowMax3|REAL|VAR|0.0|-
+  colSum0|REAL|VAR|0.0|-
+  colSum1|REAL|VAR|0.0|-
+  colSum2|REAL|VAR|0.0|-
+  colSum3|REAL|VAR|0.0|-
+  passCount|UINT|VAR|0|-
+  hotCell|STRING|VAR|"none"|-
+  scanTime|DWORD|VAR|0|ms
+
+## 3. INITIALIZATION SYSTEM:
+setup[4]:
+  - CFG_SERIAL(115200)
+  - CFG_ADC_INPUT(30)
+  - CFG_ADC_INPUT(31)
+  - CFG_ADC_INPUT(32)
+  - CFG_ADC_INPUT(33)
+  - CFG_DIGITAL_OUTPUT(2)
+  - SERIAL_PRINTLN("pass,row,col,val,rowMax,colSum,hotCell")
+
+## 4. BEHAVIORAL LOGIC (LOOP):
+loop[12]:
+  - scanTime = GET_SYS_TIME()
+  - SET_BOOL(2, TRUE)
+  - FOR _p := 0 TO SCAN_PASSES:
+  - passCount = _p
+  - fill_matrix_from_adc()
+  - compute_row_max()
+  - compute_col_sum()
+  - find_hot_cell()
+  - log_matrix_pass(_p)
+  - SET_BOOL(2, FALSE)
+  - SERIAL_PRINTLN(CONCAT("scan_done t=", TO_STRING(GET_SYS_TIME()), "ms passes=", TO_STRING(passCount)))
+  - WAIT_TIME(LOOP_DELAY)
+
+## 5. PROCEDURAL FUNCTIONS:
+functions:
+  # --- Level 1: fill 4x4 matrix using nested FOR (row x col)
+  fill_matrix_from_adc()[20]:
+    - FOR _r := 0 TO ROWS:
+    - FOR _c := 0 TO COLS:
+    - set_cell(_r, _c, adc_to_volt(read_cell_adc(_r, _c)))
+
+  # --- Level 2 helpers (called from fill_matrix_from_adc)
+  read_cell_adc(row, col)[8]:
+    - IF row = 0 AND col = 0: RETURN READ_ADC(30)
+    - IF row = 0 AND col = 1: RETURN READ_ADC(31)
+    - IF row = 1 AND col = 0: RETURN READ_ADC(32)
+    - IF row = 1 AND col = 1: RETURN READ_ADC(33)
+    - RETURN 0
+
+  adc_to_volt(raw)[2]:
+    - RETURN MAP_RANGE(INT_TO_REAL(raw), 0.0, 65535.0, 0.0, V_REF)
+
+  set_cell(row, col, val)[20]:
+    - IF row = 0 AND col = 0: m00 = val
+    - ELSIF row = 0 AND col = 1: m01 = val
+    - ELSIF row = 0 AND col = 2: m02 = val
+    - ELSIF row = 0 AND col = 3: m03 = val
+    - ELSIF row = 1 AND col = 0: m10 = val
+    - ELSIF row = 1 AND col = 1: m11 = val
+    - ELSIF row = 1 AND col = 2: m12 = val
+    - ELSIF row = 1 AND col = 3: m13 = val
+    - ELSIF row = 2 AND col = 0: m20 = val
+    - ELSIF row = 2 AND col = 1: m21 = val
+    - ELSIF row = 2 AND col = 2: m22 = val
+    - ELSIF row = 2 AND col = 3: m23 = val
+    - ELSIF row = 3 AND col = 0: m30 = val
+    - ELSIF row = 3 AND col = 1: m31 = val
+    - ELSIF row = 3 AND col = 2: m32 = val
+    - ELSIF row = 3 AND col = 3: m33 = val
+
+  get_cell(row, col)[20]:
+    - IF row = 0 AND col = 0: RETURN m00
+    - ELSIF row = 0 AND col = 1: RETURN m01
+    - ELSIF row = 0 AND col = 2: RETURN m02
+    - ELSIF row = 0 AND col = 3: RETURN m03
+    - ELSIF row = 1 AND col = 0: RETURN m10
+    - ELSIF row = 1 AND col = 1: RETURN m11
+    - ELSIF row = 1 AND col = 2: RETURN m12
+    - ELSIF row = 1 AND col = 3: RETURN m13
+    - ELSIF row = 2 AND col = 0: RETURN m20
+    - ELSIF row = 2 AND col = 1: RETURN m21
+    - ELSIF row = 2 AND col = 2: RETURN m22
+    - ELSIF row = 2 AND col = 3: RETURN m23
+    - ELSIF row = 3 AND col = 0: RETURN m30
+    - ELSIF row = 3 AND col = 1: RETURN m31
+    - ELSIF row = 3 AND col = 2: RETURN m32
+    - ELSIF row = 3 AND col = 3: RETURN m33
+    - RETURN 0.0
+
+  # --- Level 2: per-row max and per-col sum via nested FOR
+  compute_row_max()[12]:
+    - rowMax0 = MAX(MAX(m00, m01), MAX(m02, m03))
+    - rowMax1 = MAX(MAX(m10, m11), MAX(m12, m13))
+    - rowMax2 = MAX(MAX(m20, m21), MAX(m22, m23))
+    - rowMax3 = MAX(MAX(m30, m31), MAX(m32, m33))
+
+  compute_col_sum()[8]:
+    - colSum0 = m00 + m10 + m20 + m30
+    - colSum1 = m01 + m11 + m21 + m31
+    - colSum2 = m02 + m12 + m22 + m32
+    - colSum3 = m03 + m13 + m23 + m33
+
+  get_row_max(row)[6]:
+    - IF row = 0: RETURN rowMax0
+    - ELSIF row = 1: RETURN rowMax1
+    - ELSIF row = 2: RETURN rowMax2
+    - ELSIF row = 3: RETURN rowMax3
+    - RETURN 0.0
+
+  get_col_sum(col)[6]:
+    - IF col = 0: RETURN colSum0
+    - ELSIF col = 1: RETURN colSum1
+    - ELSIF col = 2: RETURN colSum2
+    - ELSIF col = 3: RETURN colSum3
+    - RETURN 0.0
+
+  # --- Level 2: find cell above threshold (WHILE inside function)
+  find_hot_cell()[14]:
+    - hotCell = "none"
+    - _r = 0
+    - WHILE _r < ROWS:
+    - _c = 0
+    - WHILE _c < COLS:
+    - IF get_cell(_r, _c) > THRESHOLD:
+    - hotCell = CONCAT("r", TO_STRING(_r), "c", TO_STRING(_c))
+    - RETURN
+    - _c = _c + 1
+    - _r = _r + 1
+
+  # --- Level 3: log full pass row by row (nested FOR inside function)
+  log_matrix_pass(pass)[10]:
+    - FOR _r := 0 TO ROWS:
+    - FOR _c := 0 TO COLS:
+    - SERIAL_PRINTLN(CONCAT(TO_STRING(pass), ",", TO_STRING(_r), ",", TO_STRING(_c), ",", TO_STRING_FMT(get_cell(_r, _c), 4), ",", TO_STRING_FMT(get_row_max(_r), 4), ",", TO_STRING_FMT(get_col_sum(_c), 4), ",", hotCell))

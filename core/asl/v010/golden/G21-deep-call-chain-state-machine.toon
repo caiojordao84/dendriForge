@@ -1,0 +1,180 @@
+# METADATA:
+project_name: G21-deep-call-chain-state-machine
+version: 1
+editor: dendriForge
+author: dendriForge Golden Suite
+ASLversion: 0.1.0
+# GOLDEN TEST: Exercises a 5-state FSM implemented as mutually exclusive
+# function dispatch (no recursion — ASL v0.1.0 does not support recursion),
+# call chains of depth >= 5, WHILE with compound condition, function
+# returning BOOL, function returning REAL, function taking 3+ parameters,
+# and RETAIN-based state persistence across power cycles.
+# Primary: FSM dispatch, deep call chain, multi-param functions, BOOL/REAL return
+# Secondary: RETAIN, GET_SYS_TIME, TIME_DIFF, SERIAL_PRINTLN, GPIO, PWM
+
+## 1. HARDWARE INTERFACE:
+hardware[7|]{pin|type|io_mode|label|target_role}:
+  0|digital|BI|"uartTxPin"|uart-tx
+  1|digital|BI|"uartRxPin"|uart-rx
+  2|digital|DI|"btnNext"|int-falling
+  3|digital|DI|"btnReset"|int-falling
+  4|digital|DO|"ledState"|digital-out
+  5|digital|DO|"pwmOut"|pwm-out
+  6|analog|DI|"sensorIn"|adc:t
+
+## 2. SYSTEM DATA:
+data[26|]{name|type|scope|init_value|unit}:
+  BAUD_RATE|DINT|CONST|115200|-
+  LOOP_DELAY|TIME|CONST|T#50ms|ms
+  DEBOUNCE_MS|DWORD|CONST|80|ms
+  STATE_IDLE|UINT|CONST|0|-
+  STATE_RAMP_UP|UINT|CONST|1|-
+  STATE_HOLD|UINT|CONST|2|-
+  STATE_RAMP_DOWN|UINT|CONST|3|-
+  STATE_FAULT|UINT|CONST|4|-
+  RAMP_STEP|REAL|CONST|0.05|-
+  HOLD_DUTY|REAL|CONST|0.75|-
+  FAULT_THRESHOLD|REAL|CONST|0.95|-
+  HOLD_DURATION|TIME|CONST|T#3000ms|ms
+  fsmState|UINT|RETAIN|0|-
+  prevState|UINT|RETAIN|0|-
+  currentDuty|REAL|VAR|0.0|-
+  holdStart|DWORD|VAR|0|ms
+  btnNextFlag|BOOL|VAR|FALSE|-
+  btnResetFlag|BOOL|VAR|FALSE|-
+  lastBtnNext|DWORD|VAR|0|ms
+  lastBtnReset|DWORD|VAR|0|ms
+  rawSensor|UINT|VAR|0|-
+  sensorVolt|REAL|VAR|0.0|V
+  faultReason|STRING|VAR|"none"|-
+  transitionCount|UINT|RETAIN|0|-
+  nowMs|DWORD|VAR|0|ms
+  stateLog|STRING|VAR|""-
+
+## 3. INITIALIZATION SYSTEM:
+setup[10]:
+  - CFG_SERIAL(115200)
+  - CFG_ADC_INPUT(6)
+  - CFG_PWM_OUTPUT(5, 1000)
+  - CFG_DIGITAL_INPUT_PULLUP(2)
+  - CFG_DIGITAL_INPUT_PULLUP(3)
+  - CFG_DIGITAL_OUTPUT(4)
+  - CFG_ATTACH_INTERRUPT(2, isr_btn_next, FALLING)
+  - CFG_ATTACH_INTERRUPT(3, isr_btn_reset, FALLING)
+  - SET_PWM_DUTY(5, 0)
+  - SET_BOOL(4, FALSE)
+  - SERIAL_PRINTLN(CONCAT("FSM init state=", TO_STRING(fsmState), " transitions=", TO_STRING(transitionCount)))
+
+## 4. BEHAVIORAL LOGIC (LOOP):
+loop[16]:
+  - nowMs = GET_SYS_TIME()
+  - rawSensor = READ_ADC(6)
+  - sensorVolt = adc_to_volt(rawSensor)
+  - IF btnNextFlag:
+  - btnNextFlag = FALSE
+  - fsm_advance()
+  - IF btnResetFlag:
+  - btnResetFlag = FALSE
+  - fsm_reset()
+  - fsm_tick()
+  - apply_outputs(fsmState, currentDuty)
+  - stateLog = build_log(fsmState, currentDuty, sensorVolt)
+  - SERIAL_PRINTLN(stateLog)
+  - WAIT_TIME(LOOP_DELAY)
+
+## 5. PROCEDURAL FUNCTIONS:
+functions:
+  # --- ISRs (depth 1)
+  isr_btn_next()[4]:
+    - nowMs = GET_SYS_TIME()
+    - IF TIME_DIFF(nowMs, lastBtnNext) > DEBOUNCE_MS:
+    - btnNextFlag = TRUE
+    - lastBtnNext = nowMs
+
+  isr_btn_reset()[4]:
+    - nowMs = GET_SYS_TIME()
+    - IF TIME_DIFF(nowMs, lastBtnReset) > DEBOUNCE_MS:
+    - btnResetFlag = TRUE
+    - lastBtnReset = nowMs
+
+  # --- FSM advance (depth 2 -> calls transition)
+  fsm_advance()[8]:
+    - IF fsmState = STATE_IDLE:
+    - transition_to(STATE_RAMP_UP)
+    - ELSIF fsmState = STATE_RAMP_UP:
+    - transition_to(STATE_HOLD)
+    - ELSIF fsmState = STATE_HOLD:
+    - transition_to(STATE_RAMP_DOWN)
+    - ELSIF fsmState = STATE_RAMP_DOWN:
+    - transition_to(STATE_IDLE)
+    - ELSIF fsmState = STATE_FAULT:
+    - transition_to(STATE_IDLE)
+
+  fsm_reset()[3]:
+    - currentDuty = 0.0
+    - faultReason = "none"
+    - transition_to(STATE_IDLE)
+
+  # --- Transition (depth 3 -> logs + updates RETAIN)
+  transition_to(newState)[5]:
+    - prevState = fsmState
+    - fsmState = newState
+    - transitionCount = transitionCount + 1
+    - SERIAL_PRINTLN(CONCAT("FSM ", state_name(prevState), "->", state_name(newState), " #", TO_STRING(transitionCount)))
+
+  # --- State name helper (depth 4, called from transition_to)
+  state_name(s)[7]:
+    - IF s = STATE_IDLE: RETURN "IDLE"
+    - ELSIF s = STATE_RAMP_UP: RETURN "RAMP_UP"
+    - ELSIF s = STATE_HOLD: RETURN "HOLD"
+    - ELSIF s = STATE_RAMP_DOWN: RETURN "RAMP_DOWN"
+    - ELSIF s = STATE_FAULT: RETURN "FAULT"
+    - RETURN "UNKNOWN"
+
+  # --- FSM tick: per-state logic (depth 2 -> calls check_fault, depth 3)
+  fsm_tick()[20]:
+    - IF fsmState = STATE_IDLE:
+    - currentDuty = 0.0
+    - ELSIF fsmState = STATE_RAMP_UP:
+    - currentDuty = CLAMP(currentDuty + RAMP_STEP, 0.0, HOLD_DUTY)
+    - IF currentDuty >= HOLD_DUTY:
+    - holdStart = GET_SYS_TIME()
+    - transition_to(STATE_HOLD)
+    - IF check_fault(sensorVolt, currentDuty, FAULT_THRESHOLD):
+    - faultReason = CONCAT("ramp_up overvolt=", TO_STRING_FMT(sensorVolt, 3))
+    - transition_to(STATE_FAULT)
+    - ELSIF fsmState = STATE_HOLD:
+    - IF TIME_DIFF(GET_SYS_TIME(), holdStart) >= HOLD_DURATION:
+    - transition_to(STATE_RAMP_DOWN)
+    - IF check_fault(sensorVolt, currentDuty, FAULT_THRESHOLD):
+    - faultReason = CONCAT("hold overvolt=", TO_STRING_FMT(sensorVolt, 3))
+    - transition_to(STATE_FAULT)
+    - ELSIF fsmState = STATE_RAMP_DOWN:
+    - currentDuty = CLAMP(currentDuty - RAMP_STEP, 0.0, HOLD_DUTY)
+    - IF currentDuty <= 0.0:
+    - transition_to(STATE_IDLE)
+    - ELSIF fsmState = STATE_FAULT:
+    - currentDuty = 0.0
+
+  # --- Fault check: 3-parameter BOOL-returning function (depth 3)
+  check_fault(volt, duty, limit)[3]:
+    - IF volt > limit: RETURN TRUE
+    - IF duty > limit: RETURN TRUE
+    - RETURN FALSE
+
+  # --- Output application: 2-param void function (depth 2)
+  apply_outputs(state, duty)[6]:
+    - SET_PWM_DUTY(5, duty_to_pwm(duty))
+    - SET_BOOL(4, state <> STATE_IDLE AND state <> STATE_FAULT)
+
+  # --- duty_to_pwm: REAL->UINT converter (depth 3, called from apply_outputs)
+  duty_to_pwm(duty)[2]:
+    - RETURN REAL_TO_INT(CLAMP(duty, 0.0, 1.0) * 65535.0)
+
+  # --- ADC helper (depth 2, called from loop)
+  adc_to_volt(raw)[2]:
+    - RETURN MAP_RANGE(INT_TO_REAL(raw), 0.0, 65535.0, 0.0, 3.3)
+
+  # --- Log builder: 3-param STRING-returning function (depth 2)
+  build_log(state, duty, volt)[3]:
+    - RETURN CONCAT(TO_STRING(GET_SYS_TIME()), ",", state_name(state), ",", TO_STRING_FMT(duty, 4), ",", TO_STRING_FMT(volt, 4), ",", faultReason)
