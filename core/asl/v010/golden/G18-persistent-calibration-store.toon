@@ -1,0 +1,117 @@
+# METADATA:
+project_name: G18-persistent-calibration-store
+version: 1
+editor: dendriForge
+author: dendriForge Golden Suite
+ASLversion: 0.1.0
+# GOLDEN TEST: Covers PERSISTENT scope for calibration coefficients that
+# survive both power cycles AND firmware updates, mixed RETAIN + PERSISTENT
+# in the same file, restore-on-boot with bounds validation, ADC-driven
+# live measurement using stored calibration, and SERIAL command interface
+# for in-field recalibration.
+# Primary: PERSISTENT scope + restore-on-boot
+# Secondary: RETAIN, ADC, CLAMP, SERIAL, MAP_RANGE, bounds guard
+
+## 1. HARDWARE INTERFACE:
+hardware[5|]{pin|type|io_mode|label|target_role}:
+  0|digital|BI|"uartTxPin"|uart-tx
+  1|digital|BI|"uartRxPin"|uart-rx
+  34|analog|DI|"sensorRaw"|adc:t
+  35|analog|DI|"refRaw"|adc:t
+  2|digital|DO|"ledCalib"|digital-out
+
+## 2. SYSTEM DATA:
+data[22|]{name|type|scope|init_value|unit}:
+  BAUD_RATE|DINT|CONST|115200|-
+  LOOP_DELAY|TIME|CONST|T#100ms|ms
+  SAMPLE_COUNT|UINT|CONST|8|-
+  CAL_GAIN_MIN|REAL|CONST|0.5|-
+  CAL_GAIN_MAX|REAL|CONST|2.0|-
+  CAL_OFFSET_MIN|REAL|CONST|-500.0|-
+  CAL_OFFSET_MAX|REAL|CONST|500.0|-
+  CAL_DEFAULT_GAIN|REAL|CONST|1.0|-
+  CAL_DEFAULT_OFFSET|REAL|CONST|0.0|-
+  calGain|REAL|PERSISTENT|1.0|-
+  calOffset|REAL|PERSISTENT|0.0|-
+  calVersion|UINT|PERSISTENT|0|-
+  bootCount|UINT|RETAIN|0|-
+  rawSensor|UINT|VAR|0|-
+  rawRef|UINT|VAR|0|-
+  calibrated|REAL|VAR|0.0|-
+  refVoltage|REAL|VAR|0.0|V
+  calValid|BOOL|VAR|FALSE|-
+  rxLine|STRING|VAR|""-
+  cmdParts|STRING|VAR|""-
+  nowMs|DWORD|VAR|0|ms
+  lastLogTime|DWORD|VAR|0|ms
+
+## 3. INITIALIZATION SYSTEM:
+setup[10]:
+  - CFG_SERIAL(115200)
+  - CFG_ADC_INPUT(34)
+  - CFG_ADC_INPUT(35)
+  - CFG_DIGITAL_OUTPUT(2)
+  - bootCount = bootCount + 1
+  - calValid = validate_calibration(calGain, calOffset)
+  - IF NOT calValid:
+  - calGain = CAL_DEFAULT_GAIN
+  - calOffset = CAL_DEFAULT_OFFSET
+  - calVersion = 0
+  - SERIAL_PRINTLN("WARN: invalid cal — defaults restored")
+  - ELSE:
+  - SERIAL_PRINTLN(CONCAT("Cal v", TO_STRING(calVersion), " gain=", TO_STRING_FMT(calGain, 4), " offset=", TO_STRING_FMT(calOffset, 2)))
+  - SERIAL_PRINTLN(CONCAT("Boot #", TO_STRING(bootCount)))
+  - SET_BOOL(2, calValid)
+
+## 4. BEHAVIORAL LOGIC (LOOP):
+loop[16]:
+  - nowMs = GET_SYS_TIME()
+  - IF SERIAL_AVAILABLE() > 0:
+  - rxLine = SERIAL_READLN()
+  - SERIAL_FLUSH()
+  - handle_cal_cmd(rxLine)
+  - rawSensor = sample_avg(34)
+  - rawRef = sample_avg(35)
+  - refVoltage = MAP_RANGE(INT_TO_REAL(rawRef), 0.0, 65535.0, 0.0, 3.3)
+  - calibrated = INT_TO_REAL(rawSensor) * calGain + calOffset
+  - IF TIME_DIFF(nowMs, lastLogTime) >= LOOP_DELAY:
+  - SERIAL_PRINTLN(CONCAT(TO_STRING(nowMs), ",", TO_STRING(rawSensor), ",", TO_STRING_FMT(calibrated, 3), ",", TO_STRING_FMT(refVoltage, 4)))
+  - lastLogTime = nowMs
+  - WAIT_TIME(LOOP_DELAY)
+
+## 5. PROCEDURAL FUNCTIONS:
+functions:
+  sample_avg(pin)[5]:
+    - acc = 0
+    - FOR _i0 := 0 TO SAMPLE_COUNT:
+    - acc = acc + READ_ADC(pin)
+    - RETURN acc / SAMPLE_COUNT
+
+  validate_calibration(gain, offset)[3]:
+    - IF gain < CAL_GAIN_MIN OR gain > CAL_GAIN_MAX: RETURN FALSE
+    - IF offset < CAL_OFFSET_MIN OR offset > CAL_OFFSET_MAX: RETURN FALSE
+    - RETURN TRUE
+
+  apply_calibration(raw)[2]:
+    - RETURN INT_TO_REAL(raw) * calGain + calOffset
+
+  handle_cal_cmd(cmd)[14]:
+    - IF cmd = "CAL:RESET":
+    - calGain = CAL_DEFAULT_GAIN
+    - calOffset = CAL_DEFAULT_OFFSET
+    - calVersion = 0
+    - calValid = TRUE
+    - SET_BOOL(2, TRUE)
+    - SERIAL_PRINTLN("CAL RESET OK")
+    - ELSIF cmd = "CAL:STATUS":
+    - SERIAL_PRINTLN(CONCAT("gain=", TO_STRING_FMT(calGain, 4), " offset=", TO_STRING_FMT(calOffset, 2), " v=", TO_STRING(calVersion), " valid=", SEL(calValid, "N", "Y")))
+    - ELSIF cmd = "CAL:BUMPVER":
+    - calVersion = calVersion + 1
+    - SERIAL_PRINTLN(CONCAT("calVersion=", TO_STRING(calVersion)))
+    - ELSIF cmd = "CAL:SETGAIN1.5":
+    - calGain = CLAMP(1.5, CAL_GAIN_MIN, CAL_GAIN_MAX)
+    - calValid = validate_calibration(calGain, calOffset)
+    - SET_BOOL(2, calValid)
+    - SERIAL_PRINTLN(CONCAT("gain=", TO_STRING_FMT(calGain, 4)))
+    - ELSE:
+    - SERIAL_PRINTLN(CONCAT("UNKNOWN: ", cmd))

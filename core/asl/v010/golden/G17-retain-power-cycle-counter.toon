@@ -1,0 +1,109 @@
+# METADATA:
+project_name: G17-retain-power-cycle-counter
+version: 1
+editor: dendriForge
+author: dendriForge Golden Suite
+ASLversion: 0.1.0
+# GOLDEN TEST: Covers RETAIN scope for multiple variables that must survive
+# power cycles, SYS_LOAD_MEMORY_SECTOR(RETAIN_SECTOR) auto-injection,
+# SYS_WRITE_RETAIN / SYS_READ_RETAIN at write/read sites, uptime accumulation
+# across reboots, and LCD + SERIAL_PRINTLN diagnostics.
+# Primary: RETAIN scope persistence
+# Secondary: GET_SYS_TIME, TIME_DIFF, LCD, SERIAL_PRINTLN, RETAIN multi-var
+
+## 1. HARDWARE INTERFACE:
+hardware[6|]{pin|type|io_mode|label|target_role}:
+  0|digital|BI|"sdaPin"|i2c-sda
+  1|digital|BI|"sclPin"|i2c-scl
+  2|digital|DI|"resetBtn"|int-falling
+  3|digital|DO|"ledPower"|digital-out
+  4|digital|DO|"ledRetain"|digital-out
+  5|digital|DO|"buzzerPin"|pwm-out
+
+## 2. SYSTEM DATA:
+data[20|]{name|type|scope|init_value|unit}:
+  LOOP_DELAY|TIME|CONST|T#1000ms|ms
+  DEBOUNCE|TIME|CONST|T#100ms|ms
+  BEEP_DUR|TIME|CONST|T#80ms|ms
+  BUZZ_FREQ|UINT|CONST|2000|Hz
+  MILESTONE_CYCLES|UINT|CONST|100|-
+  rebootCount|UINT|RETAIN|0|-
+  totalUptimeMs|DWORD|RETAIN|0|ms
+  maxSessionMs|DWORD|RETAIN|0|ms
+  lastSessionMs|DWORD|RETAIN|0|ms
+  milestoneCount|UINT|RETAIN|0|-
+  sessionStart|DWORD|VAR|0|ms
+  nowMs|DWORD|VAR|0|ms
+  sessionMs|DWORD|VAR|0|ms
+  lastBtnTime|DWORD|VAR|0|ms
+  btnFlag|BOOL|VAR|FALSE|-
+  displayDirty|BOOL|VAR|TRUE|-
+  prevRebootCount|UINT|VAR|0|-
+  uptimeHours|UINT|VAR|0|-
+  uptimeMins|UINT|VAR|0|-
+  uptimeSecs|UINT|VAR|0|-
+
+## 3. INITIALIZATION SYSTEM:
+setup[12]:
+  - CFG_I2C(0, 0, 1, 400000)
+  - CFG_LCD(0x27, 20, 4)
+  - CFG_PWM_OUTPUT(5, 2000)
+  - CFG_DIGITAL_INPUT_PULLUP(2)
+  - CFG_DIGITAL_OUTPUT(3)
+  - CFG_DIGITAL_OUTPUT(4)
+  - CFG_ATTACH_INTERRUPT(2, isr_reset_btn, FALLING)
+  - CFG_SERIAL(115200)
+  - rebootCount = rebootCount + 1
+  - sessionStart = GET_SYS_TIME()
+  - prevRebootCount = rebootCount
+  - SET_BOOL(3, TRUE)
+  - SET_BOOL(4, TRUE)
+  - beep_once()
+  - SERIAL_PRINTLN(CONCAT("Boot #", TO_STRING(rebootCount), " | totalUptime=", TO_STRING(totalUptimeMs), "ms | maxSession=", TO_STRING(maxSessionMs), "ms"))
+  - LCD_CLEAR()
+  - LCD_PRINT(0, 0, CONCAT("Boot #", TO_STRING(rebootCount)))
+
+## 4. BEHAVIORAL LOGIC (LOOP):
+loop[24]:
+  - nowMs = GET_SYS_TIME()
+  - sessionMs = TIME_DIFF(nowMs, sessionStart)
+  - totalUptimeMs = totalUptimeMs + LOOP_DELAY
+  - IF sessionMs > maxSessionMs:
+  - maxSessionMs = sessionMs
+  - displayDirty = TRUE
+  - lastSessionMs = sessionMs
+  - IF MOD(rebootCount, MILESTONE_CYCLES) = 0 AND rebootCount > prevRebootCount:
+  - milestoneCount = milestoneCount + 1
+  - prevRebootCount = rebootCount
+  - beep_once()
+  - IF btnFlag:
+  - btnFlag = FALSE
+  - rebootCount = 0
+  - totalUptimeMs = 0
+  - maxSessionMs = 0
+  - lastSessionMs = 0
+  - milestoneCount = 0
+  - displayDirty = TRUE
+  - SERIAL_PRINTLN("RETAIN counters reset")
+  - IF displayDirty:
+  - uptimeSecs = REAL_TO_INT(INT_TO_REAL(MOD(totalUptimeMs, 60000)) / 1000.0)
+  - uptimeMins = REAL_TO_INT(INT_TO_REAL(MOD(totalUptimeMs, 3600000)) / 60000.0)
+  - uptimeHours = REAL_TO_INT(INT_TO_REAL(totalUptimeMs) / 3600000.0)
+  - LCD_PRINT(0, 1, CONCAT("Session: ", TO_STRING_FMT(INT_TO_REAL(sessionMs) / 1000.0, 1), "s     "))
+  - LCD_PRINT(0, 2, CONCAT("UpTotal: ", TO_STRING(uptimeHours), "h", TO_STRING(uptimeMins), "m", TO_STRING(uptimeSecs), "s "))
+  - LCD_PRINT(0, 3, CONCAT("MaxSess: ", TO_STRING_FMT(INT_TO_REAL(maxSessionMs) / 1000.0, 1), "s M=", TO_STRING(milestoneCount)))
+  - displayDirty = FALSE
+  - WAIT_TIME(LOOP_DELAY)
+
+## 5. PROCEDURAL FUNCTIONS:
+functions:
+  isr_reset_btn()[4]:
+    - nowMs = GET_SYS_TIME()
+    - IF TIME_DIFF(nowMs, lastBtnTime) > DEBOUNCE:
+    - btnFlag = TRUE
+    - lastBtnTime = nowMs
+
+  beep_once()[3]:
+    - SET_PWM_DUTY(5, 32768)
+    - WAIT_TIME(BEEP_DUR)
+    - SET_PWM_DUTY(5, 0)
