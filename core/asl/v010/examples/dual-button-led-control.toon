@@ -29,7 +29,7 @@ setup[6]:
   - SET_BOOL(5, FALSE)
 
 ## 4. BEHAVIORAL LOGIC (LOOP):
-loop[5]:
+loop[7]:
   - btnRead = GET_BOOL(2)
   - IF btnRead:
   - led1State = toggle_led1(led1State)
@@ -40,7 +40,7 @@ loop[5]:
 
 ## 5. PROCEDURAL FUNCTIONS:
 functions:
-  toggle_led1(state)[4]:
+  toggle_led1(state)[6]:
     - state = NOT state
     - IF state:
     - SET_BOOL(4, TRUE)
@@ -48,7 +48,7 @@ functions:
     - SET_BOOL(4, FALSE)
     - RETURN state
 
-  toggle_led2(state)[4]:
+  toggle_led2(state)[6]:
     - state = NOT state
     - IF state:
     - SET_BOOL(5, TRUE)
