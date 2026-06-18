@@ -6,68 +6,67 @@ author: 123deoliveira4
 ASLversion: 0.1.0
 
 ## 1. HARDWARE INTERFACE:
-# Format: pin | type | io_mode | label | target_role
 hardware[8|]{pin|type|io_mode|label|target_role}:
-  8|digital|bi|"I2C SDA (SIG1)"|i2c-sda
-  9|digital|bi|"I2C SCL (SIG2)"|i2c-scl
-  4|digital|output|"TFT MOSI"|spi-mosi
-  6|digital|output|"TFT CLK"|spi-sck
-  7|digital|output|"TFT CS"|spi-cs
-  5|digital|output|"TFT DC"|digital-out
-  3|digital|output|"TFT RST"|digital-out
-  21|digital|output|"Serial TX via USB"|uart-tx
+  8|digital|BI|"sdaPin"|i2c-sda
+  9|digital|BI|"sclPin"|i2c-scl
+  4|digital|DO|"tftMosiPin"|spi-mosi
+  6|digital|DO|"tftClkPin"|spi-sck
+  7|digital|DO|"tftCsPin"|spi-cs
+  5|digital|DO|"tftDcPin"|digital-out
+  3|digital|DO|"tftRstPin"|digital-out
+  21|digital|DO|"uartTxPin"|uart-tx
 
 ## 2. SYSTEM DATA:
-data:
-  TIME_UNIT: ms
-  TEMP_UNIT: "C"
-  HUMD_UNIT: "%"
-  COLOR_BLACK: 0x0000
-  COLOR_WHITE: 0xFFFF
-  COLOR_RED: 0xF800
-  center_x: 80
-  center_y: 75
-  humd: 0.0
-  temp: 0.0
+data[10|]{name|type|scope|init_value|unit}:
+  TEMP_UNIT|STRING|CONST|"C"|°C
+  HUMD_UNIT|STRING|CONST|"%"| %
+  COLOR_BLACK|UINT|CONST|0x0000|-
+  COLOR_WHITE|UINT|CONST|0xFFFF|-
+  COLOR_RED|UINT|CONST|0xF800|-
+  CENTER_X|UINT|CONST|80|px
+  CENTER_Y|UINT|CONST|75|px
+  LOOP_INTERVAL|TIME|CONST|T#1000ms|ms
+  humd|FLOAT|VAR|0.0|%
+  temp|FLOAT|VAR|0.0|°C
 
 ## 3. INITIALIZATION SYSTEM:
 setup[8]:
-  - initI2C(0, 8, 9, 100000)
-  - initSPI(1, 4, -1, 6, 7)
-  - initTFT(5, 3, 0)
-  - initSensorI2C()
-  - serialBegin(9600)
-  - serialPrintln("Starting Universal I2C T/H Sensor")
-  - tftFillScreen(COLOR_WHITE)
+  - CFG_I2C_BUS(0, 8, 9, 100000)
+  - CFG_SPI_BUS(1, 4, -1, 6, 7)
+  - CFG_TFT_DISPLAY(5, 3, 0)
+  - CFG_I2C_SENSOR_TH()
+  - CFG_UART_BEGIN(9600)
+  - UART_PRINTLN("Starting Universal I2C T/H Sensor")
+  - TFT_FILL_SCREEN(COLOR_WHITE)
   - setup_the_screen()
 
 ## 4. BEHAVIORAL LOGIC (LOOP):
 loop[14]:
-  - temp = readTemperature()
-  - humd = readHumidity()
-  - delay(1000)
-  - tftSetTextColor(COLOR_BLACK, COLOR_WHITE)
-  - tftSetTextSize(2)
-  - tftPrintText(center_x - 35, center_y + 29, string(humd, 1))
-  - tftPrintText(center_x - 35, center_y - 27, string(temp, 1))
-  - serialPrint("Time: ")
-  - serialPrint(string(currentTime()))
-  - serialPrint(" Temp: ")
-  - serialPrint(string(temp, 1))
-  - serialPrint(" Hum: ")
-  - serialPrint(string(humd, 1))
-  - serialPrintln(HUMD_UNIT)
+  - temp = READ_TEMPERATURE()
+  - humd = READ_HUMIDITY()
+  - WAIT_TIME(LOOP_INTERVAL)
+  - TFT_SET_TEXT_COLOR(COLOR_BLACK, COLOR_WHITE)
+  - TFT_SET_TEXT_SIZE(2)
+  - TFT_PRINT_TEXT(CENTER_X - 35, CENTER_Y + 29, TO_STRING(humd, 1))
+  - TFT_PRINT_TEXT(CENTER_X - 35, CENTER_Y - 27, TO_STRING(temp, 1))
+  - UART_PRINT("Time: ")
+  - UART_PRINT(TO_STRING(GET_TIMESTAMP()))
+  - UART_PRINT(" Temp: ")
+  - UART_PRINT(TO_STRING(temp, 1))
+  - UART_PRINT(" Hum: ")
+  - UART_PRINT(TO_STRING(humd, 1))
+  - UART_PRINTLN(HUMD_UNIT)
 
 ## 5. PROCEDURAL FUNCTIONS:
 functions:
   setup_the_screen()[10]:
-    - tftDrawRoundRect(center_x - 75, center_y - 65, 120, 140, 4, COLOR_RED)
-    - tftDrawRoundRect(center_x - 70, center_y - 35, 110, 30, 4, COLOR_RED)
-    - tftDrawRoundRect(center_x - 70, center_y + 20, 110, 30, 4, COLOR_RED)
-    - tftSetTextSize(1)
-    - tftSetTextColor(COLOR_BLACK, COLOR_WHITE)
-    - tftPrintText(center_x - 55, center_y - 48, "temperature")
-    - tftPrintText(center_x + 15, center_y - 52, "o")
-    - tftPrintText(center_x + 21, center_y - 48, TEMP_UNIT)
-    - tftPrintText(center_x - 45, center_y + 10, "% humidity")
-    - tftPrintText(center_x - 55, center_y + 63, "Universal T/H I2C")
+    - TFT_DRAW_ROUND_RECT(CENTER_X - 75, CENTER_Y - 65, 120, 140, 4, COLOR_RED)
+    - TFT_DRAW_ROUND_RECT(CENTER_X - 70, CENTER_Y - 35, 110, 30, 4, COLOR_RED)
+    - TFT_DRAW_ROUND_RECT(CENTER_X - 70, CENTER_Y + 20, 110, 30, 4, COLOR_RED)
+    - TFT_SET_TEXT_SIZE(1)
+    - TFT_SET_TEXT_COLOR(COLOR_BLACK, COLOR_WHITE)
+    - TFT_PRINT_TEXT(CENTER_X - 55, CENTER_Y - 48, "temperature")
+    - TFT_PRINT_TEXT(CENTER_X + 15, CENTER_Y - 52, "o")
+    - TFT_PRINT_TEXT(CENTER_X + 21, CENTER_Y - 48, TEMP_UNIT)
+    - TFT_PRINT_TEXT(CENTER_X - 45, CENTER_Y + 10, "% humidity")
+    - TFT_PRINT_TEXT(CENTER_X - 55, CENTER_Y + 63, "Universal T/H I2C")
