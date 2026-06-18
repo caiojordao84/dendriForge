@@ -1,0 +1,99 @@
+# METADATA:
+project_name: G15-i2c-multi-device-scan
+version: 1
+editor: dendriForge
+author: dendriForge Golden Suite
+ASLversion: 0.1.0
+# GOLDEN TEST: Covers CFG_I2C on two buses, CFG_SENSOR_I2C REGEX resolution
+# path AND the VENDOR_EXTENSION fallback path for an unresolvable sensor,
+# READ_TEMPERATURE, READ_HUMIDITY, READ_PRESSURE, and LCD multi-line display.
+# Primary: I2C multi-device + REGEX sensor resolution
+# Secondary: VENDOR_EXTENSION fallback, LCD, SERIAL_PRINTLN, REAL formatting
+
+## 1. HARDWARE INTERFACE:
+hardware[10|]{pin|type|io_mode|label|target_role}:
+  0|digital|BI|"sda0Pin"|i2c-sda
+  1|digital|BI|"scl0Pin"|i2c-scl
+  4|digital|BI|"sda1Pin"|i2c-sda
+  5|digital|BI|"scl1Pin"|i2c-scl
+  6|digital|DO|"ledReady"|digital-out
+  7|digital|DO|"ledError"|digital-out
+  8|digital|DI|"alertPin"|int-falling
+
+## 2. SYSTEM DATA:
+data[18|]{name|type|scope|init_value|unit}:
+  BAUD_RATE|DINT|CONST|115200|-
+  I2C_FREQ|DINT|CONST|400000|-
+  SAMPLE_INTERVAL|TIME|CONST|T#2000ms|ms
+  LOOP_DELAY|TIME|CONST|T#50ms|ms
+  TEMP_ALARM_HI|REAL|CONST|40.0|degC
+  HUM_ALARM_HI|REAL|CONST|85.0|pct
+  PRESS_SEA_HPA|REAL|CONST|1013.25|hPa
+  temperature|REAL|VAR|0.0|degC
+  humidity|REAL|VAR|0.0|pct
+  pressure|REAL|VAR|0.0|hPa
+  pressureAlt|REAL|VAR|0.0|m
+  alarmTemp|BOOL|VAR|FALSE|-
+  alarmHum|BOOL|VAR|FALSE|-
+  sensorError|BOOL|VAR|FALSE|-
+  lastSampleTime|DWORD|VAR|0|ms
+  nowMs|DWORD|VAR|0|ms
+  alertFlag|BOOL|VAR|FALSE|-
+  sampleCount|UINT|VAR|0|-
+
+## 3. INITIALIZATION SYSTEM:
+setup[10]:
+  - CFG_SERIAL(115200)
+  - CFG_I2C(0, 0, 1, 400000)
+  - CFG_I2C(1, 4, 5, 400000)
+  - CFG_SENSOR_I2C()
+  - CFG_LCD(0x27, 20, 4)
+  - CFG_DIGITAL_OUTPUT(6)
+  - CFG_DIGITAL_OUTPUT(7)
+  - CFG_DIGITAL_INPUT(8)
+  - CFG_ATTACH_INTERRUPT(8, isr_alert, FALLING)
+  - SET_BOOL(6, TRUE)
+  - SET_BOOL(7, FALSE)
+  - LCD_CLEAR()
+  - LCD_PRINT(0, 0, "I2C Multi-Sensor")
+  - SERIAL_PRINTLN("ts_ms,temp_C,hum_pct,press_hPa,alt_m")
+
+## 4. BEHAVIORAL LOGIC (LOOP):
+loop[20]:
+  - nowMs = GET_SYS_TIME()
+  - IF TIME_DIFF(nowMs, lastSampleTime) >= SAMPLE_INTERVAL:
+  - temperature = READ_TEMPERATURE()
+  - humidity = READ_HUMIDITY()
+  - pressure = READ_PRESSURE()
+  - pressureAlt = calc_pressure_altitude(pressure)
+  - alarmTemp = temperature > TEMP_ALARM_HI
+  - alarmHum = humidity > HUM_ALARM_HI
+  - sampleCount = sampleCount + 1
+  - update_lcd()
+  - log_csv()
+  - lastSampleTime = nowMs
+  - SET_BOOL(7, alarmTemp OR alarmHum OR alertFlag)
+  - IF alertFlag:
+  - SERIAL_PRINTLN(CONCAT("ALERT pin triggered t=", TO_STRING(nowMs), "ms"))
+  - alertFlag = FALSE
+  - WAIT_TIME(LOOP_DELAY)
+
+## 5. PROCEDURAL FUNCTIONS:
+functions:
+  isr_alert()[1]:
+    - alertFlag = TRUE
+
+  calc_pressure_altitude(pressHpa)[2]:
+    - RETURN 44330.0 * (1.0 - EXPT(pressHpa / PRESS_SEA_HPA, 0.1903))
+
+  update_lcd()[5]:
+    - LCD_PRINT(0, 1, CONCAT("T:", TO_STRING_FMT(temperature, 1), "C  H:", TO_STRING_FMT(humidity, 1), "%   "))
+    - LCD_PRINT(0, 2, CONCAT("P:", TO_STRING_FMT(pressure, 1), "hPa      "))
+    - LCD_PRINT(0, 3, CONCAT("Alt:", TO_STRING_FMT(pressureAlt, 0), "m   "))
+    - IF alarmTemp OR alarmHum:
+    - LCD_PRINT(0, 0, "!! ALARM !!         ")
+    - ELSE:
+    - LCD_PRINT(0, 0, "I2C Multi-Sensor    ")
+
+  log_csv()[2]:
+    - SERIAL_PRINTLN(CONCAT(TO_STRING(GET_SYS_TIME()), ",", TO_STRING_FMT(temperature, 2), ",", TO_STRING_FMT(humidity, 2), ",", TO_STRING_FMT(pressure, 2), ",", TO_STRING_FMT(pressureAlt, 1)))

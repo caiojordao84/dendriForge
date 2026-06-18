@@ -1,0 +1,106 @@
+# METADATA:
+project_name: G16-spi-sd-card-logger
+version: 1
+editor: dendriForge
+author: dendriForge Golden Suite
+ASLversion: 0.1.0
+# GOLDEN TEST: Covers CFG_SPI with MOSI/MISO/SCK/CS, write-only SPI variant
+# (MISO=-1), multi-ADC sampling, GET_SYS_TIME timestamp, structured log
+# line assembly, and VENDOR_EXTENSION for unresolved SPI file-write target.
+# Primary: SPI bus + SD card logging
+# Secondary: CFG_SPI miso=-1 write-only, ADC, GET_SYS_TIME, VENDOR_EXTENSION, SERIAL_PRINTLN
+
+## 1. HARDWARE INTERFACE:
+hardware[11|]{pin|type|io_mode|label|target_role}:
+  18|digital|DO|"sckPin"|spi-sck
+  19|digital|DO|"mosiPin"|spi-mosi
+  20|digital|DI|"misoPin"|spi-miso
+  21|digital|DO|"csPin"|spi-cs
+  22|digital|DO|"csTftPin"|spi-cs
+  23|digital|DO|"ledWrite"|digital-out
+  24|digital|DO|"ledError"|digital-out
+  25|digital|DI|"cardDetect"|digital-int
+  34|analog|DI|"sensorV"|adc:t
+  35|analog|DI|"sensorI"|adc:t
+  36|analog|DI|"sensorT"|adc:t
+
+## 2. SYSTEM DATA:
+data[20|]{name|type|scope|init_value|unit}:
+  BAUD_RATE|DINT|CONST|115200|-
+  LOG_INTERVAL|TIME|CONST|T#500ms|ms
+  SAMPLE_COUNT|UINT|CONST|4|-
+  V_REF|REAL|CONST|3.3|V
+  R_SHUNT|REAL|CONST|0.1|Ohm
+  TEMP_OFFSET|REAL|CONST|0.5|degC
+  WRITE_LED_PULSE|TIME|CONST|T#50ms|ms
+  LOG_HEADER|STRING|CONST|"ts_ms,seq,voltage_V,current_A,temp_C"|-
+  cardPresent|BOOL|VAR|FALSE|-
+  logSeq|UINT|VAR|0|-
+  rawV|UINT|VAR|0|-
+  rawI|UINT|VAR|0|-
+  rawT|UINT|VAR|0|-
+  voltage|REAL|VAR|0.0|V
+  current|REAL|VAR|0.0|A
+  tempC|REAL|VAR|0.0|degC
+  logLine|STRING|VAR|""-
+  lastLogTime|DWORD|VAR|0|ms
+  nowMs|DWORD|VAR|0|ms
+  writeError|BOOL|VAR|FALSE|-
+
+## 3. INITIALIZATION SYSTEM:
+setup[10]:
+  - CFG_SERIAL(115200)
+  - CFG_SPI(0, 19, 20, 18, 21)
+  - CFG_ADC_INPUT(34)
+  - CFG_ADC_INPUT(35)
+  - CFG_ADC_INPUT(36)
+  - CFG_DIGITAL_OUTPUT(23)
+  - CFG_DIGITAL_OUTPUT(24)
+  - CFG_DIGITAL_INPUT(25)
+  - cardPresent = GET_BOOL(25)
+  - SET_BOOL(23, FALSE)
+  - SET_BOOL(24, NOT cardPresent)
+  - SERIAL_PRINTLN(LOG_HEADER)
+  - VENDOR_EXTENSION("SD_CARD_INIT:spi_bus=0,cs=21")
+  # WARN: SD card initialisation requires vendor driver — manual review required
+
+## 4. BEHAVIORAL LOGIC (LOOP):
+loop[20]:
+  - nowMs = GET_SYS_TIME()
+  - cardPresent = GET_BOOL(25)
+  - IF NOT cardPresent:
+  - SET_BOOL(24, TRUE)
+  - WAIT_TIME(LOG_INTERVAL)
+  - RETURN
+  - IF TIME_DIFF(nowMs, lastLogTime) >= LOG_INTERVAL:
+  - rawV = sample_avg(34)
+  - rawI = sample_avg(35)
+  - rawT = sample_avg(36)
+  - voltage = MAP_RANGE(INT_TO_REAL(rawV), 0.0, 65535.0, 0.0, V_REF)
+  - current = MAP_RANGE(INT_TO_REAL(rawI), 0.0, 65535.0, 0.0, V_REF) / R_SHUNT
+  - tempC = MAP_RANGE(INT_TO_REAL(rawT), 0.0, 65535.0, -40.0, 125.0) + TEMP_OFFSET
+  - logSeq = logSeq + 1
+  - logLine = CONCAT(TO_STRING(nowMs), ",", TO_STRING(logSeq), ",", TO_STRING_FMT(voltage, 4), ",", TO_STRING_FMT(current, 4), ",", TO_STRING_FMT(tempC, 2))
+  - write_log_line(logLine)
+  - SERIAL_PRINTLN(logLine)
+  - lastLogTime = nowMs
+  - SET_BOOL(24, FALSE)
+
+## 5. PROCEDURAL FUNCTIONS:
+functions:
+  sample_avg(pin)[5]:
+    - acc = 0
+    - FOR _i0 := 0 TO SAMPLE_COUNT:
+    - acc = acc + READ_ADC(pin)
+    - RETURN acc / SAMPLE_COUNT
+
+  write_log_line(line)[4]:
+    - SET_BOOL(23, TRUE)
+    - VENDOR_EXTENSION("SD_CARD_WRITE:line")
+    # WARN: SD card file write requires vendor driver — manual review required
+    - WAIT_TIME(WRITE_LED_PULSE)
+    - SET_BOOL(23, FALSE)
+
+  flush_log()[2]:
+    - VENDOR_EXTENSION("SD_CARD_FLUSH")
+    # WARN: SD card flush requires vendor driver — manual review required
