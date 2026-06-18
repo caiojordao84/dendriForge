@@ -4,9 +4,6 @@ version: 1
 editor: dendriForge
 author: dendriForge Golden Suite
 ASLversion: 0.1.0
-# GOLDEN TEST: Covers all three io_mode values (DI, DO, BI),
-# GET_BOOL, SET_BOOL, and basic IF/ELSE chain.
-# Primary: GPIO all modes   Secondary: IF/ELSE, GET_BOOL, SET_BOOL, WAIT_TIME
 
 ## 1. HARDWARE INTERFACE:
 hardware[6|]{pin|type|io_mode|label|target_role}:
@@ -36,7 +33,7 @@ setup[6]:
   - CFG_DIGITAL_OUTPUT(7)
 
 ## 4. BEHAVIORAL LOGIC (LOOP):
-loop[20]:
+loop[22]:
   - inputState = GET_BOOL(2)
   - biDirState = GET_BOOL(4)
   - IF inputState AND biDirState:
