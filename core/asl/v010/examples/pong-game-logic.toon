@@ -14,7 +14,7 @@ hardware[5|]{pin|type|io_mode|label|target_role}:
   1|digital|BI|"sclPin"|i2c-scl
 
 ## 2. SYSTEM DATA:
-data[19|]{name|type|scope|init_value|unit}:
+data[20|]{name|type|scope|init_value|unit}:
   WHITE|UINT|CONST|1|-
   BLACK|UINT|CONST|0|-
   BALL_RATE|TIME|CONST|T#30ms|ms
