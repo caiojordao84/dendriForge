@@ -17,7 +17,7 @@ hardware[8|]{pin|type|io_mode|label|target_role}:
   1|digital|BI|"sclPin"|i2c-scl
 
 ## 2. SYSTEM DATA:
-data[27|]{name|type|scope|init_value|unit}:
+data[30|]{name|type|scope|init_value|unit}:
   KP|FLOAT|CONST|25.5|-
   KI|FLOAT|CONST|1.2|-
   KD|FLOAT|CONST|5.0|-
@@ -93,7 +93,7 @@ functions:
     - currentX = targetX
     - currentY = targetY
 
-  execute_trajectory_pulses(pulses)[7]:
+  execute_trajectory_pulses(pulses)[6]:
     - REPEAT(pulses):
     - IF NOT sysSafetyHalt:
     - SET_PWM_DUTY(14, 32768)
