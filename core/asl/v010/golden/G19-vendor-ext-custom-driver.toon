@@ -1,0 +1,125 @@
+# METADATA:
+project_name: G19-vendor-ext-custom-driver
+version: 1
+editor: dendriForge
+author: dendriForge Golden Suite
+ASLversion: 0.1.0
+# GOLDEN TEST: Exercises every VENDOR_EXTENSION category defined in the
+# stdlib formal spec: UNRESOLVED_SENSOR_FB, UNRESOLVED_TFT_DRIVER,
+# UNRESOLVED_SENSOR_I2C, SD_CARD_INIT/WRITE/FLUSH, ISR_ATTRIBUTE,
+# and a fully custom bare-metal peripheral block.
+# Each call is paired with its mandatory # WARN comment.
+# Also tests the IF fallback path: when VENDOR_EXTENSION is guarded by
+# a BOOL flag, normal stdlib calls take the resolved path and the
+# vendor block is the else branch.
+# Primary: VENDOR_EXTENSION all categories + fallback IF pattern
+# Secondary: GPIO, SERIAL_PRINTLN, CFG_ATTACH_INTERRUPT, RETAIN, GET_SYS_TIME
+
+## 1. HARDWARE INTERFACE:
+hardware[9|]{pin|type|io_mode|label|target_role}:
+  0|digital|BI|"uartTxPin"|uart-tx
+  1|digital|BI|"uartRxPin"|uart-rx
+  4|digital|DO|"dcPin"|tft-dc
+  5|digital|DO|"csPin"|spi-cs
+  6|digital|DO|"rstPin"|tft-rst
+  7|digital|DO|"ledStatus"|digital-out
+  8|digital|DO|"ledVendor"|digital-out
+  9|digital|DI|"extIrqPin"|int-rising
+  34|analog|DI|"sensorRaw"|adc:t
+
+## 2. SYSTEM DATA:
+data[16|]{name|type|scope|init_value|unit}:
+  BAUD_RATE|DINT|CONST|115200|-
+  LOOP_DELAY|TIME|CONST|T#500ms|ms
+  VENDOR_FALLBACK_EN|BOOL|CONST|TRUE|-
+  TEMP_SCALE|REAL|CONST|0.0625|degC
+  TEMP_OFFSET|REAL|CONST|-40.0|degC
+  VENDOR_INIT_RETRIES|UINT|CONST|3|-
+  vendorReady|BOOL|VAR|FALSE|-
+  tftReady|BOOL|VAR|FALSE|-
+  sensorReady|BOOL|VAR|FALSE|-
+  vendorEventFlag|BOOL|VAR|FALSE|-
+  lastEventTime|DWORD|VAR|0|ms
+  rawTemp|UINT|VAR|0|-
+  tempC|REAL|VAR|0.0|degC
+  initRetries|UINT|VAR|0|-
+  vendorInitCount|UINT|RETAIN|0|-
+  logLine|STRING|VAR|""-
+
+## 3. INITIALIZATION SYSTEM:
+setup[18]:
+  - CFG_SERIAL(115200)
+  - CFG_ADC_INPUT(34)
+  - CFG_DIGITAL_OUTPUT(7)
+  - CFG_DIGITAL_OUTPUT(8)
+  - CFG_DIGITAL_INPUT(9)
+  - CFG_ATTACH_INTERRUPT(9, isr_vendor_ext_irq, RISING)
+  # --- TFT driver resolution (REGEX miss — bare-metal target)
+  - VENDOR_EXTENSION("UNRESOLVED_TFT_DRIVER:target=bare-metal-stm32")
+  # WARN: TFT driver could not be resolved for bare-metal-stm32 — manual driver init required
+  - tftReady = FALSE
+  # --- Sensor I2C resolution (label has no known driver match)
+  - VENDOR_EXTENSION("UNRESOLVED_SENSOR_I2C:label=sensorRaw,bus=0")
+  # WARN: Sensor I2C driver could not be resolved — manual CFG_SENSOR_I2C binding required
+  - sensorReady = FALSE
+  # --- SD card vendor init sequence
+  - VENDOR_EXTENSION("SD_CARD_INIT:spi_bus=0,cs=5")
+  # WARN: SD card initialisation requires vendor driver — manual review required
+  # --- Custom bare-metal peripheral init (DMA engine)
+  - VENDOR_EXTENSION("PERIPHERAL_INIT:DMA_ENGINE,channel=2,priority=HIGH")
+  # WARN: DMA engine init is target-specific — manual review required
+  - vendorInitCount = vendorInitCount + 1
+  - SERIAL_PRINTLN(CONCAT("Vendor init #", TO_STRING(vendorInitCount)))
+  - SET_BOOL(7, TRUE)
+
+## 4. BEHAVIORAL LOGIC (LOOP):
+loop[24]:
+  - rawTemp = READ_ADC(34)
+  - tempC = INT_TO_REAL(rawTemp) * TEMP_SCALE + TEMP_OFFSET
+  - IF sensorReady:
+  - tempC = READ_TEMPERATURE()
+  - ELSE:
+  - VENDOR_EXTENSION("UNRESOLVED_SENSOR_FB:READ_TEMPERATURE")
+  # WARN: READ_TEMPERATURE unresolved — falling back to raw ADC estimate
+  - IF tftReady:
+  - TFT_PRINT(0, 0, CONCAT("T:", TO_STRING_FMT(tempC, 1), "C"))
+  - ELSE:
+  - VENDOR_EXTENSION("UNRESOLVED_TFT_DRIVER:TFT_PRINT")
+  # WARN: TFT_PRINT unresolved — falling back to SERIAL_PRINTLN
+  - SERIAL_PRINTLN(CONCAT("[TFT-FALLBACK] T=", TO_STRING_FMT(tempC, 1), "C"))
+  - IF vendorEventFlag:
+  - vendorEventFlag = FALSE
+  - lastEventTime = GET_SYS_TIME()
+  - VENDOR_EXTENSION("PERIPHERAL_EVENT:DMA_ENGINE,action=DRAIN")
+  # WARN: DMA drain is target-specific — manual review required
+  - SET_BOOL(8, TRUE)
+  - SERIAL_PRINTLN(CONCAT("vendor_event t=", TO_STRING(lastEventTime), "ms"))
+  - ELSE:
+  - SET_BOOL(8, FALSE)
+  - logLine = CONCAT(TO_STRING(GET_SYS_TIME()), ",", TO_STRING_FMT(tempC, 2), ",", SEL(sensorReady, "adc", "i2c"), ",", SEL(vendorReady, "N", "Y"))
+  - SERIAL_PRINTLN(logLine)
+  - WAIT_TIME(LOOP_DELAY)
+
+## 5. PROCEDURAL FUNCTIONS:
+functions:
+  isr_vendor_ext_irq()[3]:
+    - VENDOR_EXTENSION("ISR_ATTRIBUTE:bare-metal-stm32")
+    # WARN: ISR attribute for bare-metal-stm32 requires NVIC config — manual review required
+    - vendorEventFlag = TRUE
+
+  write_sd_record(line)[4]:
+    - VENDOR_EXTENSION("SD_CARD_WRITE:line")
+    # WARN: SD card file write requires vendor driver — manual review required
+    - VENDOR_EXTENSION("SD_CARD_FLUSH")
+    # WARN: SD card flush requires vendor driver — manual review required
+    - SERIAL_PRINTLN(CONCAT("[SD] ", line))
+
+  vendor_init_retry()[7]:
+    - initRetries = 0
+    - vendorReady = FALSE
+    - WHILE NOT vendorReady AND initRetries < VENDOR_INIT_RETRIES:
+    - VENDOR_EXTENSION("PERIPHERAL_INIT:DMA_ENGINE,channel=2,retry=true")
+    # WARN: DMA retry sequence is target-specific — manual review required
+    - initRetries = initRetries + 1
+    - IF initRetries < VENDOR_INIT_RETRIES: vendorReady = TRUE
+    - SERIAL_PRINTLN(CONCAT("vendor_init retries=", TO_STRING(initRetries), " ready=", SEL(vendorReady, "N", "Y")))
