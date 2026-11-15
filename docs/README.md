@@ -1,40 +1,63 @@
 # dendriForge — Documentation
 
-> ASL v0.1.0 — TOON Language Specification
+> **Live IR:** ASL = **Abstract Syntax Language**, structured in **TOML** (`.asl.toml`).  
+> **Versioning:** ASL is **unversioned until MVP acceptance**, then **`0.0.1`**. Do not treat `0.1.0` / `0.1.1` / `v010` as current.  
+> **Authority:** [`phase-0/`](./phase-0/) + Rust types in `crates/dendri-ast`.
 
-This folder contains the formal specification documents for the **TOON** intermediate representation language used by dendriForge's parser and code generator.
+This folder holds the Phase 0 contract, the living implementation plan, and **superseded** semantic drafts from the pre-TOML era.
 
 ---
 
-## Documents
+## Live documents (use these)
 
 | File | Description |
 |---|---|
-| [stdlib.md](./stdlib.md) | TOON Standard Library — full function dictionary with IEC 61131-3 canonical names, aliases, signatures, C++ and MicroPython codegen mappings, and per-function trigger rules |
-| [grammar.md](./grammar.md) | TOON Formal Grammar — EBNF grammar for the full TOON language, alias normalization table, parse error catalogue, and symbol table definition |
+| [phase-0/README.md](./phase-0/README.md) | Phase 0 contract index — TOML IR, versioning, errors, layout, SVG readiness |
+| [phase-0/ir-schema.md](./phase-0/ir-schema.md) | Program + profile TOML IR schema |
+| [phase-0/versioning.md](./phase-0/versioning.md) | Unversioned until MVP; then `0.0.1` |
+| [Implementation Plan.md](./Implementation%20Plan.md) | Living plan — Phase 0 landed; MVP in progress |
+
+**Type source of truth:** `crates/dendri-ast`  
+**Stdlib catalog:** `crates/dendri-stdlib/data/catalog.toml`  
+**Fixtures:** `content/fixtures/`  
+**Legacy TOON (historical):** `core/**/*.toon` — see [`../legacy/toon/README.md`](../legacy/toon/README.md)
+
+---
+
+## Superseded semantic drafts (not the live surface format)
+
+These Markdown drafts capture IEC naming, stdlib intent, and parse/validate ideas. Their original **TOON** surface syntax and any `ASL v0.1.0` / `ASLversion` wording are **obsolete**. Semantics migrate into the TOML IR and `catalog.toml`; do not reintroduce TOON as a supported IR.
+
+| File | Role today |
+|---|---|
+| [stdlib.md](./stdlib.md) | Historical stdlib dictionary → prefer `crates/dendri-stdlib/data/catalog.toml` |
+| [grammar.md](./grammar.md) | Historical EBNF of the old surface → prefer `phase-0/ir-schema.md` + `dendri-ast` |
 
 ---
 
 ## Architecture Overview
 
 ```
- Source Language          TOON IR (ASL)           Target Language
- (C++, MicroPython,  →   (this spec)         →   (C++, MicroPython,
-  IEC ST, Codesys...)                              IEC ST, Codesys...)
+ Source Language                 ASL IR (TOML)              Target Language
+ (C++, MicroPython, ST,    →   (.asl.toml — this        →  (C++, MicroPython,
+  Ladder, SFC/GRAFCET …)        contract)                   ST, Ladder, SFC …)
 ```
 
-TOON acts as the **Rosetta Stone** IR. Any supported source language is parsed into TOON. Any supported target language is generated from TOON. This decouples parsers from generators and reduces the problem from N×M to N+M.
+ASL-in-TOML is the **Rosetta Stone** IR. Any supported source language is parsed into ASL. Any supported target language is generated from ASL. This decouples parsers from generators and reduces the problem from N×M to N+M.
+
+**MVP languages (P1):** C++, MicroPython, Structured Text (ST), Ladder, SFC/GRAFCET.  
+**Post-MVP (P2):** Rust scripting. App stack remains pure Rust.
 
 ---
 
 ## Key Design Decisions
 
-- **IEC 61131-3 canonical naming** — all stdlib functions use IEC names. Generic aliases are accepted by the parser but normalized at parse time (Pass 0).
-- **Type inference** — function parameter types are inferred from the symbol table built during the full-document parse pass. No explicit type annotations required in `functions:`.
-- **Typed `data[]` header** — `data[N|]{name|type|scope|init_value|unit}` provides unambiguous typed declarations for all generators.
-- **Label resolution** — hardware pin integers are always resolved to their `hardware[]` label constant. Raw integers are never emitted in generated output.
-- **`TIME_DIFF` enforcement** — raw subtraction of time-typed `DWORD` values is a `PARSE_ERROR`. `TIME_DIFF(a, b)` is always required.
-- **`VENDOR_EXTENSION` fallback** — any unresolvable function emits a `VENDOR_EXTENSION("CATEGORY:DETAIL")` marker and a `# WARN` comment. Nothing is silently skipped.
+- **TOML only** — programs are `.asl.toml`; profiles are `.toml`. TOON is obsolete as IR.
+- **Single-file project (MVP)** — one TOML file holds hardware, wiring, original scripts, and ASL.
+- **IEC 61131-3 canonical naming** — stdlib functions use IEC names; aliases normalize at parse time.
+- **Shared AST** — one Rust AST for parsers, generators, and simulators (`dendri-ast`).
+- **Ladder / GRAFCET** — visual editors sync bidirectionally with the same TOML in real time.
+- **No ASL version field** until MVP acceptance tests pass; first tag is `0.0.1`.
 
 ---
 
@@ -51,10 +74,12 @@ TARGET_PLATFORM ∈ {
 
 ---
 
-## Version
+## Version / status
 
 | Field | Value |
 |---|---|
-| ASL version | 0.1.0 |
+| ASL version | **None** (unversioned until MVP → then `0.0.1`) |
+| Phase 0 | Landed (contract freeze) |
+| MVP | In progress |
 | Editor | dendriForge |
-| Spec status | Draft |
+| Spec status | Phase 0 contract + MVP build |

@@ -1,14 +1,19 @@
-# TOON Standard Library — ASL v0.1.0
+# ASL Standard Library — historical semantic draft
+
+> **Superseded as authority.** Live catalog: `crates/dendri-stdlib/data/catalog.toml`.
+> Live IR: ASL in **TOML** ([`phase-0/`](./phase-0/)). ASL is **unversioned until MVP**, then `0.0.1`.
+> Column headers below historically said “TOON”; they mean **ASL** function identifiers.
+> Do not treat this file’s old `v0.1.0` label as the current ASL version.
 
 > IEC 61131-3 Naming Edition
 
-**Naming convention rule:** IEC 61131-3 names are the canonical TOON identifiers. Generic aliases from prior versions are accepted by the parser but normalized to IEC names at parse time (Pass 0). Generators always receive the IEC canonical name.
+**Naming convention rule:** IEC 61131-3 names are the canonical ASL identifiers. Generic aliases from prior versions are accepted by the parser but normalized to IEC names at parse time (Pass 0). Generators always receive the IEC canonical name.
 
 ---
 
 ## GPIO
 
-| TOON (IEC canonical) | Alias | Signature | Returns | C++ | MicroPython | Trigger |
+| ASL (IEC canonical) | Alias | Signature | Returns | C++ | MicroPython | Trigger |
 |---|---|---|---|---|---|---|
 | `CFG_DIGITAL_OUTPUT(pin)` | — | `pin: UINT` | `VOID` | `pinMode(ledPin, OUTPUT)` | `Pin(LED_PIN, Pin.OUT)` → `led_pin` global | — |
 | `CFG_DIGITAL_INPUT(pin)` | — | `pin: UINT` | `VOID` | `pinMode(pin, INPUT)` | `Pin(PIN, Pin.IN)` → `pin_obj` global | — |
@@ -27,14 +32,14 @@
 
 ## PWM
 
-| TOON (IEC canonical) | Alias | Signature | Returns | C++ | MicroPython | Trigger |
+| ASL (IEC canonical) | Alias | Signature | Returns | C++ | MicroPython | Trigger |
 |---|---|---|---|---|---|---|
 | `CFG_PWM_OUTPUT(pin, freq)` | — | `pin: UINT, freq: UINT` | `VOID` | `arduino-esp32`: `ledcSetup(ch, freq, 16); ledcAttachPin(pin, ch)` — `arduino-avr`: `pinMode(pin, OUTPUT)` ³ | `pwm_N = PWM(Pin(PIN), freq=freq)` → global ⁴ | Allocates channel/object on first call per pin |
 | `SET_PWM_FREQ(pin, hz)` | `pwmFreq` | `pin: UINT, hz: UINT` | `VOID` | `arduino-esp32`: `ledcSetup(ch, hz, 16)` — `arduino-avr`: no-op + `# WARN: runtime freq change not supported on AVR` | `pwm_N.freq(hz)` ⁴ | Triggers allocation if not already done |
 | `SET_PWM_DUTY(pin, duty)` | `pwmWrite` | `pin: UINT, duty: UINT` | `VOID` | `arduino-esp32`: `ledcWrite(ch, duty)` — `arduino-avr`: `analogWrite(pin, duty >> 8)` + `# WARN: duty scaled 65535→255 for AVR` | `pwm_N.duty_u16(duty)` ⁴ | Resolves pin→channel before emit |
 | `GET_PWM_DUTY(pin)` | `pwmRead` | `pin: UINT` | `UINT` | `arduino-esp32`: `ledcRead(ch)` — `arduino-avr`: `# WARN: pwmRead not available on AVR` → emit `0` | `pwm_N.duty_u16()` | — |
 
-**³ ESP32 ledc channel rule (C++):** generator assigns `ch = 0, 1, 2...` in declaration order. Channel integers are generator-internal and never visible in TOON.
+**³ ESP32 ledc channel rule (C++):** generator assigns `ch = 0, 1, 2...` in declaration order. Channel integers are generator-internal and never visible in ASL.
 
 **⁴ MicroPython PWM object rule:** object named `pwm_N` where N is allocation order (0, 1, 2...). Declared globally, instantiated in `setup()`. `SET_PWM_DUTY(pin, duty)` resolves `pin→pwm_N` before emitting `pwm_N.duty_u16(duty)`.
 
@@ -42,7 +47,7 @@
 
 ## ADC
 
-| TOON (IEC canonical) | Alias | Signature | Returns | C++ | MicroPython | Trigger |
+| ASL (IEC canonical) | Alias | Signature | Returns | C++ | MicroPython | Trigger |
 |---|---|---|---|---|---|---|
 | `CFG_ADC_INPUT(pin)` | — | `pin: UINT` | `VOID` | `pinMode(pin, INPUT)` | `IMPLICIT` — ADC object handles config | — |
 | `READ_ADC(pin)` | `readADC` | `pin: UINT` | `UINT` (0–65535) | `analogRead(pin)` ⁵ | `adc_N.read_u16()` ⁶ | ESP32: inject `analogReadResolution(16)` once in `setup()` — AVR: inject `map()` shim at each call site |
@@ -58,7 +63,7 @@
 
 ## Time
 
-| TOON (IEC canonical) | Alias | Signature | Returns | C++ | MicroPython | Trigger |
+| ASL (IEC canonical) | Alias | Signature | Returns | C++ | MicroPython | Trigger |
 |---|---|---|---|---|---|---|
 | `WAIT_TIME(t)` | `delay` | `t: TIME` | `VOID` | `delay(t_ms)` | `sleep_ms(t_ms)` | `T#` prefix and `ms` suffix stripped; C++ appends `UL` |
 | `WAIT_TIME_US(t)` | — | `t: TIME` | `VOID` | `delayMicroseconds(t_us)` | `sleep_us(t_us)` | `T#` prefix and `us` suffix stripped |
@@ -72,7 +77,7 @@
 
 ## Math
 
-| TOON (IEC canonical) | Alias | Signature | Returns | C++ | MicroPython | Trigger |
+| ASL (IEC canonical) | Alias | Signature | Returns | C++ | MicroPython | Trigger |
 |---|---|---|---|---|---|---|
 | `SQRT(x)` | `sqrt` | `x: REAL` | `REAL` | `sqrt(x)` | `math.sqrt(x)` | Inject `#include <math.h>` / `import math` once |
 | `LN(x)` | `log` | `x: REAL` | `REAL` | `log(x)` | `math.log(x)` | Natural log only. `log` alias normalized to `LN` at parse time |
@@ -97,7 +102,7 @@
 
 ## Bitwise Operations
 
-| TOON (IEC canonical) | Alias | Signature | Returns | C++ | MicroPython |
+| ASL (IEC canonical) | Alias | Signature | Returns | C++ | MicroPython |
 |---|---|---|---|---|---|
 | `AND_BIT(a, b)` | — | `a: ANY_BIT, b: ANY_BIT` | `ANY_BIT` | `a & b` | `a & b` |
 | `OR_BIT(a, b)` | — | `a: ANY_BIT, b: ANY_BIT` | `ANY_BIT` | `a \| b` | `a \| b` |
@@ -116,7 +121,7 @@
 
 All casts are mandatory-explicit. Implicit coercion is never emitted.
 
-| TOON (IEC canonical) | Alias | Signature | Returns | C++ | MicroPython |
+| ASL (IEC canonical) | Alias | Signature | Returns | C++ | MicroPython |
 |---|---|---|---|---|---|
 | `REAL_TO_INT(x)` | `int(x)` | `x: REAL` | `INT` | `(int)(x)` | `int(x)` |
 | `INT_TO_REAL(x)` | `float(x)` | `x: INT` | `REAL` | `(float)(x)` | `float(x)` |
@@ -134,7 +139,7 @@ All casts are mandatory-explicit. Implicit coercion is never emitted.
 
 ## Boolean Logic
 
-| TOON (IEC canonical) | Alias | Signature | Returns | C++ | MicroPython |
+| ASL (IEC canonical) | Alias | Signature | Returns | C++ | MicroPython |
 |---|---|---|---|---|---|
 | `NOT x` | — | `x: BOOL` | `BOOL` | `!x` | `not x` |
 | `AND(a, b)` | — | `a: BOOL, b: BOOL` | `BOOL` | `a && b` | `a and b` |
@@ -147,7 +152,7 @@ All casts are mandatory-explicit. Implicit coercion is never emitted.
 
 ## Control Flow
 
-| TOON (IEC canonical) | Alias | Signature | C++ | MicroPython |
+| ASL (IEC canonical) | Alias | Signature | C++ | MicroPython |
 |---|---|---|---|---|
 | `IF cond:` | `if cond:` | `cond: BOOL` | `if (cond) {` | `if cond:` |
 | `ELSE:` | `else:` | — | `} else {` | `else:` |
@@ -161,20 +166,20 @@ All casts are mandatory-explicit. Implicit coercion is never emitted.
 | `RETURN x` | — | `x: T` | `return x;` | `return x` |
 | `RETURN NOT x` | — | `x: BOOL` | `return !x;` | `return not x` |
 
-**⁸ `FOR` scoping rule:** loop variable uses depth-indexed naming `_i0`, `_i1`, `_i2`... for nested blocks. Generator-internal — never visible in TOON. Use explicit `data: VAR` counter if index access is needed.
+**⁸ `FOR` scoping rule:** loop variable uses depth-indexed naming `_i0`, `_i1`, `_i2`... for nested blocks. Generator-internal — never visible in ASL. Use explicit `data: VAR` counter if index access is needed.
 
 ---
 
 ## Interrupts
 
-| TOON (IEC canonical) | Alias | Signature | Returns | C++ | MicroPython | Trigger |
+| ASL (IEC canonical) | Alias | Signature | Returns | C++ | MicroPython | Trigger |
 |---|---|---|---|---|---|---|
 | `CFG_ATTACH_INTERRUPT(pin, fn, mode)` | `attachInterrupt` | `pin: UINT, fn: ISR_REF, mode: EDGE` | `VOID` | `attachInterrupt(digitalPinToInterrupt(pin), fn, mode)` | `Pin(pin).irq(trigger=EDGE_MAP[mode], handler=fn)` | `arduino-esp32`: inject `IRAM_ATTR` on ISR — `arduino-avr`: no attribute |
 | `CFG_DETACH_INTERRUPT(pin)` | `detachInterrupt` | `pin: UINT` | `VOID` | `detachInterrupt(pin)` | `Pin(pin).irq(handler=None)` | — |
 
 **`EDGE` enum mapping:**
 
-| TOON | C++ | MicroPython |
+| ASL | C++ | MicroPython |
 |---|---|---|
 | `RISING` | `RISING` | `Pin.IRQ_RISING` |
 | `FALLING` | `FALLING` | `Pin.IRQ_FALLING` |
@@ -188,7 +193,7 @@ All casts are mandatory-explicit. Implicit coercion is never emitted.
 
 ## Serial / UART
 
-| TOON (IEC canonical) | Alias | Signature | Returns | C++ | MicroPython | Trigger |
+| ASL (IEC canonical) | Alias | Signature | Returns | C++ | MicroPython | Trigger |
 |---|---|---|---|---|---|---|
 | `CFG_SERIAL(baud)` | `serialBegin` | `baud: DINT` | `VOID` | `Serial.begin(baud)` | `uart_N = UART(bus, baud, tx=pin?)` → global ⁹ | Non-default `uart-tx` pin → inject `tx=Pin(pin)` |
 | `SERIAL_PRINT(msg)` | `serialPrint` | `msg: STRING` | `VOID` | `Serial.print(msg)` | `uart_N.write(msg)` | — |
@@ -204,7 +209,7 @@ All casts are mandatory-explicit. Implicit coercion is never emitted.
 
 ## I2C
 
-| TOON (IEC canonical) | Alias | Signature | Returns | C++ | MicroPython | Trigger |
+| ASL (IEC canonical) | Alias | Signature | Returns | C++ | MicroPython | Trigger |
 |---|---|---|---|---|---|---|
 | `CFG_I2C(bus, sda, scl, freq)` | `initI2C` | `bus: UINT, sda: UINT, scl: UINT, freq: DINT` | `VOID` | `Wire.begin(sda, scl)` | `i2c_N = I2C(bus, sda=Pin(sda), scl=Pin(scl), freq=freq)` → global | Declare globally; instantiate in `setup()` |
 | `CFG_SENSOR_I2C()` | `initSensorI2C` | *(none)* | `VOID` | REGEX → driver `#include` | REGEX → driver `import` | No match → `VENDOR_EXTENSION("UNRESOLVED_SENSOR_I2C")` + `# WARN` |
@@ -213,7 +218,7 @@ All casts are mandatory-explicit. Implicit coercion is never emitted.
 
 ## SPI
 
-| TOON (IEC canonical) | Alias | Signature | Returns | C++ | MicroPython | Trigger |
+| ASL (IEC canonical) | Alias | Signature | Returns | C++ | MicroPython | Trigger |
 |---|---|---|---|---|---|---|
 | `CFG_SPI(bus, mosi, miso, sck, cs)` | `initSPI` | `bus: UINT, mosi: UINT, miso: INT, sck: UINT, cs: UINT` | `VOID` | `SPI.begin(sck, miso, mosi, cs)` | `spi_N = SPI(bus, mosi=Pin(mosi), miso=Pin(miso), sck=Pin(sck))` → global | `miso = -1` → write-only: omit MISO from both targets |
 
@@ -221,7 +226,7 @@ All casts are mandatory-explicit. Implicit coercion is never emitted.
 
 ## Display — TFT
 
-| TOON (IEC canonical) | Alias | Signature | Returns | C++ | MicroPython | Trigger |
+| ASL (IEC canonical) | Alias | Signature | Returns | C++ | MicroPython | Trigger |
 |---|---|---|---|---|---|---|
 | `CFG_TFT(dc, rst, cs)` | `initTFT` | `dc: UINT, rst: INT, cs: INT` | `VOID` | REGEX → `TFT_eSPI` (`arduino-esp32`) / `Adafruit_ST7789` (others) ¹⁰ | `tft = st7789.ST7789(...)` → global | `rst = -1` → omit reset pin |
 | `TFT_FILL(color)` | `tftFillScreen` | `color: WORD` | `VOID` | `tft.fillScreen(color)` | `tft.fill(color)` | — |
@@ -238,7 +243,7 @@ All casts are mandatory-explicit. Implicit coercion is never emitted.
 
 ## Display — LCD (I2C)
 
-| TOON (IEC canonical) | Alias | Signature | Returns | C++ | MicroPython | Trigger |
+| ASL (IEC canonical) | Alias | Signature | Returns | C++ | MicroPython | Trigger |
 |---|---|---|---|---|---|---|
 | `CFG_LCD(addr, cols, rows)` | `initLCD` | `addr: BYTE, cols: UINT, rows: UINT` | `VOID` | `LiquidCrystal_I2C lcd(addr, cols, rows); lcd.init(); lcd.backlight()` | `lcd = I2cLcd(i2c, addr, rows, cols)` → global | Declare globally; instantiate in `setup()` |
 | `LCD_CLEAR()` | `lcdClear` | *(none)* | `VOID` | `lcd.clear()` | `lcd.clear()` | — |
@@ -248,7 +253,7 @@ All casts are mandatory-explicit. Implicit coercion is never emitted.
 
 ## Sensor FB (REGEX-resolved)
 
-| TOON (IEC canonical) | Alias | Signature | Returns | Resolution | Failure |
+| ASL (IEC canonical) | Alias | Signature | Returns | Resolution | Failure |
 |---|---|---|---|---|---|
 | `CFG_SENSOR_I2C()` | `initSensorI2C` | *(none)* | `VOID` | REGEX on `hardware[]` label + `target_role` | `VENDOR_EXTENSION("UNRESOLVED_SENSOR_I2C")` + `# WARN` |
 | `READ_TEMPERATURE()` | `readTemperature` | *(none)* | `REAL` | REGEX → `dht.temperature()` / `sht.temperature()` / `bme.temperature` | `VENDOR_EXTENSION("UNRESOLVED_SENSOR_FB:READ_TEMPERATURE")` + `# WARN` |
@@ -259,7 +264,7 @@ All casts are mandatory-explicit. Implicit coercion is never emitted.
 
 ## Memory
 
-| TOON (IEC canonical) | Alias | Signature | Returns | C++ | MicroPython | Trigger |
+| ASL (IEC canonical) | Alias | Signature | Returns | C++ | MicroPython | Trigger |
 |---|---|---|---|---|---|---|
 | `SYS_LOAD_MEMORY_SECTOR(RETAIN_SECTOR)` | — | *(none)* | `VOID` | `EEPROM.begin(SIZE)` ¹² | `import ujson` + load from flash file | Auto-injected at top of `setup()` if any `RETAIN` variable exists |
 | `SYS_LOAD_MEMORY_SECTOR(PERSISTENT_SECTOR)` | — | *(none)* | `VOID` | `Preferences.begin("persist", false)` | `import btree` + flash mount | Auto-injected at top of `setup()` if any `PERSISTENT` variable exists |
@@ -272,7 +277,7 @@ All casts are mandatory-explicit. Implicit coercion is never emitted.
 
 ## VENDOR_EXTENSION (Formal Specification)
 
-`VENDOR_EXTENSION` is a first-class TOON construct emitted by the generator when a function cannot be resolved to a known stdlib mapping.
+`VENDOR_EXTENSION` is a first-class ASL construct emitted by the generator when a function cannot be resolved to a known stdlib mapping.
 
 ```
 VENDOR_EXTENSION("<CATEGORY:DETAIL>")

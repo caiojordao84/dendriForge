@@ -1,8 +1,10 @@
 # Phase 0 — ASL contract freeze
 
-**ASL = Abstract Syntax Language** (frozen; do not rename).
+**Status:** landed (merged). **MVP:** in progress.  
+**ASL = Abstract Syntax Language** (frozen; do not rename), structured in **TOML**.  
+**ASL version:** none until MVP acceptance → then `0.0.1`.
 
-This folder documents the TOML-based IR contract that Phase 1 will implement
+This folder documents the TOML-based IR contract that Phase 1 / MVP implement
 (`dendri-parse` / `dendri-validate` / `dendri-emit` / `dendri-sim`).
 
 | Document | Purpose |

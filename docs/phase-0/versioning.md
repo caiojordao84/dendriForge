@@ -13,7 +13,7 @@ schema version fields, etc.) in the Phase 0 IR contract.
 ## What this does *not* change
 
 - Legacy path `core/asl/v010/` stays as a historical TOON folder name (read-only). Do not rename for this policy.
-- Draft docs under `docs/grammar.md` / `docs/stdlib.md` that still say “ASL v0.1.0” are **superseded** by this Phase 0 contract for the Rust restart; they are not the live version authority.
+- Draft docs under `docs/grammar.md` / `docs/stdlib.md` are **superseded** semantic drafts (historical TOON surface). They are not the live version authority; banners in those files point here.
 - Cargo `workspace.package.version` is crate packaging only, not an ASL release.
 
 ## IR consequence
