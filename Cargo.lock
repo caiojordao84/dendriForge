@@ -112,6 +112,8 @@ version = "0.0.0"
 dependencies = [
  "dendri-ast",
  "dendri-parse",
+ "dendri-sim",
+ "thiserror",
 ]
 
 [[package]]
@@ -122,6 +124,7 @@ dependencies = [
  "dendri-ast",
  "dendri-backend-st",
  "dendri-emit",
+ "dendri-frontends",
  "dendri-parse",
  "dendri-profiles",
  "dendri-sim",
@@ -135,6 +138,39 @@ dependencies = [
  "dendri-ast",
  "dendri-parse",
  "toml",
+]
+
+[[package]]
+name = "dendri-frontend-cpp"
+version = "0.0.0"
+dependencies = [
+ "dendri-ast",
+ "dendri-parse",
+ "dendri-sim",
+ "thiserror",
+]
+
+[[package]]
+name = "dendri-frontend-micropython"
+version = "0.0.0"
+dependencies = [
+ "dendri-ast",
+ "dendri-parse",
+ "dendri-sim",
+ "thiserror",
+]
+
+[[package]]
+name = "dendri-frontends"
+version = "0.0.0"
+dependencies = [
+ "dendri-ast",
+ "dendri-backend-st",
+ "dendri-frontend-cpp",
+ "dendri-frontend-micropython",
+ "dendri-parse",
+ "dendri-sim",
+ "thiserror",
 ]
 
 [[package]]

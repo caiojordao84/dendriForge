@@ -1,18 +1,36 @@
-//! `dendri` — Phase 1 CLI for validate / roundtrip / sim / emit-st.
+//! `dendri` — Phase 1 CLI for validate / roundtrip / sim / text frontends.
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
+use dendri_ast::SourceLanguage;
 use dendri_parse::{parse_path, ParsedDocument};
 use dendri_sim::{SimConfig, Simulator};
 use dendri_validate::{validate_error_fixture, validate_program, validate_project};
 
 #[derive(Parser, Debug)]
-#[command(name = "dendri", about = "DendriForge ASL tooling (Phase 1 core)")]
+#[command(name = "dendri", about = "DendriForge ASL tooling (Phase 1)")]
 struct Cli {
     #[command(subcommand)]
     cmd: Cmd,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+enum Lang {
+    Cpp,
+    Micropython,
+    St,
+}
+
+impl From<Lang> for SourceLanguage {
+    fn from(l: Lang) -> Self {
+        match l {
+            Lang::Cpp => SourceLanguage::Cpp,
+            Lang::Micropython => SourceLanguage::Micropython,
+            Lang::St => SourceLanguage::St,
+        }
+    }
 }
 
 #[derive(Subcommand, Debug)]
@@ -32,8 +50,26 @@ enum Cmd {
         #[arg(long, default_value_t = 4)]
         cycles: u64,
     },
-    /// Emit IEC ST stub from the same AST
+    /// Emit IEC ST from the same AST
     EmitSt { path: PathBuf },
+    /// Emit Arduino-style C++ from the same AST
+    EmitCpp { path: PathBuf },
+    /// Emit MicroPython from the same AST
+    EmitMicropython { path: PathBuf },
+    /// Parse a P1 source file (C++ / MicroPython / ST) into ASL TOML on stdout
+    ParseSource {
+        path: PathBuf,
+        #[arg(long, value_enum)]
+        lang: Lang,
+    },
+    /// Emit → parse for a P1 language and assert setup/loop/data/hardware equality
+    FrontendRoundtrip {
+        path: PathBuf,
+        #[arg(long, value_enum)]
+        lang: Lang,
+    },
+    /// Fill empty `[[sources]].text` in a `.dendri.toml` from embedded ASL (stdout)
+    SyncSources { path: PathBuf },
     /// Show document / profile info
     Info { path: PathBuf },
     /// Load visual-MVP profiles (board + LED + button) and report SVG hooks
@@ -125,8 +161,55 @@ fn run(cli: Cli) -> Result<(), String> {
         }
         Cmd::EmitSt { path } => {
             let doc = parse_path(&path).map_err(|e| e.to_string())?;
-            let st = dendri_backend_st::emit_st(doc.program());
-            print!("{st}");
+            print!("{}", dendri_frontends::emit_st(doc.program()));
+            Ok(())
+        }
+        Cmd::EmitCpp { path } => {
+            let doc = parse_path(&path).map_err(|e| e.to_string())?;
+            print!("{}", dendri_frontends::emit_cpp(doc.program()));
+            Ok(())
+        }
+        Cmd::EmitMicropython { path } => {
+            let doc = parse_path(&path).map_err(|e| e.to_string())?;
+            print!("{}", dendri_frontends::emit_micropython(doc.program()));
+            Ok(())
+        }
+        Cmd::ParseSource { path, lang } => {
+            let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+            let program =
+                dendri_frontends::parse_source(lang.into(), &text).map_err(|e| e.to_string())?;
+            let toml = dendri_emit::emit_program(&program).map_err(|e| e.to_string())?;
+            print!("{toml}");
+            Ok(())
+        }
+        Cmd::FrontendRoundtrip { path, lang } => {
+            let doc = parse_path(&path).map_err(|e| e.to_string())?;
+            dendri_frontends::roundtrip_language(lang.into(), doc.program())
+                .map_err(|e| e.to_string())?;
+            println!("ok: {} frontend round-trip", SourceLanguage::from(lang).as_str());
+            Ok(())
+        }
+        Cmd::SyncSources { path } => {
+            let doc = parse_path(&path).map_err(|e| e.to_string())?;
+            let ParsedDocument::Project(mut p) = doc else {
+                return Err("sync-sources requires a .dendri.toml project".into());
+            };
+            for src in &mut p.project.sources {
+                if !src.text.trim().is_empty() {
+                    continue;
+                }
+                match src.language {
+                    SourceLanguage::Cpp
+                    | SourceLanguage::Micropython
+                    | SourceLanguage::St => {
+                        src.text = dendri_frontends::emit_source(src.language, &p.project.asl)
+                            .map_err(|e| e.to_string())?;
+                    }
+                    _ => {}
+                }
+            }
+            let out = dendri_emit::emit_project(&p.project).map_err(|e| e.to_string())?;
+            print!("{out}");
             Ok(())
         }
         Cmd::Info { path } => {
