@@ -3,9 +3,8 @@
 //! Extension: `.dendri.toml`. Embeds a full [`crate::program::Program`] under `[asl]`
 //! so a project can be shared and reopened without external dependency loss.
 //!
-//! P1 language frontends (C++ / MicroPython / ST / Ladder / SFC) hook through
-//! [`SourceScript::language`] — content may be empty until those parsers land.
-//! Do not claim those frontends are done when this type exists.
+//! P1 text frontends (C++ / MicroPython / ST) fill [`SourceScript::text`] via
+//! `dendri-frontends` (DEN-7). Ladder / SFC remain DEN-8 (text may be empty).
 
 use serde::{Deserialize, Serialize};
 
@@ -77,7 +76,7 @@ pub struct SourceScript {
     pub path_hint: Option<String>,
 }
 
-/// P1 language frontends (hooks only in Phase 1 core). Rust-as-user-language is P2.
+/// P1 language tags. Text frontends landed in DEN-7; Ladder/SFC = DEN-8; Rust = P2.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SourceLanguage {

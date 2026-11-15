@@ -1,0 +1,14 @@
+[package]
+name = "dendri-frontend-micropython"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "MicroPython ↔ ASL AST frontend (MVP subset)"
+
+[dependencies]
+dendri-ast = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+dendri-parse = { workspace = true }
+dendri-sim = { workspace = true }

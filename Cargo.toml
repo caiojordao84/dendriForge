@@ -7,6 +7,9 @@ members = [
     "crates/dendri-validate",
     "crates/dendri-emit",
     "crates/dendri-backend-st",
+    "crates/dendri-frontend-cpp",
+    "crates/dendri-frontend-micropython",
+    "crates/dendri-frontends",
     "crates/dendri-profiles",
     "crates/dendri-sim",
     "crates/dendri-cli",
@@ -31,5 +34,8 @@ dendri-parse = { path = "crates/dendri-parse" }
 dendri-validate = { path = "crates/dendri-validate" }
 dendri-emit = { path = "crates/dendri-emit" }
 dendri-backend-st = { path = "crates/dendri-backend-st" }
+dendri-frontend-cpp = { path = "crates/dendri-frontend-cpp" }
+dendri-frontend-micropython = { path = "crates/dendri-frontend-micropython" }
+dendri-frontends = { path = "crates/dendri-frontends" }
 dendri-profiles = { path = "crates/dendri-profiles" }
 dendri-sim = { path = "crates/dendri-sim" }

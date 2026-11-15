@@ -1,0 +1,17 @@
+[package]
+name = "dendri-frontends"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Unified P1 text frontend dispatch (C++ / MicroPython / ST) ↔ ASL AST"
+
+[dependencies]
+dendri-ast = { workspace = true }
+dendri-backend-st = { workspace = true }
+dendri-frontend-cpp = { workspace = true }
+dendri-frontend-micropython = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+dendri-parse = { workspace = true }
+dendri-sim = { workspace = true }

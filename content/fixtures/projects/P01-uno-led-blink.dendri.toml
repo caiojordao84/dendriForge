@@ -1,6 +1,6 @@
 # Single-file simulation project — hardware + wiring + sources + ASL
 # Visual MVP hooks: arduino-uno-r3 + led (+ button profile reserved)
-# P1 language frontends are IR hooks only (empty stubs).
+# P1 text frontends (DEN-7): cpp / micropython / st texts filled from ASL; ladder/sfc remain DEN-8 stubs.
 
 [metadata]
 project_name = "P01-uno-led-blink"
@@ -39,19 +39,82 @@ signal = "digital"
 [[sources]]
 language = "st"
 name = "main"
-text = ""
+text = """
+(* DendriForge ST frontend — MVP subset *)
+(* project: P01-uno-led-blink-asl *)
+PROGRAM MAIN
+(* hardware *)
+(* HW: pin=13 type=Digital mode=Do label=ledPin role=digital-out *)
+VAR
+    CONSTANT INTERVAL : TIME := T#250ms;
+    ledState : BOOL := FALSE;
+END_VAR
+
+SETUP
+    CFG_DIGITAL_OUTPUT(13);
+
+LOOP
+    ledState := NOT (ledState);
+    SET_BOOL(13, ledState);
+    WAIT_TIME(INTERVAL);
+END_PROGRAM
+"""
 path_hint = "main.st"
 
 [[sources]]
 language = "cpp"
 name = "main"
-text = ""
+text = """
+// DendriForge C++ frontend — MVP Arduino subset
+// project: P01-uno-led-blink-asl
+
+const int ledPin = 13;
+
+const unsigned long INTERVAL = 250UL;
+bool ledState = false;
+
+void setup() {
+  pinMode(ledPin, OUTPUT);
+}
+
+void loop() {
+  ledState = !(ledState);
+  digitalWrite(ledPin, ledState);
+  delay(INTERVAL);
+}
+"""
 path_hint = "main.cpp"
 
 [[sources]]
 language = "micropython"
 name = "main"
-text = ""
+text = """
+# DendriForge MicroPython frontend — MVP subset
+# project: P01-uno-led-blink-asl
+from machine import Pin
+from time import sleep_ms
+
+LED_PIN = 13
+
+INTERVAL = 250
+ledState = False
+
+led_pin = None
+
+def setup():
+    global led_pin
+    led_pin = Pin(LED_PIN, Pin.OUT)
+
+def loop():
+    global ledState
+    ledState = (not ledState)
+    led_pin.value(ledState)
+    sleep_ms(INTERVAL)
+
+setup()
+while True:
+    loop()
+"""
 path_hint = "main.py"
 
 [[sources]]

@@ -27,3 +27,10 @@ jobs:
         run: cargo test -p dendri-sim --test trace_snapshots
       - name: profiles MVP load
         run: cargo run -q -p dendri-cli -- profiles
+      - name: frontend round-trips (C++ / MicroPython / ST)
+        run: |
+          for lang in cpp micropython st; do
+            echo "== frontend-roundtrip $lang"
+            cargo run -q -p dendri-cli -- frontend-roundtrip --lang "$lang" content/fixtures/sim/S01-blink-set-bool-wait.asl.toml
+          done
+          cargo test -p dendri-frontends --test frontend_acceptance
