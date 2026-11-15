@@ -1,3 +1,7 @@
+> **Status (2026-11):** Phase 0 contract freeze in progress — ASL = **Abstract Syntax Language**; IR is **TOML-based** (not TOON long-term). See [`docs/phase-0/`](docs/phase-0/), Rust types in `crates/dendri-ast`, fixtures in `content/fixtures/`. No runnable parser/sim yet (Phase 1). Legacy TOON remains under `core/` (read-only).
+
+---
+
 A plataforma consiste em um ecossistema integrado de desenvolvimento e simulação industrial, composto pelos seguintes módulos fundamentais:
 
 * Core Parser onde transpila quaisquer linguagens previamente programadas para ASL (Abstract Syntax Language) estruturada em TOON com regras e bindings para mapear universalmente o comportamento do hardware.

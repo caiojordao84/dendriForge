@@ -1,0 +1,206 @@
+# Golden G03 — traffic light state machine + user function
+# Migrated from core/asl/v010/golden/G03-traffic-light-sequencer.toon
+
+[metadata]
+project_name = "G03-traffic-light-sequencer"
+version = 1
+editor = "dendriForge"
+author = "dendriForge Golden Suite"
+asl_version = "0.1.0"
+
+[[hardware]]
+pin = 13
+hw_type = "digital"
+io_mode = "DO"
+label = "redA"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 14
+hw_type = "digital"
+io_mode = "DO"
+label = "yellowA"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 15
+hw_type = "digital"
+io_mode = "DO"
+label = "greenA"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 16
+hw_type = "digital"
+io_mode = "DO"
+label = "redB"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 17
+hw_type = "digital"
+io_mode = "DO"
+label = "yellowB"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 18
+hw_type = "digital"
+io_mode = "DO"
+label = "greenB"
+target_role = "digital-out"
+
+[[data]]
+name = "T_RED"
+type = "TIME"
+scope = "CONST"
+init = "T#5000ms"
+unit = "ms"
+
+[[data]]
+name = "T_YELLOW"
+type = "TIME"
+scope = "CONST"
+init = "T#1500ms"
+unit = "ms"
+
+[[data]]
+name = "T_GREEN"
+type = "TIME"
+scope = "CONST"
+init = "T#4000ms"
+unit = "ms"
+
+[[data]]
+name = "T_BLINK"
+type = "TIME"
+scope = "CONST"
+init = "T#300ms"
+unit = "ms"
+
+[[data]]
+name = "BLINK_COUNT"
+type = "UINT"
+scope = "CONST"
+init = "4"
+unit = "-"
+
+[[data]]
+name = "STATE_RED_A"
+type = "UINT"
+scope = "CONST"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "STATE_GREEN_A"
+type = "UINT"
+scope = "CONST"
+init = "1"
+unit = "-"
+
+[[data]]
+name = "STATE_YELLOW_A"
+type = "UINT"
+scope = "CONST"
+init = "2"
+unit = "-"
+
+[[data]]
+name = "state"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "blinksDone"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 13 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 14 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 15 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 16 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 17 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 18 }]
+
+[[loop]]
+kind = "if"
+condition = { kind = "binop", op = "eq", left = { kind = "var", name = "state" }, right = { kind = "var", name = "STATE_RED_A" } }
+then = [
+  { kind = "call", name = "set_phase", args = [
+    { kind = "bool", value = true }, { kind = "bool", value = false }, { kind = "bool", value = false },
+    { kind = "bool", value = false }, { kind = "bool", value = false }, { kind = "bool", value = true },
+  ]},
+  { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "T_RED" }] },
+  { kind = "assign", target = "state", value = { kind = "var", name = "STATE_GREEN_A" } },
+]
+elif = [
+  { condition = { kind = "binop", op = "eq", left = { kind = "var", name = "state" }, right = { kind = "var", name = "STATE_GREEN_A" } }, then = [
+    { kind = "call", name = "set_phase", args = [
+      { kind = "bool", value = false }, { kind = "bool", value = false }, { kind = "bool", value = true },
+      { kind = "bool", value = true }, { kind = "bool", value = false }, { kind = "bool", value = false },
+    ]},
+    { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "T_GREEN" }] },
+    { kind = "assign", target = "state", value = { kind = "var", name = "STATE_YELLOW_A" } },
+  ]},
+  { condition = { kind = "binop", op = "eq", left = { kind = "var", name = "state" }, right = { kind = "var", name = "STATE_YELLOW_A" } }, then = [
+    { kind = "call", name = "set_phase", args = [
+      { kind = "bool", value = false }, { kind = "bool", value = false }, { kind = "bool", value = true },
+      { kind = "bool", value = true }, { kind = "bool", value = false }, { kind = "bool", value = false },
+    ]},
+    { kind = "assign", target = "blinksDone", value = { kind = "uint", value = 0 } },
+    { kind = "for", counter = "_i0", to = { kind = "var", name = "BLINK_COUNT" }, body = [
+      { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 15 }, { kind = "bool", value = false }] },
+      { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 16 }, { kind = "bool", value = false }] },
+      { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "T_BLINK" }] },
+      { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 15 }, { kind = "bool", value = true }] },
+      { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 16 }, { kind = "bool", value = true }] },
+      { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "T_BLINK" }] },
+    ]},
+    { kind = "call", name = "set_phase", args = [
+      { kind = "bool", value = false }, { kind = "bool", value = true }, { kind = "bool", value = false },
+      { kind = "bool", value = false }, { kind = "bool", value = true }, { kind = "bool", value = false },
+    ]},
+    { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "T_YELLOW" }] },
+    { kind = "assign", target = "state", value = { kind = "var", name = "STATE_RED_A" } },
+  ]},
+]
+
+[[functions]]
+name = "set_phase"
+params = ["rA", "yA", "gA", "rB", "yB", "gB"]
+body = [
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 13 }, { kind = "var", name = "rA" }] },
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 14 }, { kind = "var", name = "yA" }] },
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 15 }, { kind = "var", name = "gA" }] },
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 16 }, { kind = "var", name = "rB" }] },
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 17 }, { kind = "var", name = "yB" }] },
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 18 }, { kind = "var", name = "gB" }] },
+]

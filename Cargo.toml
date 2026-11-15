@@ -1,0 +1,18 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/dendri-ast",
+    "crates/dendri-stdlib",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "UNLICENSED"
+authors = ["DendriForge"]
+repository = "https://github.com/caiojordao84/dendriForge"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+dendri-ast = { path = "crates/dendri-ast" }

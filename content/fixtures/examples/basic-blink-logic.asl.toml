@@ -1,0 +1,69 @@
+# Example — basic blink
+# Migrated from core/asl/v010/examples/basic-blink-logic.toon
+
+[metadata]
+project_name = "basic-blink-logic"
+version = 1
+editor = "dendriForge"
+author = "USER_1129_20260519"
+asl_version = "0.1.0"
+
+[[hardware]]
+pin = 13
+hw_type = "bool"
+io_mode = "DO"
+label = "ledPin"
+target_role = "digital-out"
+
+[[data]]
+name = "TIME_UNIT"
+type = "STRING"
+scope = "CONST"
+init = "ms"
+unit = "-"
+
+[[data]]
+name = "BLINK_INTERVAL"
+type = "TIME"
+scope = "CONST"
+init = "T#1000ms"
+unit = "ms"
+
+[[data]]
+name = "ledState"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 13 }]
+
+[[setup]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "uint", value = 13 }, { kind = "bool", value = false }]
+
+[[loop]]
+kind = "assign"
+target = "ledState"
+value = { kind = "call", name = "F_TOGGLE_BOOL", args = [{ kind = "var", name = "ledState" }] }
+
+[[loop]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "uint", value = 13 }, { kind = "var", name = "ledState" }]
+
+[[loop]]
+kind = "call"
+name = "WAIT_TIME"
+args = [{ kind = "var", name = "BLINK_INTERVAL" }]
+
+[[functions]]
+name = "F_TOGGLE_BOOL"
+params = ["val"]
+body = [
+  { kind = "return", value = { kind = "unary", op = "not", expr = { kind = "var", name = "val" } } },
+]

@@ -1,0 +1,87 @@
+# Component profile — LED (visual MVP indicator)
+# Ported from core/components/led.toon
+
+[metadata]
+project_name = "led-profile"
+version = 1
+editor = "dendriForge"
+author = "schemasmith"
+asl_version = "0.1.0"
+
+[identification]
+id = "led"
+name = "LED (Light Emitting Diode)"
+family = "electricals"
+subfamily = "passives"
+category = "passive"
+standard = "IEC 60810"
+image = "led.svg"
+symbol = "led-symbol.svg"
+symbol_standard = "IEC"
+
+[params.color]
+label = "Color"
+default = "red"
+options = ["red", "green", "blue", "yellow", "orange", "white", "warm-white", "cool-white", "uv", "ir", "custom"]
+type = "enum"
+editable = true
+
+[params.vf]
+label = "Forward Voltage (Vf)"
+unit = "V"
+default = 2.1
+min = 1.5
+max = 4.5
+type = "float"
+editable = false
+
+[params.if_rated]
+label = "Rated Forward Current (If)"
+unit = "A"
+default = 0.02
+type = "enum"
+options = [0.002, 0.005, 0.01, 0.02, 0.03, 0.05, 0.1, 0.35, 0.7, 1, 3]
+editable = true
+
+[[ports]]
+id = "A"
+direction = "input"
+type = "power"
+voltage_max = "50V"
+current_max = "5A"
+notes = "anode (positive terminal)"
+
+[[ports]]
+id = "K"
+direction = "input"
+type = "ground"
+notes = "cathode (negative terminal)"
+
+[simulation]
+model = "basic-analog"
+equation = "V_f = vf; I_f = (V_supply - vf) / R_series"
+bidirectional = false
+dynamic = false
+states = ["off", "on", "fault"]
+
+[canvas]
+width = 50
+height = 40
+ports_layout = "custom"
+label_position = "top"
+animated = true
+
+[canvas.port_A]
+x = 0
+y = 20
+
+[canvas.port_K]
+x = 50
+y = 20
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "led"
+visual_mvp = true
+svg_path = "core/components/led.svg"
+svg_required_ids = ["led-body"]
