@@ -1,6 +1,6 @@
 # Component profile — Pushbutton NO Start (visual MVP input)
 # Ported from core/components/cmd-pushbutton-no-start.toon
-# SVG MISSING — required path noted for Phase 1 visual sim.
+# SVG authored (DEN-8): core/components/cmd-pushbutton-no-start.svg
 
 [metadata]
 project_name = "cmd-pushbutton-no-start-profile"

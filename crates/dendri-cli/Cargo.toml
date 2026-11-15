@@ -19,4 +19,5 @@ dendri-frontends = { workspace = true }
 dendri-parse = { workspace = true }
 dendri-profiles = { workspace = true }
 dendri-sim = { workspace = true }
+dendri-sync = { workspace = true }
 dendri-validate = { workspace = true }

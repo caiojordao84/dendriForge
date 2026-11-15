@@ -94,10 +94,11 @@ body = [
 
 Binary ops: `add sub mul div mod eq ne lt le gt ge and or xor bit_and bit_or bit_xor shl shr`.
 
-## Ladder / GRAFCET stubs
+## Ladder / GRAFCET
 
-Types exist in `dendri_ast::{ladder` and `dendri_ast::grafcet` and may appear as
-empty `[[ladder]]` / `[[grafcet]]` arrays. **No editors in Phase 0/1 MVP.**
+Types in `dendri_ast::{ladder,grafcet}` serialize as `[[ladder]]` / `[[grafcet]]`.
+DEN-8 populates them via visual editors + `dendri-sync` (diagram ↔ TOML ↔ ASL).
+See `docs/phase-1/ladder-sfc.md`.
 
 ## Profile sketch (board)
 

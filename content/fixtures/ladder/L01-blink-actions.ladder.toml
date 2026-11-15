@@ -1,0 +1,44 @@
+# Ladder diagram fixture — free-run blink via Action cells (honest MVP).
+# Round-trips through dendri-frontend-ladder ↔ ASL [[ladder]] + lowered loop.
+
+name = "L01-blink-actions"
+
+[[hardware]]
+pin = 13
+hw_type = "digital"
+io_mode = "DO"
+label = "ledPin"
+target_role = "digital-out"
+
+[[data]]
+name = "INTERVAL"
+type = "TIME"
+scope = "CONST"
+init = "T#100ms"
+unit = "ms"
+
+[[data]]
+name = "ledState"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 13 }]
+
+[[rungs]]
+id = "r1"
+row = 0
+comment = "toggle + SET_BOOL + WAIT"
+
+[[rungs.cells]]
+kind = "action"
+col = 0
+stmts = [
+  { kind = "assign", target = "ledState", value = { kind = "unary", op = "not", expr = { kind = "var", name = "ledState" } } },
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 13 }, { kind = "var", name = "ledState" }] },
+  { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "INTERVAL" }] },
+]

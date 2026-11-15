@@ -10,6 +10,8 @@ ASL programs for the live IR. **No ASL version field** — unversioned until MVP
 | `sim/` | Deterministic `dendri-sim` trace fixtures (`S01`, `S02`) |
 | `projects/` | Single-file `.dendri.toml` projects (hardware + wiring + sources + ASL) |
 | `frontends/` | P1 language sources (C++ / MicroPython / ST) for parse→ASL→sim acceptance |
+| `ladder/` | Ladder diagram TOML fixtures (`L01`, `L02`) — DEN-8 |
+| `sfc/` | SFC/GRAFCET diagram TOML fixtures (`G01`) — DEN-8 |
 
 Extensions: **`.asl.toml`** (programs), **`.dendri.toml`** (simulation projects). Legacy TOON sources remain under `core/asl/v010/` (read-only; historical path name only — see `legacy/toon/README.md`).
 

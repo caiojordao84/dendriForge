@@ -1,4 +1,4 @@
-//! `dendri` — Phase 1 CLI for validate / roundtrip / sim / text frontends.
+//! `dendri` — Phase 1 CLI for validate / roundtrip / sim / text + visual frontends.
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -21,6 +21,8 @@ enum Lang {
     Cpp,
     Micropython,
     St,
+    Ladder,
+    Sfc,
 }
 
 impl From<Lang> for SourceLanguage {
@@ -29,6 +31,8 @@ impl From<Lang> for SourceLanguage {
             Lang::Cpp => SourceLanguage::Cpp,
             Lang::Micropython => SourceLanguage::Micropython,
             Lang::St => SourceLanguage::St,
+            Lang::Ladder => SourceLanguage::Ladder,
+            Lang::Sfc => SourceLanguage::Sfc,
         }
     }
 }
@@ -56,13 +60,17 @@ enum Cmd {
     EmitCpp { path: PathBuf },
     /// Emit MicroPython from the same AST
     EmitMicropython { path: PathBuf },
-    /// Parse a P1 source file (C++ / MicroPython / ST) into ASL TOML on stdout
+    /// Emit Ladder diagram TOML from ASL
+    EmitLadder { path: PathBuf },
+    /// Emit SFC/GRAFCET diagram TOML from ASL
+    EmitSfc { path: PathBuf },
+    /// Parse a P1 source file into ASL TOML on stdout
     ParseSource {
         path: PathBuf,
         #[arg(long, value_enum)]
         lang: Lang,
     },
-    /// Emit → parse for a P1 language and assert setup/loop/data/hardware equality
+    /// Emit → parse for a P1 language and assert equality
     FrontendRoundtrip {
         path: PathBuf,
         #[arg(long, value_enum)]
@@ -70,6 +78,8 @@ enum Cmd {
     },
     /// Fill empty `[[sources]].text` in a `.dendri.toml` from embedded ASL (stdout)
     SyncSources { path: PathBuf },
+    /// Bidirectional sync smoke: load project, project ASL↔ladder/sfc, re-emit
+    SyncVisual { path: PathBuf },
     /// Show document / profile info
     Info { path: PathBuf },
     /// Load visual-MVP profiles (board + LED + button) and report SVG hooks
@@ -174,6 +184,16 @@ fn run(cli: Cli) -> Result<(), String> {
             print!("{}", dendri_frontends::emit_micropython(doc.program()));
             Ok(())
         }
+        Cmd::EmitLadder { path } => {
+            let doc = parse_path(&path).map_err(|e| e.to_string())?;
+            print!("{}", dendri_frontends::emit_ladder(doc.program()));
+            Ok(())
+        }
+        Cmd::EmitSfc { path } => {
+            let doc = parse_path(&path).map_err(|e| e.to_string())?;
+            print!("{}", dendri_frontends::emit_sfc(doc.program()));
+            Ok(())
+        }
         Cmd::ParseSource { path, lang } => {
             let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
             let program =
@@ -186,7 +206,10 @@ fn run(cli: Cli) -> Result<(), String> {
             let doc = parse_path(&path).map_err(|e| e.to_string())?;
             dendri_frontends::roundtrip_language(lang.into(), doc.program())
                 .map_err(|e| e.to_string())?;
-            println!("ok: {} frontend round-trip", SourceLanguage::from(lang).as_str());
+            println!(
+                "ok: {} frontend round-trip",
+                SourceLanguage::from(lang).as_str()
+            );
             Ok(())
         }
         Cmd::SyncSources { path } => {
@@ -201,15 +224,47 @@ fn run(cli: Cli) -> Result<(), String> {
                 match src.language {
                     SourceLanguage::Cpp
                     | SourceLanguage::Micropython
-                    | SourceLanguage::St => {
+                    | SourceLanguage::St
+                    | SourceLanguage::Ladder
+                    | SourceLanguage::Sfc => {
                         src.text = dendri_frontends::emit_source(src.language, &p.project.asl)
                             .map_err(|e| e.to_string())?;
                     }
                     _ => {}
                 }
             }
+            dendri_sync::fill_visual_sources(&mut p.project);
             let out = dendri_emit::emit_project(&p.project).map_err(|e| e.to_string())?;
             print!("{out}");
+            Ok(())
+        }
+        Cmd::SyncVisual { path } => {
+            let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+            let mut session =
+                dendri_sync::SyncSession::from_project_toml(&text).map_err(|e| e.to_string())?;
+            session
+                .sync_visual_sources_from_asl()
+                .map_err(|e| e.to_string())?;
+            // Round-trip ladder source if present
+            if let Some(t) = session.source_text(SourceLanguage::Ladder) {
+                let t = t.to_string();
+                if !t.trim().is_empty() {
+                    session
+                        .apply_source_toml(dendri_sync::VisualKind::Ladder, &t)
+                        .map_err(|e| e.to_string())?;
+                    session.assert_ladder_roundtrip().map_err(|e| e.to_string())?;
+                }
+            }
+            if let Some(t) = session.source_text(SourceLanguage::Sfc) {
+                let t = t.to_string();
+                if !t.trim().is_empty() {
+                    session
+                        .apply_source_toml(dendri_sync::VisualKind::Sfc, &t)
+                        .map_err(|e| e.to_string())?;
+                    session.assert_sfc_roundtrip().map_err(|e| e.to_string())?;
+                }
+            }
+            println!("ok: visual sync ladder/sfc ↔ TOML ↔ ASL");
             Ok(())
         }
         Cmd::Info { path } => {
@@ -230,6 +285,8 @@ fn run(cli: Cli) -> Result<(), String> {
                     println!("setup: {}", p.program.setup.len());
                     println!("loop: {}", p.program.loop_body.len());
                     println!("functions: {}", p.program.functions.len());
+                    println!("ladder: {}", p.program.ladder.len());
+                    println!("grafcet: {}", p.program.grafcet.len());
                 }
                 ParsedDocument::Project(p) => {
                     println!("kind: project (.dendri.toml)");
@@ -262,6 +319,8 @@ fn run(cli: Cli) -> Result<(), String> {
                             .as_deref()
                             .unwrap_or("<missing>")
                     );
+                    println!("asl.ladder: {}", p.project.asl.ladder.len());
+                    println!("asl.grafcet: {}", p.project.asl.grafcet.len());
                 }
             }
             Ok(())
