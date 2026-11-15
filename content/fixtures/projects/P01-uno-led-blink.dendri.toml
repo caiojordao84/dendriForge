@@ -1,0 +1,111 @@
+# Single-file simulation project — hardware + wiring + sources + ASL
+# Visual MVP hooks: arduino-uno-r3 + led (+ button profile reserved)
+# P1 language frontends are IR hooks only (empty stubs).
+
+[metadata]
+project_name = "P01-uno-led-blink"
+editor = "dendriForge"
+author = "dendriForge Phase 1"
+notes = "Portable project: reopen without external dependency loss"
+
+[board]
+profile = "arduino-uno-r3"
+instance_id = "board"
+
+[[components]]
+instance_id = "led1"
+profile = "led"
+params = { color = "red" }
+
+[[components]]
+instance_id = "btn_start"
+profile = "cmd-pushbutton-no-start"
+
+[[wiring]]
+from = "board.D13"
+to = "led1.A"
+signal = "digital"
+
+[[wiring]]
+from = "board.GND"
+to = "led1.K"
+signal = "gnd"
+
+[[wiring]]
+from = "board.D2"
+to = "btn_start.NO1"
+signal = "digital"
+
+[[sources]]
+language = "st"
+name = "main"
+text = ""
+path_hint = "main.st"
+
+[[sources]]
+language = "cpp"
+name = "main"
+text = ""
+path_hint = "main.cpp"
+
+[[sources]]
+language = "micropython"
+name = "main"
+text = ""
+path_hint = "main.py"
+
+[[sources]]
+language = "ladder"
+name = "rungs"
+text = ""
+
+[[sources]]
+language = "sfc"
+name = "chart"
+text = ""
+
+[asl.metadata]
+project_name = "P01-uno-led-blink-asl"
+editor = "dendriForge"
+author = "dendriForge Phase 1"
+
+[[asl.hardware]]
+pin = 13
+hw_type = "digital"
+io_mode = "DO"
+label = "ledPin"
+target_role = "digital-out"
+
+[[asl.data]]
+name = "INTERVAL"
+type = "TIME"
+scope = "CONST"
+init = "T#250ms"
+unit = "ms"
+
+[[asl.data]]
+name = "ledState"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[asl.setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 13 }]
+
+[[asl.loop]]
+kind = "assign"
+target = "ledState"
+value = { kind = "unary", op = "not", expr = { kind = "var", name = "ledState" } }
+
+[[asl.loop]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "uint", value = 13 }, { kind = "var", name = "ledState" }]
+
+[[asl.loop]]
+kind = "call"
+name = "WAIT_TIME"
+args = [{ kind = "var", name = "INTERVAL" }]

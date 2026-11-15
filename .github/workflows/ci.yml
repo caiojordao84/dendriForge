@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.85.1"
+      - name: cargo test
+        run: cargo test --workspace
+      - name: golden round-trip (CLI)
+        run: |
+          cargo build -p dendri-cli
+          for f in content/fixtures/golden/*.asl.toml content/fixtures/examples/*.asl.toml content/fixtures/sim/*.asl.toml; do
+            echo "== roundtrip $f"
+            cargo run -q -p dendri-cli -- roundtrip "$f"
+          done
+          cargo run -q -p dendri-cli -- roundtrip content/fixtures/projects/P01-uno-led-blink.dendri.toml
+      - name: sim trace snapshots
+        run: cargo test -p dendri-sim --test trace_snapshots
+      - name: profiles MVP load
+        run: cargo run -q -p dendri-cli -- profiles

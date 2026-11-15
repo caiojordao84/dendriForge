@@ -7,6 +7,4 @@ description = "ASL (Abstract Syntax Language) IR types — contract source of tr
 
 [dependencies]
 serde = { workspace = true }
-
-[dev-dependencies]
 toml = { workspace = true }

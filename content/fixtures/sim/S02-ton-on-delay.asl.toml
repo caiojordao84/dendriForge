@@ -1,0 +1,84 @@
+# Sim snapshot S02 — TON on-delay with WAIT_TIME advancing ET
+# TON(instance, IN, PT) → Q
+
+[metadata]
+project_name = "S02-ton-on-delay"
+editor = "dendriForge"
+author = "dendriForge Phase 1"
+notes = "IEC 61131-3 TON subset — scan cycle + WAIT_TIME time base"
+
+[[hardware]]
+pin = 8
+hw_type = "digital"
+io_mode = "DI"
+label = "startBtn"
+target_role = "digital-in"
+
+[[hardware]]
+pin = 13
+hw_type = "digital"
+io_mode = "DO"
+label = "outLed"
+target_role = "digital-out"
+
+[[data]]
+name = "PT"
+type = "TIME"
+scope = "CONST"
+init = "T#200ms"
+unit = "ms"
+
+[[data]]
+name = "STEP"
+type = "TIME"
+scope = "CONST"
+init = "T#100ms"
+unit = "ms"
+
+[[data]]
+name = "start"
+type = "BOOL"
+scope = "VAR"
+init = "TRUE"
+unit = "-"
+
+[[data]]
+name = "q"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT"
+args = [{ kind = "uint", value = 8 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 13 }]
+
+[[setup]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "uint", value = 13 }, { kind = "bool", value = false }]
+
+[[loop]]
+kind = "assign"
+target = "q"
+value = { kind = "call", name = "TON", args = [
+  { kind = "string", value = "t1" },
+  { kind = "var", name = "start" },
+  { kind = "var", name = "PT" },
+]}
+
+[[loop]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "uint", value = 13 }, { kind = "var", name = "q" }]
+
+[[loop]]
+kind = "call"
+name = "WAIT_TIME"
+args = [{ kind = "var", name = "STEP" }]
