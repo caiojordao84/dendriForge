@@ -1,0 +1,10 @@
+[package]
+name = "dendri-backend-st"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "AST → IEC 61131-3 Structured Text emit stub (same AST as dendri-sim)"
+
+[dependencies]
+dendri-ast = { workspace = true }
+dendri-parse = { workspace = true }

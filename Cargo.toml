@@ -3,6 +3,13 @@ resolver = "2"
 members = [
     "crates/dendri-ast",
     "crates/dendri-stdlib",
+    "crates/dendri-parse",
+    "crates/dendri-validate",
+    "crates/dendri-emit",
+    "crates/dendri-backend-st",
+    "crates/dendri-profiles",
+    "crates/dendri-sim",
+    "crates/dendri-cli",
 ]
 
 [workspace.package]
@@ -16,4 +23,13 @@ repository = "https://github.com/caiojordao84/dendriForge"
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }
 toml = "0.8"
+thiserror = "2"
+clap = { version = "4", features = ["derive"] }
 dendri-ast = { path = "crates/dendri-ast" }
+dendri-stdlib = { path = "crates/dendri-stdlib" }
+dendri-parse = { path = "crates/dendri-parse" }
+dendri-validate = { path = "crates/dendri-validate" }
+dendri-emit = { path = "crates/dendri-emit" }
+dendri-backend-st = { path = "crates/dendri-backend-st" }
+dendri-profiles = { path = "crates/dendri-profiles" }
+dendri-sim = { path = "crates/dendri-sim" }

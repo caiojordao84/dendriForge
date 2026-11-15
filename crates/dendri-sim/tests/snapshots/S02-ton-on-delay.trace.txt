@@ -1,0 +1,21 @@
+t=     0 BOOT
+t=     0 PIN_WRITE pin=13 value=false
+t=     0 SETUP_DONE
+t=     0 SCAN_START cycle=1
+t=     0 TON id=t1 Q=false ET=0
+t=     0 ASSIGN q=false
+t=     0 PIN_WRITE pin=13 value=false
+t=     0 WAIT ms=100
+t=   100 SCAN_END cycle=1
+t=   100 SCAN_START cycle=2
+t=   100 TON id=t1 Q=false ET=100
+t=   100 ASSIGN q=false
+t=   100 PIN_WRITE pin=13 value=false
+t=   100 WAIT ms=100
+t=   200 SCAN_END cycle=2
+t=   200 SCAN_START cycle=3
+t=   200 TON id=t1 Q=true ET=200
+t=   200 ASSIGN q=true
+t=   200 PIN_WRITE pin=13 value=true
+t=   200 WAIT ms=100
+t=   300 SCAN_END cycle=3

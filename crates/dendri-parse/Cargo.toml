@@ -1,0 +1,15 @@
+[package]
+name = "dendri-parse"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Parse ASL .asl.toml programs and .dendri.toml simulation projects"
+
+[dependencies]
+dendri-ast = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+toml = { workspace = true }
+
+[dev-dependencies]
+dendri-stdlib = { workspace = true }
