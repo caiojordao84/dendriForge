@@ -1,0 +1,74 @@
+# Component profile — Pushbutton NO Start (visual MVP input)
+# Ported from core/components/cmd-pushbutton-no-start.toon
+# SVG MISSING — required path noted for Phase 1 visual sim.
+
+[metadata]
+project_name = "cmd-pushbutton-no-start-profile"
+editor = "dendriForge"
+author = "schemasmith"
+
+[identification]
+id = "cmd-pushbutton-no-start"
+name = "Pushbutton NO Start"
+family = "command-elements"
+subfamily = "pushbuttons"
+category = "command"
+standard = "IEC 60947-5-1"
+image = "cmd-pushbutton-no-start.svg"
+symbol = "cmd-pushbutton-no-start-symbol.svg"
+symbol_standard = "IEC"
+
+[params.contact_state]
+label = "Contact State"
+default = "normally-open"
+options = ["normally-open", "momentary", "spring-return"]
+type = "enum"
+editable = true
+
+[params.actuation_force]
+label = "Actuation Force"
+unit = "N"
+default = 2.5
+type = "enum"
+options = [1.5, 2.5, 3.5, 5.0]
+editable = true
+
+[params.ip_rating]
+label = "Ingress Protection"
+default = "IP65"
+options = ["IP40", "IP54", "IP65", "IP67"]
+type = "enum"
+editable = true
+
+[[ports]]
+id = "NO1"
+direction = "bidirectional"
+type = "signal"
+notes = "normally-open contact A"
+
+[[ports]]
+id = "NO2"
+direction = "bidirectional"
+type = "signal"
+notes = "normally-open contact B"
+
+[simulation]
+model = "discrete-contact"
+bidirectional = true
+dynamic = true
+states = ["released", "pressed"]
+
+[canvas]
+width = 40
+height = 40
+ports_layout = "custom"
+label_position = "top"
+animated = true
+
+[dendri]
+component_profile_id = "cmd-pushbutton-no-start"
+visual_mvp = true
+svg_path = "core/components/cmd-pushbutton-no-start.svg"
+svg_status = "missing"
+svg_required_ids = ["actuator", "contact"]
+svg_note = "Must be authored before visual sim; do not invent alternate path"

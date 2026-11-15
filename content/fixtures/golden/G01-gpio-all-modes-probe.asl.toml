@@ -1,0 +1,180 @@
+# Golden G01 — GPIO modes / SET_BOOL / GET_BOOL / IF-ELSIF
+# Migrated from core/asl/v010/golden/G01-gpio-all-modes-probe.toon
+
+[metadata]
+project_name = "G01-gpio-all-modes-probe"
+editor = "dendriForge"
+author = "dendriForge Golden Suite"
+notes = "IEC 61131-3 BOOL I/O probe"
+
+[[hardware]]
+pin = 2
+hw_type = "digital"
+io_mode = "DI"
+label = "inputPin"
+target_role = "digital-in"
+
+[[hardware]]
+pin = 3
+hw_type = "digital"
+io_mode = "DO"
+label = "outputPin"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 4
+hw_type = "digital"
+io_mode = "BI"
+label = "biDirPin"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 5
+hw_type = "digital"
+io_mode = "DO"
+label = "ledA"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 6
+hw_type = "digital"
+io_mode = "DO"
+label = "ledB"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 7
+hw_type = "digital"
+io_mode = "DO"
+label = "ledC"
+target_role = "digital-out"
+
+[[data]]
+name = "BLINK_DELAY"
+type = "TIME"
+scope = "CONST"
+init = "T#200ms"
+unit = "ms"
+
+[[data]]
+name = "PROBE_DELAY"
+type = "TIME"
+scope = "CONST"
+init = "T#50ms"
+unit = "ms"
+
+[[data]]
+name = "inputState"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "biDirState"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "cycleCount"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "MAX_CYCLES"
+type = "UINT"
+scope = "CONST"
+init = "100"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT"
+args = [{ kind = "uint", value = 2 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 3 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT"
+args = [{ kind = "uint", value = 4 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 5 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 6 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 7 }]
+
+[[loop]]
+kind = "assign"
+target = "inputState"
+value = { kind = "call", name = "GET_BOOL", args = [{ kind = "uint", value = 2 }] }
+
+[[loop]]
+kind = "assign"
+target = "biDirState"
+value = { kind = "call", name = "GET_BOOL", args = [{ kind = "uint", value = 4 }] }
+
+[[loop]]
+kind = "if"
+condition = { kind = "binop", op = "and", left = { kind = "var", name = "inputState" }, right = { kind = "var", name = "biDirState" } }
+then = [
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 5 }, { kind = "bool", value = true }] },
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 6 }, { kind = "bool", value = false }] },
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 7 }, { kind = "bool", value = false }] },
+]
+elif = [
+  { condition = { kind = "expr_text", text = "inputState AND NOT biDirState" }, then = [
+    { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 5 }, { kind = "bool", value = false }] },
+    { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 6 }, { kind = "bool", value = true }] },
+    { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 7 }, { kind = "bool", value = false }] },
+  ]},
+  { condition = { kind = "expr_text", text = "NOT inputState AND biDirState" }, then = [
+    { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 5 }, { kind = "bool", value = false }] },
+    { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 6 }, { kind = "bool", value = false }] },
+    { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 7 }, { kind = "bool", value = true }] },
+  ]},
+]
+else = [
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 5 }, { kind = "bool", value = false }] },
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 6 }, { kind = "bool", value = false }] },
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 7 }, { kind = "bool", value = false }] },
+]
+
+[[loop]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "uint", value = 3 }, { kind = "var", name = "inputState" }]
+
+[[loop]]
+kind = "assign"
+target = "cycleCount"
+value = { kind = "binop", op = "add", left = { kind = "var", name = "cycleCount" }, right = { kind = "uint", value = 1 } }
+
+[[loop]]
+kind = "if"
+condition = { kind = "binop", op = "ge", left = { kind = "var", name = "cycleCount" }, right = { kind = "var", name = "MAX_CYCLES" } }
+then = [
+  { kind = "assign", target = "cycleCount", value = { kind = "uint", value = 0 } },
+]
+
+[[loop]]
+kind = "call"
+name = "WAIT_TIME"
+args = [{ kind = "var", name = "PROBE_DELAY" }]

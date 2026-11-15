@@ -1,0 +1,39 @@
+# Error corpus E01 — expected ERR_METADATA_MISSING_FIELD
+# Migrated from core/asl/v010/errors/E01-missing-metadata-field.toon
+# Trigger updated for unversioned ASL: omit required `project_name`
+# (legacy TOON omitted `version` / ASLversion — those fields are removed from IR).
+
+[metadata]
+# project_name: INTENTIONALLY OMITTED
+editor = "dendriForge"
+author = "dendriForge Error Corpus"
+expect_error = "ERR_METADATA_MISSING_FIELD"
+
+[[hardware]]
+pin = 2
+hw_type = "digital"
+io_mode = "DO"
+label = "ledPin"
+target_role = "digital-out"
+
+[[data]]
+name = "LOOP_DELAY"
+type = "TIME"
+scope = "CONST"
+init = "T#1000ms"
+unit = "ms"
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 2 }]
+
+[[loop]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "uint", value = 2 }, { kind = "bool", value = true }]
+
+[[loop]]
+kind = "call"
+name = "WAIT_TIME"
+args = [{ kind = "var", name = "LOOP_DELAY" }]

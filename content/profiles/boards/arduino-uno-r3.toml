@@ -1,0 +1,104 @@
+# Board profile — Arduino Uno R3 (visual MVP board)
+# Ported from core/boards/arduino-uno-r3.toon
+
+[metadata]
+project_name = "arduino-uno-r3-profile"
+editor = "dendriForge"
+author = "schemasmith"
+
+[identification]
+id = "arduino-uno"
+name = "Arduino Uno R3"
+manufacturer = "Arduino"
+mcu = "ATmega328P"
+category = "maker"
+image = "arduino-uno-r3.svg"
+url = "https://store.arduino.cc/products/arduino-uno-rev3"
+
+[specs]
+flash_total = 32768
+flash_available = 32256
+sram = 2048
+eeprom = 1024
+clock = 16000000
+voltage = "5V"
+
+[dims]
+w = 68.6
+h = 53.4
+t = 1.6
+
+[[power_pins]]
+name = "VIN"
+direction = "input"
+
+[[power_pins]]
+name = "5V"
+direction = "output"
+voltage = "5V"
+
+[[power_pins]]
+name = "3V3"
+direction = "output"
+voltage = "3.3V"
+
+[[power_pins]]
+name = "GND"
+type = "ground"
+
+[[power_pins]]
+name = "RESET"
+direction = "input"
+
+[[gpio]]
+pin = 0
+type = "digital"
+pwm = false
+int = false
+label = "D0 / RX"
+roles = ["uart-rx"]
+
+[[gpio]]
+pin = 1
+type = "digital"
+pwm = false
+int = false
+label = "D1 / TX"
+roles = ["uart-tx"]
+
+[[gpio]]
+pin = 2
+type = "digital"
+pwm = false
+int = true
+label = "D2"
+roles = ["int0"]
+
+[[gpio]]
+pin = 13
+type = "digital"
+pwm = false
+int = false
+label = "D13 / LED / SCK"
+roles = ["spi-sck", "status-led"]
+
+[usb]
+type = "USB-B"
+chip = "ATmega16U2"
+vid = "0x2341"
+pid = "0x0043"
+
+[restrictions]
+max_io_current = "40mA"
+total_current_limit = "200mA"
+warnings = [
+  "Pins 0/1 shared with USB Serial",
+  "Pin 13 has onboard LED interference",
+  "Polyfuse protects USB over 500mA",
+]
+
+[dendri]
+board_family_skill_id = "avr-family"
+board_profile_id = "arduino-uno-r3"
+visual_mvp = true
+svg_path = "core/boards/arduino-uno-r3.svg"

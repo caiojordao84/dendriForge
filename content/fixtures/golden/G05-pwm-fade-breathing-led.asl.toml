@@ -1,0 +1,253 @@
+# Golden G05 — PWM duty sweep / CLAMP / ISR mode button
+# Migrated from core/asl/v010/golden/G05-pwm-fade-breathing-led.toon
+
+[metadata]
+project_name = "G05-pwm-fade-breathing-led"
+editor = "dendriForge"
+author = "dendriForge Golden Suite"
+notes = "PWM breathing LED; CLAMP; ISR mode cycle"
+
+[[hardware]]
+pin = 2
+hw_type = "digital"
+io_mode = "DO"
+label = "ledRed"
+target_role = "pwm-out"
+
+[[hardware]]
+pin = 3
+hw_type = "digital"
+io_mode = "DO"
+label = "ledGreen"
+target_role = "pwm-out"
+
+[[hardware]]
+pin = 4
+hw_type = "digital"
+io_mode = "DO"
+label = "ledBlue"
+target_role = "pwm-out"
+
+[[hardware]]
+pin = 5
+hw_type = "digital"
+io_mode = "DI"
+label = "modeBtn"
+target_role = "int-rising"
+
+[[data]]
+name = "PWM_FREQ"
+type = "UINT"
+scope = "CONST"
+init = "1000"
+unit = "Hz"
+
+[[data]]
+name = "DUTY_MIN"
+type = "UINT"
+scope = "CONST"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "DUTY_MAX"
+type = "UINT"
+scope = "CONST"
+init = "65535"
+unit = "-"
+
+[[data]]
+name = "DUTY_STEP"
+type = "UINT"
+scope = "CONST"
+init = "512"
+unit = "-"
+
+[[data]]
+name = "STEP_DELAY"
+type = "TIME"
+scope = "CONST"
+init = "T#10ms"
+unit = "ms"
+
+[[data]]
+name = "HOLD_DELAY"
+type = "TIME"
+scope = "CONST"
+init = "T#300ms"
+unit = "ms"
+
+[[data]]
+name = "dutyRed"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "dutyGreen"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "dutyBlue"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "mode"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "MODE_COUNT"
+type = "UINT"
+scope = "CONST"
+init = "3"
+unit = "-"
+
+[[data]]
+name = "direction"
+type = "INT"
+scope = "VAR"
+init = "1"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_PWM_OUTPUT"
+args = [{ kind = "uint", value = 2 }, { kind = "uint", value = 1000 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_PWM_OUTPUT"
+args = [{ kind = "uint", value = 3 }, { kind = "uint", value = 1000 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_PWM_OUTPUT"
+args = [{ kind = "uint", value = 4 }, { kind = "uint", value = 1000 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT_PULLUP"
+args = [{ kind = "uint", value = 5 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ATTACH_INTERRUPT"
+args = [
+  { kind = "uint", value = 5 },
+  { kind = "var", name = "isr_mode_btn" },
+  { kind = "string", value = "RISING" },
+]
+
+[[setup]]
+kind = "call"
+name = "SET_PWM_DUTY"
+args = [{ kind = "uint", value = 2 }, { kind = "uint", value = 0 }]
+
+[[setup]]
+kind = "call"
+name = "SET_PWM_DUTY"
+args = [{ kind = "uint", value = 3 }, { kind = "uint", value = 0 }]
+
+[[setup]]
+kind = "call"
+name = "SET_PWM_DUTY"
+args = [{ kind = "uint", value = 4 }, { kind = "uint", value = 0 }]
+
+[[loop]]
+kind = "if"
+condition = { kind = "binop", op = "eq", left = { kind = "var", name = "mode" }, right = { kind = "uint", value = 0 } }
+then = [
+  { kind = "assign", target = "dutyRed", value = { kind = "expr_text", text = "dutyRed + REAL_TO_INT(INT_TO_REAL(DUTY_STEP) * INT_TO_REAL(direction))" } },
+  { kind = "assign", target = "dutyRed", value = { kind = "call", name = "CLAMP", args = [
+    { kind = "var", name = "dutyRed" }, { kind = "var", name = "DUTY_MIN" }, { kind = "var", name = "DUTY_MAX" },
+  ]}},
+  { kind = "if", condition = { kind = "expr_text", text = "dutyRed >= DUTY_MAX OR dutyRed <= DUTY_MIN" }, then = [
+    { kind = "assign", target = "direction", value = { kind = "expr_text", text = "direction * -1" } },
+  ]},
+  { kind = "call", name = "SET_PWM_DUTY", args = [{ kind = "uint", value = 2 }, { kind = "var", name = "dutyRed" }] },
+  { kind = "call", name = "SET_PWM_DUTY", args = [{ kind = "uint", value = 3 }, { kind = "uint", value = 0 }] },
+  { kind = "call", name = "SET_PWM_DUTY", args = [{ kind = "uint", value = 4 }, { kind = "uint", value = 0 }] },
+]
+elif = [
+  { condition = { kind = "binop", op = "eq", left = { kind = "var", name = "mode" }, right = { kind = "uint", value = 1 } }, then = [
+    { kind = "call", name = "breath_channel", args = [
+      { kind = "uint", value = 2 }, { kind = "uint", value = 3 }, { kind = "uint", value = 4 },
+    ]},
+  ]},
+  { condition = { kind = "binop", op = "eq", left = { kind = "var", name = "mode" }, right = { kind = "uint", value = 2 } }, then = [
+    { kind = "call", name = "crossfade_rgb", args = [] },
+  ]},
+]
+
+[[loop]]
+kind = "call"
+name = "WAIT_TIME"
+args = [{ kind = "var", name = "STEP_DELAY" }]
+
+[[functions]]
+name = "isr_mode_btn"
+params = []
+body = [
+  { kind = "assign", target = "mode", value = { kind = "call", name = "MOD", args = [
+    { kind = "binop", op = "add", left = { kind = "var", name = "mode" }, right = { kind = "uint", value = 1 } },
+    { kind = "var", name = "MODE_COUNT" },
+  ]}},
+]
+
+[[functions]]
+name = "breath_channel"
+params = ["pinR", "pinG", "pinB"]
+body = [
+  { kind = "assign", target = "dutyRed", value = { kind = "uint", value = 0 } },
+  { kind = "for", counter = "_i0", to = { kind = "uint", value = 128 }, body = [
+    { kind = "assign", target = "dutyRed", value = { kind = "call", name = "CLAMP", args = [
+      { kind = "binop", op = "add", left = { kind = "var", name = "dutyRed" }, right = { kind = "var", name = "DUTY_STEP" } },
+      { kind = "var", name = "DUTY_MIN" }, { kind = "var", name = "DUTY_MAX" },
+    ]}},
+    { kind = "call", name = "SET_PWM_DUTY", args = [{ kind = "var", name = "pinR" }, { kind = "var", name = "dutyRed" }] },
+    { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "STEP_DELAY" }] },
+  ]},
+  { kind = "for", counter = "_i0", to = { kind = "uint", value = 128 }, body = [
+    { kind = "assign", target = "dutyRed", value = { kind = "call", name = "CLAMP", args = [
+      { kind = "binop", op = "sub", left = { kind = "var", name = "dutyRed" }, right = { kind = "var", name = "DUTY_STEP" } },
+      { kind = "var", name = "DUTY_MIN" }, { kind = "var", name = "DUTY_MAX" },
+    ]}},
+    { kind = "call", name = "SET_PWM_DUTY", args = [{ kind = "var", name = "pinR" }, { kind = "var", name = "dutyRed" }] },
+    { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "STEP_DELAY" }] },
+  ]},
+  { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "HOLD_DELAY" }] },
+]
+
+[[functions]]
+name = "crossfade_rgb"
+params = []
+body = [
+  { kind = "assign", target = "dutyRed", value = { kind = "var", name = "DUTY_MAX" } },
+  { kind = "assign", target = "dutyGreen", value = { kind = "uint", value = 0 } },
+  { kind = "assign", target = "dutyBlue", value = { kind = "uint", value = 0 } },
+  { kind = "for", counter = "_i0", to = { kind = "uint", value = 128 }, body = [
+    { kind = "assign", target = "dutyRed", value = { kind = "call", name = "CLAMP", args = [
+      { kind = "binop", op = "sub", left = { kind = "var", name = "dutyRed" }, right = { kind = "var", name = "DUTY_STEP" } },
+      { kind = "var", name = "DUTY_MIN" }, { kind = "var", name = "DUTY_MAX" },
+    ]}},
+    { kind = "assign", target = "dutyGreen", value = { kind = "call", name = "CLAMP", args = [
+      { kind = "binop", op = "add", left = { kind = "var", name = "dutyGreen" }, right = { kind = "var", name = "DUTY_STEP" } },
+      { kind = "var", name = "DUTY_MIN" }, { kind = "var", name = "DUTY_MAX" },
+    ]}},
+    { kind = "call", name = "SET_PWM_DUTY", args = [{ kind = "uint", value = 2 }, { kind = "var", name = "dutyRed" }] },
+    { kind = "call", name = "SET_PWM_DUTY", args = [{ kind = "uint", value = 3 }, { kind = "var", name = "dutyGreen" }] },
+    { kind = "call", name = "SET_PWM_DUTY", args = [{ kind = "uint", value = 4 }, { kind = "var", name = "dutyBlue" }] },
+    { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "STEP_DELAY" }] },
+  ]},
+  { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "HOLD_DELAY" }] },
+]

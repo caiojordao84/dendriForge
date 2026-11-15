@@ -1,0 +1,676 @@
+# dendri-stdlib catalog — IEC 61131-3 Naming Edition (ASL unversioned until MVP)
+# Source: docs/stdlib.md (ported). Canonical names are IEC-style identifiers.
+# Aliases normalize to canonical at Pass 0. Generators always see canonical.
+# No ASL language version field — first tag will be 0.0.1 after parsers + MVP.
+
+naming = "IEC 61131-3 canonical; aliases accepted at Pass 0"
+
+# ---------------------------------------------------------------------------
+# GPIO
+# ---------------------------------------------------------------------------
+[[ops]]
+canonical = "CFG_DIGITAL_OUTPUT"
+category = "gpio"
+signature = "pin: UINT"
+returns = "VOID"
+aliases = []
+
+[[ops]]
+canonical = "CFG_DIGITAL_INPUT"
+category = "gpio"
+signature = "pin: UINT"
+returns = "VOID"
+aliases = []
+
+[[ops]]
+canonical = "CFG_DIGITAL_INPUT_PULLUP"
+category = "gpio"
+signature = "pin: UINT"
+returns = "VOID"
+aliases = []
+
+[[ops]]
+canonical = "CFG_DIGITAL_INPUT_PULLDOWN"
+category = "gpio"
+signature = "pin: UINT"
+returns = "VOID"
+aliases = []
+
+[[ops]]
+canonical = "SET_BOOL"
+category = "gpio"
+signature = "pin: UINT, value: BOOL"
+returns = "VOID"
+aliases = ["digitalWrite"]
+
+[[ops]]
+canonical = "GET_BOOL"
+category = "gpio"
+signature = "pin: UINT"
+returns = "BOOL"
+aliases = ["digitalRead"]
+
+# ---------------------------------------------------------------------------
+# PWM
+# ---------------------------------------------------------------------------
+[[ops]]
+canonical = "CFG_PWM_OUTPUT"
+category = "pwm"
+signature = "pin: UINT, freq: UINT"
+returns = "VOID"
+aliases = []
+
+[[ops]]
+canonical = "SET_PWM_FREQ"
+category = "pwm"
+signature = "pin: UINT, hz: UINT"
+returns = "VOID"
+aliases = ["pwmFreq"]
+
+[[ops]]
+canonical = "SET_PWM_DUTY"
+category = "pwm"
+signature = "pin: UINT, duty: UINT"
+returns = "VOID"
+aliases = ["pwmWrite"]
+
+[[ops]]
+canonical = "GET_PWM_DUTY"
+category = "pwm"
+signature = "pin: UINT"
+returns = "UINT"
+aliases = ["pwmRead"]
+
+# ---------------------------------------------------------------------------
+# ADC
+# ---------------------------------------------------------------------------
+[[ops]]
+canonical = "CFG_ADC_INPUT"
+category = "adc"
+signature = "pin: UINT"
+returns = "VOID"
+aliases = []
+
+[[ops]]
+canonical = "READ_ADC"
+category = "adc"
+signature = "pin: UINT"
+returns = "UINT"
+aliases = ["readADC"]
+
+# ---------------------------------------------------------------------------
+# Time
+# ---------------------------------------------------------------------------
+[[ops]]
+canonical = "WAIT_TIME"
+category = "time"
+signature = "t: TIME"
+returns = "VOID"
+aliases = ["delay"]
+
+[[ops]]
+canonical = "WAIT_TIME_US"
+category = "time"
+signature = "t: TIME"
+returns = "VOID"
+aliases = []
+
+[[ops]]
+canonical = "GET_SYS_TIME"
+category = "time"
+signature = ""
+returns = "DWORD"
+aliases = ["currentTime"]
+
+[[ops]]
+canonical = "GET_SYS_TIME_US"
+category = "time"
+signature = ""
+returns = "DWORD"
+aliases = ["currentTimeUS"]
+
+[[ops]]
+canonical = "TIME_DIFF"
+category = "time"
+signature = "a: DWORD, b: DWORD"
+returns = "DWORD"
+aliases = []
+notes = "Raw subtraction of time-typed operands → ERR_RAW_TIME_SUBTRACTION"
+
+# ---------------------------------------------------------------------------
+# Math
+# ---------------------------------------------------------------------------
+[[ops]]
+canonical = "SQRT"
+category = "math"
+signature = "x: REAL"
+returns = "REAL"
+aliases = ["sqrt"]
+
+[[ops]]
+canonical = "LN"
+category = "math"
+signature = "x: REAL"
+returns = "REAL"
+aliases = ["log"]
+
+[[ops]]
+canonical = "LOG"
+category = "math"
+signature = "x: REAL"
+returns = "REAL"
+aliases = ["log10"]
+
+[[ops]]
+canonical = "ABS"
+category = "math"
+signature = "x: ANY_NUM"
+returns = "ANY_NUM"
+aliases = ["abs"]
+
+[[ops]]
+canonical = "EXPT"
+category = "math"
+signature = "x: REAL, y: REAL"
+returns = "REAL"
+aliases = ["pow"]
+
+[[ops]]
+canonical = "FLOOR"
+category = "math"
+signature = "x: REAL"
+returns = "INT"
+aliases = ["floor"]
+
+[[ops]]
+canonical = "CEIL"
+category = "math"
+signature = "x: REAL"
+returns = "INT"
+aliases = ["ceil"]
+
+[[ops]]
+canonical = "MAX"
+category = "math"
+signature = "a: T, b: T"
+returns = "T"
+aliases = ["max"]
+
+[[ops]]
+canonical = "MIN"
+category = "math"
+signature = "a: T, b: T"
+returns = "T"
+aliases = ["min"]
+
+[[ops]]
+canonical = "TRUNC"
+category = "math"
+signature = "x: REAL"
+returns = "INT"
+aliases = ["int"]
+
+[[ops]]
+canonical = "CLAMP"
+category = "math"
+signature = "x: T, lo: T, hi: T"
+returns = "T"
+aliases = []
+notes = "Used by goldens; not tabulated in legacy stdlib.md — frozen here"
+
+[[ops]]
+canonical = "TO_STRING"
+category = "math"
+signature = "x: T"
+returns = "STRING"
+aliases = ["string"]
+
+[[ops]]
+canonical = "TO_STRING_FMT"
+category = "math"
+signature = "x: REAL, d: UINT"
+returns = "STRING"
+aliases = []
+
+[[ops]]
+canonical = "CONCAT"
+category = "math"
+signature = "STRING, ..."
+returns = "STRING"
+aliases = []
+
+[[ops]]
+canonical = "MAP_RANGE"
+category = "math"
+signature = "x,in_min,in_max,out_min,out_max: REAL"
+returns = "REAL"
+aliases = ["map_range"]
+
+[[ops]]
+canonical = "MOD"
+category = "math"
+signature = "a: ANY_INT, b: ANY_INT"
+returns = "ANY_INT"
+aliases = []
+
+[[ops]]
+canonical = "SEL"
+category = "math"
+signature = "g: BOOL, in0: T, in1: T"
+returns = "T"
+aliases = []
+
+# ---------------------------------------------------------------------------
+# Bitwise
+# ---------------------------------------------------------------------------
+[[ops]]
+canonical = "AND_BIT"
+category = "bitwise"
+signature = "a: ANY_BIT, b: ANY_BIT"
+returns = "ANY_BIT"
+aliases = []
+
+[[ops]]
+canonical = "OR_BIT"
+category = "bitwise"
+signature = "a: ANY_BIT, b: ANY_BIT"
+returns = "ANY_BIT"
+aliases = []
+
+[[ops]]
+canonical = "XOR_BIT"
+category = "bitwise"
+signature = "a: ANY_BIT, b: ANY_BIT"
+returns = "ANY_BIT"
+aliases = []
+
+[[ops]]
+canonical = "NOT_BIT"
+category = "bitwise"
+signature = "a: ANY_BIT"
+returns = "ANY_BIT"
+aliases = []
+
+[[ops]]
+canonical = "SHL"
+category = "bitwise"
+signature = "a: ANY_BIT, n: UINT"
+returns = "ANY_BIT"
+aliases = []
+
+[[ops]]
+canonical = "SHR"
+category = "bitwise"
+signature = "a: ANY_BIT, n: UINT"
+returns = "ANY_BIT"
+aliases = []
+
+[[ops]]
+canonical = "ROL"
+category = "bitwise"
+signature = "a: WORD, n: UINT"
+returns = "WORD"
+aliases = []
+
+[[ops]]
+canonical = "ROR"
+category = "bitwise"
+signature = "a: WORD, n: UINT"
+returns = "WORD"
+aliases = []
+
+# ---------------------------------------------------------------------------
+# Casts
+# ---------------------------------------------------------------------------
+[[ops]]
+canonical = "REAL_TO_INT"
+category = "cast"
+signature = "x: REAL"
+returns = "INT"
+aliases = []
+
+[[ops]]
+canonical = "INT_TO_REAL"
+category = "cast"
+signature = "x: INT"
+returns = "REAL"
+aliases = ["float"]
+
+[[ops]]
+canonical = "BOOL_TO_INT"
+category = "cast"
+signature = "x: BOOL"
+returns = "INT"
+aliases = []
+
+[[ops]]
+canonical = "INT_TO_BOOL"
+category = "cast"
+signature = "x: INT"
+returns = "BOOL"
+aliases = []
+
+[[ops]]
+canonical = "WORD_TO_INT"
+category = "cast"
+signature = "x: WORD"
+returns = "INT"
+aliases = []
+
+[[ops]]
+canonical = "INT_TO_WORD"
+category = "cast"
+signature = "x: INT"
+returns = "WORD"
+aliases = []
+
+[[ops]]
+canonical = "INT_TO_DINT"
+category = "cast"
+signature = "x: INT"
+returns = "DINT"
+aliases = []
+
+[[ops]]
+canonical = "REAL_TO_LREAL"
+category = "cast"
+signature = "x: REAL"
+returns = "LREAL"
+aliases = []
+
+[[ops]]
+canonical = "ANY_TO_STRING"
+category = "cast"
+signature = "x: T"
+returns = "STRING"
+aliases = ["TO_STRING"]
+
+# ---------------------------------------------------------------------------
+# Boolean
+# ---------------------------------------------------------------------------
+[[ops]]
+canonical = "AND"
+category = "boolean"
+signature = "a: BOOL, b: BOOL"
+returns = "BOOL"
+aliases = []
+
+[[ops]]
+canonical = "OR"
+category = "boolean"
+signature = "a: BOOL, b: BOOL"
+returns = "BOOL"
+aliases = []
+
+[[ops]]
+canonical = "XOR"
+category = "boolean"
+signature = "a: BOOL, b: BOOL"
+returns = "BOOL"
+aliases = []
+
+# ---------------------------------------------------------------------------
+# Interrupts
+# ---------------------------------------------------------------------------
+[[ops]]
+canonical = "CFG_ATTACH_INTERRUPT"
+category = "interrupt"
+signature = "pin: UINT, fn: ISR_REF, mode: EDGE"
+returns = "VOID"
+aliases = ["attachInterrupt"]
+
+[[ops]]
+canonical = "CFG_DETACH_INTERRUPT"
+category = "interrupt"
+signature = "pin: UINT"
+returns = "VOID"
+aliases = ["detachInterrupt"]
+
+# ---------------------------------------------------------------------------
+# Serial
+# ---------------------------------------------------------------------------
+[[ops]]
+canonical = "CFG_SERIAL"
+category = "serial"
+signature = "baud: DINT"
+returns = "VOID"
+aliases = ["serialBegin"]
+
+[[ops]]
+canonical = "SERIAL_PRINT"
+category = "serial"
+signature = "msg: STRING"
+returns = "VOID"
+aliases = ["serialPrint"]
+
+[[ops]]
+canonical = "SERIAL_PRINTLN"
+category = "serial"
+signature = "msg: STRING"
+returns = "VOID"
+aliases = ["serialPrintln"]
+
+[[ops]]
+canonical = "SERIAL_READLN"
+category = "serial"
+signature = ""
+returns = "STRING"
+aliases = ["serialReadln"]
+
+[[ops]]
+canonical = "SERIAL_READ"
+category = "serial"
+signature = ""
+returns = "STRING"
+aliases = ["serialRead"]
+
+[[ops]]
+canonical = "SERIAL_AVAILABLE"
+category = "serial"
+signature = ""
+returns = "UINT"
+aliases = ["serialAvailable"]
+
+[[ops]]
+canonical = "SERIAL_FLUSH"
+category = "serial"
+signature = ""
+returns = "VOID"
+aliases = ["serialFlush"]
+
+# ---------------------------------------------------------------------------
+# I2C / SPI
+# ---------------------------------------------------------------------------
+[[ops]]
+canonical = "CFG_I2C"
+category = "i2c"
+signature = "bus: UINT, sda: UINT, scl: UINT, freq: DINT"
+returns = "VOID"
+aliases = ["initI2C"]
+
+[[ops]]
+canonical = "CFG_SENSOR_I2C"
+category = "i2c"
+signature = ""
+returns = "VOID"
+aliases = ["initSensorI2C"]
+
+[[ops]]
+canonical = "CFG_SPI"
+category = "spi"
+signature = "bus: UINT, mosi: UINT, miso: INT, sck: UINT, cs: UINT"
+returns = "VOID"
+aliases = ["initSPI"]
+
+# ---------------------------------------------------------------------------
+# Display
+# ---------------------------------------------------------------------------
+[[ops]]
+canonical = "CFG_TFT"
+category = "display"
+signature = "dc: UINT, rst: INT, cs: INT"
+returns = "VOID"
+aliases = ["initTFT"]
+
+[[ops]]
+canonical = "TFT_FILL"
+category = "display"
+signature = "color: WORD"
+returns = "VOID"
+aliases = ["tftFillScreen"]
+
+[[ops]]
+canonical = "TFT_SET_TEXT_COLOR"
+category = "display"
+signature = "fg: WORD, bg: WORD"
+returns = "VOID"
+aliases = ["tftSetTextColor"]
+
+[[ops]]
+canonical = "TFT_SET_TEXT_SIZE"
+category = "display"
+signature = "n: UINT"
+returns = "VOID"
+aliases = ["tftSetTextSize"]
+
+[[ops]]
+canonical = "TFT_PRINT"
+category = "display"
+signature = "x: UINT, y: UINT, msg: STRING"
+returns = "VOID"
+aliases = ["tftPrintText"]
+
+[[ops]]
+canonical = "TFT_DRAW_ROUND_RECT"
+category = "display"
+signature = "x,y,w,h,r: UINT, color: WORD"
+returns = "VOID"
+aliases = ["tftDrawRoundRect"]
+
+[[ops]]
+canonical = "CFG_LCD"
+category = "display"
+signature = "addr: BYTE, cols: UINT, rows: UINT"
+returns = "VOID"
+aliases = ["initLCD"]
+
+[[ops]]
+canonical = "LCD_CLEAR"
+category = "display"
+signature = ""
+returns = "VOID"
+aliases = ["lcdClear"]
+
+[[ops]]
+canonical = "LCD_PRINT"
+category = "display"
+signature = "col: UINT, row: UINT, msg: STRING"
+returns = "VOID"
+aliases = ["lcdPrint"]
+
+# ---------------------------------------------------------------------------
+# Sensors
+# ---------------------------------------------------------------------------
+[[ops]]
+canonical = "READ_TEMPERATURE"
+category = "sensor"
+signature = ""
+returns = "REAL"
+aliases = ["readTemperature"]
+
+[[ops]]
+canonical = "READ_HUMIDITY"
+category = "sensor"
+signature = ""
+returns = "REAL"
+aliases = ["readHumidity"]
+
+[[ops]]
+canonical = "READ_PRESSURE"
+category = "sensor"
+signature = ""
+returns = "REAL"
+aliases = ["readPressure"]
+
+# ---------------------------------------------------------------------------
+# Memory
+# ---------------------------------------------------------------------------
+[[ops]]
+canonical = "SYS_LOAD_MEMORY_SECTOR"
+category = "memory"
+signature = "sector: RETAIN_SECTOR | PERSISTENT_SECTOR"
+returns = "VOID"
+aliases = []
+
+[[ops]]
+canonical = "SYS_WRITE_RETAIN"
+category = "memory"
+signature = "name: VAR_REF, value: T"
+returns = "VOID"
+aliases = []
+
+[[ops]]
+canonical = "SYS_READ_RETAIN"
+category = "memory"
+signature = "name: VAR_REF"
+returns = "T"
+aliases = []
+
+# ---------------------------------------------------------------------------
+# IEC 61131-3 timer / counter FBs (reserved for Ladder + ST co-design)
+# ---------------------------------------------------------------------------
+[[ops]]
+canonical = "TON"
+category = "iec_fb"
+signature = "IN: BOOL, PT: TIME → Q: BOOL, ET: TIME"
+returns = "FB"
+aliases = []
+notes = "IEC 61131-3 timer on-delay — sim semantics Phase 1"
+iec_norm = "IEC 61131-3"
+
+[[ops]]
+canonical = "TOF"
+category = "iec_fb"
+signature = "IN: BOOL, PT: TIME → Q: BOOL, ET: TIME"
+returns = "FB"
+aliases = []
+iec_norm = "IEC 61131-3"
+
+[[ops]]
+canonical = "TP"
+category = "iec_fb"
+signature = "IN: BOOL, PT: TIME → Q: BOOL, ET: TIME"
+returns = "FB"
+aliases = []
+iec_norm = "IEC 61131-3"
+
+[[ops]]
+canonical = "CTU"
+category = "iec_fb"
+signature = "CU: BOOL, R: BOOL, PV: INT → Q: BOOL, CV: INT"
+returns = "FB"
+aliases = []
+iec_norm = "IEC 61131-3"
+
+[[ops]]
+canonical = "CTD"
+category = "iec_fb"
+signature = "CD: BOOL, LD: BOOL, PV: INT → Q: BOOL, CV: INT"
+returns = "FB"
+aliases = []
+iec_norm = "IEC 61131-3"
+
+[[ops]]
+canonical = "CTUD"
+category = "iec_fb"
+signature = "CU: BOOL, CD: BOOL, R: BOOL, LD: BOOL, PV: INT → QU: BOOL, QD: BOOL, CV: INT"
+returns = "FB"
+aliases = []
+iec_norm = "IEC 61131-3"
+
+[[ops]]
+canonical = "VENDOR_EXTENSION"
+category = "vendor"
+signature = "reason: STRING"
+returns = "VOID"
+aliases = []

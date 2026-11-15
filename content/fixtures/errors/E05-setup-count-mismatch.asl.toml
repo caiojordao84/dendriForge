@@ -1,0 +1,49 @@
+# Error corpus E05 — expected ERR_BLOCK_COUNT_MISMATCH
+# Migrated from core/asl/v010/errors/E05-setup-count-mismatch.toon
+# TOML IR has no header count; fixture_inject declares the legacy mismatch intent.
+
+[metadata]
+project_name = "E05-setup-count-mismatch"
+editor = "dendriForge"
+author = "dendriForge Error Corpus"
+expect_error = "ERR_BLOCK_COUNT_MISMATCH"
+notes = "Legacy TOON declared setup[1] but had 2 steps; IR stores declared_count for harness"
+
+[fixture_inject]
+declared_setup_count = 1
+
+[[hardware]]
+pin = 2
+hw_type = "digital"
+io_mode = "DO"
+label = "ledA"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 3
+hw_type = "digital"
+io_mode = "DO"
+label = "ledB"
+target_role = "digital-out"
+
+[[data]]
+name = "LOOP_DELAY"
+type = "TIME"
+scope = "CONST"
+init = "T#100ms"
+unit = "ms"
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 2 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 3 }]
+
+[[loop]]
+kind = "call"
+name = "WAIT_TIME"
+args = [{ kind = "var", name = "LOOP_DELAY" }]

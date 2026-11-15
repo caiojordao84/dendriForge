@@ -1,0 +1,68 @@
+# Error corpus E02 — expected ERR_DATA_UNKNOWN_TYPE
+# Migrated from core/asl/v010/errors/E02-unknown-data-type.toon
+#
+# Note: `type = "WORD32"` will fail structural deserialize into DataType.
+# Phase 1 may catch this either as ERR_IR_DESERIALIZE or ERR_DATA_UNKNOWN_TYPE
+# after a looser parse pass. Fixture records the semantic intent.
+
+[metadata]
+project_name = "E02-unknown-data-type"
+editor = "dendriForge"
+author = "dendriForge Error Corpus"
+expect_error = "ERR_DATA_UNKNOWN_TYPE"
+
+[[hardware]]
+pin = 2
+hw_type = "digital"
+io_mode = "DO"
+label = "ledPin"
+target_role = "digital-out"
+
+[[data]]
+name = "LOOP_DELAY"
+type = "TIME"
+scope = "CONST"
+init = "T#500ms"
+unit = "ms"
+
+# Offending entry kept as a sibling raw table for Phase 1 loose parse.
+# Structural Program deserialize of this file may fail on `type`; see notes.
+[[data]]
+name = "counter"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "ledState"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[fixture_inject]
+# Phase 1 negative harness should rewrite counter.type → "WORD32" before validate,
+# or load via a string-typed data IR. Documented expected token:
+unknown_type_token = "WORD32"
+unknown_type_var = "counter"
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 2 }]
+
+[[loop]]
+kind = "assign"
+target = "counter"
+value = { kind = "binop", op = "add", left = { kind = "var", name = "counter" }, right = { kind = "uint", value = 1 } }
+
+[[loop]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "uint", value = 2 }, { kind = "var", name = "ledState" }]
+
+[[loop]]
+kind = "call"
+name = "WAIT_TIME"
+args = [{ kind = "var", name = "LOOP_DELAY" }]

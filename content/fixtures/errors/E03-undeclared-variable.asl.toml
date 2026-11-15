@@ -1,0 +1,54 @@
+# Error corpus E03 — expected ERR_UNDECLARED_VARIABLE
+# Migrated from core/asl/v010/errors/E03-undeclared-variable.toon
+
+[metadata]
+project_name = "E03-undeclared-variable"
+editor = "dendriForge"
+author = "dendriForge Error Corpus"
+expect_error = "ERR_UNDECLARED_VARIABLE"
+
+[[hardware]]
+pin = 2
+hw_type = "digital"
+io_mode = "DO"
+label = "ledPin"
+target_role = "digital-out"
+
+[[data]]
+name = "LOOP_DELAY"
+type = "TIME"
+scope = "CONST"
+init = "T#500ms"
+unit = "ms"
+
+[[data]]
+name = "ledState"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 2 }]
+
+[[loop]]
+kind = "assign"
+target = "ledState"
+value = { kind = "unary", op = "not", expr = { kind = "var", name = "ledState" } }
+
+[[loop]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "uint", value = 2 }, { kind = "var", name = "ledState" }]
+
+[[loop]]
+kind = "assign"
+target = "undeclaredVar"
+value = { kind = "binop", op = "add", left = { kind = "var", name = "undeclaredVar" }, right = { kind = "uint", value = 1 } }
+
+[[loop]]
+kind = "call"
+name = "WAIT_TIME"
+args = [{ kind = "var", name = "LOOP_DELAY" }]
