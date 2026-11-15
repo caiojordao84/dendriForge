@@ -29,12 +29,11 @@ too deep for inline tables; Phase 1 must parse these into the same `Expr` enum.
 ```toml
 [metadata]
 project_name = "…"
-version = 1
 editor = "dendriForge"
 author = "…"
-asl_version = "0.1.0"          # was ASLversion in TOON
 # expect_error = "ERR_…"       # negative fixtures only
 # notes = "…"
+# No asl_version / version — ASL is unversioned until MVP (then 0.0.1). See versioning.md.
 
 [[hardware]]
 pin = 13

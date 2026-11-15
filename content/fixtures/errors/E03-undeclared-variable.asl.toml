@@ -3,10 +3,8 @@
 
 [metadata]
 project_name = "E03-undeclared-variable"
-version = 1
 editor = "dendriForge"
 author = "dendriForge Error Corpus"
-asl_version = "0.1.0"
 expect_error = "ERR_UNDECLARED_VARIABLE"
 
 [[hardware]]

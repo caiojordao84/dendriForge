@@ -9,7 +9,6 @@ use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Catalog {
-    pub asl_version: String,
     pub naming: String,
     pub ops: Vec<StdlibOp>,
 }
@@ -87,7 +86,7 @@ mod tests {
     #[test]
     fn catalog_loads_and_resolves_aliases() {
         let cat = catalog();
-        assert_eq!(cat.asl_version, "0.1.0");
+        assert!(cat.naming.contains("IEC 61131-3"));
         assert!(cat.ops.len() > 40);
         assert_eq!(resolve_name("digitalWrite"), Some("SET_BOOL"));
         assert_eq!(resolve_name("SET_BOOL"), Some("SET_BOOL"));

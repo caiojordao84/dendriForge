@@ -1,8 +1,8 @@
-# dendri-stdlib catalog — ASL v0.1.0 / IEC 61131-3 Naming Edition
+# dendri-stdlib catalog — IEC 61131-3 Naming Edition (ASL unversioned until MVP)
 # Source: docs/stdlib.md (ported). Canonical names are IEC-style identifiers.
 # Aliases normalize to canonical at Pass 0. Generators always see canonical.
+# No ASL language version field — first tag will be 0.0.1 after parsers + MVP.
 
-asl_version = "0.1.0"
 naming = "IEC 61131-3 canonical; aliases accepted at Pass 0"
 
 # ---------------------------------------------------------------------------

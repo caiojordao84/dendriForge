@@ -3,10 +3,8 @@
 
 [metadata]
 project_name = "G03-traffic-light-sequencer"
-version = 1
 editor = "dendriForge"
 author = "dendriForge Golden Suite"
-asl_version = "0.1.0"
 
 [[hardware]]
 pin = 13

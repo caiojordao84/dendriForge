@@ -36,22 +36,20 @@ pub struct Metadata {
     /// Required by validate (may be absent in negative fixtures).
     #[serde(default)]
     pub project_name: Option<String>,
-    /// Required by validate — omit to trigger `ERR_METADATA_MISSING_FIELD`.
-    #[serde(default)]
-    pub version: Option<u32>,
     #[serde(default)]
     pub editor: Option<String>,
     #[serde(default)]
     pub author: Option<String>,
-    /// Canonical field name (replaces TOON `ASLversion`). Required by validate.
-    #[serde(default)]
-    pub asl_version: Option<String>,
     #[serde(default)]
     pub notes: Option<String>,
     /// Expected error id for negative fixtures (`ERR_*`).
     #[serde(default)]
     pub expect_error: Option<String>,
 }
+
+// ASL language versioning is intentionally absent until MVP.
+// Do not reintroduce `asl_version` / document `version` here before then;
+// first released ASL tag will be `0.0.1` once parsers + MVP exist.
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HardwareEntry {

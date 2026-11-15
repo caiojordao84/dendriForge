@@ -31,7 +31,6 @@ fn golden_mvp_fixtures_deserialize() {
             prog.metadata.project_name.is_some(),
             "{name} missing project_name"
         );
-        assert_eq!(prog.metadata.asl_version.as_deref(), Some("0.1.0"));
         assert!(
             !prog.setup.is_empty() || !prog.loop_body.is_empty(),
             "{name} empty body"
@@ -65,7 +64,7 @@ fn error_corpus_fixtures_deserialize() {
     }
 
     let e01 = load_program(&root.join("E01-missing-metadata-field.asl.toml"));
-    assert!(e01.metadata.version.is_none());
+    assert!(e01.metadata.project_name.is_none());
     assert_eq!(
         e01.metadata.expect_error.as_deref(),
         Some("ERR_METADATA_MISSING_FIELD")

@@ -1,7 +1,6 @@
 # DendriForge compliance spine — Tier A norms bind to crates/content from day one.
 # Process: unknown `standard:` strings warn; Tier A identifiers must resolve in stdlib.
 
-asl_version = "0.1.0"
 
 [[tier_a]]
 norm = "IEC 61131-3"

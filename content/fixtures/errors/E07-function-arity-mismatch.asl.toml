@@ -3,10 +3,8 @@
 
 [metadata]
 project_name = "E07-function-arity-mismatch"
-version = 1
 editor = "dendriForge"
 author = "dendriForge Error Corpus"
-asl_version = "0.1.0"
 expect_error = "ERR_FUNCTION_ARITY_MISMATCH"
 
 [[hardware]]

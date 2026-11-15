@@ -3,10 +3,8 @@
 
 [metadata]
 project_name = "arduino-uno-r3-profile"
-version = 1
 editor = "dendriForge"
 author = "schemasmith"
-asl_version = "0.1.0"
 
 [identification]
 id = "arduino-uno"

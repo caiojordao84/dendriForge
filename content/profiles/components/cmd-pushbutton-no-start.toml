@@ -4,10 +4,8 @@
 
 [metadata]
 project_name = "cmd-pushbutton-no-start-profile"
-version = 1
 editor = "dendriForge"
 author = "schemasmith"
-asl_version = "0.1.0"
 
 [identification]
 id = "cmd-pushbutton-no-start"

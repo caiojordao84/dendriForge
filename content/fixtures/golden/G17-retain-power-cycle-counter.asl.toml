@@ -4,10 +4,8 @@
 
 [metadata]
 project_name = "G17-retain-power-cycle-counter"
-version = 1
 editor = "dendriForge"
 author = "dendriForge Golden Suite"
-asl_version = "0.1.0"
 notes = "IEC 61131-3 RETAIN multi-var persistence"
 
 [[hardware]]

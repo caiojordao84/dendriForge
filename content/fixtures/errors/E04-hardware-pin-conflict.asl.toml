@@ -3,10 +3,8 @@
 
 [metadata]
 project_name = "E04-hardware-pin-conflict"
-version = 1
 editor = "dendriForge"
 author = "dendriForge Error Corpus"
-asl_version = "0.1.0"
 expect_error = "ERR_HARDWARE_PIN_CONFLICT"
 
 [[hardware]]

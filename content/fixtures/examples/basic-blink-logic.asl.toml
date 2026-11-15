@@ -3,10 +3,8 @@
 
 [metadata]
 project_name = "basic-blink-logic"
-version = 1
 editor = "dendriForge"
 author = "USER_1129_20260519"
-asl_version = "0.1.0"
 
 [[hardware]]
 pin = 13

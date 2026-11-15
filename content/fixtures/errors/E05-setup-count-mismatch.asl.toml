@@ -4,10 +4,8 @@
 
 [metadata]
 project_name = "E05-setup-count-mismatch"
-version = 1
 editor = "dendriForge"
 author = "dendriForge Error Corpus"
-asl_version = "0.1.0"
 expect_error = "ERR_BLOCK_COUNT_MISMATCH"
 notes = "Legacy TOON declared setup[1] but had 2 steps; IR stores declared_count for harness"
 

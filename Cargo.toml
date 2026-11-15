@@ -6,7 +6,8 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0"
+# Crate packaging only — NOT an ASL language version. ASL is unversioned until MVP (then 0.0.1).
+version = "0.0.0"
 edition = "2021"
 license = "UNLICENSED"
 authors = ["DendriForge"]

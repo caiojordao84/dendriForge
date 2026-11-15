@@ -8,6 +8,7 @@ This folder documents the TOML-based IR contract that Phase 1 will implement
 | Document | Purpose |
 |---|---|
 | [`ir-schema.md`](./ir-schema.md) | Program + profile TOML IR |
+| [`versioning.md`](./versioning.md) | ASL unversioned until MVP; then `0.0.1` |
 | [`error-codes.md`](./error-codes.md) | Unified `ERR_*` enum (+ legacy map) |
 | [`layout.md`](./layout.md) | Repo layout: `content/` vs `legacy` `core/` |
 | [`svg-readiness.md`](./svg-readiness.md) | SVG conventions, gap inventory, visual MVP |

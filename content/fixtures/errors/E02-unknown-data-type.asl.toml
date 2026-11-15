@@ -7,10 +7,8 @@
 
 [metadata]
 project_name = "E02-unknown-data-type"
-version = 1
 editor = "dendriForge"
 author = "dendriForge Error Corpus"
-asl_version = "0.1.0"
 expect_error = "ERR_DATA_UNKNOWN_TYPE"
 
 [[hardware]]

@@ -4,10 +4,8 @@
 
 [metadata]
 project_name = "G08-stopwatch-lap-timer"
-version = 1
 editor = "dendriForge"
 author = "dendriForge Golden Suite"
-asl_version = "0.1.0"
 notes = "IEC 61131-3 TIME_DIFF rollover-safe pattern"
 
 [[hardware]]

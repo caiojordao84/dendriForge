@@ -1,4 +1,4 @@
-> **Status (2026-11):** Phase 0 contract freeze in progress — ASL = **Abstract Syntax Language**; IR is **TOML-based** (not TOON long-term). See [`docs/phase-0/`](docs/phase-0/), Rust types in `crates/dendri-ast`, fixtures in `content/fixtures/`. No runnable parser/sim yet (Phase 1). Legacy TOON remains under `core/` (read-only).
+> **Status (2026-11):** Phase 0 contract freeze — ASL = **Abstract Syntax Language** (**unversioned until MVP**, then `0.0.1`); IR is **TOML-based** (not TOON long-term). See [`docs/phase-0/`](docs/phase-0/), Rust types in `crates/dendri-ast`, fixtures in `content/fixtures/`. No runnable parser/sim yet (Phase 1). Legacy TOON remains under `core/` (read-only).
 
 ---
 
