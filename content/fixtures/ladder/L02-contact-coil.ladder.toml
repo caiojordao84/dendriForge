@@ -1,0 +1,51 @@
+# Ladder series power-flow: NO contact → coil → SET_BOOL action.
+
+name = "L02-contact-coil"
+
+[[hardware]]
+pin = 13
+hw_type = "digital"
+io_mode = "DO"
+label = "ledPin"
+target_role = "digital-out"
+
+[[data]]
+name = "btn"
+type = "BOOL"
+scope = "VAR"
+init = "TRUE"
+unit = "-"
+
+[[data]]
+name = "led"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 13 }]
+
+[[rungs]]
+id = "r1"
+row = 0
+comment = "btn seals led"
+
+[[rungs.cells]]
+kind = "contact_no"
+operand = "btn"
+col = 0
+
+[[rungs.cells]]
+kind = "coil"
+operand = "led"
+col = 1
+
+[[rungs.cells]]
+kind = "action"
+col = 2
+stmts = [
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 13 }, { kind = "var", name = "led" }] },
+]

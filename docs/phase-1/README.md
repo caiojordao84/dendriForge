@@ -1,4 +1,4 @@
-# Phase 1 — Core + text frontends
+# Phase 1 — Core + text frontends + Ladder/SFC
 
 **Status:** in progress toward MVP (ASL still **unversioned**; do **not** assign `0.0.1` yet)
 
@@ -12,22 +12,26 @@
 | `dendri-backend-st` | Structured Text ↔ ASL AST (MVP subset) |
 | `dendri-frontend-cpp` | Arduino-style C++ ↔ ASL AST (MVP subset) |
 | `dendri-frontend-micropython` | MicroPython ↔ ASL AST (MVP subset) |
-| `dendri-frontends` | Unified P1 text dispatch |
+| `dendri-frontend-ladder` | Ladder diagram TOML ↔ ASL (DEN-8) |
+| `dendri-frontend-sfc` | SFC/GRAFCET diagram TOML ↔ ASL (DEN-8) |
+| `dendri-frontends` | Unified P1 language dispatch |
+| `dendri-sync` | Bidirectional diagram ↔ TOML ↔ ASL session |
+| `dendri-editor` | iced 0.13 Ladder/SFC visual editor MVP |
 | `dendri-sim` | Scan-cycle ticks; `SET_BOOL` / `GET_BOOL` / `WAIT_TIME` / `TON` traces |
 | `dendri-profiles` | Load board/component profiles + SVG hooks |
-| `dendri-cli` | `dendri validate\|roundtrip\|sim\|emit-*\|parse-source\|frontend-roundtrip\|…` |
+| `dendri-cli` | `dendri validate\|roundtrip\|sim\|emit-*\|parse-source\|frontend-roundtrip\|sync-visual\|…` |
 
-Language coverage limits: [`frontends.md`](./frontends.md).
+Language coverage: [`frontends.md`](./frontends.md), [`ladder-sfc.md`](./ladder-sfc.md).
 
 ## Single-file project
 
 Extension **`.dendri.toml`**: `[metadata]` + `[board]` + `[[components]]` + `[[wiring]]` + `[[sources]]` + embedded `[asl.*]` program.
 
-`[[sources]].language` for `cpp` / `micropython` / `st` carry real source text (DEN-7). `ladder` / `sfc` remain DEN-8 stubs.
+`[[sources]].language` for `cpp` / `micropython` / `st` / `ladder` / `sfc` carry real source text. Ladder/SFC texts are diagram TOML sharing the same editor surface as textual languages.
 
-## SVG hooks (logical sim only here)
+## SVG hooks
 
-See `docs/phase-0/svg-readiness.md`. Profiles load for `arduino-uno-r3`, `led`, `cmd-pushbutton-no-start`. Button SVG still missing.
+See `docs/phase-0/svg-readiness.md`. Profiles load for `arduino-uno-r3`, `led`, `cmd-pushbutton-no-start`. Button SVG authored (DEN-8); staged under `content/assets/svg/` and `core/components/`.
 
 ## Commands
 
@@ -36,8 +40,8 @@ cargo test --workspace
 cargo run -p dendri-cli -- validate content/fixtures/examples/basic-blink-logic.asl.toml
 cargo run -p dendri-cli -- roundtrip content/fixtures/golden/G01-gpio-all-modes-probe.asl.toml
 cargo run -p dendri-cli -- sim content/fixtures/sim/S01-blink-set-bool-wait.asl.toml --cycles 2
-cargo run -p dendri-cli -- emit-st content/fixtures/sim/S01-blink-set-bool-wait.asl.toml
-cargo run -p dendri-cli -- emit-cpp content/fixtures/sim/S01-blink-set-bool-wait.asl.toml
-cargo run -p dendri-cli -- frontend-roundtrip --lang micropython content/fixtures/sim/S01-blink-set-bool-wait.asl.toml
+cargo run -p dendri-cli -- frontend-roundtrip --lang ladder content/fixtures/sim/S01-blink-set-bool-wait.asl.toml
+cargo run -p dendri-cli -- sync-visual content/fixtures/projects/P01-uno-led-blink.dendri.toml
+cargo run -p dendri-editor
 cargo run -p dendri-cli -- profiles
 ```

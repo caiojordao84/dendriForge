@@ -15,8 +15,13 @@ pub mod types;
 
 pub use error::{ErrorCode, ErrorSeverity};
 pub use expr::Expr;
-pub use grafcet::{GrafcetBlock, GrafcetStep, GrafcetTransition};
-pub use ladder::{LadderBlock, LadderCell, LadderRung};
+pub use grafcet::{
+    GrafcetBlock, GrafcetDocument, GrafcetIoBinding, GrafcetStep, GrafcetTransition,
+};
+pub use ladder::{
+    CounterFbKind, LadderBlock, LadderCell, LadderDocument, LadderIoBinding, LadderRung,
+    TimerFbKind,
+};
 pub use lit::Literal;
 pub use program::{
     DataEntry, FunctionDef, HardwareEntry, Metadata, Program, Scope, TargetRole,

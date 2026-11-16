@@ -23,10 +23,10 @@ pub struct Program {
     pub loop_body: Vec<Stmt>,
     #[serde(default)]
     pub functions: Vec<FunctionDef>,
-    /// Reserved: Ladder dialect blocks (types only in Phase 0).
+    /// Ladder dialect blocks (IEC 61131-3 LD) — populated by DEN-8 sync.
     #[serde(default)]
     pub ladder: Vec<crate::ladder::LadderBlock>,
-    /// Reserved: GRAFCET / IEC 60848 blocks (types only in Phase 0).
+    /// GRAFCET / SFC blocks (IEC 60848) — populated by DEN-8 sync.
     #[serde(default)]
     pub grafcet: Vec<crate::grafcet::GrafcetBlock>,
 }

@@ -1,0 +1,19 @@
+[package]
+name = "dendri-sync"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Bidirectional real-time sync: Ladder/SFC diagram ↔ TOML ↔ ASL"
+
+[dependencies]
+dendri-ast = { workspace = true }
+dendri-emit = { workspace = true }
+dendri-frontend-ladder = { workspace = true }
+dendri-frontend-sfc = { workspace = true }
+dendri-parse = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+toml = { workspace = true }
+
+[dev-dependencies]
+dendri-sim = { workspace = true }

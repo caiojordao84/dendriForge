@@ -11,7 +11,7 @@ P1 text languages parse to and generate from the same [`Program`] AST that `dend
 | Structured Text | `dendri-backend-st` | yes | yes |
 | Dispatch facade | `dendri-frontends` | yes | yes |
 
-Ladder / SFC = **DEN-8**. Rust-as-user-scripting = **P2**.
+Ladder / SFC = **DEN-8** (see [`ladder-sfc.md`](./ladder-sfc.md)). Rust-as-user-scripting = **P2**.
 
 ## CLI
 
@@ -61,9 +61,8 @@ Common across languages (blink-class + control flow):
 
 **Out:** full IEC 61131-3 (POUs, FBs beyond call form, POINTER, namespaces, vendor dialects). `SETUP`/`LOOP`/`CONSTANT` are Dendri MVP surface keywords for honest setup/loop split.
 
-## Gaps → DEN-8 / full MVP
+## Gaps → full MVP
 
-- Ladder + SFC visual editors and bidirectional diagram ↔ TOML sync
 - Broader stdlib opcode coverage in sim + frontends (PWM, ADC, UART, …)
-- Project `[[sources]]` live sync while editing (GUI)
+- Full Ladder/SFC canvas polish (DEN-8 MVP sync + IR landed; see [`ladder-sfc.md`](./ladder-sfc.md))
 - Assign ASL version `0.0.1` only after full MVP acceptance gate

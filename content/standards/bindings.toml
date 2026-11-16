@@ -10,18 +10,18 @@ binds = [
   "scopes CONST/VAR/RETAIN/PERSISTENT/TEMP/EXTERN",
   "timer/counter FBs TON/TOF/TP/CTU/CTD/CTUD",
   "ST frontend/backend (Phase 1+)",
-  "Ladder cell model stubs in dendri-ast",
+  "Ladder cell model + dendri-frontend-ladder (DEN-8 MVP)",
 ]
 day_one_action = "Freeze identifiers from crates/dendri-stdlib/data/catalog.toml; type enum matches goldens"
-test_ids = ["G01", "G03", "G05", "G08", "G17"]
+test_ids = ["G01", "G03", "G05", "G08", "G17", "L01", "L02"]
 
 [[tier_a]]
 norm = "IEC 60848"
 binds = [
-  "GrafcetBlock / GrafcetStep / GrafcetTransition stubs in dendri-ast",
+  "GrafcetBlock / GrafcetStep / GrafcetTransition + dendri-frontend-sfc (DEN-8 MVP)",
 ]
-day_one_action = "Reserve types only — editors deferred"
-test_ids = []
+day_one_action = "Editors + sync via dendri-sync / dendri-editor"
+test_ids = ["G01-sfc"]
 
 [[tier_a]]
 norm = "IEC 61131-2"

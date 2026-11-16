@@ -1,0 +1,74 @@
+# GRAFCET/SFC fixture — two-step LED blink (IEC 60848-style chart).
+# Lowered to step-token state machine for dendri-sim.
+
+name = "G01-blink-two-step"
+initial_steps = ["S_on"]
+
+[[hardware]]
+pin = 13
+hw_type = "digital"
+io_mode = "DO"
+label = "ledPin"
+target_role = "digital-out"
+
+[[data]]
+name = "ON_TIME"
+type = "TIME"
+scope = "CONST"
+init = "T#100ms"
+unit = "ms"
+
+[[data]]
+name = "OFF_TIME"
+type = "TIME"
+scope = "CONST"
+init = "T#100ms"
+unit = "ms"
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 13 }]
+
+[[setup]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "uint", value = 13 }, { kind = "bool", value = false }]
+
+[[steps]]
+id = "S_on"
+initial = true
+x = 0.0
+y = 0.0
+comment = "LED on"
+actions = [
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 13 }, { kind = "bool", value = true }] },
+  { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "ON_TIME" }] },
+]
+
+[[steps]]
+id = "S_off"
+initial = false
+x = 0.0
+y = 80.0
+comment = "LED off"
+actions = [
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 13 }, { kind = "bool", value = false }] },
+  { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "OFF_TIME" }] },
+]
+
+[[transitions]]
+id = "T1"
+from = ["S_on"]
+to = ["S_off"]
+condition = { kind = "bool", value = true }
+x = 0.0
+y = 40.0
+
+[[transitions]]
+id = "T2"
+from = ["S_off"]
+to = ["S_on"]
+condition = { kind = "bool", value = true }
+x = 0.0
+y = 120.0

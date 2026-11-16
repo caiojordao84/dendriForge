@@ -48,7 +48,7 @@ core/components/led.svg
 |---|---|---|
 | Board | `arduino-uno-r3` | `core/boards/arduino-uno-r3.svg` → later `content/assets/svg/boards/arduino-uno-r3.svg` |
 | Indicator | `led` | `core/components/led.svg` → later `content/assets/svg/components/led.svg` |
-| Input | `cmd-pushbutton-no-start` | **`core/components/cmd-pushbutton-no-start.svg` (MISSING — must be authored before visual sim)** |
+| Input | `cmd-pushbutton-no-start` | `core/components/cmd-pushbutton-no-start.svg` (**authored DEN-8**; also staged under `content/assets/svg/components/`) |
 | Symbol (LED) | `led` | `led-symbol.svg` (MISSING; optional for MVP canvas) |
 | Symbol (button) | `cmd-pushbutton-no-start` | `cmd-pushbutton-no-start-symbol.svg` (MISSING; optional) |
 

@@ -4,7 +4,7 @@
 //! so a project can be shared and reopened without external dependency loss.
 //!
 //! P1 text frontends (C++ / MicroPython / ST) fill [`SourceScript::text`] via
-//! `dendri-frontends` (DEN-7). Ladder / SFC remain DEN-8 (text may be empty).
+//! `dendri-frontends` (DEN-7). Ladder / SFC diagram TOML is filled by DEN-8.
 
 use serde::{Deserialize, Serialize};
 

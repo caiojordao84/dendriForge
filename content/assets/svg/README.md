@@ -8,8 +8,8 @@ Planned Phase 1 layout:
 content/assets/svg/
   boards/arduino-uno-r3.svg
   components/led.svg
-  components/cmd-pushbutton-no-start.svg   # still missing — author before visual sim
+  components/cmd-pushbutton-no-start.svg   # authored DEN-8
   screens/
 ```
 
-Current seeds remain under `core/boards/*.svg` and `core/components/led.svg`.
+MVP trio staged here; seeds also under `core/boards/*.svg` and `core/components/{led,cmd-pushbutton-no-start}.svg`.

@@ -204,7 +204,10 @@ mod tests {
         let led_hook = mvp.led_hook.unwrap();
         assert!(led_hook.present, "led.svg should exist");
         let btn = mvp.button_hook.unwrap();
-        assert!(!btn.present, "pushbutton SVG is documented missing");
+        assert!(
+            btn.present,
+            "pushbutton SVG should exist at core/components/cmd-pushbutton-no-start.svg"
+        );
         assert_eq!(btn.relative_path, "core/components/cmd-pushbutton-no-start.svg");
     }
 }

@@ -1,0 +1,15 @@
+[package]
+name = "dendri-frontend-sfc"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "SFC/GRAFCET diagram TOML ↔ ASL AST frontend (DEN-8 MVP)"
+
+[dependencies]
+dendri-ast = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+toml = { workspace = true }
+
+[dev-dependencies]
+dendri-sim = { workspace = true }
