@@ -176,6 +176,53 @@ fn s11_retain_survives_soft_restart() {
 }
 
 #[test]
+fn s17_reservoir_plant_fills() {
+    let path = repo().join("content/fixtures/sim/S17-reservoir-plant.asl.toml");
+    let parsed = parse_program_file(&path).unwrap();
+    let mut sim = Simulator::from_program(
+        parsed.program,
+        &SimConfig {
+            max_cycles: 8,
+            ..SimConfig::default()
+        },
+    );
+    sim.run(8).unwrap();
+    let level = sim.plant_level().unwrap();
+    assert!(level > 20.0, "expected fill after 8s, level={level}");
+    let text = sim.trace_text();
+    assert!(text.contains("PLANT TANK"), "{text}");
+    assert!(text.contains("DISP LCD"), "{text}");
+}
+
+#[test]
+fn s18_pid_estop_heats_then_halts() {
+    let path = repo().join("content/fixtures/sim/S18-pid-estop.asl.toml");
+    let parsed = parse_program_file(&path).unwrap();
+    let mut sim = Simulator::from_program(
+        parsed.program,
+        &SimConfig {
+            max_cycles: 20,
+            ..SimConfig::default()
+        },
+    );
+    sim.run(15).unwrap();
+    assert!(sim.plant_temp().unwrap() > 28.0);
+    sim.set_pin(2, true).unwrap();
+    sim.set_pin(2, false).unwrap();
+    assert_eq!(
+        sim.var("sysSafetyHalt").and_then(|v| v.as_bool().ok()),
+        Some(true)
+    );
+    let text = sim.trace_text();
+    assert!(text.contains("E-STOP"), "{text}");
+}
+
+#[test]
+fn s19_display_stubs_emit_disp_and_tone() {
+    assert_trace("S19-display-stubs.asl.toml", 1);
+}
+
+#[test]
 fn s14_isr_edges_fire_on_set_pin() {
     let path = repo().join("content/fixtures/sim/S14-isr-edge-modes.asl.toml");
     let parsed = parse_program_file(&path).unwrap();
