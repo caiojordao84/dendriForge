@@ -1,6 +1,6 @@
 # board profile — raspberry-pi-pico-w (migrated from legacy TOON)
 # Source: raspberry-pi-pico-w.toon
-# DEN-14: do not assign ASL 0.0.1
+# ASL 0.0.1 lives on program IR (metadata.asl_version), not profiles.
 
 
 [metadata]

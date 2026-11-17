@@ -1,6 +1,7 @@
 # Sim snapshot S13 — SQRT / LOG (scenario 7 math building blocks; no PID plant)
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "S13-math-sqrt-log"
 editor = "dendriForge"
 author = "dendriForge DEN-16"

@@ -1,7 +1,7 @@
-//! ASL — Abstract Syntax Language IR types (Phase 0 contract freeze).
+//! ASL — Abstract Syntax Language IR types (Phase 0 contract + ASL `0.0.1`).
 //!
 //! These types are the source of truth for the TOML-based IR consumed by
-//! parsers, validators, emitters, and the scan-cycle simulator in Phase 1.
+//! parsers, validators, emitters, and the scan-cycle simulator.
 
 pub mod error;
 pub mod expr;
@@ -25,7 +25,7 @@ pub use ladder::{
 };
 pub use lit::Literal;
 pub use program::{
-    DataEntry, FunctionDef, HardwareEntry, Metadata, Program, Scope, TargetRole,
+    DataEntry, FunctionDef, HardwareEntry, Metadata, Program, Scope, TargetRole, ASL_VERSION,
 };
 pub use project::{
     BoardInstance, ComponentInstance, SimulationProject, SourceLanguage, SourceScript, Wire,

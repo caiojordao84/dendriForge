@@ -2,6 +2,7 @@
 # Uses SQRT/LOG math, CFG_ATTACH_INTERRUPT, plant thermal, anti-windup PID.
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "S18-pid-estop"
 editor = "dendriForge"
 author = "dendriForge DEN-18"

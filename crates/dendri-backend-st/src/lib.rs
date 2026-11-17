@@ -21,6 +21,7 @@ mod tests {
     fn emits_set_bool() {
         let p = Program {
             metadata: Metadata {
+                asl_version: Some(dendri_ast::ASL_VERSION.into()),
                 project_name: Some("stub".into()),
                 editor: None,
                 author: None,
@@ -50,6 +51,7 @@ mod tests {
 
         let p = Program {
             metadata: Metadata {
+                asl_version: Some(dendri_ast::ASL_VERSION.into()),
                 project_name: Some("S01-blink-set-bool-wait".into()),
                 editor: Some("dendriForge".into()),
                 author: None,

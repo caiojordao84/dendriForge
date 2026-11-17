@@ -1,6 +1,7 @@
 # Sim snapshot S12 — I2C_WRITE/READ + SPI_TRANSFER (scenario 2 bus payload)
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "S12-i2c-spi-xfer"
 editor = "dendriForge"
 author = "dendriForge DEN-16"

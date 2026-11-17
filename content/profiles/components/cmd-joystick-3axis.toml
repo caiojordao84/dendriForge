@@ -1,6 +1,6 @@
 # component profile — cmd-joystick-3axis (migrated from legacy TOON)
 # Source: cmd-joystick-3axis.toon
-# DEN-14: do not assign ASL 0.0.1
+# ASL 0.0.1 lives on program IR (metadata.asl_version), not profiles.
 
 
 [metadata]

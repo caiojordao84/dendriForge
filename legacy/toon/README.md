@@ -2,7 +2,7 @@
 
 > **Historical only.** TOON is **obsolete** as DendriForge IR. Live programs use
 > ASL in **TOML** (`.asl.toml`). See `docs/phase-0/`. The folder name `core/asl/v010/`
-> is a path artifact — **not** the current ASL version (ASL is unversioned until MVP → `0.0.1`).
+> is a path artifact — **not** the current ASL version (live tag is **`0.0.1`**).
 
 The pre-migration TOON library remains at:
 

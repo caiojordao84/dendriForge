@@ -3,6 +3,7 @@
 # Norm cite: IEC 61131-3 RETAIN persistence semantics
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "G17-retain-power-cycle-counter"
 editor = "dendriForge"
 author = "dendriForge Golden Suite"

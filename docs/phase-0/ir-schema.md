@@ -28,12 +28,13 @@ too deep for inline tables; Phase 1 must parse these into the same `Expr` enum.
 
 ```toml
 [metadata]
+asl_version = "0.0.1"          # dendri_ast::ASL_VERSION — sole ASL language tag
 project_name = "…"
 editor = "dendriForge"
 author = "…"
 # expect_error = "ERR_…"       # negative fixtures only
 # notes = "…"
-# No asl_version / version — ASL is unversioned until MVP (then 0.0.1). See versioning.md.
+# See versioning.md — do not add parallel version / ASLversion / schema fields.
 
 [[hardware]]
 pin = 13

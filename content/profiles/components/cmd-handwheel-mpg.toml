@@ -1,6 +1,6 @@
 # component profile — cmd-handwheel-mpg (migrated from legacy TOON)
 # Source: cmd-handwheel-mpg.toon
-# DEN-14: do not assign ASL 0.0.1
+# ASL 0.0.1 lives on program IR (metadata.asl_version), not profiles.
 
 
 [metadata]

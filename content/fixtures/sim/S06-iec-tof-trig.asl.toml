@@ -2,6 +2,7 @@
 # btn starts TRUE; each scan ends by clearing btn so scan2 sees falling edge / off-delay.
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "S06-iec-tof-trig"
 editor = "dendriForge"
 author = "dendriForge Priority 2"

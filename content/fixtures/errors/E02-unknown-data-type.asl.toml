@@ -6,6 +6,7 @@
 # after a looser parse pass. Fixture records the semantic intent.
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "E02-unknown-data-type"
 editor = "dendriForge"
 author = "dendriForge Error Corpus"

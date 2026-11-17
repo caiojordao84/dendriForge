@@ -1,6 +1,6 @@
 # board profile — siemens-s7-1200-cpu-1214c (migrated from legacy TOON)
 # Source: siemens-s7-1200-cpu-1214c.toon
-# DEN-14: do not assign ASL 0.0.1
+# ASL 0.0.1 lives on program IR (metadata.asl_version), not profiles.
 
 
 [metadata]

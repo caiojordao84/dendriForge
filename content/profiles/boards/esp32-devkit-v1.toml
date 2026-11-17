@@ -1,6 +1,6 @@
 # board profile — esp32-devkit-v1 (migrated from legacy TOON)
 # Source: esp32-devkit-v1.toon
-# DEN-14: do not assign ASL 0.0.1
+# ASL 0.0.1 lives on program IR (metadata.asl_version), not profiles.
 
 
 [metadata]

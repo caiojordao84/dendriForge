@@ -2,6 +2,7 @@
 # No heartbeat → WARN after WDT_TIMEOUT, CRIT after WDT_CRITICAL via WAIT_TIME.
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "S20-watchdog-escalation"
 editor = "dendriForge"
 author = "dendriForge DEN-21"

@@ -2,6 +2,7 @@
 # Migrated from core/asl/v010/golden/G05-pwm-fade-breathing-led.toon
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "G05-pwm-fade-breathing-led"
 editor = "dendriForge"
 author = "dendriForge Golden Suite"

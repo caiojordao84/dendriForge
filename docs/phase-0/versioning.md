@@ -1,21 +1,30 @@
-# ASL versioning policy (Phase 0 lock)
+# ASL versioning policy
 
-**ASL is unversioned at this stage.**
+**Current ASL language version: `0.0.1`.**
 
-There is no ASL language version string (`0.1.0`, `v010`, `ASLversion`, `asl_version`,
-schema version fields, etc.) in the Phase 0 IR contract.
+Assigned after MVP acceptance (fixture round-trip + deterministic simulation).
+This is the first ASL tag. Do not treat legacy `0.1.0` / `0.1.1` / `v010` /
+TOON `ASLversion` as current.
 
-| Until | Policy |
+| Field | Where | Value |
+|---|---|---|
+| `asl_version` | `[metadata]` in `.asl.toml` and `[asl.metadata]` in `.dendri.toml` | `"0.0.1"` |
+| Rust constant | `dendri_ast::ASL_VERSION` | `"0.0.1"` |
+
+## Sole scheme
+
+One language version string only: **`asl_version`**. No parallel schema version,
+document `version`, Cargo-as-ASL, or `ASLversion` spellings in the live IR.
+
+| Artifact | Policy |
 |---|---|
-| Now → parsers + MVP | No ASL version field in `.asl.toml`, profiles, stdlib catalog, or `dendri-ast` metadata |
-| After MVP | Introduce first tag **`0.0.1`** |
+| `.asl.toml` / embedded ASL | Carry `metadata.asl_version = "0.0.1"` (serde defaults to current if omitted) |
+| Profiles (`content/profiles/**/*.toml`) | Hardware/profile docs — **no** language version field |
+| Stdlib `catalog.toml` | Documents ASL `0.0.1`; no separate catalog language version |
+| Cargo `workspace.package.version` | Crate packaging only — **not** an ASL release |
 
 ## What this does *not* change
 
-- Legacy path `core/asl/v010/` stays as a historical TOON folder name (read-only). Do not rename for this policy.
-- Draft docs under `docs/grammar.md` / `docs/stdlib.md` are **superseded** semantic drafts (historical TOON surface). They are not the live version authority; banners in those files point here.
-- Cargo `workspace.package.version` is crate packaging only, not an ASL release.
-
-## IR consequence
-
-`[metadata]` no longer carries `asl_version` or document `version`. Required identity fields for validate are `project_name` (and conventionally `editor` / `author`).
+- Legacy path `core/asl/v010/` stays as a historical TOON folder name (read-only).
+- Draft docs under `docs/grammar.md` / `docs/stdlib.md` remain superseded semantic drafts.
+- Required identity field for validate remains `project_name` (plus conventionally `editor` / `author`).

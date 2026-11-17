@@ -42,6 +42,12 @@ fn all_golden_fixtures_deserialize() {
             prog.metadata.project_name.is_some(),
             "{name} missing project_name"
         );
+        assert_eq!(
+            prog.metadata.asl_version.as_deref(),
+            Some(dendri_ast::ASL_VERSION),
+            "{name} expected asl_version {}",
+            dendri_ast::ASL_VERSION
+        );
         assert!(
             !prog.setup.is_empty() || !prog.loop_body.is_empty(),
             "{name} empty body"
@@ -64,6 +70,12 @@ fn all_example_fixtures_deserialize() {
         assert!(
             prog.metadata.project_name.is_some(),
             "{name} missing project_name"
+        );
+        assert_eq!(
+            prog.metadata.asl_version.as_deref(),
+            Some(dendri_ast::ASL_VERSION),
+            "{name} expected asl_version {}",
+            dendri_ast::ASL_VERSION
         );
     }
 }

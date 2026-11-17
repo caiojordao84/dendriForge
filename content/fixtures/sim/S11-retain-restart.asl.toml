@@ -1,6 +1,7 @@
 # Sim snapshot S11 — RETAIN / SYS_*_RETAIN across soft restart (scenario 9)
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "S11-retain-restart"
 editor = "dendriForge"
 author = "dendriForge DEN-16"

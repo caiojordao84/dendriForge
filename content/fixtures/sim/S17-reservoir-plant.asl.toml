@@ -2,6 +2,7 @@
 # Pump PWM fills; valve DO drains; PLANT_LEVEL / READ_DISTANCE_CM + hysteresis + LCD.
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "S17-reservoir-plant"
 editor = "dendriForge"
 author = "dendriForge DEN-18"

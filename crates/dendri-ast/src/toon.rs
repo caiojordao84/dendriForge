@@ -5,7 +5,7 @@
 //! Drops `version` / `ASLversion`. Nesting uses the same heuristics as the
 //! Python one-shot — hand-protected fixtures must not be overwritten.
 //!
-//! ASL stays unversioned — do **not** assign `0.0.1`.
+//! Migrated programs stamp `asl_version = "0.0.1"` (live ASL tag).
 
 use std::collections::{BTreeSet, HashSet};
 use std::fs;
@@ -166,13 +166,14 @@ pub fn convert_program(text: &str, source_rel: &str) -> String {
     out.push("# Legacy TOON retained under core/asl/v010/ (read-only).".into());
     out.push(String::new());
     out.push("[metadata]".into());
+    out.push(format!("asl_version = \"{}\"", crate::ASL_VERSION));
     out.push(format!("project_name = \"{}\"", esc(project)));
     out.push(format!("editor = \"{}\"", esc(editor)));
     out.push(format!("author = \"{}\"", esc(author)));
     if !notes.is_empty() {
         out.push(format!("notes = \"{}\"", esc(notes)));
     } else {
-        out.push("notes = \"Migrated from legacy v010 TOON — ASL unversioned\"".into());
+        out.push("notes = \"Migrated from legacy v010 TOON — ASL 0.0.1\"".into());
     }
     out.push(String::new());
 
@@ -1110,7 +1111,7 @@ fn parse_metadata(text: &str) -> std::collections::BTreeMap<String, String> {
             }
             if line.contains(':') && !line.starts_with('#') {
                 if let Some((k, v)) = line.split_once(':') {
-                    // Drop ASLversion / version — ASL unversioned.
+                    // Drop legacy TOON ASLversion / version; stamp ASL_VERSION on emit.
                     let key = k.trim();
                     if key.eq_ignore_ascii_case("ASLversion")
                         || key.eq_ignore_ascii_case("version")
@@ -1522,9 +1523,12 @@ loop[1]:
 "#;
         let out = convert_program(sample, "core/asl/v010/golden/sample.toon");
         assert!(!out.contains("ASLversion"));
-        assert!(!out.contains("version ="));
+        assert!(
+            !out.lines().any(|l| l.trim_start().starts_with("version =")),
+            "legacy document version= must not appear"
+        );
+        assert!(out.contains(r#"asl_version = "0.0.1""#));
         assert!(out.contains(r#"{ kind = "string", value = "RISING" }"#));
         assert!(out.contains("a AND b") || out.contains(r#"text = "a AND b""#));
-        assert!(!out.contains("0.0.1"));
     }
 }

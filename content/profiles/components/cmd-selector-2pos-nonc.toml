@@ -1,6 +1,6 @@
 # component profile — cmd-selector-2pos-nonc (migrated from legacy TOON)
 # Source: cmd-selector-2pos-nonc.toon
-# DEN-14: do not assign ASL 0.0.1
+# ASL 0.0.1 lives on program IR (metadata.asl_version), not profiles.
 
 
 [metadata]

@@ -6,7 +6,7 @@
 |---|---|
 | Program extension | **`.asl.toml`** (TOML envelope + structured statement AST) |
 | Profile extension | **`.toml`** under `content/profiles/` |
-| ASL versioning | **None** until MVP; then `0.0.1` (see [`versioning.md`](./versioning.md)). Legacy folder `core/asl/v010/` is historical path only. |
+| ASL versioning | **`0.0.1`** via `metadata.asl_version` (see [`versioning.md`](./versioning.md)). Legacy folder `core/asl/v010/` is historical path only. |
 | New tree | **`content/`** — IR fixtures, sample profiles, standards, asset notes |
 | Legacy TOON | **Left in place** at `core/**/*.toon` (read-only). Documented by `legacy/toon/README.md`. Not relocated in Phase 0 to keep the PR focused. |
 | Visual MVP assets | Paths noted in `docs/phase-0/svg-readiness.md`; existing SVGs stay under `core/boards/` and `core/components/` until Phase 1 asset packing |

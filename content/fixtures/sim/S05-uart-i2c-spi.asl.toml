@@ -1,6 +1,7 @@
 # Sim snapshot S05 — UART print + I2C/SPI bus config (scenario 2 buses)
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "S05-uart-i2c-spi"
 editor = "dendriForge"
 author = "dendriForge Priority 2"

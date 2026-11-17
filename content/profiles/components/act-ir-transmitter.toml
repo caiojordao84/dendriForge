@@ -1,6 +1,6 @@
 # component profile — act-ir-transmitter (migrated from legacy TOON)
 # Source: act-ir-transmitter.toon
-# DEN-14: do not assign ASL 0.0.1
+# ASL 0.0.1 lives on program IR (metadata.asl_version), not profiles.
 
 
 [metadata]

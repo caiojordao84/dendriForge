@@ -2,6 +2,7 @@
 # Same Uno + LED + button profiles as C01; logic from S08.
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "C02-scenario1-modes"
 editor = "dendriForge"
 author = "dendriForge Priority 6"
@@ -48,6 +49,7 @@ text = ""
 functions = []
 
 [asl.metadata]
+asl_version = "0.0.1"
 project_name = "C02-scenario1-modes-asl"
 editor = "dendriForge"
 author = "dendriForge Priority 6"

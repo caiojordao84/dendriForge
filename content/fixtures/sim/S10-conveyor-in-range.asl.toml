@@ -2,6 +2,7 @@
 # Optic rising edges → CTU; IN_RANGE keeps motor; at PV divert + full flag.
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "S10-conveyor-in-range"
 editor = "dendriForge"
 author = "dendriForge DEN-16"

@@ -2,6 +2,7 @@
 # TON(instance, IN, PT) → Q
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "S02-ton-on-delay"
 editor = "dendriForge"
 author = "dendriForge Phase 1"

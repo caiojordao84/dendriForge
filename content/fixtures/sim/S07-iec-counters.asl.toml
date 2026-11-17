@@ -2,6 +2,7 @@
 # Each scan forces CLK low then high so edge detectors see a rising edge.
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "S07-iec-counters"
 editor = "dendriForge"
 author = "dendriForge Priority 2"

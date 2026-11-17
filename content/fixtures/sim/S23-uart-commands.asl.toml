@@ -2,6 +2,7 @@
 # PING / STATUS / LED:ON via SERIAL_READLN + string compare (structured).
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "S23-uart-commands"
 editor = "dendriForge"
 author = "dendriForge DEN-21"

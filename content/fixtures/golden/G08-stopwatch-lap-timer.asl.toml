@@ -3,6 +3,7 @@
 # Norm cite: IEC 61131-3 time / TIME_DIFF semantics
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "G08-stopwatch-lap-timer"
 editor = "dendriForge"
 author = "dendriForge Golden Suite"

@@ -1,6 +1,6 @@
 # Phase 1 — Text language frontends (DEN-7 / DEN-10 / DEN-11)
 
-**Status:** implemented (MVP subset through DEN-11 peripherals + IEC FBs). ASL remains **unversioned** — do **not** assign `0.0.1`.
+**Status:** implemented (MVP subset through DEN-11 peripherals + IEC FBs). ASL language tag **`0.0.1`**.
 
 P1 text languages parse to and generate from the same [`Program`] AST that `dendri-sim` runs.
 
@@ -83,4 +83,4 @@ Fixtures: `S01`–`S07` under `content/fixtures/frontends/` + `content/fixtures/
 - Full Ladder/SFC canvas polish beyond linear (priority 3)
 - Broader math/string ops in sim
 - Retain/persistent EEPROM story in frontends
-- Assign ASL version `0.0.1` only after full MVP acceptance gate (priority 7)
+- ASL `0.0.1` is assigned (see `docs/phase-0/versioning.md`)

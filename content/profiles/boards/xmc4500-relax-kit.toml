@@ -1,6 +1,6 @@
 # board profile — xmc4500-relax-kit (migrated from legacy TOON)
 # Source: xmc4500-relax-kit.toon
-# DEN-14: do not assign ASL 0.0.1
+# ASL 0.0.1 lives on program IR (metadata.asl_version), not profiles.
 
 
 [metadata]

@@ -3,6 +3,7 @@
 # RFID_INIT skip + SPI_TRANSFER returns seeded UID byte.
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "S25-fat-rfid-stub"
 editor = "dendriForge"
 author = "dendriForge DEN-22"

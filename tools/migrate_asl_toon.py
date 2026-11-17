@@ -4,7 +4,7 @@
     cargo run -p dendri-cli -- migrate-asl [--dry-run] [--only STEM]
 
 Implementation: `dendri_ast::toon` / `dendri migrate-asl`.
-Hand-protected fixtures are never overwritten. ASL stays unversioned (no 0.0.1).
+Hand-protected fixtures are never overwritten. Live ASL tag is 0.0.1 (metadata.asl_version).
 """
 
 from __future__ import annotations

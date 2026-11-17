@@ -2,6 +2,7 @@
 # Migrated from core/asl/v010/golden/G03-traffic-light-sequencer.toon
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "G03-traffic-light-sequencer"
 editor = "dendriForge"
 author = "dendriForge Golden Suite"

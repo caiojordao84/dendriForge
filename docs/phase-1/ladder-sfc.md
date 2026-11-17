@@ -1,6 +1,6 @@
 # Phase 1 — Ladder & SFC/GRAFCET (DEN-8 → DEN-12)
 
-**Status:** Beyond-linear subset landed (parallel OR, AND fork/join, IEC FB lower). ASL still **unversioned** (do not assign `0.0.1`).
+**Status:** Beyond-linear subset landed (parallel OR, AND fork/join, IEC FB lower). ASL language tag **`0.0.1`**.
 
 ## Editor choice
 
@@ -51,7 +51,6 @@ DiagramModel  ←→  [[sources]].text (diagram TOML)  ←→  [asl] Program
 
 - Deep OR networks / vertical wire matrix / multi-level parallel nesting
 - Drag-canvas polish for nested charts, live SVG sim binding classes
-- Claiming ASL `0.0.1`
 - Rust user-language frontend (P2)
 
 ## Commands

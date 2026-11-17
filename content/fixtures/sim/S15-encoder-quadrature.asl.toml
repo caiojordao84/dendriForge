@@ -1,6 +1,7 @@
 # Sim S15 — rotary encoder via CHANGE ISR (scenario 8 / G04 logic, no LCD)
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "S15-encoder-quadrature"
 editor = "dendriForge"
 author = "dendriForge DEN-17"

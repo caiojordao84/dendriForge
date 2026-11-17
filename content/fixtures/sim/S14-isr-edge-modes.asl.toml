@@ -1,6 +1,7 @@
 # Sim S14 — CFG_ATTACH/DETACH + RISING/FALLING/CHANGE (scenario 8 / G11 core)
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "S14-isr-edge-modes"
 editor = "dendriForge"
 author = "dendriForge DEN-17"

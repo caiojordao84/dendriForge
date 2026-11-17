@@ -1,6 +1,6 @@
 # component profile — signal-siren (migrated from legacy TOON)
 # Source: signal-siren.toon
-# DEN-14: do not assign ASL 0.0.1
+# ASL 0.0.1 lives on program IR (metadata.asl_version), not profiles.
 
 
 [metadata]

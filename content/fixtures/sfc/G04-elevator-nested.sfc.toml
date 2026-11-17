@@ -1,6 +1,6 @@
 # SFC — 2-floor elevator with nested door macro-step (scenario 5, DEN-19).
 # Outer: idle/move + parallel monitor; S_doors.enclosed = open→dwell→close (+IR).
-# ASL unversioned — do not assign 0.0.1.
+# ASL 0.0.1 — do not assign 0.0.1.
 
 name = "G04-elevator-nested"
 initial_steps = [

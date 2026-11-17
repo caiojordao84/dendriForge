@@ -1,6 +1,6 @@
 # board profile — xmc1100-boot-kit (migrated from legacy TOON)
 # Source: xmc1100-boot-kit.toon
-# DEN-14: do not assign ASL 0.0.1
+# ASL 0.0.1 lives on program IR (metadata.asl_version), not profiles.
 
 
 [metadata]

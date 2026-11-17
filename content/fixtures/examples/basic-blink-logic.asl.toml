@@ -2,6 +2,7 @@
 # Migrated from core/asl/v010/examples/basic-blink-logic.toon
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "basic-blink-logic"
 editor = "dendriForge"
 author = "USER_1129_20260519"
