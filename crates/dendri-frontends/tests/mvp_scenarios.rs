@@ -1,11 +1,11 @@
-//! DEN-18 — MVP scenarios 1–12 acceptance map (plant / PID / displays tranche).
+//! DEN-19 — MVP scenarios 1–12 acceptance map (nested SFC + multi-lang RT tranche).
 //!
 //! Honest statuses only:
 //! - **pass** — automated check green on current opcodes/sim
 //! - **partial** — structural and/or subset sim green; full scenario not met
 //! - **blocked** — missing sim/opcode/physics; fixture may still deserialize
 //!
-//! See store docs `priority-7-plant-pid-displays.md`.
+//! See store docs `priority-7-sfc-multilang-rt.md`.
 
 use std::path::PathBuf;
 
@@ -47,7 +47,7 @@ fn matrix() -> [Scenario; 12] {
             id: 2,
             title: "ADC/PWM/I2C/SPI/UART",
             status: Status::Partial,
-            note: "S04/S05 + S12 xfer + S19 display stubs; SD/RFID payload still blocked",
+            note: "S04/S05 + S12 xfer (5-lang RT) + S19 stubs; SD/RFID payload still blocked",
         },
         Scenario {
             id: 3,
@@ -64,14 +64,14 @@ fn matrix() -> [Scenario; 12] {
         Scenario {
             id: 5,
             title: "Multi-floor elevator (SFC)",
-            status: Status::Blocked,
-            note: "plc-elevator TOML migrated; nested GRAFCET + call queue not in SFC MVP",
+            status: Status::Pass,
+            note: "G04 nested door macro-step + call latch + IR reopen; 5-lang RT on lowered ASL",
         },
         Scenario {
             id: 6,
             title: "Electro-pneumatic A+ B+ A- B-",
-            status: Status::Partial,
-            note: "SFC G03 + Ladder L05 twins; multi-lang round-trip of full plant deferred",
+            status: Status::Pass,
+            note: "SFC G03 + Ladder L05 twins; 5-lang RT (C++/MPY/ST/Ladder/SFC) green",
         },
         Scenario {
             id: 7,
@@ -89,25 +89,25 @@ fn matrix() -> [Scenario; 12] {
             id: 9,
             title: "RETAIN/PERSISTENT + watchdog",
             status: Status::Partial,
-            note: "S11 live RETAIN/PERSISTENT soft-restart + SYS_*; watchdog still deferred",
+            note: "S11 live RETAIN + Ladder/SFC synthesize RT; text-lang RETAIN/PERSISTENT RT + watchdog deferred",
         },
         Scenario {
             id: 10,
             title: "Multi-display + Pong graphics",
             status: Status::Partial,
-            note: "S19 LCD/OLED/TFT/PLAY_TONE stubs green; full Pong collision/graphics partial",
+            note: "S19 stubs + Ladder/SFC synthesize RT; text-lang display CFG RT + full Pong still partial",
         },
         Scenario {
             id: 11,
             title: "UART command parser + CSV telemetry",
             status: Status::Partial,
-            note: "S09 CONCAT/TO_STRING*/PING path; full G13 command suite not sim-accepted",
+            note: "S09 PING path + Ladder/SFC synthesize RT; text-lang string/SERIAL_READLN RT + G13 suite partial",
         },
         Scenario {
             id: 12,
             title: "Nested loops / deep calls / VENDOR_EXTENSION",
             status: Status::Partial,
-            note: "G19–G21 TOML+validate; VENDOR halts; deep sim acceptance limited",
+            note: "G19–G21 TOML+validate + Ladder/SFC synthesize; text-lang deep/VENDOR RT limited",
         },
     ]
 }
@@ -124,10 +124,10 @@ fn scenario_matrix_is_complete() {
     let pass = m.iter().filter(|s| s.status == Status::Pass).count();
     let partial = m.iter().filter(|s| s.status == Status::Partial).count();
     let blocked = m.iter().filter(|s| s.status == Status::Blocked).count();
-    // DEN-18 snapshot — update when a scenario genuinely graduates.
-    assert_eq!(pass, 5, "pass={pass}");
-    assert_eq!(partial, 6, "partial={partial}");
-    assert_eq!(blocked, 1, "blocked={blocked}");
+    // DEN-19 snapshot — update when a scenario genuinely graduates.
+    assert_eq!(pass, 7, "pass={pass}");
+    assert_eq!(partial, 5, "partial={partial}");
+    assert_eq!(blocked, 0, "blocked={blocked}");
 }
 
 #[test]
@@ -261,8 +261,69 @@ fn scenario3_conveyor_in_range_pass() {
     assert!(!sim.pin(10), "motor off at full");
 }
 
+fn text_and_visual_langs() -> [SourceLanguage; 5] {
+    [
+        SourceLanguage::Cpp,
+        SourceLanguage::Micropython,
+        SourceLanguage::St,
+        SourceLanguage::Ladder,
+        SourceLanguage::Sfc,
+    ]
+}
+
 #[test]
-fn scenario6_sfc_and_ladder_twins_partial() {
+fn scenario5_elevator_nested_grafcet_pass() {
+    let sfc = repo().join("content/fixtures/sfc/G04-elevator-nested.sfc.toml");
+    let src = std::fs::read_to_string(&sfc).unwrap();
+    let program = parse_source(SourceLanguage::Sfc, &src).unwrap();
+    assert!(
+        program.grafcet[0]
+            .steps
+            .iter()
+            .any(|s| s.id == "S_doors" && s.enclosed.is_some()),
+        "nested door macro-step required"
+    );
+    for lang in text_and_visual_langs() {
+        roundtrip_language(lang, &program)
+            .unwrap_or_else(|e| panic!("G04 {lang:?} RT: {e}"));
+    }
+
+    let mut sim = Simulator::from_program(
+        program,
+        &SimConfig {
+            max_cycles: 40,
+            ..SimConfig::default()
+        },
+    );
+    sim.ensure_setup().unwrap();
+    sim.set_pin(0, true).unwrap();
+    sim.step().unwrap();
+    sim.set_pin(3, true).unwrap();
+    sim.step().unwrap();
+    sim.step().unwrap();
+    assert!(sim.pin(10), "motor up: {}", sim.trace_text());
+    sim.set_pin(0, false).unwrap();
+    sim.set_pin(1, true).unwrap();
+    sim.set_pin(3, false).unwrap();
+    for _ in 0..12 {
+        sim.step().unwrap();
+        if sim.var("__sfc_S_idle").and_then(|v| v.as_bool().ok()) == Some(true)
+            && sim.var("call1").and_then(|v| v.as_bool().ok()) == Some(false)
+        {
+            break;
+        }
+    }
+    assert_eq!(sim.var("call1").and_then(|v| v.as_bool().ok()), Some(false));
+    assert!(
+        sim.var("__sfc_S_idle").and_then(|v| v.as_bool().ok()).unwrap_or(false),
+        "idle after nested doors: {}",
+        sim.trace_text()
+    );
+    assert!(sim.trace_text().contains("PIN_WRITE pin=12"));
+}
+
+#[test]
+fn scenario6_sfc_and_ladder_twins_pass() {
     let sfc = repo().join("content/fixtures/sfc/G03-electro-pneumatic.sfc.toml");
     let ladder = repo().join("content/fixtures/ladder/L05-electro-pneumatic.ladder.toml");
     let sfc_prog = parse_source(
@@ -275,8 +336,12 @@ fn scenario6_sfc_and_ladder_twins_partial() {
         &std::fs::read_to_string(&ladder).unwrap(),
     )
     .unwrap();
-    roundtrip_language(SourceLanguage::Sfc, &sfc_prog).unwrap();
-    roundtrip_language(SourceLanguage::Ladder, &ladder_prog).unwrap();
+    for lang in text_and_visual_langs() {
+        roundtrip_language(lang, &sfc_prog)
+            .unwrap_or_else(|e| panic!("G03 {lang:?} RT: {e}"));
+        roundtrip_language(lang, &ladder_prog)
+            .unwrap_or_else(|e| panic!("L05 {lang:?} RT: {e}"));
+    }
 
     let mut sim = Simulator::from_program(
         sfc_prog,
@@ -304,8 +369,20 @@ fn scenario6_sfc_and_ladder_twins_partial() {
 }
 
 #[test]
-fn scenario_remaining_blocked_and_partial_examples_deserialize() {
-    // Elevator still blocked (DEN-19); pong/dashboard structural for scenario 10 partial.
+fn scenario2_s12_bus_xfer_five_lang_roundtrip() {
+    let parsed = parse_program_file(
+        &repo().join("content/fixtures/sim/S12-i2c-spi-xfer.asl.toml"),
+    )
+    .unwrap();
+    for lang in text_and_visual_langs() {
+        roundtrip_language(lang, &parsed.program)
+            .unwrap_or_else(|e| panic!("S12 {lang:?} RT: {e}"));
+    }
+}
+
+#[test]
+fn scenario_remaining_partial_examples_deserialize() {
+    // Legacy elevator example retained; G04 is the scenario-5 acceptance path.
     for rel in [
         "content/fixtures/examples/plc-elevator-advanced.asl.toml",
         "content/fixtures/examples/pong-game-logic.asl.toml",

@@ -372,7 +372,11 @@ impl Parser {
             .strip_prefix("if ")
             .and_then(|s| s.strip_suffix(':'))
             .ok_or_else(|| self.err(lines[start].number, "bad if"))?;
-        let condition = parse_expr(cond.trim())?;
+        let condition = rewrite_expr(
+            parse_expr(cond.trim())?,
+            &self.pin_consts,
+            &self.obj_to_pin,
+        );
         let mut i = start + 1;
         let mut then_lines = Vec::new();
         while i < lines.len() && lines[i].indent > base {
@@ -391,7 +395,11 @@ impl Parser {
                     .strip_prefix("elif ")
                     .and_then(|s| s.strip_suffix(':'))
                     .unwrap();
-                let condition = parse_expr(c.trim())?;
+                let condition = rewrite_expr(
+                    parse_expr(c.trim())?,
+                    &self.pin_consts,
+                    &self.obj_to_pin,
+                );
                 i += 1;
                 let mut body_lines = Vec::new();
                 while i < lines.len() && lines[i].indent > base {
@@ -435,7 +443,11 @@ impl Parser {
             .strip_prefix("while ")
             .and_then(|s| s.strip_suffix(':'))
             .ok_or_else(|| self.err(lines[start].number, "bad while"))?;
-        let condition = parse_expr(cond.trim())?;
+        let condition = rewrite_expr(
+            parse_expr(cond.trim())?,
+            &self.pin_consts,
+            &self.obj_to_pin,
+        );
         let mut i = start + 1;
         let mut body_lines = Vec::new();
         while i < lines.len() && lines[i].indent > base {
@@ -1043,8 +1055,25 @@ fn split_args(s: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut cur = String::new();
     let mut depth = 0i32;
+    let mut in_str: Option<char> = None;
+    let mut escape = false;
     for c in s.chars() {
+        if let Some(q) = in_str {
+            cur.push(c);
+            if escape {
+                escape = false;
+            } else if c == '\\' {
+                escape = true;
+            } else if c == q {
+                in_str = None;
+            }
+            continue;
+        }
         match c {
+            '"' | '\'' => {
+                in_str = Some(c);
+                cur.push(c);
+            }
             '(' => {
                 depth += 1;
                 cur.push(c);
@@ -1292,9 +1321,26 @@ impl<'a> ExprParser<'a> {
             return Ok(Expr::String { value: val });
         }
         if r.starts_with(|c: char| c.is_ascii_digit()) {
+            let bytes = self.s.as_bytes();
+            // Hex: 0x3C / 0XA5 — preserve Expr::Hex spelling for round-trip.
+            if r.starts_with("0x") || r.starts_with("0X") {
+                let start = self.i;
+                self.i += 2;
+                while self.i < self.s.len() && bytes[self.i].is_ascii_hexdigit() {
+                    self.i += 1;
+                }
+                let hex = self.s[start..self.i].to_string();
+                if hex.len() <= 2 {
+                    return Err(MpyParseError::At {
+                        line: 0,
+                        message: "expected hex digits after 0x".into(),
+                    });
+                }
+                return Ok(Expr::Hex { value: hex });
+            }
             let start = self.i;
             while self.i < self.s.len()
-                && (self.s.as_bytes()[self.i].is_ascii_digit() || self.s.as_bytes()[self.i] == b'.')
+                && (bytes[self.i].is_ascii_digit() || bytes[self.i] == b'.')
             {
                 self.i += 1;
             }
@@ -1476,16 +1522,15 @@ fn refine_hardware(hardware: &mut [HardwareEntry], setup: &[Stmt]) {
                 _ => continue,
             };
             if let Some(h) = hardware.iter_mut().find(|h| h.pin == pin) {
+                // Preserve ASL_HW `role=` when present; only refine io_mode from CFG_*.
                 match name.as_str() {
                     "CFG_DIGITAL_INPUT"
                     | "CFG_DIGITAL_INPUT_PULLUP"
                     | "CFG_DIGITAL_INPUT_PULLDOWN" => {
                         h.io_mode = IoMode::Di;
-                        h.target_role = "digital-in".into();
                     }
                     "CFG_DIGITAL_OUTPUT" => {
                         h.io_mode = IoMode::Do;
-                        h.target_role = "digital-out".into();
                     }
                     _ => {}
                 }

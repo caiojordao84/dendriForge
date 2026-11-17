@@ -1,0 +1,745 @@
+# SFC — 2-floor elevator with nested door macro-step (scenario 5, DEN-19).
+# Outer: idle/move + parallel monitor; S_doors.enclosed = open→dwell→close (+IR).
+# ASL unversioned — do not assign 0.0.1.
+
+name = "G04-elevator-nested"
+initial_steps = [
+    "S_idle",
+    "S_monitor",
+]
+io_map = []
+
+[[steps]]
+id = "S_monitor"
+initial = true
+comment = "latch calls + IR"
+x = 120.0
+y = 0.0
+
+[[steps.actions]]
+kind = "if"
+elif = []
+
+[steps.actions.condition]
+kind = "call"
+name = "GET_BOOL"
+
+[[steps.actions.condition.args]]
+kind = "uint"
+value = 2
+
+[[steps.actions.then]]
+kind = "assign"
+target = "call0"
+
+[steps.actions.then.value]
+kind = "bool"
+value = true
+
+[[steps.actions]]
+kind = "if"
+elif = []
+
+[steps.actions.condition]
+kind = "call"
+name = "GET_BOOL"
+
+[[steps.actions.condition.args]]
+kind = "uint"
+value = 3
+
+[[steps.actions.then]]
+kind = "assign"
+target = "call1"
+
+[steps.actions.then.value]
+kind = "bool"
+value = true
+
+[[steps.actions]]
+kind = "assign"
+target = "irBlocked"
+
+[steps.actions.value]
+kind = "call"
+name = "GET_BOOL"
+
+[[steps.actions.value.args]]
+kind = "uint"
+value = 4
+
+[[steps]]
+id = "S_idle"
+initial = true
+comment = "idle / interlock"
+x = 0.0
+y = 0.0
+
+[[steps.actions]]
+kind = "call"
+name = "SET_BOOL"
+
+[[steps.actions.args]]
+kind = "uint"
+value = 10
+
+[[steps.actions.args]]
+kind = "bool"
+value = false
+
+[[steps.actions]]
+kind = "call"
+name = "SET_BOOL"
+
+[[steps.actions.args]]
+kind = "uint"
+value = 11
+
+[[steps.actions.args]]
+kind = "bool"
+value = false
+
+[[steps.actions]]
+kind = "call"
+name = "SET_BOOL"
+
+[[steps.actions.args]]
+kind = "uint"
+value = 12
+
+[[steps.actions.args]]
+kind = "bool"
+value = false
+
+[[steps.actions]]
+kind = "call"
+name = "SET_BOOL"
+
+[[steps.actions.args]]
+kind = "uint"
+value = 13
+
+[[steps.actions.args]]
+kind = "bool"
+value = true
+
+[[steps]]
+id = "S_move_up"
+initial = false
+comment = "motor up"
+x = 0.0
+y = 80.0
+
+[[steps.actions]]
+kind = "call"
+name = "SET_BOOL"
+
+[[steps.actions.args]]
+kind = "uint"
+value = 10
+
+[[steps.actions.args]]
+kind = "bool"
+value = true
+
+[[steps.actions]]
+kind = "call"
+name = "SET_BOOL"
+
+[[steps.actions.args]]
+kind = "uint"
+value = 11
+
+[[steps.actions.args]]
+kind = "bool"
+value = false
+
+[[steps.actions]]
+kind = "call"
+name = "SET_BOOL"
+
+[[steps.actions.args]]
+kind = "uint"
+value = 12
+
+[[steps.actions.args]]
+kind = "bool"
+value = false
+
+[[steps.actions]]
+kind = "call"
+name = "SET_BOOL"
+
+[[steps.actions.args]]
+kind = "uint"
+value = 13
+
+[[steps.actions.args]]
+kind = "bool"
+value = false
+
+[[steps]]
+id = "S_move_down"
+initial = false
+comment = "motor down"
+x = 0.0
+y = 80.0
+
+[[steps.actions]]
+kind = "call"
+name = "SET_BOOL"
+
+[[steps.actions.args]]
+kind = "uint"
+value = 10
+
+[[steps.actions.args]]
+kind = "bool"
+value = false
+
+[[steps.actions]]
+kind = "call"
+name = "SET_BOOL"
+
+[[steps.actions.args]]
+kind = "uint"
+value = 11
+
+[[steps.actions.args]]
+kind = "bool"
+value = true
+
+[[steps.actions]]
+kind = "call"
+name = "SET_BOOL"
+
+[[steps.actions.args]]
+kind = "uint"
+value = 12
+
+[[steps.actions.args]]
+kind = "bool"
+value = false
+
+[[steps.actions]]
+kind = "call"
+name = "SET_BOOL"
+
+[[steps.actions.args]]
+kind = "uint"
+value = 13
+
+[[steps.actions.args]]
+kind = "bool"
+value = false
+
+[[steps]]
+id = "S_doors"
+initial = false
+actions = []
+comment = "macro-step: door sequence"
+x = 0.0
+y = 160.0
+
+[steps.enclosed]
+name = "door_seq"
+initial_steps = ["D_opening"]
+io_map = []
+
+[[steps.enclosed.steps]]
+id = "D_opening"
+initial = true
+comment = "open doors + clear call"
+x = 0.0
+y = 0.0
+
+[[steps.enclosed.steps.actions]]
+kind = "call"
+name = "SET_BOOL"
+
+[[steps.enclosed.steps.actions.args]]
+kind = "uint"
+value = 10
+
+[[steps.enclosed.steps.actions.args]]
+kind = "bool"
+value = false
+
+[[steps.enclosed.steps.actions]]
+kind = "call"
+name = "SET_BOOL"
+
+[[steps.enclosed.steps.actions.args]]
+kind = "uint"
+value = 11
+
+[[steps.enclosed.steps.actions.args]]
+kind = "bool"
+value = false
+
+[[steps.enclosed.steps.actions]]
+kind = "call"
+name = "SET_BOOL"
+
+[[steps.enclosed.steps.actions.args]]
+kind = "uint"
+value = 12
+
+[[steps.enclosed.steps.actions.args]]
+kind = "bool"
+value = true
+
+[[steps.enclosed.steps.actions]]
+kind = "call"
+name = "SET_BOOL"
+
+[[steps.enclosed.steps.actions.args]]
+kind = "uint"
+value = 13
+
+[[steps.enclosed.steps.actions.args]]
+kind = "bool"
+value = false
+
+[[steps.enclosed.steps.actions]]
+kind = "if"
+elif = []
+
+[steps.enclosed.steps.actions.condition]
+kind = "call"
+name = "GET_BOOL"
+
+[[steps.enclosed.steps.actions.condition.args]]
+kind = "uint"
+value = 0
+
+[[steps.enclosed.steps.actions.then]]
+kind = "assign"
+target = "call0"
+
+[steps.enclosed.steps.actions.then.value]
+kind = "bool"
+value = false
+
+[[steps.enclosed.steps.actions]]
+kind = "if"
+elif = []
+
+[steps.enclosed.steps.actions.condition]
+kind = "call"
+name = "GET_BOOL"
+
+[[steps.enclosed.steps.actions.condition.args]]
+kind = "uint"
+value = 1
+
+[[steps.enclosed.steps.actions.then]]
+kind = "assign"
+target = "call1"
+
+[steps.enclosed.steps.actions.then.value]
+kind = "bool"
+value = false
+
+[[steps.enclosed.steps]]
+id = "D_dwell"
+initial = false
+comment = "door open dwell"
+x = 0.0
+y = 80.0
+
+[[steps.enclosed.steps.actions]]
+kind = "call"
+name = "SET_BOOL"
+
+[[steps.enclosed.steps.actions.args]]
+kind = "uint"
+value = 12
+
+[[steps.enclosed.steps.actions.args]]
+kind = "bool"
+value = true
+
+[[steps.enclosed.steps.actions]]
+kind = "call"
+name = "SET_BOOL"
+
+[[steps.enclosed.steps.actions.args]]
+kind = "uint"
+value = 13
+
+[[steps.enclosed.steps.actions.args]]
+kind = "bool"
+value = false
+
+[[steps.enclosed.steps.actions]]
+kind = "call"
+name = "WAIT_TIME"
+
+[[steps.enclosed.steps.actions.args]]
+kind = "var"
+name = "DOOR_DELAY"
+
+[[steps.enclosed.steps]]
+id = "D_closing"
+initial = false
+comment = "close; IR reopens"
+x = 0.0
+y = 160.0
+
+[[steps.enclosed.steps.actions]]
+kind = "call"
+name = "SET_BOOL"
+
+[[steps.enclosed.steps.actions.args]]
+kind = "uint"
+value = 12
+
+[[steps.enclosed.steps.actions.args]]
+kind = "bool"
+value = false
+
+[[steps.enclosed.steps.actions]]
+kind = "call"
+name = "SET_BOOL"
+
+[[steps.enclosed.steps.actions.args]]
+kind = "uint"
+value = 13
+
+[[steps.enclosed.steps.actions.args]]
+kind = "bool"
+value = true
+
+[[steps.enclosed.steps]]
+id = "D_done"
+initial = false
+comment = "doors secured"
+x = 0.0
+y = 240.0
+
+[[steps.enclosed.steps.actions]]
+kind = "call"
+name = "SET_BOOL"
+
+[[steps.enclosed.steps.actions.args]]
+kind = "uint"
+value = 12
+
+[[steps.enclosed.steps.actions.args]]
+kind = "bool"
+value = false
+
+[[steps.enclosed.steps.actions]]
+kind = "call"
+name = "SET_BOOL"
+
+[[steps.enclosed.steps.actions.args]]
+kind = "uint"
+value = 13
+
+[[steps.enclosed.steps.actions.args]]
+kind = "bool"
+value = true
+
+[[steps.enclosed.transitions]]
+id = "Td_open"
+from = ["D_opening"]
+to = ["D_dwell"]
+x = 0.0
+y = 40.0
+
+[steps.enclosed.transitions.condition]
+kind = "bool"
+value = true
+
+[[steps.enclosed.transitions]]
+id = "Td_dwell"
+from = ["D_dwell"]
+to = ["D_closing"]
+x = 0.0
+y = 120.0
+
+[steps.enclosed.transitions.condition]
+kind = "bool"
+value = true
+
+[[steps.enclosed.transitions]]
+id = "Td_ir"
+from = ["D_closing"]
+to = ["D_opening"]
+comment = "IR barrier"
+x = -40.0
+y = 200.0
+
+[steps.enclosed.transitions.condition]
+kind = "var"
+name = "irBlocked"
+
+[[steps.enclosed.transitions]]
+id = "Td_ok"
+from = ["D_closing"]
+to = ["D_done"]
+x = 40.0
+y = 200.0
+
+[steps.enclosed.transitions.condition]
+kind = "unary"
+op = "not"
+
+[steps.enclosed.transitions.condition.expr]
+kind = "var"
+name = "irBlocked"
+
+[[transitions]]
+id = "T_up"
+from = ["S_idle"]
+to = ["S_move_up"]
+comment = "call floor1 while at 0"
+x = 0.0
+y = 40.0
+
+[transitions.condition]
+kind = "binop"
+op = "and"
+
+[transitions.condition.left]
+kind = "var"
+name = "call1"
+
+[transitions.condition.right]
+kind = "call"
+name = "GET_BOOL"
+
+[[transitions.condition.right.args]]
+kind = "uint"
+value = 0
+
+[[transitions]]
+id = "T_dn"
+from = ["S_idle"]
+to = ["S_move_down"]
+comment = "call floor0 while at 1"
+x = 40.0
+y = 40.0
+
+[transitions.condition]
+kind = "binop"
+op = "and"
+
+[transitions.condition.left]
+kind = "var"
+name = "call0"
+
+[transitions.condition.right]
+kind = "call"
+name = "GET_BOOL"
+
+[[transitions.condition.right.args]]
+kind = "uint"
+value = 1
+
+[[transitions]]
+id = "T_arr1"
+from = ["S_move_up"]
+to = ["S_doors"]
+x = 0.0
+y = 120.0
+
+[transitions.condition]
+kind = "call"
+name = "GET_BOOL"
+
+[[transitions.condition.args]]
+kind = "uint"
+value = 1
+
+[[transitions]]
+id = "T_arr0"
+from = ["S_move_down"]
+to = ["S_doors"]
+x = 40.0
+y = 120.0
+
+[transitions.condition]
+kind = "call"
+name = "GET_BOOL"
+
+[[transitions.condition.args]]
+kind = "uint"
+value = 0
+
+[[transitions]]
+id = "T_doors_done"
+from = ["S_doors"]
+to = ["S_idle"]
+comment = "nested chart finished"
+x = 0.0
+y = 200.0
+
+[transitions.condition]
+kind = "var"
+name = "__sfc_S_doors__D_done"
+
+[[hardware]]
+pin = 0
+hw_type = "digital"
+io_mode = "DI"
+label = "sensorFloor0"
+target_role = "sensor-pos"
+
+[[hardware]]
+pin = 1
+hw_type = "digital"
+io_mode = "DI"
+label = "sensorFloor1"
+target_role = "sensor-pos"
+
+[[hardware]]
+pin = 2
+hw_type = "digital"
+io_mode = "DI"
+label = "callBtn0"
+target_role = "btn-no"
+
+[[hardware]]
+pin = 3
+hw_type = "digital"
+io_mode = "DI"
+label = "callBtn1"
+target_role = "btn-no"
+
+[[hardware]]
+pin = 4
+hw_type = "digital"
+io_mode = "DI"
+label = "irBarrier"
+target_role = "ir-rx"
+
+[[hardware]]
+pin = 10
+hw_type = "digital"
+io_mode = "DO"
+label = "motorUp"
+target_role = "relay-coil"
+
+[[hardware]]
+pin = 11
+hw_type = "digital"
+io_mode = "DO"
+label = "motorDn"
+target_role = "relay-coil"
+
+[[hardware]]
+pin = 12
+hw_type = "digital"
+io_mode = "DO"
+label = "doorOpen"
+target_role = "relay-coil"
+
+[[hardware]]
+pin = 13
+hw_type = "digital"
+io_mode = "DO"
+label = "doorClose"
+target_role = "relay-coil"
+
+[[data]]
+name = "DOOR_DELAY"
+type = "TIME"
+scope = "CONST"
+init = "T#200ms"
+unit = "ms"
+
+[[data]]
+name = "call0"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "call1"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "irBlocked"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT"
+
+[[setup.args]]
+kind = "uint"
+value = 0
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT"
+
+[[setup.args]]
+kind = "uint"
+value = 1
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT"
+
+[[setup.args]]
+kind = "uint"
+value = 2
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT"
+
+[[setup.args]]
+kind = "uint"
+value = 3
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT"
+
+[[setup.args]]
+kind = "uint"
+value = 4
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+
+[[setup.args]]
+kind = "uint"
+value = 10
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+
+[[setup.args]]
+kind = "uint"
+value = 11
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+
+[[setup.args]]
+kind = "uint"
+value = 12
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+
+[[setup.args]]
+kind = "uint"
+value = 13

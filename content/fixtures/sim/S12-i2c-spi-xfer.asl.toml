@@ -131,7 +131,12 @@ value = { kind = "call", name = "SPI_TRANSFER", args = [
 [[loop]]
 kind = "assign"
 target = "msg"
-value = { kind = "expr_text", text = "CONCAT(\"i2c=\", TO_STRING(i2cVal), \",spi=\", TO_STRING(spiRx))" }
+value = { kind = "call", name = "CONCAT", args = [
+  { kind = "string", value = "i2c=" },
+  { kind = "call", name = "TO_STRING", args = [{ kind = "var", name = "i2cVal" }] },
+  { kind = "string", value = ",spi=" },
+  { kind = "call", name = "TO_STRING", args = [{ kind = "var", name = "spiRx" }] },
+] }
 
 [[loop]]
 kind = "call"

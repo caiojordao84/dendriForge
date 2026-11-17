@@ -503,6 +503,7 @@ mod tests {
                 comment: None,
                 x: 0.0,
                 y: 0.0,
+                enclosed: None,
             }],
             transitions: vec![],
             io_map: vec![],
@@ -524,6 +525,7 @@ mod tests {
             comment: Some("added".into()),
             x: 0.0,
             y: 80.0,
+            enclosed: None,
         });
         doc.transitions.push(GrafcetTransition {
             id: "T0".into(),
