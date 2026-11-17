@@ -1,0 +1,15 @@
+[package]
+name = "dendri-canvas"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Live SVG simulation canvas binding for MVP visual set (Uno + LED + button)"
+
+[dependencies]
+dendri-ast = { workspace = true }
+dendri-parse = { workspace = true }
+dendri-profiles = { workspace = true }
+dendri-sim = { workspace = true }
+
+[dev-dependencies]
+toml = { workspace = true }

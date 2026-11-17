@@ -2,7 +2,8 @@
 //!
 //! Priority-2 opcode set: GPIO, PWM, ADC, UART/serial, I2C/SPI config,
 //! MAP_RANGE, and IEC FBs (TON deepened, TOF, TP, CTU/CTD/CTUD, R_TRIG/F_TRIG).
-//! Visual SVG binding is deferred; this crate emits logical traces only.
+//! Interactive `step` / pin APIs feed the live SVG canvas (`dendri-canvas`);
+//! this crate still emits logical traces for CI snapshots.
 
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Write as _;
@@ -278,19 +279,57 @@ impl Simulator {
     }
 
     pub fn run(&mut self, max_cycles: u64) -> Result<(), String> {
-        self.push(TraceKind::Boot);
-        if !self.setup_done {
-            self.exec_block(&self.program.setup.clone())?;
-            self.setup_done = true;
-            self.push(TraceKind::SetupDone);
-        }
+        self.ensure_setup()?;
         while self.cycle < max_cycles {
-            self.cycle += 1;
-            self.push(TraceKind::ScanStart { cycle: self.cycle });
-            self.exec_block(&self.program.loop_body.clone())?;
-            self.push(TraceKind::ScanEnd { cycle: self.cycle });
+            self.step()?;
         }
         Ok(())
+    }
+
+    /// Run setup once (emits Boot + SetupDone on first call).
+    pub fn ensure_setup(&mut self) -> Result<(), String> {
+        if self.setup_done {
+            return Ok(());
+        }
+        self.push(TraceKind::Boot);
+        self.exec_block(&self.program.setup.clone())?;
+        self.setup_done = true;
+        self.push(TraceKind::SetupDone);
+        Ok(())
+    }
+
+    /// Execute one scan cycle (after setup). Deterministic for a fixed pin map.
+    pub fn step(&mut self) -> Result<(), String> {
+        self.ensure_setup()?;
+        self.cycle += 1;
+        self.push(TraceKind::ScanStart { cycle: self.cycle });
+        self.exec_block(&self.program.loop_body.clone())?;
+        self.push(TraceKind::ScanEnd { cycle: self.cycle });
+        Ok(())
+    }
+
+    pub fn pin(&self, pin: u32) -> bool {
+        *self.pins.get(&pin).unwrap_or(&false)
+    }
+
+    pub fn set_pin(&mut self, pin: u32, value: bool) {
+        self.pins.insert(pin, value);
+    }
+
+    pub fn pins(&self) -> &HashMap<u32, bool> {
+        &self.pins
+    }
+
+    pub fn time_ms(&self) -> u64 {
+        self.time_ms
+    }
+
+    pub fn cycle(&self) -> u64 {
+        self.cycle
+    }
+
+    pub fn setup_done(&self) -> bool {
+        self.setup_done
     }
 
     pub fn trace_text(&self) -> String {

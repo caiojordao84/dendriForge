@@ -16,6 +16,7 @@ members = [
     "crates/dendri-editor",
     "crates/dendri-profiles",
     "crates/dendri-sim",
+    "crates/dendri-canvas",
     "crates/dendri-cli",
 ]
 
@@ -46,5 +47,6 @@ dendri-frontends = { path = "crates/dendri-frontends" }
 dendri-sync = { path = "crates/dendri-sync" }
 dendri-profiles = { path = "crates/dendri-profiles" }
 dendri-sim = { path = "crates/dendri-sim" }
+dendri-canvas = { path = "crates/dendri-canvas" }
 # iced 0.13 needs rustc ≥ 1.86 (wayland/calloop). Workspace toolchain is 1.86.0.
-iced = { version = "0.13", default-features = true }
+iced = { version = "0.13", default-features = true, features = ["svg"] }

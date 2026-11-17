@@ -87,6 +87,15 @@ enum Cmd {
         #[arg(long)]
         repo: Option<PathBuf>,
     },
+    /// Headless SVG canvas sim: button sequence → visual-frame snapshot (CI)
+    CanvasSim {
+        path: PathBuf,
+        #[arg(long)]
+        repo: Option<PathBuf>,
+        /// Comma-separated button levels applied before each scan (e.g. 0,1,0)
+        #[arg(long, default_value = "0,1,0")]
+        sequence: String,
+    },
 }
 
 fn main() -> ExitCode {
@@ -344,8 +353,83 @@ fn run(cli: Cli) -> Result<(), String> {
                     );
                 }
             }
+            let report = dendri_canvas::report_mvp_assets(&root).map_err(|e| e.to_string())?;
+            println!(
+                "resolved_board: {}",
+                report.resolved_board.display()
+            );
+            println!("resolved_led: {}", report.resolved_led.display());
+            println!("resolved_button: {}", report.resolved_button.display());
+            println!(
+                "content_assets_preferred: {}",
+                report.preferred_paths_present
+            );
             Ok(())
         }
+        Cmd::CanvasSim {
+            path,
+            repo,
+            sequence,
+        } => {
+            let root = repo.unwrap_or_else(|| discover_repo_root());
+            let doc = parse_path(&path).map_err(|e| e.to_string())?;
+            let project = match doc {
+                ParsedDocument::Project(p) => p.project,
+                ParsedDocument::Program(p) => wrap_program_as_mvp_project(p.program),
+            };
+            let cfg = SimConfig::default();
+            let mut canvas =
+                dendri_canvas::SimCanvas::from_project(&project, &root, &cfg)
+                    .map_err(|e| e.to_string())?;
+            canvas.boot().map_err(|e| e.to_string())?;
+            for token in sequence.split(',') {
+                let pressed = match token.trim() {
+                    "1" | "true" | "pressed" | "on" => true,
+                    "0" | "false" | "released" | "off" => false,
+                    other => return Err(format!("bad sequence token: {other}")),
+                };
+                canvas.set_button(pressed);
+                canvas.step().map_err(|e| e.to_string())?;
+            }
+            print!("{}", canvas.frames_snapshot());
+            Ok(())
+        }
+    }
+}
+
+fn wrap_program_as_mvp_project(program: dendri_ast::Program) -> dendri_ast::SimulationProject {
+    dendri_ast::SimulationProject {
+        metadata: program.metadata.clone(),
+        board: dendri_ast::BoardInstance {
+            profile: "arduino-uno-r3".into(),
+            instance_id: "board".into(),
+        },
+        components: vec![
+            dendri_ast::ComponentInstance {
+                instance_id: "led1".into(),
+                profile: "led".into(),
+                params: Default::default(),
+            },
+            dendri_ast::ComponentInstance {
+                instance_id: "btn_start".into(),
+                profile: "cmd-pushbutton-no-start".into(),
+                params: Default::default(),
+            },
+        ],
+        wiring: vec![
+            dendri_ast::Wire {
+                from: "board.D13".into(),
+                to: "led1.A".into(),
+                signal: Some("digital".into()),
+            },
+            dendri_ast::Wire {
+                from: "board.D2".into(),
+                to: "btn_start.NO1".into(),
+                signal: Some("digital".into()),
+            },
+        ],
+        sources: vec![],
+        asl: program,
     }
 }
 

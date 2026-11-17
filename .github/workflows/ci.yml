@@ -27,6 +27,12 @@ jobs:
         run: cargo test -p dendri-sim --test trace_snapshots
       - name: profiles MVP load
         run: cargo run -q -p dendri-cli -- profiles
+      - name: canvas SVG sim snapshots
+        run: |
+          cargo test -p dendri-canvas
+          cargo run -q -p dendri-cli -- roundtrip content/fixtures/canvas/C01-button-led.asl.toml
+          cargo run -q -p dendri-cli -- roundtrip content/fixtures/canvas/C01-button-led.dendri.toml
+          cargo run -q -p dendri-cli -- canvas-sim content/fixtures/canvas/C01-button-led.dendri.toml --sequence 0,1,0
       - name: frontend round-trips (C++ / MicroPython / ST / Ladder / SFC)
         run: |
           for lang in cpp micropython st ladder sfc; do

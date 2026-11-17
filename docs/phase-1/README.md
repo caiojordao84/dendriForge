@@ -17,9 +17,10 @@
 | `dendri-frontends` | Unified P1 language dispatch |
 | `dendri-sync` | Bidirectional diagram ↔ TOML ↔ ASL session |
 | `dendri-editor` | iced 0.13 Ladder/SFC visual editor MVP |
-| `dendri-sim` | Scan-cycle ticks; `SET_BOOL` / `GET_BOOL` / `WAIT_TIME` / `TON` traces |
+| `dendri-sim` | Scan-cycle ticks; interactive `step` / pin APIs; opcode traces |
+| `dendri-canvas` | Live SVG binding for Uno + LED + button (DEN-13) |
 | `dendri-profiles` | Load board/component profiles + SVG hooks |
-| `dendri-cli` | `dendri validate\|roundtrip\|sim\|emit-*\|parse-source\|frontend-roundtrip\|sync-visual\|…` |
+| `dendri-cli` | `dendri validate\|roundtrip\|sim\|canvas-sim\|emit-*\|parse-source\|frontend-roundtrip\|sync-visual\|…` |
 
 Language coverage: [`frontends.md`](./frontends.md), [`ladder-sfc.md`](./ladder-sfc.md).
 
@@ -29,9 +30,9 @@ Extension **`.dendri.toml`**: `[metadata]` + `[board]` + `[[components]]` + `[[w
 
 `[[sources]].language` for `cpp` / `micropython` / `st` / `ladder` / `sfc` carry real source text. Ladder/SFC texts are diagram TOML sharing the same editor surface as textual languages.
 
-## SVG hooks
+## SVG hooks + live canvas
 
-See `docs/phase-0/svg-readiness.md`. Profiles load for `arduino-uno-r3`, `led`, `cmd-pushbutton-no-start`. Button SVG authored (DEN-8); staged under `content/assets/svg/` and `core/components/`.
+See `docs/phase-0/svg-readiness.md`. Profiles load for `arduino-uno-r3`, `led`, `cmd-pushbutton-no-start`. Assets under `content/assets/svg/` (preferred) with `core/` fallback. `dendri-canvas` binds scan-cycle pins to SVG classes; iced **Sim SVG** pane + `dendri canvas-sim` for CI.
 
 ## Commands
 
@@ -40,6 +41,7 @@ cargo test --workspace
 cargo run -p dendri-cli -- validate content/fixtures/examples/basic-blink-logic.asl.toml
 cargo run -p dendri-cli -- roundtrip content/fixtures/golden/G01-gpio-all-modes-probe.asl.toml
 cargo run -p dendri-cli -- sim content/fixtures/sim/S01-blink-set-bool-wait.asl.toml --cycles 2
+cargo run -p dendri-cli -- canvas-sim content/fixtures/canvas/C01-button-led.dendri.toml --sequence 0,1,0
 cargo run -p dendri-cli -- frontend-roundtrip --lang ladder content/fixtures/sim/S01-blink-set-bool-wait.asl.toml
 cargo run -p dendri-cli -- sync-visual content/fixtures/projects/P01-uno-led-blink.dendri.toml
 cargo run -p dendri-editor

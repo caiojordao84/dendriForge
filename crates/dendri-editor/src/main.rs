@@ -1,4 +1,4 @@
-//! DendriForge visual editor MVP — Ladder / SFC ↔ TOML real-time sync.
+//! DendriForge visual editor MVP — Ladder / SFC ↔ TOML + live SVG sim canvas.
 //!
 //! # Editor choice
 //!
@@ -6,36 +6,51 @@
 //! the Wayland clipboard stack (`calloop` / `wayland-protocols`) raised its MSRV.
 //! The workspace toolchain is pinned to **1.86.0** for this reason.
 //!
-//! Sync logic lives in `dendri-sync` (headless, CI-tested). This binary is the
-//! interactive shell: diagram palette + live TOML pane. Full canvas polish is
-//! incremental; sync + IR are the solid path.
+//! Sync logic lives in `dendri-sync` (headless, CI-tested). Canvas binding lives
+//! in `dendri-canvas` (scan-cycle ↔ SVG class hooks). This binary is the
+//! interactive shell: diagram palette, sim canvas, live TOML pane.
 
 use std::path::PathBuf;
 
 use dendri_ast::{LadderCell, SourceLanguage};
+use dendri_canvas::SimCanvas;
+use dendri_sim::SimConfig;
 use dendri_sync::{SyncOrigin, SyncSession, VisualKind};
-use iced::widget::{button, column, container, row, scrollable, text, text_editor, Column, Space};
-use iced::{Element, Fill, Font, Task, Theme};
+use iced::widget::{
+    button, column, container, row, scrollable, svg, text, text_editor, Column, Space,
+};
+use iced::{Element, Fill, Font, Length, Task, Theme};
 
 fn main() -> iced::Result {
-    iced::application("DendriForge — Ladder / SFC", Editor::update, Editor::view)
+    iced::application("DendriForge — Ladder / SFC / Sim", Editor::update, Editor::view)
         .theme(|_| Theme::Dark)
-        .window_size((1100.0, 720.0))
+        .window_size((1200.0, 780.0))
         .run_with(Editor::boot)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Pane {
+    Ladder,
+    Sfc,
+    Sim,
 }
 
 struct Editor {
     session: SyncSession,
     kind: VisualKind,
+    pane: Pane,
     toml_content: text_editor::Content,
     status: String,
     path: Option<PathBuf>,
+    canvas: Option<SimCanvas>,
+    canvas_note: String,
 }
 
 #[derive(Debug, Clone)]
 enum Message {
     SwitchLadder,
     SwitchSfc,
+    SwitchSim,
     TomlAction(text_editor::Action),
     AddContactNo,
     AddCoil,
@@ -49,6 +64,11 @@ enum Message {
     ReloadFromAsl,
     Save,
     OpenDefault,
+    OpenCanvasDemo,
+    SimPress,
+    SimRelease,
+    SimStep,
+    SimReset,
 }
 
 impl Editor {
@@ -67,9 +87,12 @@ impl Editor {
         let mut editor = Self {
             session,
             kind,
+            pane: Pane::Ladder,
             toml_content: text_editor::Content::with_text(&initial),
             status: format!("loaded {}", path.display()),
             path: Some(path),
+            canvas: None,
+            canvas_note: String::new(),
         };
         if editor
             .session
@@ -80,6 +103,7 @@ impl Editor {
             let _ = editor.session.sync_visual_sources_from_asl();
             editor.refresh_toml_from_session();
         }
+        editor.boot_canvas_from_session();
         (editor, Task::none())
     }
 
@@ -87,13 +111,22 @@ impl Editor {
         match message {
             Message::SwitchLadder => {
                 self.kind = VisualKind::Ladder;
+                self.pane = Pane::Ladder;
                 self.refresh_toml_from_session();
                 self.status = "view: Ladder".into();
             }
             Message::SwitchSfc => {
                 self.kind = VisualKind::Sfc;
+                self.pane = Pane::Sfc;
                 self.refresh_toml_from_session();
                 self.status = "view: SFC/GRAFCET".into();
+            }
+            Message::SwitchSim => {
+                self.pane = Pane::Sim;
+                if self.canvas.is_none() {
+                    self.boot_canvas_from_session();
+                }
+                self.status = "view: SVG sim canvas".into();
             }
             Message::TomlAction(action) => {
                 self.toml_content.perform(action);
@@ -320,10 +353,63 @@ impl Editor {
                         self.session = session;
                         self.path = Some(path.clone());
                         self.refresh_toml_from_session();
+                        self.boot_canvas_from_session();
                         self.status = format!("opened {}", path.display());
                     }
                     Err(e) => self.status = format!("open failed: {e}"),
                 }
+            }
+            Message::OpenCanvasDemo => {
+                let path = canvas_demo_path();
+                match load_session(&path) {
+                    Ok(session) => {
+                        self.session = session;
+                        self.path = Some(path.clone());
+                        self.pane = Pane::Sim;
+                        self.refresh_toml_from_session();
+                        self.boot_canvas_from_session();
+                        self.status = format!("opened canvas demo {}", path.display());
+                    }
+                    Err(e) => self.status = format!("open failed: {e}"),
+                }
+            }
+            Message::SimPress => {
+                if let Some(c) = &mut self.canvas {
+                    c.press_button();
+                    self.canvas_note = "button pressed (pin high)".into();
+                    self.status = "sim: button pressed".into();
+                }
+            }
+            Message::SimRelease => {
+                if let Some(c) = &mut self.canvas {
+                    c.release_button();
+                    self.canvas_note = "button released (pin low)".into();
+                    self.status = "sim: button released".into();
+                }
+            }
+            Message::SimStep => {
+                if let Some(c) = &mut self.canvas {
+                    match c.step() {
+                        Ok(frame) => {
+                            self.canvas_note = frame.to_snapshot().trim().replace('\n', " | ");
+                            self.status = format!(
+                                "sim: scan {}  led={}  btn={}",
+                                frame.cycle,
+                                if frame.led_on { "on" } else { "off" },
+                                if frame.button_pressed {
+                                    "pressed"
+                                } else {
+                                    "released"
+                                }
+                            );
+                        }
+                        Err(e) => self.status = format!("sim step error: {e}"),
+                    }
+                }
+            }
+            Message::SimReset => {
+                self.boot_canvas_from_session();
+                self.status = "sim: reset canvas from project ASL".into();
             }
         }
         Task::none()
@@ -333,15 +419,17 @@ impl Editor {
         let toolbar = row![
             button("Ladder").on_press(Message::SwitchLadder),
             button("SFC").on_press(Message::SwitchSfc),
+            button("Sim SVG").on_press(Message::SwitchSim),
             Space::with_width(12),
             button("Open P01").on_press(Message::OpenDefault),
+            button("Open C01").on_press(Message::OpenCanvasDemo),
             button("ASL → views").on_press(Message::ReloadFromAsl),
             button("Save").on_press(Message::Save),
         ]
         .spacing(8);
 
-        let palette = match self.kind {
-            VisualKind::Ladder => row![
+        let palette = match self.pane {
+            Pane::Ladder => row![
                 button("+ NO contact").on_press(Message::AddContactNo),
                 button("+ Coil").on_press(Message::AddCoil),
                 button("+ SET_BOOL").on_press(Message::AddActionSetBool),
@@ -351,9 +439,16 @@ impl Editor {
                 button("- Cell").on_press(Message::RemoveLastLadderCell),
             ]
             .spacing(8),
-            VisualKind::Sfc => row![
+            Pane::Sfc => row![
                 button("+ Step").on_press(Message::AddSfcStep),
                 button("+ Transition").on_press(Message::AddSfcTransition),
+            ]
+            .spacing(8),
+            Pane::Sim => row![
+                button("Press").on_press(Message::SimPress),
+                button("Release").on_press(Message::SimRelease),
+                button("Step scan").on_press(Message::SimStep),
+                button("Reset sim").on_press(Message::SimReset),
             ]
             .spacing(8),
         };
@@ -363,17 +458,21 @@ impl Editor {
             .width(Fill)
             .height(Fill);
 
-        let toml_pane = column![
-            text("TOML source (live sync)").size(16),
-            text_editor(&self.toml_content)
-                .height(Fill)
-                .on_action(Message::TomlAction),
-        ]
-        .spacing(8)
-        .width(Fill)
-        .height(Fill);
+        let right_pane: Element<'_, Message> = match self.pane {
+            Pane::Sim => self.sim_detail_pane(),
+            _ => column![
+                text("TOML source (live sync)").size(16),
+                text_editor(&self.toml_content)
+                    .height(Fill)
+                    .on_action(Message::TomlAction),
+            ]
+            .spacing(8)
+            .width(Fill)
+            .height(Fill)
+            .into(),
+        };
 
-        let body = row![diagram, toml_pane].spacing(12).height(Fill);
+        let body = row![diagram, right_pane].spacing(12).height(Fill);
         let status = text(&self.status).size(14);
 
         column![toolbar, palette, body, status]
@@ -383,8 +482,9 @@ impl Editor {
     }
 
     fn diagram_view(&self) -> Element<'_, Message> {
-        match self.kind {
-            VisualKind::Ladder => {
+        match self.pane {
+            Pane::Sim => self.sim_canvas_view(),
+            Pane::Ladder => {
                 let mut col = Column::new().spacing(8);
                 col = col.push(text("Ladder rungs").size(18));
                 if let Some(block) = self.session.ladder_model() {
@@ -404,7 +504,7 @@ impl Editor {
                 }
                 col.into()
             }
-            VisualKind::Sfc => {
+            Pane::Sfc => {
                 let mut col = Column::new().spacing(8);
                 col = col.push(text("GRAFCET / SFC").size(18));
                 if let Some(block) = self.session.sfc_model() {
@@ -428,6 +528,108 @@ impl Editor {
                     col = col.push(text("(empty chart)"));
                 }
                 col.into()
+            }
+        }
+    }
+
+    fn sim_canvas_view(&self) -> Element<'_, Message> {
+        let mut col = Column::new().spacing(10);
+        col = col.push(text("Live SVG sim — Uno + LED + button").size(18));
+        match &self.canvas {
+            None => {
+                col = col.push(text(
+                    "Canvas not loaded — open C01 or a project with MVP wiring.",
+                ));
+            }
+            Some(c) => {
+                let frame = c.current_frame();
+                col = col.push(
+                    text(format!(
+                        "cycle={}  t={}ms  btn_pin={}  led_pin={}",
+                        frame.cycle, frame.time_ms, c.binding.button_pin, c.binding.led_pin
+                    ))
+                    .font(Font::MONOSPACE),
+                );
+                col = col.push(
+                    text(format!(
+                        "button={}  led={}  pins={:?}",
+                        if frame.button_pressed {
+                            "pressed"
+                        } else {
+                            "released"
+                        },
+                        if frame.led_on { "ON" } else { "off" },
+                        frame.pins
+                    ))
+                    .font(Font::MONOSPACE),
+                );
+                if !self.canvas_note.is_empty() {
+                    col = col.push(text(&self.canvas_note).size(12));
+                }
+
+                let board = svg(svg::Handle::from_memory(c.rendered_board().into_bytes()))
+                    .width(Length::Fixed(420.0))
+                    .height(Length::Fixed(280.0));
+                let led = svg(svg::Handle::from_memory(c.rendered_led().into_bytes()))
+                    .width(Length::Fixed(96.0))
+                    .height(Length::Fixed(96.0));
+                let btn = svg(svg::Handle::from_memory(c.rendered_button().into_bytes()))
+                    .width(Length::Fixed(120.0))
+                    .height(Length::Fixed(120.0));
+
+                col = col.push(text("Board (D13 status LED bound)").size(14));
+                col = col.push(board);
+                col = col.push(
+                    row![
+                        column![text("LED #led-body"), led].spacing(4),
+                        column![text("Button #actuator"), btn].spacing(4),
+                    ]
+                    .spacing(24),
+                );
+            }
+        }
+        col.into()
+    }
+
+    fn sim_detail_pane(&self) -> Element<'_, Message> {
+        let mut col = Column::new().spacing(8).width(Fill).height(Fill);
+        col = col.push(text("Sim binding / snapshot").size(16));
+        if let Some(c) = &self.canvas {
+            let snap = c.current_frame().to_snapshot();
+            col = col.push(text(snap).font(Font::MONOSPACE).size(13));
+            col = col.push(text(format!(
+                "assets:\n  board: {}\n  led: {}\n  button: {}",
+                c.svgs.board_path.display(),
+                c.svgs.led_path.display(),
+                c.svgs.button_path.display()
+            )));
+            col = col.push(text(
+                "Press → sets DI pin; Step scan runs ASL loop; LED SVG follows DO pin.",
+            ));
+        } else {
+            col = col.push(text("(no canvas)"));
+        }
+        col.into()
+    }
+
+    fn boot_canvas_from_session(&mut self) {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        match SimCanvas::from_project(&self.session.project, &root, &SimConfig::default()) {
+            Ok(mut c) => {
+                match c.boot() {
+                    Ok(frame) => {
+                        self.canvas_note = frame.to_snapshot().trim().replace('\n', " | ");
+                        self.canvas = Some(c);
+                    }
+                    Err(e) => {
+                        self.canvas = None;
+                        self.canvas_note = format!("boot failed: {e}");
+                    }
+                }
+            }
+            Err(e) => {
+                self.canvas = None;
+                self.canvas_note = format!("canvas load failed: {e}");
             }
         }
     }
@@ -471,6 +673,7 @@ impl Editor {
             .apply_ladder_document(doc)
             .map_err(|e| e.to_string())?;
         self.kind = VisualKind::Ladder;
+        self.pane = Pane::Ladder;
         self.refresh_toml_from_session();
         Ok(())
     }
@@ -502,6 +705,7 @@ impl Editor {
             .apply_sfc_document(doc)
             .map_err(|e| e.to_string())?;
         self.kind = VisualKind::Sfc;
+        self.pane = Pane::Sfc;
         self.refresh_toml_from_session();
         Ok(())
     }
@@ -536,6 +740,11 @@ fn cell_label(cell: &LadderCell) -> String {
 fn default_project_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../content/fixtures/projects/P01-uno-led-blink.dendri.toml")
+}
+
+fn canvas_demo_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../content/fixtures/canvas/C01-button-led.dendri.toml")
 }
 
 fn load_session(path: &std::path::Path) -> Result<SyncSession, String> {
