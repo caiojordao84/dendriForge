@@ -1,0 +1,144 @@
+# Sim S27 — 3-level nested FOR + MAX/SEL + VENDOR (scenario 12 / G19–G20 path)
+# Structured exprs; proves nested scan + MAX/SEL opcodes + vendor skip.
+
+[metadata]
+project_name = "S27-nested-max-vendor"
+editor = "dendriForge"
+author = "dendriForge DEN-22"
+notes = "G19/G20 subset — 3-level nested FOR, MAX/SEL, vendor-skip fallback"
+
+[[data]]
+name = "PASSES"
+type = "UINT"
+scope = "CONST"
+init = "2"
+unit = "-"
+
+[[data]]
+name = "ROWS"
+type = "UINT"
+scope = "CONST"
+init = "2"
+unit = "-"
+
+[[data]]
+name = "COLS"
+type = "UINT"
+scope = "CONST"
+init = "2"
+unit = "-"
+
+[[data]]
+name = "pass"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "row"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "col"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "cell"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "rowMax"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "grandMax"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "hot"
+type = "STRING"
+scope = "VAR"
+init = "\"none\""
+unit = "-"
+
+[[data]]
+name = "vendorReady"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_SERIAL"
+args = [{ kind = "uint", value = 115200 }]
+
+[[setup]]
+kind = "vendor_extension"
+reason = "PERIPHERAL_INIT:DMA_ENGINE,channel=2"
+
+[[setup]]
+kind = "assign"
+target = "vendorReady"
+value = { kind = "bool", value = false }
+
+[[loop]]
+kind = "assign"
+target = "grandMax"
+value = { kind = "uint", value = 0 }
+
+[[loop]]
+kind = "for"
+counter = "pass"
+to = { kind = "var", name = "PASSES" }
+body = [
+  { kind = "for", counter = "row", to = { kind = "var", name = "ROWS" }, body = [
+    { kind = "assign", target = "rowMax", value = { kind = "uint", value = 0 } },
+    { kind = "for", counter = "col", to = { kind = "var", name = "COLS" }, body = [
+      { kind = "assign", target = "cell", value = { kind = "binop", op = "add", left = { kind = "binop", op = "add", left = { kind = "var", name = "pass" }, right = { kind = "var", name = "row" } }, right = { kind = "var", name = "col" } } },
+      { kind = "assign", target = "rowMax", value = { kind = "call", name = "MAX", args = [{ kind = "var", name = "rowMax" }, { kind = "var", name = "cell" }] } },
+    ] },
+    { kind = "assign", target = "grandMax", value = { kind = "call", name = "MAX", args = [{ kind = "var", name = "grandMax" }, { kind = "var", name = "rowMax" }] } },
+  ] },
+]
+
+[[loop]]
+kind = "if"
+condition = { kind = "var", name = "vendorReady" }
+then = [
+  { kind = "assign", target = "hot", value = { kind = "string", value = "dma" } },
+]
+else = [
+  { kind = "vendor_extension", reason = "UNRESOLVED_SENSOR_FB:READ_TEMPERATURE" },
+  { kind = "assign", target = "hot", value = { kind = "call", name = "SEL", args = [
+    { kind = "var", name = "vendorReady" },
+    { kind = "string", value = "adc" },
+    { kind = "string", value = "i2c" },
+  ] } },
+]
+
+[[loop]]
+kind = "call"
+name = "SERIAL_PRINTLN"
+args = [{ kind = "call", name = "CONCAT", args = [
+  { kind = "string", value = "max=" },
+  { kind = "call", name = "TO_STRING", args = [{ kind = "var", name = "grandMax" }] },
+  { kind = "string", value = ",hot=" },
+  { kind = "var", name = "hot" },
+] }]

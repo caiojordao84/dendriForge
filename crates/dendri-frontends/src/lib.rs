@@ -75,6 +75,10 @@ pub fn emit_source(language: SourceLanguage, program: &Program) -> Result<String
 
 /// Emit → parse → compare. Text langs: setup/loop/data/hardware.
 /// Visual langs: ladder/grafcet blocks (+ lowered body for ladder/sfc).
+///
+/// Text-lang compare canonicalizes `ExprText` on both sides so fixtures
+/// authored with escape-hatch text match the structured trees emit→parse
+/// regenerates (semantic equality, not raw `ExprText` identity).
 pub fn roundtrip_language(
     language: SourceLanguage,
     program: &Program,
@@ -125,10 +129,12 @@ pub fn roundtrip_language(
             }
         }
         _ => {
-            if again.setup != program.setup
-                || again.loop_body != program.loop_body
-                || again.data != program.data
-                || again.hardware != program.hardware
+            let expect = dendri_parse::canonicalize_program(program);
+            let got = dendri_parse::canonicalize_program(&again);
+            if got.setup != expect.setup
+                || got.loop_body != expect.loop_body
+                || got.data != expect.data
+                || got.hardware != expect.hardware
             {
                 return Err(FrontendError::Message(format!(
                     "{} round-trip AST mismatch\n--- emitted ---\n{text}",

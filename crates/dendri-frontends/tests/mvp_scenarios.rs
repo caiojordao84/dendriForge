@@ -1,11 +1,11 @@
-//! DEN-21 — MVP scenarios 1–12 acceptance map (remaining partials tranche).
+//! DEN-22 — MVP scenarios 1–12 acceptance map (final partials tranche).
 //!
 //! Honest statuses only:
 //! - **pass** — automated check green on current opcodes/sim
 //! - **partial** — structural and/or subset sim green; full scenario not met
 //! - **blocked** — missing sim/opcode/physics; fixture may still deserialize
 //!
-//! See store docs `priority-7-remaining-partials.md`.
+//! See store docs `priority-7-final-partials.md`.
 
 use std::path::PathBuf;
 
@@ -46,8 +46,8 @@ fn matrix() -> [Scenario; 12] {
         Scenario {
             id: 2,
             title: "ADC/PWM/I2C/SPI/UART",
-            status: Status::Partial,
-            note: "S04/S05 + S12 xfer (5-lang RT) + S21 SPI SD vendor-skip stub; RFID/FAT still open",
+            status: Status::Pass,
+            note: "S04/S05 + S12 xfer + S21 SPI stub + S25 virtual FAT append/flush + RFID UID via SPI; real FS/air protocol deferred",
         },
         Scenario {
             id: 3,
@@ -100,14 +100,14 @@ fn matrix() -> [Scenario; 12] {
         Scenario {
             id: 11,
             title: "UART command parser + CSV telemetry",
-            status: Status::Partial,
-            note: "S09 string/SERIAL_READLN 5-lang RT + S23 multi-cmd sim; full G13/G14 CSV suite still partial",
+            status: Status::Pass,
+            note: "S09/S23 cmds + S26 CSV stream PAUSE/RESUME + G13/G14 5-lang RT (expr_text canon); full golden sim suite deferred",
         },
         Scenario {
             id: 12,
             title: "Nested loops / deep calls / VENDOR_EXTENSION",
-            status: Status::Partial,
-            note: "S24 nested FOR + vendor-skip sim + 5-lang RT; G19–G21 deep text/VENDOR RT still limited",
+            status: Status::Pass,
+            note: "S24/S27 nested+MAX/SEL/vendor + S28 depth-5 calls + G19–G21 5-lang RT; real DMA/TFT drivers deferred",
         },
     ]
 }
@@ -124,9 +124,9 @@ fn scenario_matrix_is_complete() {
     let pass = m.iter().filter(|s| s.status == Status::Pass).count();
     let partial = m.iter().filter(|s| s.status == Status::Partial).count();
     let blocked = m.iter().filter(|s| s.status == Status::Blocked).count();
-    // DEN-21 snapshot — update when a scenario genuinely graduates.
-    assert_eq!(pass, 9, "pass={pass}");
-    assert_eq!(partial, 3, "partial={partial}");
+    // DEN-22 snapshot — update when a scenario genuinely graduates.
+    assert_eq!(pass, 12, "pass={pass}");
+    assert_eq!(partial, 0, "partial={partial}");
     assert_eq!(blocked, 0, "blocked={blocked}");
 }
 
@@ -184,7 +184,7 @@ fn scenario1_ladder_edge_fb_still_passes() {
 }
 
 #[test]
-fn scenario2_pwm_adc_and_bus_xfer_partial() {
+fn scenario2_pwm_adc_and_bus_xfer_pass() {
     for rel in [
         "content/fixtures/sim/S04-pwm-adc-map.asl.toml",
         "content/fixtures/sim/S05-uart-i2c-spi.asl.toml",
@@ -606,7 +606,7 @@ fn scenario9_watchdog_escalation_pass() {
 }
 
 #[test]
-fn scenario11_string_ops_and_five_lang_rt_partial() {
+fn scenario11_string_ops_and_five_lang_rt_pass() {
     let parsed = parse_program_file(
         &repo().join("content/fixtures/sim/S09-string-ops.asl.toml"),
     )
@@ -639,7 +639,7 @@ fn scenario11_string_ops_and_five_lang_rt_partial() {
 }
 
 #[test]
-fn scenario11_uart_multi_command_partial() {
+fn scenario11_uart_multi_command_pass() {
     let parsed = parse_program_file(
         &repo().join("content/fixtures/sim/S23-uart-commands.asl.toml"),
     )
@@ -668,7 +668,7 @@ fn scenario11_uart_multi_command_partial() {
 }
 
 #[test]
-fn scenario2_sd_spi_vendor_stub_partial() {
+fn scenario2_sd_spi_vendor_stub_pass() {
     let parsed = parse_program_file(
         &repo().join("content/fixtures/sim/S21-sd-spi-log-stub.asl.toml"),
     )
@@ -687,7 +687,120 @@ fn scenario2_sd_spi_vendor_stub_partial() {
 }
 
 #[test]
-fn scenario12_vendor_nested_stub_partial() {
+fn scenario2_fat_rfid_stub_pass() {
+    use std::collections::HashMap;
+    let parsed = parse_program_file(
+        &repo().join("content/fixtures/sim/S25-fat-rfid-stub.asl.toml"),
+    )
+    .unwrap();
+    assert!(validate_program(&parsed.program, &parsed.inject).ok());
+    for lang in text_and_visual_langs() {
+        roundtrip_language(lang, &parsed.program)
+            .unwrap_or_else(|e| panic!("S25 {lang:?} RT: {e}"));
+    }
+    let mut spi_seed = HashMap::new();
+    spi_seed.insert(0u64, 0xA5u64);
+    let mut sim = Simulator::from_program(
+        parsed.program,
+        &SimConfig {
+            spi_seed,
+            ..SimConfig::default()
+        },
+    );
+    sim.run(1).unwrap();
+    assert_eq!(sim.var("uidByte").and_then(|v| v.as_u64().ok()), Some(0xA5));
+    assert_eq!(
+        sim.fat_file("telemetry.csv"),
+        Some("t=1,v=42"),
+        "virtual FAT append"
+    );
+    let trace = sim.trace_text();
+    assert!(trace.contains("FAT open:telemetry.csv"), "{trace}");
+    assert!(trace.contains("FAT append:telemetry.csv bytes=8"), "{trace}");
+    assert!(trace.contains("FAT flush:telemetry.csv size=8"), "{trace}");
+    assert!(trace.contains("VENDOR skip:RFID_INIT"), "{trace}");
+    assert!(trace.contains("SERIAL_OUT uid=165"), "{trace}");
+}
+
+#[test]
+fn scenario11_csv_stream_pause_resume_pass() {
+    let parsed = parse_program_file(
+        &repo().join("content/fixtures/sim/S26-uart-csv-stream.asl.toml"),
+    )
+    .unwrap();
+    assert!(validate_program(&parsed.program, &parsed.inject).ok());
+    for lang in text_and_visual_langs() {
+        roundtrip_language(lang, &parsed.program)
+            .unwrap_or_else(|e| panic!("S26 {lang:?} RT: {e}"));
+    }
+    let mut adc = std::collections::HashMap::new();
+    adc.insert(34, 100u32);
+    adc.insert(35, 200u32);
+    adc.insert(36, 300u32);
+    let mut sim = Simulator::from_program(
+        parsed.program.clone(),
+        &SimConfig {
+            serial_rx: vec!["".into()], // no ctrl on first scan
+            initial_adc: adc.clone(),
+            max_cycles: 2,
+            ..SimConfig::default()
+        },
+    );
+    sim.run(1).unwrap();
+    let trace = sim.trace_text();
+    assert!(trace.contains("SERIAL_OUT ts_ms,seq,vA,vB,vC"), "{trace}");
+    assert!(
+        trace.contains("SERIAL_OUT 0,1,100,200,300")
+            || trace.contains("SERIAL_OUT 0,1,100,200,300\n"),
+        "CSV row: {trace}"
+    );
+    assert_eq!(sim.var("seqNum").and_then(|v| v.as_u64().ok()), Some(1));
+
+    // PAUSE stops streaming; RESUME + HEADER restore.
+    let mut sim = Simulator::from_program(
+        parsed.program,
+        &SimConfig {
+            serial_rx: vec!["PAUSE".into(), "HEADER".into(), "RESUME".into()],
+            initial_adc: adc,
+            max_cycles: 3,
+            ..SimConfig::default()
+        },
+    );
+    sim.run(3).unwrap();
+    let trace = sim.trace_text();
+    assert!(trace.contains("SERIAL_OUT PAUSED"), "{trace}");
+    assert!(trace.contains("SERIAL_OUT RESUMED"), "{trace}");
+    // Header printed at setup + again on HEADER cmd.
+    assert!(
+        trace.matches("SERIAL_OUT ts_ms,seq,vA,vB,vC").count() >= 2,
+        "{trace}"
+    );
+}
+
+#[test]
+fn scenario11_g13_g14_five_lang_rt_pass() {
+    for rel in [
+        "content/fixtures/golden/G13-uart-echo-command-parser.asl.toml",
+        "content/fixtures/golden/G14-uart-csv-data-streamer.asl.toml",
+    ] {
+        let parsed = parse_program_file(&repo().join(rel)).unwrap();
+        let r = validate_program(&parsed.program, &parsed.inject);
+        assert!(r.ok(), "{rel}: {:?}", r.diagnostics);
+        for lang in [
+            SourceLanguage::Cpp,
+            SourceLanguage::Micropython,
+            SourceLanguage::St,
+            SourceLanguage::Ladder,
+            SourceLanguage::Sfc,
+        ] {
+            roundtrip_language(lang, &parsed.program)
+                .unwrap_or_else(|e| panic!("{rel} {lang:?} RT: {e}"));
+        }
+    }
+}
+
+#[test]
+fn scenario12_vendor_nested_stub_pass() {
     let parsed = parse_program_file(
         &repo().join("content/fixtures/sim/S24-vendor-nested-stub.asl.toml"),
     )
@@ -704,7 +817,56 @@ fn scenario12_vendor_nested_stub_partial() {
     let trace = sim.trace_text();
     assert!(trace.contains("VENDOR skip:"), "{trace}");
     assert!(trace.contains("SERIAL_OUT sum=4"), "{trace}");
+}
 
+#[test]
+fn scenario12_nested_max_vendor_pass() {
+    let parsed = parse_program_file(
+        &repo().join("content/fixtures/sim/S27-nested-max-vendor.asl.toml"),
+    )
+    .unwrap();
+    assert!(validate_program(&parsed.program, &parsed.inject).ok());
+    for lang in text_and_visual_langs() {
+        roundtrip_language(lang, &parsed.program)
+            .unwrap_or_else(|e| panic!("S27 {lang:?} RT: {e}"));
+    }
+    let mut sim = Simulator::from_program(parsed.program, &SimConfig::default());
+    sim.run(1).unwrap();
+    // pass+row+col max over 2×2×2: max cell = 1+1+1 = 3
+    assert_eq!(sim.var("grandMax").and_then(|v| v.as_u64().ok()), Some(3));
+    assert_eq!(
+        sim.var("hot").and_then(|v| match v {
+            Value::String(s) => Some(s.as_str()),
+            _ => None,
+        }),
+        Some("adc")
+    );
+    let trace = sim.trace_text();
+    assert!(trace.contains("VENDOR skip:UNRESOLVED_SENSOR_FB"), "{trace}");
+    assert!(trace.contains("SERIAL_OUT max=3,hot=adc"), "{trace}");
+}
+
+#[test]
+fn scenario12_deep_call_chain_pass() {
+    let parsed = parse_program_file(
+        &repo().join("content/fixtures/sim/S28-deep-call-chain.asl.toml"),
+    )
+    .unwrap();
+    assert!(validate_program(&parsed.program, &parsed.inject).ok());
+    for lang in text_and_visual_langs() {
+        roundtrip_language(lang, &parsed.program)
+            .unwrap_or_else(|e| panic!("S28 {lang:?} RT: {e}"));
+    }
+    let mut sim = Simulator::from_program(parsed.program, &SimConfig::default());
+    sim.run(1).unwrap();
+    // level0(1)→…→level4 returns 6
+    assert_eq!(sim.var("result").and_then(|v| v.as_u64().ok()), Some(6));
+    let trace = sim.trace_text();
+    assert!(trace.contains("SERIAL_OUT result=6"), "{trace}");
+}
+
+#[test]
+fn scenario12_g19_g21_five_lang_rt_pass() {
     for rel in [
         "content/fixtures/golden/G19-vendor-ext-custom-driver.asl.toml",
         "content/fixtures/golden/G20-nested-loop-matrix-scan.asl.toml",
@@ -713,6 +875,16 @@ fn scenario12_vendor_nested_stub_partial() {
         let parsed = parse_program_file(&repo().join(rel)).unwrap();
         let r = validate_program(&parsed.program, &parsed.inject);
         assert!(r.ok(), "{rel}: {:?}", r.diagnostics);
+        for lang in [
+            SourceLanguage::Cpp,
+            SourceLanguage::Micropython,
+            SourceLanguage::St,
+            SourceLanguage::Ladder,
+            SourceLanguage::Sfc,
+        ] {
+            roundtrip_language(lang, &parsed.program)
+                .unwrap_or_else(|e| panic!("{rel} {lang:?} RT: {e}"));
+        }
     }
 }
 

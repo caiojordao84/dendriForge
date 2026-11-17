@@ -1,0 +1,91 @@
+# Sim S28 — 5-level non-recursive call chain (scenario 12 / G21 path)
+# L0→L1→L2→L3→L4 accumulate; early return on fault flag.
+
+[metadata]
+project_name = "S28-deep-call-chain"
+editor = "dendriForge"
+author = "dendriForge DEN-22"
+notes = "G21 subset — depth-5 call chain + early return; structured exprs"
+
+[[data]]
+name = "fault"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "acc"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "result"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_SERIAL"
+args = [{ kind = "uint", value = 115200 }]
+
+[[loop]]
+kind = "assign"
+target = "fault"
+value = { kind = "bool", value = false }
+
+[[loop]]
+kind = "assign"
+target = "result"
+value = { kind = "call", name = "level0", args = [{ kind = "uint", value = 1 }] }
+
+[[loop]]
+kind = "call"
+name = "SERIAL_PRINTLN"
+args = [{ kind = "call", name = "CONCAT", args = [
+  { kind = "string", value = "result=" },
+  { kind = "call", name = "TO_STRING", args = [{ kind = "var", name = "result" }] },
+] }]
+
+[[functions]]
+name = "level0"
+params = ["x"]
+body = [
+  { kind = "return", value = { kind = "call", name = "level1", args = [{ kind = "binop", op = "add", left = { kind = "var", name = "x" }, right = { kind = "uint", value = 1 } }] } },
+]
+
+[[functions]]
+name = "level1"
+params = ["x"]
+body = [
+  { kind = "return", value = { kind = "call", name = "level2", args = [{ kind = "binop", op = "add", left = { kind = "var", name = "x" }, right = { kind = "uint", value = 1 } }] } },
+]
+
+[[functions]]
+name = "level2"
+params = ["x"]
+body = [
+  { kind = "if", condition = { kind = "var", name = "fault" }, then = [
+    { kind = "return", value = { kind = "uint", value = 0 } },
+  ], else = [
+    { kind = "return", value = { kind = "call", name = "level3", args = [{ kind = "binop", op = "add", left = { kind = "var", name = "x" }, right = { kind = "uint", value = 1 } }] } },
+  ] },
+]
+
+[[functions]]
+name = "level3"
+params = ["x"]
+body = [
+  { kind = "return", value = { kind = "call", name = "level4", args = [{ kind = "binop", op = "add", left = { kind = "var", name = "x" }, right = { kind = "uint", value = 1 } }] } },
+]
+
+[[functions]]
+name = "level4"
+params = ["x"]
+body = [
+  { kind = "return", value = { kind = "binop", op = "add", left = { kind = "var", name = "x" }, right = { kind = "uint", value = 1 } } },
+]
