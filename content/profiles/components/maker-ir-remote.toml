@@ -1,0 +1,90 @@
+# component profile — maker-ir-remote (migrated from legacy TOON)
+# Source: maker-ir-remote.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "maker-ir-remote-profile"
+
+[identification]
+category = "node"
+family = "communication"
+id = "maker-ir-remote"
+image = "maker-ir-remote.svg"
+name = "IR Remote Control (Controlo IR)"
+standard = "custom"
+subfamily = "wireless"
+symbol = "maker-ir-remote-symbol.svg"
+symbol_standard = "custom"
+
+[params.buttons]
+default = 21
+editable = true
+label = "Number of Buttons"
+options = [17, 21, 24, 44]
+type = "enum"
+
+[params.carrier_frequency]
+default = 38
+editable = true
+label = "Carrier Frequency"
+options = [36, 38, 40, 56]
+type = "enum"
+unit = "kHz"
+
+[params.protocol]
+default = "NEC"
+editable = true
+label = "Protocol"
+options = ["NEC", "RC5", "RC6", "Sony"]
+type = "enum"
+ports = []
+
+[[protocol_ports]]
+direction = "output"
+id = "IR_TX"
+notes = "IR wireless transmission"
+protocol = "{protocol}"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "digital-io"
+noise_model = false
+protocol_emulation = true
+states = ["idle", "transmitting"]
+thermal_model = false
+
+[limits]
+max_temp = 50
+min_temp = -10
+warnings = ["Wireless component — does not require physical electrical connections", "Requires line of sight to the IR receiver for reliable communication"]
+
+[connections]
+allowed_with = ["sensor-ir-receiver"]
+forbidden_with = ["*"]
+requires = []
+typical_context = ["remote-control", "wireless-input", "hmi"]
+
+[canvas]
+animated = true
+height = 100
+label_position = "right"
+
+[canvas.port_IR_TX]
+x = 20
+y = 0
+ports_layout = "custom"
+value_display = "{protocol} / {buttons} keys"
+width = 40
+
+[dendri]
+component_family_skill_id = "communication-family"
+component_profile_id = "maker-ir-remote"
+palette_group = "Communication > Wireless"
+simulation_engine = "protocol-stub-engine"
+svg_path = "content/assets/svg/components/maker-ir-remote.svg"
+tags = ["remote", "infrared", "wireless", "transmitter"]
+svg_status = "missing"

@@ -1,0 +1,182 @@
+# component profile — motor-dc-maker (migrated from legacy TOON)
+# Source: motor-dc-maker.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "motor-dc-maker-profile"
+
+[identification]
+category = "actuator"
+family = "actuators"
+id = "motor-dc-maker"
+image = "motor-dc-maker.svg"
+name = "DC Motor (Maker / Prototyping)"
+standard = "IEC 60034-1"
+subfamily = "maker-prototyping"
+symbol = "motor-dc-maker-symbol.svg"
+symbol_standard = "IEC"
+
+[params.armature_resistance]
+default = 8.5
+editable = false
+label = "Armature Resistance (Ra)"
+max = 200
+min = 0.1
+type = "float"
+unit = "Ω"
+
+[params.back_emf_constant]
+default = 0.029
+editable = false
+label = "Back-EMF Constant (Ke)"
+max = 5
+min = 0.0001
+type = "float"
+unit = "V"
+
+[params.gear_ratio]
+default = 1
+editable = true
+label = "Gear Ratio (1:N)"
+max = 1000
+min = 1
+type = "float"
+unit = "V"
+
+[params.motor_type]
+default = "brushed-dc"
+editable = true
+label = "Motor Type"
+options = ["brushed-dc", "coreless-dc", "gearedmotor-dc", "vibration-dc"]
+type = "enum"
+
+[params.no_load_current]
+default = 0.07
+editable = false
+label = "No-Load Current"
+max = 5
+min = 0.001
+type = "float"
+unit = "A"
+
+[params.no_load_speed]
+default = 200
+editable = false
+label = "No-Load Speed"
+max = 30000
+min = 10
+type = "float"
+unit = "V"
+
+[params.package]
+default = "130-size"
+editable = true
+label = "Package / Form Factor"
+options = ["N20", "N30", "FF-130", "130-size", "180-size", "280-size", "385-size", "540-size", "775-size"]
+type = "enum"
+
+[params.pwm_control]
+default = true
+editable = true
+label = "PWM Controllable"
+type = "bool"
+
+[params.stall_current]
+default = 0.7
+editable = false
+label = "Stall Current"
+max = 20
+min = 0.01
+type = "float"
+unit = "A"
+
+[params.stall_torque]
+default = 0.08
+editable = false
+label = "Stall Torque"
+max = 50
+min = 0.001
+type = "float"
+unit = "V"
+
+[params.torque_constant]
+default = 0.11
+editable = false
+label = "Torque Constant (Kt)"
+max = 5
+min = 0.0001
+type = "float"
+unit = "V"
+
+[params.voltage_rated]
+default = 6
+editable = true
+label = "Rated Voltage"
+options = [1.5, 3, 3.7, 5, 6, 9, 12, 24]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "20A"
+direction = "input"
+id = "VCC"
+notes = "motor positive supply terminal"
+type = "power"
+voltage_max = "24V"
+
+[[ports]]
+direction = "input"
+id = "GND"
+notes = "motor negative supply terminal"
+type = "ground"
+
+[simulation]
+bidirectional = true
+dynamic = true
+equation = "speed = (voltage_rated - current * armature_resistance) / back_emf_constant; T = torque_constant * current"
+model = "basic-analog"
+motion = "rotary"
+noise_model = false
+states = ["off", "running", "stall", "fault"]
+thermal_model = false
+
+[limits]
+max_current = "20A"
+max_temp = 70
+max_voltage = "24V"
+min_temp = -10
+warnings = ["Never connect motor directly to MCU GPIO — use a motor driver (H-bridge) or MOSFET", "Add flyback diodes across motor terminals when using discrete switching elements", "Stall condition causes maximum current draw — limit duration to avoid thermal damage", "For geared motors, never backdrive the gearbox beyond rated torque — strip risk"]
+
+[connections]
+allowed_with = ["dc-source", "dc-psu-prog", "battery", "pwm-source"]
+forbidden_with = ["ac-source", "ac-source-3phase"]
+requires = ["dc-source"]
+typical_context = ["robot", "arduino-project", "rc-vehicle", "fan-control", "maker-prototype"]
+
+[canvas]
+animated = true
+height = 50
+label_position = "right"
+
+[canvas.port_GND]
+x = 0
+y = 35
+
+[canvas.port_VCC]
+x = 0
+y = 15
+ports_layout = "custom"
+value_display = "{voltage_rated}V / {no_load_speed}rpm ({motor_type})"
+width = 60
+
+[dendri]
+component_family_skill_id = "actuators-family"
+component_profile_id = "motor-dc-maker"
+palette_group = "Actuators > Maker / Prototyping"
+simulation_engine = "digital-io"
+svg_path = "content/assets/svg/components/motor-dc-maker.svg"
+tags = ["motor", "dc", "maker", "brushed", "actuator", "pwm", "arduino", "prototyping"]
+svg_status = "missing"

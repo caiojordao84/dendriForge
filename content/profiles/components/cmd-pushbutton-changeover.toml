@@ -1,0 +1,155 @@
+# component profile — cmd-pushbutton-changeover (migrated from legacy TOON)
+# Source: cmd-pushbutton-changeover.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "cmd-pushbutton-changeover-profile"
+
+[identification]
+category = "passive"
+family = "electricals"
+id = "cmd-pushbutton-changeover"
+image = "cmd-pushbutton-changeover.svg"
+name = "Pushbutton Changeover"
+standard = "IEC 60947-5-1"
+subfamily = "passives"
+symbol = "cmd-pushbutton-changeover-symbol.svg"
+symbol_standard = "IEC"
+
+[params.actuation_force]
+default = 3.0
+editable = true
+label = "Actuation Force"
+options = [1.5, 2.5, 3.5, 5]
+type = "enum"
+unit = "N"
+
+[params.contact_rating_ac]
+default = 5
+editable = true
+label = "AC Contact Rating"
+options = [1, 3, 5, 10]
+type = "enum"
+unit = "A"
+
+[params.contact_rating_dc]
+default = 3
+editable = true
+label = "DC Contact Rating"
+options = [0.5, 1, 3, 5, 6]
+type = "enum"
+unit = "A"
+
+[params.contact_state]
+default = "changeover"
+editable = true
+label = "Contact State"
+options = ["changeover", "momentary", "spring-return"]
+type = "enum"
+
+[params.electrical_life]
+default = 100000
+editable = false
+label = "Electrical Life"
+max = 1000000
+min = 10000
+type = "float"
+unit = "cycles"
+
+[params.ip_rating]
+default = "IP65"
+editable = true
+label = "Ingress Protection"
+options = ["IP40", "IP54", "IP65", "IP67"]
+type = "enum"
+
+[params.mechanical_life]
+default = 1000000
+editable = false
+label = "Mechanical Life"
+max = 10000000
+min = 100000
+type = "float"
+unit = "cycles"
+
+[params.package]
+default = "22mm panel"
+editable = true
+label = "Package"
+options = ["16mm panel", "22mm panel", "30mm panel", "DIN-rail", "enclosed"]
+type = "enum"
+
+[[ports]]
+direction = "input"
+id = "COM"
+notes = "common terminal"
+type = "ground"
+
+[[ports]]
+current_max = "5A"
+direction = "output"
+id = "NO"
+notes = "normally-open contact"
+type = "digital"
+voltage_max = "250V"
+
+[[ports]]
+current_max = "5A"
+direction = "output"
+id = "NC"
+notes = "normally-closed contact"
+type = "digital"
+voltage_max = "250V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "ideal"
+noise_model = false
+states = ["open", "closed-no", "closed-nc"]
+thermal_model = false
+
+[limits]
+max_current = "5A"
+max_temp = 70
+max_voltage = "250V"
+min_temp = -25
+warnings = ["The common terminal switches between NO and NC depending on actuation", "Respect AC/DC contact ratings separately; DC switching is more demanding", "Use an arc suppression network for inductive loads"]
+
+[connections]
+allowed_with = ["mcu-gpio", "relay-coil", "ind-load", "dc-source"]
+forbidden_with = ["ac-source"]
+requires = []
+typical_context = ["selector", "manual-control", "operator-panel"]
+
+[canvas]
+animated = false
+height = 30
+label_position = "top"
+
+[canvas.port_COM]
+x = 0
+y = 15
+
+[canvas.port_NC]
+x = 60
+y = 20
+
+[canvas.port_NO]
+x = 60
+y = 10
+ports_layout = "horizontal"
+value_display = "Changeover / {contact_state} / {ip_rating}"
+width = 60
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "cmd-pushbutton-changeover"
+palette_group = "Fundamental Electricals > Switches"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/cmd-pushbutton-changeover.svg"
+tags = ["pushbutton", "changeover", "momentary", "switch", "operator", "control", "iec-60947-5-1"]
+svg_status = "missing"

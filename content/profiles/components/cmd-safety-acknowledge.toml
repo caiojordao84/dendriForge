@@ -1,0 +1,125 @@
+# component profile — cmd-safety-acknowledge (migrated from legacy TOON)
+# Source: cmd-safety-acknowledge.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "cmd-safety-acknowledge-profile"
+
+[identification]
+category = "passive"
+family = "electricals"
+id = "cmd-safety-acknowledge"
+image = "cmd-safety-acknowledge.svg"
+name = "Safety Acknowledge"
+standard = "IEC 60947-5-1"
+subfamily = "passives"
+symbol = "cmd-safety-acknowledge-symbol.svg"
+symbol_standard = "IEC"
+
+[params.actuation_force]
+default = 2.5
+editable = true
+label = "Actuation Force"
+options = [1.5, 2.5, 3.5, 5]
+type = "enum"
+unit = "N"
+
+[params.contact_type]
+default = "normally-open"
+editable = true
+label = "Contact Type"
+options = ["normally-open", "momentary"]
+type = "enum"
+
+[params.ip_rating]
+default = "IP65"
+editable = true
+label = "Ingress Protection"
+options = ["IP54", "IP65", "IP67"]
+type = "enum"
+
+[params.mechanical_life]
+default = 1000000
+editable = false
+label = "Mechanical Life"
+max = 10000000
+min = 100000
+type = "float"
+unit = "cycles"
+
+[params.package]
+default = "22mm panel"
+editable = true
+label = "Package"
+options = ["22mm panel", "30mm panel", "enclosed"]
+type = "enum"
+
+[params.safety_rating]
+default = "SIL2"
+editable = true
+label = "Safety Category"
+options = ["PL d", "PL e", "SIL2", "SIL3"]
+type = "enum"
+
+[[ports]]
+direction = "input"
+id = "COM"
+notes = "common terminal"
+type = "ground"
+
+[[ports]]
+current_max = "5A"
+direction = "output"
+id = "NO"
+notes = "acknowledge contact"
+type = "digital"
+voltage_max = "250V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "ideal"
+noise_model = false
+states = ["ready", "acknowledged", "latched"]
+thermal_model = false
+
+[limits]
+max_current = "5A"
+max_temp = 70
+max_voltage = "250V"
+min_temp = -25
+warnings = ["Acknowledge only clears a permitted state; it does not reset a fault", "Use this device as part of a safety-rated alarm acknowledgement chain", "Do not use acknowledge to bypass interlocks or safety functions", "Ensure the operator can clearly distinguish acknowledge from reset"]
+
+[connections]
+allowed_with = ["safety-relay", "plc-safety-input", "dc-source"]
+forbidden_with = ["ac-source"]
+requires = ["safety-relay"]
+typical_context = ["alarm-acknowledge", "machine-safety", "operator-panel"]
+
+[canvas]
+animated = false
+height = 30
+label_position = "top"
+
+[canvas.port_COM]
+x = 0
+y = 15
+
+[canvas.port_NO]
+x = 50
+y = 15
+ports_layout = "horizontal"
+value_display = "Safety acknowledge / {contact_type}"
+width = 50
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "cmd-safety-acknowledge"
+palette_group = "Fundamental Electricals > Switches"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/cmd-safety-acknowledge.svg"
+tags = ["safety-acknowledge", "switch", "operator", "control", "momentary", "safety", "iec-60947-5-1"]
+svg_status = "missing"

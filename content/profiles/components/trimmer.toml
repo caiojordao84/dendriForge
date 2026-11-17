@@ -1,0 +1,146 @@
+# component profile — trimmer (migrated from legacy TOON)
+# Source: trimmer.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "trimmer-profile"
+
+[identification]
+category = "passive"
+family = "electricals"
+id = "trimmer"
+image = "trimmer.svg"
+name = "Trimmer Potentiometer"
+standard = "IEC 60393-2"
+subfamily = "passives"
+symbol = "trimmer-symbol.svg"
+symbol_standard = "IEC"
+
+[params.adjustment]
+default = "top"
+editable = true
+label = "Adjustment Type"
+options = ["top", "side", "cermet-top", "cermet-side"]
+type = "enum"
+
+[params.package]
+default = "THT-3296"
+editable = true
+label = "Package"
+options = ["THT-3296", "THT-3006", "THT-3362", "SMD-3214", "SMD-3224", "SMD-3314"]
+type = "enum"
+
+[params.power_rating]
+default = 0.25
+editable = true
+label = "Power Rating"
+options = [0.1, 0.25, 0.5, 1]
+type = "enum"
+unit = "W"
+
+[params.resistance]
+default = 10000
+editable = true
+label = "Total Resistance"
+max = 5000000
+min = 10
+type = "float"
+unit = "Ω"
+
+[params.tolerance]
+default = 10
+editable = true
+label = "Resistance Tolerance"
+options = [5, 10, 20]
+type = "enum"
+unit = "%"
+
+[params.turns]
+default = "single"
+editable = true
+label = "Adjustment Turns"
+options = ["single", "multi-12", "multi-20", "multi-25"]
+type = "enum"
+
+[params.wiper_position]
+default = 50
+editable = true
+label = "Wiper Position"
+max = 100
+min = 0
+type = "float"
+unit = "%"
+
+[[ports]]
+direction = "passive"
+id = "A"
+notes = "resistive track terminal A (high end)"
+type = "analog"
+
+[[ports]]
+direction = "passive"
+id = "B"
+notes = "resistive track terminal B (low end)"
+type = "analog"
+
+[[ports]]
+direction = "output"
+id = "W"
+notes = "wiper / adjustable tap output"
+type = "analog"
+
+[simulation]
+bidirectional = true
+dynamic = false
+equation = "R_AW = resistance * (wiper_position / 100); R_WB = resistance - R_AW"
+model = "ohms-law"
+noise_model = false
+states = ["nominal", "fault"]
+thermal_model = false
+
+[limits]
+
+[limits.max_power]
+unit = "W"
+value = "{power_rating}"
+max_temp = 125
+min_temp = -55
+warnings = ["Trimmer is intended for infrequent set-and-forget adjustment only — not for continuous rotation", "Do not exceed rated power dissipation; derate above 70°C ambient", "Multi-turn trimmers must not be forced beyond mechanical end-stops"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["bias-adjustment", "offset-calibration", "gain-trim", "reference-voltage"]
+
+[canvas]
+animated = false
+height = 50
+label_position = "top"
+
+[canvas.port_A]
+x = 0
+y = 10
+
+[canvas.port_B]
+x = 0
+y = 40
+
+[canvas.port_W]
+x = 50
+y = 25
+ports_layout = "custom"
+value_display = "{resistance}Ω / {wiper_position}% ({turns})"
+width = 50
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "trimmer"
+palette_group = "Fundamental Electricals > Passives"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/trimmer.svg"
+tags = ["trimmer", "potentiometer", "passive", "analog", "variable-resistor", "calibration"]
+svg_status = "missing"

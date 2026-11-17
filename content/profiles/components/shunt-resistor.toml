@@ -1,0 +1,179 @@
+# component profile — shunt-resistor (migrated from legacy TOON)
+# Source: shunt-resistor.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "shunt-resistor-profile"
+
+[identification]
+category = "passive"
+family = "electricals"
+id = "shunt-resistor"
+image = "shunt-resistor.svg"
+name = "Shunt Resistor (Current Sense)"
+standard = "IEC 60115-1"
+subfamily = "passives"
+symbol = "shunt-resistor-symbol.svg"
+symbol_standard = "IEC"
+
+[params.current_max]
+default = 10
+editable = false
+label = "Maximum Continuous Current"
+max = 1000
+min = 0.1
+type = "float"
+unit = "A"
+
+[params.kelvin_connections]
+default = true
+editable = true
+label = "Kelvin (4-Wire) Connections"
+type = "bool"
+
+[params.package]
+default = "SMD-2512"
+editable = true
+label = "Package"
+options = ["SMD-0402", "SMD-0603", "SMD-0805", "SMD-1206", "SMD-2010", "SMD-2512", "SMD-4527", "THT-axial", "THT-4-terminal", "busbar-mount"]
+type = "enum"
+
+[params.power_rated]
+default = 2
+editable = true
+label = "Power Rating"
+options = [0.125, 0.25, 0.5, 1, 2, 3, 5, 10, 20]
+type = "enum"
+unit = "W"
+
+[params.resistance]
+default = 0.01
+editable = true
+label = "Resistance"
+options = [0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1]
+type = "enum"
+unit = "Ω"
+
+[params.tcr]
+default = 75
+editable = true
+label = "Temperature Coefficient of Resistance (TCR)"
+options = [5, 10, 15, 20, 50, 75, 100, 200]
+type = "enum"
+unit = "V"
+
+[params.thermal_derating]
+default = 70
+editable = false
+label = "Thermal Derating Start"
+max = 100
+min = 40
+type = "float"
+unit = "V"
+
+[params.tolerance]
+default = 1
+editable = true
+label = "Resistance Tolerance"
+options = [0.1, 0.5, 1, 5]
+type = "enum"
+unit = "%"
+
+[params.voltage_sense_max]
+default = 0.1
+editable = true
+label = "Max Sense Voltage (V = I × R)"
+options = [0.05, 0.075, 0.1, 0.15, 0.2, 0.5]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "1000A"
+direction = "input"
+id = "IP"
+notes = "current input terminal (high-current path)"
+type = "power"
+voltage_max = "100V"
+
+[[ports]]
+current_max = "1000A"
+direction = "output"
+id = "IM"
+notes = "current output terminal (high-current path)"
+type = "power"
+voltage_max = "100V"
+
+[[ports]]
+current_max = "10mA"
+direction = "output"
+id = "VP"
+notes = "Kelvin sense terminal V+ (connect to ADC/amplifier)"
+type = "analog"
+voltage_max = "1V"
+
+[[ports]]
+current_max = "10mA"
+direction = "output"
+id = "VM"
+notes = "Kelvin sense terminal V- (connect to ADC/amplifier)"
+type = "analog"
+voltage_max = "1V"
+
+[simulation]
+bidirectional = true
+dynamic = false
+equation = "V_sense = I_load * resistance; I_load = (IP - IM) current; P = I_load^2 * resistance"
+model = "ohms-law"
+noise_model = false
+states = ["nominal", "overload"]
+thermal_model = true
+
+[limits]
+max_current = "1000A"
+max_power = "{power_rated}W"
+max_temp = 170
+max_voltage = "100V"
+min_temp = -55
+warnings = ["Always use Kelvin (4-wire) sense connections — contact resistance on current terminals corrupts measurement", "Derate power at ambient above thermal derating start temperature — follow manufacturer derating curve", "TCR causes resistance drift with self-heating — use low-TCR types (≤50 ppm/°C) for precision sensing", "Place shunt close to the load return path and route sense traces differentially to minimise noise pickup"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["current-sensing", "battery-management", "motor-control", "power-monitoring", "overcurrent-detection"]
+
+[canvas]
+animated = false
+height = 50
+label_position = "top"
+
+[canvas.port_IM]
+x = 70
+y = 15
+
+[canvas.port_IP]
+x = 0
+y = 15
+
+[canvas.port_VM]
+x = 50
+y = 50
+
+[canvas.port_VP]
+x = 20
+y = 50
+ports_layout = "custom"
+value_display = "{resistance}Ω / {power_rated}W / {tolerance}% / TCR={tcr}ppm"
+width = 70
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "shunt-resistor"
+palette_group = "Fundamental Electricals > Passives"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/shunt-resistor.svg"
+tags = ["shunt-resistor", "current-sense", "passive", "kelvin", "analog", "power-monitoring", "iec-60115"]
+svg_status = "missing"

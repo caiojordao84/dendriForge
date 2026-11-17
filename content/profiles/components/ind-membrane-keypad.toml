@@ -1,0 +1,142 @@
+# component profile — ind-membrane-keypad (migrated from legacy TOON)
+# Source: ind-membrane-keypad.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "ind-membrane-keypad-profile"
+
+[identification]
+category = "instrument"
+family = "industrial"
+id = "ind-membrane-keypad"
+image = "ind-membrane-keypad.svg"
+name = "Industrial Membrane Keypad"
+standard = "IEC 60947-5-1"
+subfamily = "hmi-signaling"
+symbol = "ind-membrane-keypad-symbol.svg"
+symbol_standard = "IEC"
+
+[params.backlight]
+default = "LED-white"
+editable = true
+label = "Key Backlight"
+options = ["none", "LED-white", "LED-blue", "EL-panel"]
+type = "enum"
+
+[params.interface]
+default = "discrete-io"
+editable = true
+label = "Interface"
+options = ["discrete-io", "matrix-scan", "RS485", "USB-HID"]
+type = "enum"
+
+[params.ip_class]
+default = "IP65"
+editable = true
+label = "IP Protection"
+options = ["IP54", "IP65", "IP67"]
+type = "enum"
+
+[params.key_count]
+default = 12
+editable = true
+label = "Number of Keys"
+options = [4, 8, 12, 16, 20, 24]
+type = "enum"
+
+[params.supply_voltage]
+default = 24
+editable = true
+label = "Supply Voltage"
+options = [5, 12, 24]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "500mA"
+direction = "input"
+id = "VCC"
+notes = "DC supply positive"
+type = "power"
+voltage_max = "24V"
+
+[[ports]]
+direction = "input"
+id = "GND"
+notes = "DC supply negative"
+type = "ground"
+
+[[ports]]
+current_max = "200mA"
+direction = "output"
+id = "DI_BUS"
+notes = "Key signal outputs to PLC/HMI digital inputs"
+type = "digital"
+voltage_max = "24V"
+
+[[ports]]
+current_max = "200mA"
+direction = "input"
+id = "BACKLIGHT"
+notes = "Backlight enable — active high"
+type = "digital"
+voltage_max = "24V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "function-block-engine"
+noise_model = false
+states = ["idle", "key-active", "fault"]
+thermal_model = false
+trigger = "user-interaction"
+
+[limits]
+ip_rating = "IP65"
+max_current = "500mA"
+max_temp = 60
+max_voltage = "24V"
+min_temp = -20
+warnings = ["Membrane keypads have limited actuation life — verify cycle rating for application", "Avoid sharp objects near membrane surface — damage is not covered by warranty", "Backlight LED lifetime typically 50000 hours — plan for replacement in long installations"]
+
+[connections]
+allowed_with = ["plc-*", "ind-di-bank", "cmd-operator-panel", "ind-hmi-numeric-indicator"]
+forbidden_with = ["ac-source"]
+requires = ["dc-source"]
+typical_context = ["machine-hmi", "panel-data-entry", "access-control-panel"]
+
+[canvas]
+animated = true
+height = 70
+label_position = "bottom"
+
+[canvas.port_BACKLIGHT]
+x = 0
+y = 50
+
+[canvas.port_DI_BUS]
+x = 70
+y = 25
+
+[canvas.port_GND]
+x = 0
+y = 25
+
+[canvas.port_VCC]
+x = 0
+y = 10
+ports_layout = "custom"
+value_display = "{key_count}keys / {interface} / {ip_class}"
+width = 70
+
+[dendri]
+component_family_skill_id = "industrial-family"
+component_profile_id = "ind-membrane-keypad"
+palette_group = "Industrial > HMI & Signaling"
+simulation_engine = "function-block-engine"
+svg_path = "content/assets/svg/components/ind-membrane-keypad.svg"
+tags = ["membrane-keypad", "hmi-signaling", "industrial", "keypad", "ip65", "panel"]
+svg_status = "missing"

@@ -1,0 +1,190 @@
+# board profile — seeed-studio-xiao-nrf52840 (migrated from legacy TOON)
+# Source: seeed-studio-xiao-nrf52840.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "seeed-studio-xiao-nrf52840-profile"
+
+[identification]
+category = "maker"
+id = "seeed-studio-xiao-nrf52840"
+image = "seeed-studio-xiao-nrf52840.svg"
+manufacturer = "Seeed Studio"
+mcu = "Nordic nRF52840 (ARM Cortex-M4 FPU)"
+name = "Seeed Studio XIAO nRF52840"
+url = "https://www.seeedstudio.com/Seeed-XIAO-BLE-nRF52840-p-5201.html"
+
+[specs]
+clock = 64000000
+eeprom = 0
+flash_available = 983040
+flash_total = 1048576
+sram = 262144
+voltage = "3.3V"
+
+[dims]
+h = 21.0
+t = 3.5
+w = 17.5
+
+[[power_pins]]
+direction = "input"
+name = "VIN"
+
+[[power_pins]]
+direction = "output"
+name = "5V"
+voltage = "5V"
+
+[[power_pins]]
+direction = "output"
+name = "3V3"
+voltage = "3.3V"
+
+[[power_pins]]
+name = "GND"
+type = "ground"
+
+[[power_pins]]
+direction = "input"
+name = "RESET"
+
+[[power_pins]]
+direction = "input"
+name = "VBAT"
+
+[[gpio]]
+int = true
+label = "D0 / A0 / P0.02"
+pin = 0
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "D1 / A1 / P0.03"
+pin = 1
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "D2 / A2 / P0.28"
+pin = 2
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "D3 / A3 / P0.29"
+pin = 3
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "D4 / A4 / SDA / P0.04"
+pin = 4
+pwm = true
+roles = ["adc:t", "i2c-sda"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "D5 / A5 / SCL / P0.05"
+pin = 5
+pwm = true
+roles = ["adc:t", "i2c-scl"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "D6 / TX / P1.11"
+pin = 6
+pwm = true
+roles = ["uart-tx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D7 / RX / P1.12"
+pin = 7
+pwm = true
+roles = ["uart-rx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D8 / SCK / P1.13"
+pin = 8
+pwm = true
+roles = ["spi-sck"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D9 / MISO / P1.14"
+pin = 9
+pwm = true
+roles = ["spi-miso"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D10 / MOSI / P1.15"
+pin = 10
+pwm = true
+roles = ["spi-mosi", "status-led"]
+type = "digital"
+
+[[peripherals]]
+param = "uarts:1"
+peripheral = "serial"
+value = "pins:6,7"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "i2c"
+value = "sda:4;scl:5"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "spi"
+value = "miso:9;mosi:10;sck:8;ss:null"
+
+[[peripherals]]
+param = "resolution:12bit"
+peripheral = "adc"
+value = "pins:0;1;2;3;4;5"
+
+[usb]
+chip = "native"
+pid = "0x0045"
+type = "USB-C"
+vid = "0x2886"
+
+[restrictions]
+max_io_current = "15mA"
+total_current_limit = "200mA"
+warnings = ["All I/O pins operate at 3.3V; not 5V tolerant", "ADC reference is 0.6V internal; use analogReference() accordingly", "RGB LED uses P0.26/P0.30/P0.06; not available on pin headers", "2MB QSPI flash available for LittleFS; requires Adafruit_SPIFlash", "NFC pins (P0.09/P0.10) not broken out on standard headers", "LiPo battery charging built-in via VBAT pin; charge current 50mA"]
+
+[compatibility]
+arduino_core = "1.1.1"
+bootloader = "adafruit-nrf52-bootloader"
+frameworks = "arduino"
+languages = "arduino-cpp"
+pio = "nordicnrf52"
+
+[dendri]
+board_family_skill_id = "nrf52-family"
+board_profile_id = "seeed-studio-xiao-nrf52840"
+default_language_skills = ["arduino-cpp-nrf52", "zephyr-nrf52", "rust-embassy-nrf52"]
+svg_path = "content/assets/svg/boards/seeed-studio-xiao-nrf52840.svg"
+svg_status = "missing"

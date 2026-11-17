@@ -1,0 +1,150 @@
+# component profile — sensor-photoelectric-diffuse (migrated from legacy TOON)
+# Source: sensor-photoelectric-diffuse.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "sensor-photoelectric-diffuse-profile"
+
+[identification]
+category = "sensor"
+family = "sensors"
+id = "sensor-photoelectric-diffuse"
+image = "sensor-photoelectric-diffuse.svg"
+name = "Photoelectric Sensor Diffuse"
+standard = "IEC 60947-5-2"
+subfamily = "industrial-presence-safety"
+symbol = "sensor-photoelectric-diffuse-symbol.svg"
+symbol_standard = "IEC"
+
+[params.hysteresis]
+default = 15
+editable = false
+label = "Hysteresis"
+max = 20
+min = 5
+type = "float"
+unit = "%"
+
+[params.light_source]
+default = "red-LED"
+editable = true
+label = "Light Source"
+options = ["red-LED", "infrared-LED", "laser-red"]
+type = "enum"
+
+[params.output_type]
+default = "PNP-NO"
+editable = true
+label = "Output Type"
+options = ["PNP-NO", "PNP-NC", "NPN-NO", "NPN-NC", "2-wire-NO", "2-wire-NC"]
+type = "enum"
+
+[params.response_time]
+default = 1
+editable = false
+label = "Response Time"
+max = 10
+min = 0.5
+type = "float"
+unit = "V"
+
+[params.sensing_range]
+default = 200
+editable = true
+label = "Sensing Range"
+max = 2000
+min = 20
+type = "float"
+unit = "V"
+
+[params.supply_voltage]
+default = 24
+editable = true
+label = "Supply Voltage"
+options = [12, 24, 48]
+type = "enum"
+unit = "V"
+
+[params.teach_mode]
+default = "single-point"
+editable = true
+label = "Teach-In Mode"
+options = ["single-point", "two-point", "dynamic"]
+type = "enum"
+
+[[ports]]
+current_max = "200mA"
+direction = "input"
+id = "VCC"
+notes = "DC supply positive"
+type = "power"
+voltage_max = "48V"
+
+[[ports]]
+direction = "input"
+id = "GND"
+notes = "DC supply negative"
+type = "ground"
+
+[[ports]]
+current_max = "200mA"
+direction = "output"
+id = "OUT"
+notes = "Switching output — PNP/NPN depending on output_type"
+type = "digital"
+voltage_max = "48V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "threshold"
+noise_model = false
+states = ["idle", "detected", "fault"]
+thermal_model = false
+trigger = "proximity"
+
+[limits]
+ip_rating = "IP67"
+max_current = "200mA"
+max_temp = 55
+max_voltage = "48V"
+min_temp = -25
+warnings = ["Diffuse mode sensing range varies with target surface reflectivity", "Do not use near highly reflective backgrounds without background suppression variant", "Avoid direct exposure to strong ambient light sources (sunlight, welding arcs)", "Wire color code: brown=VCC, blue=GND, black=OUT (IEC 60947-5-2)"]
+
+[connections]
+allowed_with = ["ind-di-bank", "plc-*", "ind-contact-no", "ind-contact-nc", "comm-iolink-master-stub"]
+forbidden_with = ["ac-source"]
+requires = ["dc-source"]
+typical_context = ["object-detection", "presence-sensing", "conveyor-counting"]
+
+[canvas]
+animated = true
+height = 50
+label_position = "right"
+
+[canvas.port_GND]
+x = 25
+y = 50
+
+[canvas.port_OUT]
+x = 50
+y = 25
+
+[canvas.port_VCC]
+x = 25
+y = 0
+ports_layout = "custom"
+value_display = "{sensing_range}mm / {output_type} / {light_source}"
+width = 50
+
+[dendri]
+component_family_skill_id = "sensors-family"
+component_profile_id = "sensor-photoelectric-diffuse"
+palette_group = "Sensors > Industrial Presence & Safety"
+simulation_engine = "digital-io"
+svg_path = "content/assets/svg/components/sensor-photoelectric-diffuse.svg"
+tags = ["photoelectric", "diffuse", "sensor", "presence-detection", "industrial-presence-safety", "pnp", "npn"]
+svg_status = "missing"

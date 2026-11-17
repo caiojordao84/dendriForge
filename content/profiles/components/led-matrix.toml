@@ -1,0 +1,175 @@
+# component profile — led-matrix (migrated from legacy TOON)
+# Source: led-matrix.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "led-matrix-profile"
+
+[identification]
+category = "signal"
+family = "electricals"
+id = "led-matrix"
+image = "led-matrix.svg"
+name = "LED Matrix"
+standard = "IEC 60810"
+subfamily = "displays"
+symbol = "led-matrix-symbol.svg"
+symbol_standard = "IEC"
+
+[params.brightness]
+default = 50
+editable = true
+label = "Brightness"
+max = 100
+min = 0
+type = "float"
+unit = "%"
+
+[params.color]
+default = "red"
+editable = true
+label = "LED Color"
+options = ["red", "green", "blue", "white", "amber", "rgb"]
+type = "enum"
+
+[params.columns]
+default = 8
+editable = true
+label = "Columns"
+options = [4, 5, 8, 10, 16, 32]
+type = "enum"
+
+[params.if_rated]
+default = 0.02
+editable = true
+label = "Rated LED Current"
+options = [0.002, 0.005, 0.01, 0.02, 0.03, 0.05]
+type = "enum"
+unit = "A"
+
+[params.matrix_type]
+default = "common-cathode"
+editable = true
+label = "Matrix Type"
+options = ["common-cathode", "common-anode", "addressable-hub75", "addressable-ws2812"]
+type = "enum"
+
+[params.package]
+default = "8x8"
+editable = true
+label = "Package"
+options = ["4x4", "5x7", "8x8", "16x16", "32x8", "64x32", "HUB75-panel"]
+type = "enum"
+
+[params.refresh_rate]
+default = 200
+editable = true
+label = "Refresh Rate"
+max = 10000
+min = 30
+type = "float"
+unit = "V"
+
+[params.rows]
+default = 8
+editable = true
+label = "Rows"
+options = [4, 5, 8, 10, 16, 32]
+type = "enum"
+
+[params.vf_segment]
+default = 2.0
+editable = false
+label = "Forward Voltage per LED"
+max = 4.5
+min = 1.5
+type = "float"
+unit = "V"
+
+[[ports]]
+current_max = "200mA"
+direction = "input"
+id = "ROWS"
+notes = "row drive bus"
+type = "digital"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "200mA"
+direction = "input"
+id = "COLS"
+notes = "column drive bus"
+type = "digital"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "2A"
+direction = "input"
+id = "VCC"
+notes = "supply for matrix logic and LEDs"
+type = "power"
+voltage_max = "5V"
+
+[[ports]]
+direction = "input"
+id = "GND"
+notes = "ground reference"
+type = "ground"
+
+[simulation]
+bidirectional = false
+dynamic = true
+equation = "pixels_on = rows_active * columns_active; brightness = f(if_rated, refresh_rate)"
+model = "basic-analog"
+noise_model = false
+states = ["off", "scanning", "active"]
+thermal_model = false
+
+[limits]
+max_current = "2A"
+max_temp = 85
+max_voltage = "5V"
+min_temp = -40
+warnings = ["Matrix displays require multiplex scanning; instantaneous current can be much higher than average current", "Use per-row/per-column current limiting or constant-current drivers to avoid LED overstress", "Avoid ghosting by ensuring proper blanking time between scan phases", "HUB75 and WS2812 matrices require protocol-specific driving and supply decoupling"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["signage", "display", "scroller", "scoreboard", "indicator-panel"]
+
+[canvas]
+animated = true
+height = 50
+label_position = "top"
+
+[canvas.port_COLS]
+x = 70
+y = 15
+
+[canvas.port_GND]
+x = 35
+y = 50
+
+[canvas.port_ROWS]
+x = 0
+y = 15
+
+[canvas.port_VCC]
+x = 35
+y = 0
+ports_layout = "custom"
+value_display = "{rows}x{columns} matrix / {matrix_type} / {color}"
+width = 70
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "led-matrix"
+palette_group = "Fundamental Electricals > Displays"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/led-matrix.svg"
+tags = ["led-matrix", "display", "led", "matrix", "passive", "indicator", "optical"]
+svg_status = "missing"

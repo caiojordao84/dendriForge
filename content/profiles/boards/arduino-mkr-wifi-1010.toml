@@ -1,0 +1,278 @@
+# board profile — arduino-mkr-wifi-1010 (migrated from legacy TOON)
+# Source: arduino-mkr-wifi-1010.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "arduino-mkr-wifi-1010-profile"
+
+[identification]
+category = "maker"
+id = "arduino-mkr-wifi-1010"
+image = "arduino-mkr-wifi-1010.svg"
+manufacturer = "Arduino"
+mcu = "ATSAMD21G18A"
+name = "Arduino MKR WiFi 1010"
+url = "https://docs.arduino.cc/hardware/mkr-wifi-1010"
+
+[specs]
+bluetooth = "v4.2 BLE"
+clock = 48000000
+eeprom = 0
+flash_available = 262144
+flash_total = 262144
+sram = 32768
+voltage = "3.3V"
+wifi = "802.11b/g/n"
+
+[dims]
+h = 61.5
+t = 1.6
+w = 25.0
+
+[[power_pins]]
+direction = "input"
+name = "VIN"
+voltage = "5V"
+
+[[power_pins]]
+direction = "output"
+name = "3V3"
+voltage = "3.3V"
+
+[[power_pins]]
+name = "GND"
+type = "ground"
+
+[[power_pins]]
+direction = "input"
+name = "RESET"
+
+[[power_pins]]
+direction = "input"
+name = "VBATT"
+
+[[power_pins]]
+direction = "output"
+name = "5V"
+voltage = "5V"
+
+[[gpio]]
+int = true
+label = "D0 / TX"
+pin = 0
+pwm = true
+roles = ["uart-tx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D1 / RX"
+pin = 1
+pwm = true
+roles = ["uart-rx"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D2"
+pin = 2
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D3"
+pin = 3
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D4"
+pin = 4
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D5"
+pin = 5
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D6 / LED"
+pin = 6
+pwm = true
+roles = ["status-led"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D7"
+pin = 7
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D8 / MOSI"
+pin = 8
+pwm = true
+roles = ["spi-mosi"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D9 / SCL"
+pin = 9
+pwm = false
+roles = ["i2c-scl"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D10 / MISO"
+pin = 10
+pwm = true
+roles = ["spi-miso"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D11 / SCK"
+pin = 11
+pwm = false
+roles = ["spi-sck"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D12"
+pin = 12
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D13 / SDA"
+pin = 13
+pwm = false
+roles = ["i2c-sda"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "A0 / DAC0"
+pin = 14
+pwm = false
+roles = ["adc:t", "dac"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "A1"
+pin = 15
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "A2"
+pin = 16
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A3"
+pin = 17
+pwm = true
+roles = ["adc:t", "pwm"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A4"
+pin = 18
+pwm = true
+roles = ["adc:t", "pwm"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A5"
+pin = 19
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A6"
+pin = 20
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[peripherals]]
+param = "uarts:1"
+peripheral = "serial"
+value = "pins:0,1"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "i2c"
+value = "sda:13;scl:9"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "spi"
+value = "miso:10;mosi:8;sck:11;ss:7"
+
+[[peripherals]]
+param = "channels:7"
+peripheral = "adc"
+value = "pins:14,15,16,17,18,19,20"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "dac"
+value = "dac0:14"
+
+[usb]
+chip = "SAMD21-native"
+pid = "0x8054"
+type = "USB-Micro-B"
+vid = "0x2341"
+
+[restrictions]
+max_io_current = "7mA"
+total_current_limit = "200mA"
+warnings = ["All I/O pins operate at 3.3V — NOT 5V tolerant", "Pins D0/D1 shared with UART Serial1 (TX/RX)", "Pin D6 is LED_BUILTIN — onboard LED interference", "WiFi/BLE module NINA-W102 uses internal SPI — do NOT conflict", "Li-Po single-cell battery connector supported; built-in charger"]
+
+[compatibility]
+arduino_core = "1.8.14"
+bootloader = "sam-ba"
+frameworks = "arduino"
+languages = "arduino-cpp"
+pio = "atmelsam"
+
+[dendri]
+board_family_skill_id = "samd21-family"
+board_profile_id = "arduino-mkr-wifi-1010"
+default_language_skills = ["arduino-cpp-samd"]
+svg_path = "content/assets/svg/boards/arduino-mkr-wifi-1010.svg"
+svg_status = "missing"

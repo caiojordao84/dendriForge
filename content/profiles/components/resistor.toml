@@ -1,0 +1,122 @@
+# component profile — resistor (migrated from legacy TOON)
+# Source: resistor.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "resistor-profile"
+
+[identification]
+category = "passive"
+family = "electricals"
+id = "resistor"
+image = "resistor.svg"
+name = "Resistor"
+standard = "IEC 60062"
+subfamily = "passives"
+symbol = "resistor-symbol.svg"
+symbol_standard = "IEC"
+
+[params.package]
+default = "THT"
+editable = true
+label = "Package"
+options = ["THT", "SMD-0402", "SMD-0603", "SMD-0805", "SMD-1206", "SMD-2512"]
+type = "enum"
+
+[params.power_rating]
+default = 0.25
+editable = true
+label = "Power Rating"
+options = [0.063, 0.125, 0.25, 0.5, 1, 2, 5, 10, 25, 50]
+type = "enum"
+unit = "W"
+
+[params.resistance]
+default = 1000
+editable = true
+label = "Resistance"
+max = 10000000
+min = 0.001
+type = "float"
+unit = "Ω"
+
+[params.temp_coefficient]
+default = 100
+editable = false
+label = "Temp. Coefficient"
+max = 500
+min = 10
+type = "float"
+unit = "%"
+
+[params.tolerance]
+default = 5
+editable = true
+label = "Tolerance"
+options = [0.1, 0.5, 1, 2, 5, 10, 20]
+type = "enum"
+unit = "%"
+
+[[ports]]
+direction = "passive"
+id = "A"
+notes = "terminal A"
+type = "analog"
+
+[[ports]]
+direction = "passive"
+id = "B"
+notes = "terminal B"
+type = "analog"
+
+[simulation]
+bidirectional = true
+dynamic = false
+equation = "V = I * resistance"
+model = "ohms-law"
+noise_model = false
+states = ["nominal"]
+thermal_model = false
+
+[limits]
+
+[limits.max_power]
+unit = "W"
+value = "{power_rating}"
+max_temp = 155
+min_temp = -55
+warnings = ["Do not exceed rated power dissipation", "Derate 50% above 70°C ambient temperature"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["current-limiting", "voltage-divider", "pull-up", "pull-down"]
+
+[canvas]
+animated = false
+height = 20
+label_position = "top"
+
+[canvas.port_A]
+x = 0
+y = 10
+
+[canvas.port_B]
+x = 60
+y = 10
+ports_layout = "horizontal"
+value_display = "{resistance}Ω / {power_rating}W"
+width = 60
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "resistor"
+palette_group = "Fundamental Electricals > Passives"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/resistor.svg"
+tags = ["resistor", "passive", "analog", "ohms-law", "passive-component"]
+svg_status = "missing"

@@ -1,0 +1,187 @@
+# component profile — act-servo-drive (migrated from legacy TOON)
+# Source: act-servo-drive.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "act-servo-drive-profile"
+
+[identification]
+category = "actuator"
+family = "actuators"
+id = "act-servo-drive"
+image = "act-servo-drive.svg"
+name = "Industrial Servo Drive"
+standard = "IEC 61800-2"
+subfamily = "motor-drives"
+symbol = "act-servo-drive-symbol.svg"
+symbol_standard = "IEC"
+
+[params.command_interface]
+default = "analog-10V"
+editable = true
+label = "Command Interface"
+options = ["analog-10V", "pulse-dir", "EtherCAT", "CANopen", "Profibus", "Modbus-RTU"]
+type = "enum"
+
+[params.control_mode]
+default = "position"
+editable = true
+label = "Control Mode"
+options = ["position", "velocity", "torque", "mixed"]
+type = "enum"
+
+[params.enable_logic]
+default = "active-high"
+editable = true
+label = "Enable Logic"
+options = ["active-high", "active-low"]
+type = "enum"
+
+[params.feedback_type]
+default = "incremental-encoder"
+editable = true
+label = "Feedback Device"
+options = ["incremental-encoder", "absolute-encoder", "resolver", "hall-effect"]
+type = "enum"
+
+[params.power_rating]
+default = 750
+editable = true
+label = "Rated Power"
+max = 22000
+min = 50
+type = "float"
+unit = "W"
+
+[params.supply_voltage]
+default = 400
+editable = true
+label = "Supply Voltage"
+options = [110, 230, 400, 480]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "50A"
+direction = "input"
+id = "L1"
+notes = "AC supply phase L1"
+type = "power"
+voltage_max = "480V"
+
+[[ports]]
+current_max = "50A"
+direction = "input"
+id = "L2"
+notes = "AC supply phase L2"
+type = "power"
+voltage_max = "480V"
+
+[[ports]]
+current_max = "50A"
+direction = "input"
+id = "L3"
+notes = "AC supply phase L3"
+type = "power"
+voltage_max = "480V"
+
+[[ports]]
+direction = "input"
+id = "PE"
+notes = "Protective earth"
+type = "ground"
+
+[[ports]]
+current_max = "50A"
+direction = "output"
+id = "U"
+notes = "Motor phase U output"
+type = "power"
+voltage_max = "480V"
+
+[[ports]]
+current_max = "50A"
+direction = "output"
+id = "V"
+notes = "Motor phase V output"
+type = "power"
+voltage_max = "480V"
+
+[[ports]]
+current_max = "50A"
+direction = "output"
+id = "W"
+notes = "Motor phase W output"
+type = "power"
+voltage_max = "480V"
+
+[simulation]
+bidirectional = true
+dynamic = true
+model = "basic-analog"
+motion = "rotary"
+noise_model = false
+states = ["off", "ready", "running", "fault"]
+thermal_model = true
+
+[limits]
+ip_rating = "IP54"
+max_current = "50A"
+max_temp = 55
+max_voltage = "480V"
+min_temp = -10
+warnings = ["Always connect protective earth before applying power", "Configure encoder parameters and motor nameplate data before enabling drive", "Allow minimum 5 minutes discharge time before opening drive cabinet after power off", "Use shielded cables for encoder and analog command signals"]
+
+[connections]
+allowed_with = ["act-servo", "ind-safety-relay-block", "plc-*", "ind-di-bank", "ind-do-bank"]
+forbidden_with = []
+requires = ["ac-source"]
+typical_context = ["cnc-axis", "robotics-joint", "high-precision-positioning"]
+
+[canvas]
+animated = true
+height = 90
+label_position = "bottom"
+
+[canvas.port_L1]
+x = 0
+y = 10
+
+[canvas.port_L2]
+x = 0
+y = 25
+
+[canvas.port_L3]
+x = 0
+y = 40
+
+[canvas.port_PE]
+x = 0
+y = 55
+
+[canvas.port_U]
+x = 70
+y = 25
+
+[canvas.port_V]
+x = 70
+y = 45
+
+[canvas.port_W]
+x = 70
+y = 65
+ports_layout = "custom"
+value_display = "{power_rating}W / {supply_voltage}V / {control_mode}"
+width = 70
+
+[dendri]
+component_family_skill_id = "actuators-family"
+component_profile_id = "act-servo-drive"
+palette_group = "Actuators > Motor Drives"
+simulation_engine = "digital-io"
+svg_path = "content/assets/svg/components/act-servo-drive.svg"
+tags = ["servo-drive", "actuator", "motor-drives", "industrial", "positioning", "closed-loop"]
+svg_status = "missing"

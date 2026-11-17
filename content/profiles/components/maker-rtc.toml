@@ -1,0 +1,134 @@
+# component profile — maker-rtc (migrated from legacy TOON)
+# Source: maker-rtc.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "maker-rtc-profile"
+
+[identification]
+category = "node"
+family = "communication"
+id = "maker-rtc"
+image = "maker-rtc.svg"
+name = "RTC Module (Módulo RTC Maker)"
+standard = "custom"
+subfamily = "serial-bus"
+symbol = "maker-rtc-symbol.svg"
+symbol_standard = "custom"
+
+[params.device_address]
+default = 104
+editable = true
+label = "I2C Address"
+max = 127
+min = 1
+type = "int"
+
+[params.protocol]
+default = "I2C"
+editable = false
+label = "Protocol"
+options = ["I2C", "SPI"]
+type = "enum"
+
+[params.supply_voltage]
+default = 5
+editable = true
+label = "Supply Voltage"
+options = [3.3, 5]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "50mA"
+direction = "input"
+id = "VCC"
+notes = "supply +"
+type = "power"
+voltage_max = "{supply_voltage}"
+
+[[ports]]
+direction = "input"
+id = "GND"
+notes = "supply -"
+type = "ground"
+
+[[ports]]
+current_max = "20mA"
+direction = "bidirectional"
+id = "SDA"
+notes = "I2C data line"
+type = "i2c"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "20mA"
+direction = "input"
+id = "SCL"
+notes = "I2C clock line"
+type = "i2c"
+voltage_max = "5V"
+
+[[protocol_ports]]
+direction = "bidirectional"
+id = "NET"
+notes = "I2C bus connection"
+protocol = "{protocol}"
+
+[simulation]
+bidirectional = true
+dynamic = true
+model = "digital-io"
+noise_model = false
+protocol_emulation = true
+states = ["idle", "communicating", "fault"]
+thermal_model = false
+
+[limits]
+max_current = "50mA"
+max_temp = 85
+max_voltage = "5.5V"
+min_temp = -40
+warnings = ["Requires a coin cell battery for timekeeping when VCC is disconnected", "I2C lines require external pull-up resistors if not provided on the module"]
+
+[connections]
+allowed_with = ["mcu-*", "plc-*"]
+forbidden_with = ["ac-source"]
+requires = ["dc-source"]
+typical_context = ["data-logging", "timekeeping", "scheduling"]
+
+[canvas]
+animated = true
+height = 50
+label_position = "top"
+
+[canvas.port_GND]
+x = 30
+y = 0
+
+[canvas.port_SCL]
+x = 30
+y = 50
+
+[canvas.port_SDA]
+x = 10
+y = 50
+
+[canvas.port_VCC]
+x = 10
+y = 0
+ports_layout = "custom"
+value_display = "{protocol} @ 0x68"
+width = 40
+
+[dendri]
+component_family_skill_id = "communication-family"
+component_profile_id = "maker-rtc"
+palette_group = "Communication > Serial Bus"
+simulation_engine = "protocol-stub-engine"
+svg_path = "content/assets/svg/components/maker-rtc.svg"
+tags = ["rtc", "i2c", "time", "clock", "maker"]
+svg_status = "missing"

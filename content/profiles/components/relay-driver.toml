@@ -1,0 +1,127 @@
+# component profile — relay-driver (migrated from legacy TOON)
+# Source: relay-driver.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "relay-driver-profile"
+
+[identification]
+category = "semiconductor"
+family = "electricals"
+id = "relay-driver"
+image = "relay-driver.svg"
+name = "Relay Driver (Darlington Pair/NPN)"
+standard = "Generic Driver"
+subfamily = "semiconductors"
+symbol = "relay-driver-symbol.svg"
+symbol_standard = "IEC"
+
+[params.gain_min]
+default = 1000
+editable = false
+label = "Minimum DC Current Gain"
+type = "int"
+
+[params.i_c_max]
+default = 500
+editable = true
+label = "Max Collector Current"
+type = "int"
+unit = "mA"
+
+[params.v_ce_sat]
+default = 1.1
+editable = false
+label = "Collector-Emitter Saturation Voltage"
+type = "float"
+unit = "V"
+
+[[ports]]
+current_max = "25mA"
+direction = "input"
+id = "IN"
+notes = "Base/Input control"
+type = "digital"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "500mA"
+direction = "output"
+id = "OUT"
+notes = "Collector/Load output"
+type = "power"
+voltage_max = "50V"
+
+[[ports]]
+direction = "input"
+id = "GND"
+notes = "Common emitter/ground"
+type = "ground"
+
+[[ports]]
+direction = "input"
+id = "COM"
+notes = "Flyback diode common"
+type = "ground"
+voltage_max = "50V"
+
+[simulation]
+bidirectional = false
+dynamic = false
+model = "ideal"
+noise_model = false
+states = ["off", "conducting"]
+thermal_model = false
+
+[limits]
+max_current = "500mA"
+
+[limits.max_power]
+unit = "W"
+value = 0.6
+max_temp = 150
+max_voltage = "50V"
+min_temp = -55
+warnings = ["Common (COM) pin must be connected to load VCC for inductive protection"]
+
+[connections]
+allowed_with = ["mcu-gpio", "ind-coil", "relay-coil"]
+forbidden_with = ["ac-source"]
+requires = ["dc-source"]
+typical_context = ["relay-interfacing", "solenoid-driver"]
+
+[canvas]
+animated = false
+height = 40
+label_position = "top"
+
+[canvas.port_COM]
+x = 40
+y = 30
+
+[canvas.port_GND]
+x = 20
+y = 40
+
+[canvas.port_IN]
+x = 0
+y = 20
+
+[canvas.port_OUT]
+x = 40
+y = 10
+ports_layout = "custom"
+value_display = "{name}"
+width = 40
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "relay-driver"
+palette_group = "Fundamental Electricals > Semiconductors"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/relay-driver.svg"
+tags = ["driver", "npn", "darlington"]
+svg_status = "missing"

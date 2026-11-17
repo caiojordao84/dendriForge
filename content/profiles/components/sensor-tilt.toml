@@ -1,0 +1,130 @@
+# component profile — sensor-tilt (migrated from legacy TOON)
+# Source: sensor-tilt.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "sensor-tilt-profile"
+
+[identification]
+category = "sensor"
+family = "sensors"
+id = "sensor-tilt"
+image = "sensor-tilt.svg"
+name = "Tilt Sensor"
+standard = "IEC 60529"
+subfamily = "motion-position"
+symbol = "sensor-tilt-symbol.svg"
+symbol_standard = "IEC"
+
+[params.contact_type]
+default = "ball"
+editable = false
+label = "Contact Type"
+options = ["ball", "mercury", "pendulum"]
+type = "enum"
+
+[params.is_maintained]
+default = true
+editable = false
+label = "Maintained Output"
+type = "bool"
+
+[params.output_type]
+default = "DO"
+editable = true
+label = "Output Type"
+options = ["DO", "AO"]
+type = "enum"
+
+[params.supply_voltage]
+default = 5
+editable = true
+label = "Supply Voltage"
+options = [3, 5]
+type = "enum"
+unit = "V"
+
+[params.tilt_threshold]
+default = 45
+editable = true
+label = "Tilt Threshold Angle"
+max = 80
+min = 5
+type = "float"
+unit = "%"
+
+[[ports]]
+current_max = "20mA"
+direction = "input"
+id = "VCC"
+notes = "DC supply positive"
+type = "power"
+voltage_max = "5V"
+
+[[ports]]
+direction = "input"
+id = "GND"
+notes = "DC supply negative"
+type = "ground"
+
+[[ports]]
+current_max = "20mA"
+direction = "output"
+id = "DO"
+notes = "Digital output — HIGH when tilt exceeds threshold"
+type = "digital"
+voltage_max = "5V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "threshold"
+noise_model = false
+states = ["upright", "tilted", "fault"]
+thermal_model = false
+trigger = "proximity"
+
+[limits]
+max_current = "20mA"
+max_temp = 85
+max_voltage = "5V"
+min_temp = -40
+warnings = ["Mercury tilt sensors contain hazardous material — use ball-type for new designs", "Avoid vibration environments — may cause false triggers", "Threshold angle tolerance is typically +/-10 degrees"]
+
+[connections]
+allowed_with = ["mcu-*", "ind-di-bank", "plc-*"]
+forbidden_with = ["ac-source"]
+requires = ["dc-source"]
+typical_context = ["tilt-detection", "orientation-alarm", "anti-tamper"]
+
+[canvas]
+animated = true
+height = 50
+label_position = "right"
+
+[canvas.port_DO]
+x = 40
+y = 25
+
+[canvas.port_GND]
+x = 20
+y = 50
+
+[canvas.port_VCC]
+x = 20
+y = 0
+ports_layout = "custom"
+value_display = "{tilt_threshold}deg / {contact_type} / {output_type}"
+width = 40
+
+[dendri]
+component_family_skill_id = "sensors-family"
+component_profile_id = "sensor-tilt"
+palette_group = "Sensors > Motion & Position"
+simulation_engine = "digital-io"
+svg_path = "content/assets/svg/components/sensor-tilt.svg"
+tags = ["tilt-sensor", "sensor", "motion-position", "orientation", "digital"]
+svg_status = "missing"

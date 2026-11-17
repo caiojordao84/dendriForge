@@ -1,0 +1,190 @@
+# component profile — led-rgb (migrated from legacy TOON)
+# Source: led-rgb.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "led-rgb-profile"
+
+[identification]
+category = "passive"
+family = "electricals"
+id = "led-rgb"
+image = "led-rgb.svg"
+name = "RGB LED"
+standard = "IEC 60810"
+subfamily = "passives"
+symbol = "led-rgb-symbol.svg"
+symbol_standard = "IEC"
+
+[params.brightness]
+default = 50
+editable = true
+label = "Brightness"
+max = 100
+min = 0
+type = "float"
+unit = "%"
+
+[params.common_pin_current]
+default = 0.06
+editable = false
+label = "Common Pin Current"
+max = 2
+min = 0.001
+type = "float"
+unit = "A"
+
+[params.if_max]
+default = 0.03
+editable = false
+label = "Absolute Max Forward Current per Channel"
+max = 0.5
+min = 0.003
+type = "float"
+unit = "A"
+
+[params.if_rated]
+default = 0.02
+editable = true
+label = "Rated Forward Current per Channel"
+options = [0.002, 0.005, 0.01, 0.02, 0.03, 0.05, 0.1]
+type = "enum"
+unit = "A"
+
+[params.interface]
+default = "analog-rgb"
+editable = true
+label = "Control Interface"
+options = ["analog-rgb", "pwm-rgb", "addressable-digital"]
+type = "enum"
+
+[params.led_type]
+default = "common-cathode"
+editable = true
+label = "RGB LED Type"
+options = ["common-cathode", "common-anode", "addressable-ws2812", "addressable-sk6812"]
+type = "enum"
+
+[params.package]
+default = "5050"
+editable = true
+label = "Package"
+options = ["0402", "0603", "0805", "1206", "3535", "5050", "5630", "ws2812-5050", "sk6812-mini-e", "rgb-bar"]
+type = "enum"
+
+[params.vf_blue]
+default = 3.2
+editable = false
+label = "Blue Forward Voltage"
+max = 3.8
+min = 1.8
+type = "float"
+unit = "V"
+
+[params.vf_green]
+default = 3.2
+editable = false
+label = "Green Forward Voltage"
+max = 3.8
+min = 1.8
+type = "float"
+unit = "V"
+
+[params.vf_red]
+default = 2.0
+editable = false
+label = "Red Forward Voltage"
+max = 3.4
+min = 1.6
+type = "float"
+unit = "V"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "R"
+notes = "red channel anode/cathode"
+type = "power"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "G"
+notes = "green channel anode/cathode"
+type = "power"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "B"
+notes = "blue channel anode/cathode"
+type = "power"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "300mA"
+direction = "input"
+id = "COM"
+notes = "common pin (anode or cathode depending on type)"
+type = "power"
+voltage_max = "5V"
+
+[simulation]
+bidirectional = false
+dynamic = false
+equation = "I_R = (V_R - vf_red)/R_R; I_G = (V_G - vf_green)/R_G; I_B = (V_B - vf_blue)/R_B; brightness = f(I_R,I_G,I_B)"
+model = "basic-analog"
+noise_model = false
+states = ["off", "red", "green", "blue"]
+thermal_model = false
+
+[limits]
+max_current = "300mA"
+max_temp = 85
+max_voltage = "5V"
+min_temp = -40
+warnings = ["Each color channel requires its own current-limiting resistor or constant-current driver", "Common-anode and common-cathode variants are not interchangeable without rewiring", "Addressable RGB LEDs require strict data timing and supply decoupling near the package", "Do not exceed per-channel current limits — color shift and thermal damage may occur"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["status-indicator", "lighting", "display", "ambient-lighting", "visual-feedback"]
+
+[canvas]
+animated = true
+height = 50
+label_position = "top"
+
+[canvas.port_B]
+x = 0
+y = 40
+
+[canvas.port_COM]
+x = 60
+y = 25
+
+[canvas.port_G]
+x = 0
+y = 25
+
+[canvas.port_R]
+x = 0
+y = 10
+ports_layout = "custom"
+value_display = "RGB {led_type} / {package} / {brightness}%"
+width = 60
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "led-rgb"
+palette_group = "Fundamental Electricals > Passives"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/led-rgb.svg"
+tags = ["led", "rgb", "diode", "light", "indicator", "passive", "optical"]
+svg_status = "missing"

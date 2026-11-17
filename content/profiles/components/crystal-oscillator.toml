@@ -1,0 +1,187 @@
+# component profile — crystal-oscillator (migrated from legacy TOON)
+# Source: crystal-oscillator.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "crystal-oscillator-profile"
+
+[identification]
+category = "passive"
+family = "electricals"
+id = "crystal-oscillator"
+image = "crystal-oscillator.svg"
+name = "Crystal Oscillator (XTAL)"
+standard = "IEC 60444-1"
+subfamily = "passives"
+symbol = "crystal-oscillator-symbol.svg"
+symbol_standard = "IEC"
+
+[params.aging]
+default = 3
+editable = false
+label = "Aging (ppm/year)"
+max = 10
+min = 0.5
+type = "float"
+unit = "V"
+
+[params.cut]
+default = "AT"
+editable = true
+label = "Crystal Cut"
+options = ["AT", "BT", "SC", "TF", "32kHz-tuning-fork"]
+type = "enum"
+
+[params.drive_level]
+default = 0.0001
+editable = false
+label = "Max Drive Level"
+max = 0.001
+min = 0.000001
+type = "float"
+unit = "V"
+
+[params.esr]
+default = 50
+editable = false
+label = "Equivalent Series Resistance (ESR)"
+max = 300
+min = 5
+type = "float"
+unit = "Ω"
+
+[params.frequency]
+default = 16000000
+editable = true
+label = "Nominal Frequency"
+max = 200000000
+min = 32768
+type = "float"
+unit = "V"
+
+[params.frequency_stability]
+default = 50
+editable = true
+label = "Temperature Stability (ppm)"
+options = [10, 20, 30, 50, 100]
+type = "enum"
+unit = "V"
+
+[params.frequency_tolerance]
+default = 30
+editable = true
+label = "Frequency Tolerance"
+options = [10, 20, 30, 50, 100]
+type = "enum"
+unit = "V"
+
+[params.load_capacitance]
+default = 18
+editable = true
+label = "Load Capacitance (CL)"
+options = [6, 8, 10, 12, 18, 20, 32]
+type = "enum"
+unit = "V"
+
+[params.oscillator_type]
+default = "crystal-passive"
+editable = true
+label = "Oscillator Type"
+options = ["crystal-passive", "TCXO", "VCXO", "OCXO", "MEMS"]
+type = "enum"
+
+[params.package]
+default = "HC-49S"
+editable = true
+label = "Package"
+options = ["HC-49S", "HC-49U", "HC-49SMD", "SMD-3225", "SMD-2520", "SMD-2016", "SMD-1612", "TCXO-module", "OCXO-module"]
+type = "enum"
+
+[[ports]]
+current_max = "10mA"
+direction = "passive"
+id = "PIN1"
+notes = "crystal terminal 1 (connect to MCU OSC_IN / inverter input)"
+type = "analog"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "10mA"
+direction = "passive"
+id = "PIN2"
+notes = "crystal terminal 2 (connect to MCU OSC_OUT / inverter output)"
+type = "analog"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "50mA"
+direction = "input"
+id = "VCC"
+notes = "supply (active oscillator modules only — N/C for passive crystal)"
+type = "power"
+voltage_max = "5V"
+
+[[ports]]
+direction = "input"
+id = "GND"
+notes = "ground (active oscillator modules only — N/C for passive crystal)"
+type = "ground"
+
+[simulation]
+bidirectional = false
+dynamic = true
+equation = "f_out = frequency * (1 + delta_ppm / 1e6); delta_ppm in range ±frequency_tolerance"
+model = "ideal"
+noise_model = false
+states = ["off", "starting", "locked"]
+thermal_model = false
+waveform = "sine"
+
+[limits]
+max_current = "50mA"
+max_temp = 85
+max_voltage = "5V"
+min_temp = -40
+warnings = ["Load capacitors (CL) on PIN1 and PIN2 must match the crystal spec — incorrect CL shifts frequency", "Never exceed the rated drive level — crystal overdrive causes frequency shift and permanent damage", "Keep crystal traces short and away from switching signals to avoid parasitic oscillation", "TCXO/OCXO modules require VCC and GND — passive crystals do not use VCC/GND ports"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["mcu-clock", "rtc-32khz", "usb-clock", "ethernet-clock", "rf-reference"]
+
+[canvas]
+animated = false
+height = 50
+label_position = "top"
+
+[canvas.port_GND]
+x = 30
+y = 50
+
+[canvas.port_PIN1]
+x = 0
+y = 20
+
+[canvas.port_PIN2]
+x = 60
+y = 20
+
+[canvas.port_VCC]
+x = 30
+y = 0
+ports_layout = "custom"
+value_display = "{frequency}Hz ({cut} / {package})"
+width = 60
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "crystal-oscillator"
+palette_group = "Fundamental Electricals > Passives"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/crystal-oscillator.svg"
+tags = ["crystal", "oscillator", "xtal", "clock", "passive", "frequency-reference", "iec-60444"]
+svg_status = "missing"

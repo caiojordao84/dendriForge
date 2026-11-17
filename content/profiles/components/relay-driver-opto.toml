@@ -1,0 +1,192 @@
+# component profile — relay-driver-opto (migrated from legacy TOON)
+# Source: relay-driver-opto.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "relay-driver-opto-profile"
+
+[identification]
+category = "semiconductor"
+family = "electricals"
+id = "relay-driver-opto"
+image = "relay-driver-opto.svg"
+name = "Relay Driver with Optocoupler"
+standard = "Generic Driver"
+subfamily = "semiconductors"
+symbol = "relay-driver-opto-symbol.svg"
+symbol_standard = "IEC"
+
+[params.coil_current_max]
+default = 500
+editable = true
+label = "Max Coil Current"
+options = [50, 100, 200, 300, 500, 700, 1000]
+type = "enum"
+unit = "mA"
+
+[params.coil_voltage]
+default = 12
+editable = true
+label = "Relay Coil Voltage"
+options = [5, 6, 9, 12, 24, 48]
+type = "enum"
+unit = "V"
+
+[params.ctr_min]
+default = 50
+editable = true
+label = "Minimum CTR"
+options = [20, 50, 80, 100]
+type = "enum"
+unit = "%"
+
+[params.flyback]
+default = true
+editable = true
+label = "Flyback Protection"
+type = "bool"
+
+[params.input_voltage]
+default = 5
+editable = true
+label = "Input Control Voltage"
+options = [3.3, 5, 12, 24]
+type = "enum"
+unit = "V"
+
+[params.isolation_voltage]
+default = 2500
+editable = true
+label = "Isolation Voltage"
+options = [1000, 1500, 2500, 3750, 5000]
+type = "enum"
+unit = "V"
+
+[params.led_current]
+default = 10
+editable = true
+label = "Optocoupler LED Current"
+options = [5, 10, 15, 20]
+type = "enum"
+unit = "mA"
+
+[params.vce_sat]
+default = 0.2
+editable = false
+label = "Driver Saturation Voltage"
+max = 1.0
+min = 0.05
+type = "float"
+unit = "V"
+
+[[ports]]
+current_max = "20mA"
+direction = "input"
+id = "INP"
+notes = "control input positive"
+type = "digital"
+voltage_max = "24V"
+
+[[ports]]
+direction = "input"
+id = "ING"
+notes = "control input negative / ground"
+type = "ground"
+
+[[ports]]
+current_max = "1000mA"
+direction = "output"
+id = "OUT"
+notes = "relay coil output"
+type = "power"
+voltage_max = "50V"
+
+[[ports]]
+direction = "input"
+id = "GND"
+notes = "driver ground"
+type = "ground"
+
+[[ports]]
+direction = "input"
+id = "COM"
+notes = "flyback diode common"
+type = "ground"
+voltage_max = "50V"
+
+[[ports]]
+current_max = "5mA"
+direction = "input"
+id = "ISO"
+notes = "isolated input side reference"
+type = "power"
+voltage_max = "5000V"
+
+[simulation]
+bidirectional = false
+dynamic = false
+model = "ideal"
+noise_model = false
+states = ["off", "conducting"]
+thermal_model = false
+
+[limits]
+max_current = "1000mA"
+
+[limits.max_power]
+unit = "W"
+value = 0.8
+max_temp = 150
+max_voltage = "50V"
+min_temp = -55
+warnings = ["Connect COM to the coil supply rail for inductive flyback protection", "Optocoupler LED must be current-limited according to the input voltage", "Verify isolation voltage meets the safety requirements of the application"]
+
+[connections]
+allowed_with = ["mcu-gpio", "relay-coil", "ind-coil", "dc-source"]
+forbidden_with = ["ac-source"]
+requires = ["dc-source"]
+typical_context = ["relay-interfacing", "industrial-io", "solenoid-driver", "isolated-control"]
+
+[canvas]
+
+[canvas."port_IN+"]
+x = 0
+y = 10
+
+[canvas."port_IN-"]
+x = 0
+y = 25
+animated = false
+height = 50
+label_position = "top"
+
+[canvas.port_COM]
+x = 60
+y = 35
+
+[canvas.port_GND]
+x = 20
+y = 50
+
+[canvas.port_ISO]
+x = 30
+y = 0
+
+[canvas.port_OUT]
+x = 60
+y = 15
+ports_layout = "custom"
+value_display = "Relay driver opto / {input_voltage}V / {coil_voltage}V"
+width = 60
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "relay-driver-opto"
+palette_group = "Fundamental Electricals > Semiconductors"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/relay-driver-opto.svg"
+tags = ["driver", "optocoupler", "relay", "isolated"]
+svg_status = "missing"

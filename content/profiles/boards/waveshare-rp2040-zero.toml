@@ -1,0 +1,306 @@
+# board profile — waveshare-rp2040-zero (migrated from legacy TOON)
+# Source: waveshare-rp2040-zero.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "waveshare-rp2040-zero-profile"
+
+[identification]
+category = "maker"
+id = "waveshare-rp2040-zero"
+image = "waveshare-rp2040-zero.svg"
+manufacturer = "Waveshare"
+mcu = "RP2040"
+name = "Waveshare RP2040-Zero"
+url = "https://www.waveshare.com/rp2040-zero.htm"
+
+[specs]
+clock = 125000000
+cores = 2
+eeprom = 0
+flash_available = 1048576
+flash_total = 2097152
+sram = 264000
+voltage = "3.3V"
+
+[dims]
+h = 18.0
+t = 3.2
+w = 25.0
+
+[[power_pins]]
+direction = "input"
+name = "VBUS"
+voltage = "5V"
+
+[[power_pins]]
+direction = "output"
+name = "3V3"
+voltage = "3.3V"
+
+[[power_pins]]
+name = "GND"
+type = "ground"
+
+[[power_pins]]
+direction = "input"
+name = "VSYS"
+
+[[gpio]]
+int = true
+label = "GP0 / BOOT"
+pin = 0
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "GP1 / TX"
+pin = 1
+pwm = true
+roles = ["uart-tx"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "GP2 / RX"
+pin = 2
+pwm = true
+roles = ["uart-rx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP3"
+pin = 3
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP4 / SDA"
+pin = 4
+pwm = true
+roles = ["i2c-sda"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP5 / SCL"
+pin = 5
+pwm = true
+roles = ["i2c-scl"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "GP6 / SCK"
+pin = 6
+pwm = true
+roles = ["spi-sck"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "GP7 / CS"
+pin = 7
+pwm = true
+roles = ["spi-ss"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "GP8 / MISO"
+pin = 8
+pwm = true
+roles = ["spi-miso"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "GP9 / MOSI"
+pin = 9
+pwm = true
+roles = ["spi-mosi"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP10"
+pin = 10
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP11"
+pin = 11
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP12"
+pin = 12
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP13"
+pin = 13
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP14"
+pin = 14
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP15"
+pin = 15
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "GP16 / LED"
+pin = 16
+pwm = true
+roles = ["status-led", "ws2812"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP17"
+pin = 17
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP18 / SDA1"
+pin = 18
+pwm = true
+roles = ["i2c-sda"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP19 / SCL1"
+pin = 19
+pwm = true
+roles = ["i2c-scl"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP20"
+pin = 20
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP21"
+pin = 21
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP22"
+pin = 22
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP23"
+pin = 23
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "GP26"
+pin = 26
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "GP27"
+pin = 27
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "GP28"
+pin = 28
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[peripherals]]
+param = "uart0:1"
+peripheral = "serial"
+value = "pins:1,2"
+
+[[peripherals]]
+param = "i2c0:1"
+peripheral = "i2c"
+value = "sda:4;scl:5"
+
+[[peripherals]]
+param = "spi0:1"
+peripheral = "spi"
+value = "miso:8;mosi:9;sck:6;ss:7"
+
+[usb]
+chip = "RP2040 native"
+pid = "0x000A"
+type = "USB-C"
+vid = "0x2E8A"
+
+[restrictions]
+max_io_current = "16mA"
+total_current_limit = "300mA"
+warnings = ["GP24 and GP25 are used internally by QSPI flash — not accessible", "GP16 drives onboard WS2812 RGB LED; Neopixel library required", "GP0 is the BOOTSEL button; must be held LOW at power-on to enter UF2 mode", "ADC resolution is 12-bit with 3.3V reference; do not exceed 3.3V on analog pins"]
+
+[compatibility]
+arduino_core = "3.9.0"
+bootloader = "uf2"
+frameworks = "arduino;mbit;pico-sdk"
+languages = "arduino-cpp"
+pio = "raspberrypi"
+
+[dendri]
+board_family_skill_id = "rp2040-family"
+board_profile_id = "waveshare-rp2040-zero"
+default_language_skills = ["arduino-cpp-rp2040", "rust-embassy-rp2040"]
+svg_path = "content/assets/svg/boards/waveshare-rp2040-zero.svg"
+svg_status = "missing"

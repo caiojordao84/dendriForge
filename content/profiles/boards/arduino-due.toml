@@ -1,0 +1,650 @@
+# board profile — arduino-due (migrated from legacy TOON)
+# Source: arduino-due.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "arduino-due-profile"
+
+[identification]
+category = "maker"
+id = "arduino-due"
+image = "arduino-due.svg"
+manufacturer = "Arduino"
+mcu = "AT91SAM3X8E"
+name = "Arduino Due"
+url = "https://store.arduino.cc/products/arduino-due"
+
+[specs]
+clock = 84000000
+eeprom = 0
+flash_available = 524288
+flash_total = 524288
+sram = 98304
+voltage = "3.3V"
+
+[dims]
+h = 53.3
+t = 1.6
+w = 101.6
+
+[[power_pins]]
+direction = "input"
+name = "VIN"
+
+[[power_pins]]
+direction = "output"
+name = "5V"
+voltage = "5V"
+
+[[power_pins]]
+direction = "output"
+name = "3V3"
+voltage = "3.3V"
+
+[[power_pins]]
+name = "GND"
+type = "ground"
+
+[[power_pins]]
+direction = "input"
+name = "RESET"
+
+[[power_pins]]
+direction = "output"
+name = "IOREF"
+voltage = "3.3V"
+
+[[power_pins]]
+direction = "input"
+name = "AREF"
+
+[[power_pins]]
+direction = "output"
+name = "3V3 800mA"
+voltage = "3.3V"
+
+[[gpio]]
+int = false
+label = "D0 / RX0"
+pin = 0
+pwm = false
+roles = ["uart-rx"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D1 / TX0"
+pin = 1
+pwm = false
+roles = ["uart-tx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D2 PWM"
+pin = 2
+pwm = true
+roles = ["int0"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D3 PWM"
+pin = 3
+pwm = true
+roles = ["int1"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D4 PWM"
+pin = 4
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D5 PWM"
+pin = 5
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D6 PWM"
+pin = 6
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D7 PWM"
+pin = 7
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D8 PWM"
+pin = 8
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D9 PWM"
+pin = 9
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D10 PWM / SS0"
+pin = 10
+pwm = true
+roles = ["spi-ss"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D11 PWM / MOSI"
+pin = 11
+pwm = true
+roles = ["spi-mosi"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D12 PWM / MISO"
+pin = 12
+pwm = true
+roles = ["spi-miso"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D13 / LED / SCK"
+pin = 13
+pwm = true
+roles = ["spi-sck", "status-led"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D14 / TX3"
+pin = 14
+pwm = false
+roles = ["uart-tx"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D15 / RX3"
+pin = 15
+pwm = false
+roles = ["uart-rx"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D16 / TX2"
+pin = 16
+pwm = false
+roles = ["uart-tx"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D17 / RX2"
+pin = 17
+pwm = false
+roles = ["uart-rx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D18 / TX1"
+pin = 18
+pwm = false
+roles = ["uart-tx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D19 / RX1"
+pin = 19
+pwm = false
+roles = ["uart-rx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D20 / SDA"
+pin = 20
+pwm = false
+roles = ["i2c-sda"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D21 / SCL"
+pin = 21
+pwm = false
+roles = ["i2c-scl"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D22"
+pin = 22
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D23"
+pin = 23
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D24"
+pin = 24
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D25"
+pin = 25
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D26"
+pin = 26
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D27"
+pin = 27
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D28"
+pin = 28
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D29"
+pin = 29
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D30"
+pin = 30
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D31"
+pin = 31
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D32"
+pin = 32
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D33"
+pin = 33
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D34"
+pin = 34
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D35"
+pin = 35
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D36"
+pin = 36
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D37"
+pin = 37
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D38"
+pin = 38
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D39"
+pin = 39
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D40"
+pin = 40
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D41"
+pin = 41
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D42"
+pin = 42
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D43"
+pin = 43
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D44"
+pin = 44
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D45"
+pin = 45
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D46"
+pin = 46
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D47"
+pin = 47
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D48"
+pin = 48
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D49"
+pin = 49
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D50 / MISO"
+pin = 50
+pwm = false
+roles = ["spi-miso"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D51 / MOSI"
+pin = 51
+pwm = false
+roles = ["spi-mosi"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D52 / SCK"
+pin = 52
+pwm = false
+roles = ["spi-sck"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D53 / SS"
+pin = 53
+pwm = false
+roles = ["spi-ss"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "A0"
+pin = 54
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A1"
+pin = 55
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A2"
+pin = 56
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A3"
+pin = 57
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A4"
+pin = 58
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A5"
+pin = 59
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A6"
+pin = 60
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A7"
+pin = 61
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A8"
+pin = 62
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A9"
+pin = 63
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A10"
+pin = 64
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A11"
+pin = 65
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[peripherals]]
+param = "uarts:4"
+peripheral = "serial"
+value = "pins:0,1"
+
+[[peripherals]]
+param = "channels:2"
+peripheral = "i2c"
+value = "sda:20;scl:21"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "spi"
+value = "miso:50;mosi:51;sck:52;ss:53"
+
+[[peripherals]]
+param = "channels:12"
+peripheral = "pwm"
+value = "pins:2;3;4;5;6;7;8;9;10;11;12;13"
+
+[[peripherals]]
+param = "channels:12"
+peripheral = "adc"
+value = "resolution:12"
+
+[[peripherals]]
+param = "channels:2"
+peripheral = "dac"
+value = "pins:54;55"
+
+[usb]
+chip = "ATmega16U2"
+pid = "0x003e"
+type = "Micro-USB"
+vid = "0x2341"
+
+[restrictions]
+max_io_current = "130mA"
+total_current_limit = "800mA"
+warnings = ["All I/O pins operate at 3.3V — NOT 5V tolerant", "Pins 0/1 shared with Programming USB Serial", "Pin 13 has onboard LED interference", "EEPROM not available on SAM3X8E — use Flash emulation"]
+
+[compatibility]
+arduino_core = "1.6.12"
+bootloader = "sam-ba"
+frameworks = "arduino"
+languages = "arduino-cpp"
+pio = "atmelsam"
+
+[dendri]
+board_family_skill_id = "sam3x-family"
+board_profile_id = "arduino-due"
+default_language_skills = ["arduino-cpp-sam", "rust-embassy-sam3x"]
+svg_path = "content/assets/svg/boards/arduino-due.svg"
+svg_status = "missing"

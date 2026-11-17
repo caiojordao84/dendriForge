@@ -1,0 +1,142 @@
+# component profile — cmd-mushroom-head (migrated from legacy TOON)
+# Source: cmd-mushroom-head.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "cmd-mushroom-head-profile"
+
+[identification]
+category = "passive"
+family = "electricals"
+id = "cmd-mushroom-head"
+image = "cmd-mushroom-head.svg"
+name = "Mushroom Head Pushbutton"
+standard = "IEC 60947-5-1"
+subfamily = "passives"
+symbol = "cmd-mushroom-head-symbol.svg"
+symbol_standard = "IEC"
+
+[params.actuation_force]
+default = 4.0
+editable = true
+label = "Actuation Force"
+options = [2.5, 4, 6, 8]
+type = "enum"
+unit = "N"
+
+[params.contact_type]
+default = "normally-open"
+editable = true
+label = "Contact Type"
+options = ["normally-open", "normally-closed", "changeover"]
+type = "enum"
+
+[params.electrical_life]
+default = 200000
+editable = false
+label = "Electrical Life"
+max = 1000000
+min = 10000
+type = "float"
+unit = "cycles"
+
+[params.head_diameter]
+default = 40
+editable = true
+label = "Head Diameter"
+options = [30, 40, 60]
+type = "enum"
+unit = "mm"
+
+[params.ip_rating]
+default = "IP65"
+editable = true
+label = "Ingress Protection"
+options = ["IP54", "IP65", "IP67"]
+type = "enum"
+
+[params.mechanical_life]
+default = 1000000
+editable = false
+label = "Mechanical Life"
+max = 10000000
+min = 100000
+type = "float"
+unit = "cycles"
+
+[params.package]
+default = "22mm panel"
+editable = true
+label = "Package"
+options = ["22mm panel", "30mm panel", "40mm mushroom", "enclosed"]
+type = "enum"
+
+[params.reset_type]
+default = "manual"
+editable = true
+label = "Reset Type"
+options = ["manual", "spring-return"]
+type = "enum"
+
+[[ports]]
+direction = "input"
+id = "COM"
+notes = "common terminal"
+type = "ground"
+
+[[ports]]
+current_max = "10A"
+direction = "output"
+id = "NO"
+notes = "normally-open contact"
+type = "digital"
+voltage_max = "250V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "ideal"
+noise_model = false
+states = ["open", "closed"]
+thermal_model = false
+
+[limits]
+max_current = "10A"
+max_temp = 70
+max_voltage = "250V"
+min_temp = -25
+warnings = ["This is a standard control pushbutton, not a safety-rated emergency stop", "Respect AC/DC contact ratings separately; DC switching is more demanding", "Use an arc suppression network for inductive loads"]
+
+[connections]
+allowed_with = ["mcu-gpio", "relay-coil", "ind-load", "dc-source"]
+forbidden_with = ["ac-source"]
+requires = []
+typical_context = ["operator-panel", "manual-control", "start-stop", "machine-control"]
+
+[canvas]
+animated = false
+height = 40
+label_position = "top"
+
+[canvas.port_COM]
+x = 0
+y = 20
+
+[canvas.port_NO]
+x = 60
+y = 20
+ports_layout = "horizontal"
+value_display = "Mushroom / {contact_type} / {head_diameter}mm"
+width = 60
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "cmd-mushroom-head"
+palette_group = "Fundamental Electricals > Switches"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/cmd-mushroom-head.svg"
+tags = ["pushbutton", "mushroom", "switch", "operator", "control", "manual", "iec-60947-5-1"]
+svg_status = "missing"

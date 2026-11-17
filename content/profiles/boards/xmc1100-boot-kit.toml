@@ -1,0 +1,242 @@
+# board profile — xmc1100-boot-kit (migrated from legacy TOON)
+# Source: xmc1100-boot-kit.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "xmc1100-boot-kit-profile"
+
+[identification]
+category = "embedded"
+id = "xmc1100-boot-kit"
+image = "xmc1100-boot-kit.svg"
+manufacturer = "Infineon"
+mcu = "XMC1100-T038X0200"
+name = "Infineon XMC1100 Boot Kit"
+url = "https://www.infineon.com/cms/en/product/evaluation-boards/kit_xmc1100_boot_001/"
+
+[specs]
+clock = 32000000
+eeprom = 0
+flash_available = 65536
+flash_total = 65536
+sram = 16384
+voltage = "3.3V"
+
+[dims]
+h = 24.0
+t = 12.0
+w = 63.0
+
+[[power_pins]]
+direction = "input"
+name = "5V"
+voltage = "5V"
+
+[[power_pins]]
+direction = "output"
+name = "3V3"
+voltage = "3.3V"
+
+[[power_pins]]
+name = "GND"
+type = "ground"
+
+[[power_pins]]
+direction = "input"
+name = "RESET"
+
+[[gpio]]
+int = false
+label = "P0.0"
+pin = 0
+pwm = false
+roles = ["uart-tx"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "P0.1"
+pin = 1
+pwm = false
+roles = ["uart-rx"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "P0.2"
+pin = 2
+pwm = false
+roles = ["spi-mosi"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "P0.3"
+pin = 3
+pwm = false
+roles = ["spi-miso"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "P0.4"
+pin = 4
+pwm = false
+roles = ["spi-sck"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "P0.5"
+pin = 5
+pwm = false
+roles = ["spi-ss"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "P0.6"
+pin = 6
+pwm = false
+roles = ["i2c-sda"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "P0.7"
+pin = 7
+pwm = false
+roles = ["i2c-scl"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.8"
+pin = 8
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "P1.0"
+pin = 9
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "P1.1"
+pin = 10
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "P1.2"
+pin = 11
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "P1.3"
+pin = 12
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "P1.4"
+pin = 13
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "P1.5"
+pin = 14
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "P2.0"
+pin = 15
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "P2.1"
+pin = 16
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "P2.8"
+pin = 17
+pwm = false
+roles = ["status-led"]
+type = "digital"
+
+[[peripherals]]
+param = "uarts:1"
+peripheral = "serial"
+value = "pins:0,1"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "i2c"
+value = "sda:6;scl:7"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "spi"
+value = "miso:3;mosi:2;sck:4;ss:5"
+
+[[peripherals]]
+param = "channels:8"
+peripheral = "adc"
+value = "pins:9,10,11,12,13,14,15,16"
+
+[[peripherals]]
+param = "channels:4"
+peripheral = "pwm"
+
+[usb]
+chip = "XMC-Link"
+pid = "0x0105"
+type = "Micro-USB"
+vid = "0x1366"
+
+[restrictions]
+max_io_current = "8mA"
+total_current_limit = "150mA"
+warnings = ["All GPIO operate at 3.3V logic level — not 5V tolerant", "P1.0-P1.5 and P2.0-P2.1 share function with ADC inputs", "P2.8 is connected to the onboard LED — avoid high-current drive", "Flash memory is limited to 64KB — consider using XMC4 for larger projects", "On-board XMC-Link debugger shares USB connection with application"]
+
+[compatibility]
+arduino_core = "2.1.0"
+bootloader = "xmc-link"
+frameworks = "arduino"
+languages = "arduino-cpp"
+pio = "infineonxmc"
+
+[dendri]
+board_family_skill_id = "xmc-family"
+board_profile_id = "xmc1100-boot-kit"
+default_language_skills = ["arduino-cpp-xmc", "c-cpp-dave"]
+svg_path = "content/assets/svg/boards/xmc1100-boot-kit.svg"
+svg_status = "missing"

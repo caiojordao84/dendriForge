@@ -1,0 +1,172 @@
+# component profile — signal-generator (migrated from legacy TOON)
+# Source: signal-generator.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "signal-generator-profile"
+
+[identification]
+category = "source"
+family = "electricals"
+id = "signal-generator"
+image = "signal-generator.svg"
+name = "Signal Generator"
+standard = "IEC 61010-1"
+subfamily = "sources"
+symbol = "signal-generator-symbol.svg"
+symbol_standard = "IEC"
+
+[params.amplitude]
+default = 1
+editable = true
+label = "Amplitude (peak)"
+max = 20
+min = 0
+type = "float"
+unit = "V"
+
+[params.duty_cycle]
+default = 50
+editable = true
+label = "Duty Cycle (square/pwm only)"
+max = 100
+min = 0
+type = "float"
+unit = "%"
+
+[params.frequency]
+default = 1000
+editable = true
+label = "Frequency"
+max = 1000000
+min = 0.001
+type = "float"
+unit = "V"
+
+[params.offset]
+default = 0
+editable = true
+label = "DC Offset"
+max = 20
+min = -20
+type = "float"
+unit = "V"
+
+[params.output_enabled]
+default = true
+editable = true
+label = "Output Enabled"
+type = "bool"
+
+[params.output_impedance]
+default = 50
+editable = true
+label = "Output Impedance"
+options = [50, 600]
+type = "enum"
+unit = "Ω"
+
+[params.phase]
+default = 0
+editable = true
+label = "Phase Offset"
+max = 360
+min = 0
+type = "float"
+unit = "%"
+
+[params.waveform_type]
+default = "sine"
+editable = true
+label = "Waveform Type"
+options = ["sine", "square", "triangle", "noise", "pwm", "DC"]
+type = "enum"
+
+[[ports]]
+current_max = "200mA"
+direction = "output"
+id = "OUT"
+notes = "main signal output"
+type = "analog"
+voltage_max = "20V"
+
+[[ports]]
+current_max = "200mA"
+direction = "output"
+id = "OUT_INV"
+notes = "inverted signal output"
+type = "analog"
+voltage_max = "20V"
+
+[[ports]]
+direction = "output"
+id = "GND"
+notes = "signal ground / chassis"
+type = "ground"
+
+[[ports]]
+current_max = "10mA"
+direction = "input"
+id = "TRIG_IN"
+notes = "external trigger / sync input"
+type = "digital"
+voltage_max = "5V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+equation = "V_out = amplitude * waveform(waveform_type, frequency, t, phase) + offset"
+model = "ideal"
+noise_model = true
+states = ["off", "running", "fault"]
+thermal_model = false
+waveform = "sine"
+
+[limits]
+max_current = "200mA"
+max_temp = 50
+max_voltage = "20V"
+min_temp = -10
+warnings = ["Do not connect output directly to low-impedance loads without proper matching", "DC offset combined with amplitude must not exceed max_voltage rating", "External trigger voltage must not exceed 5V TTL levels"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["circuit-testing", "frequency-response", "filter-characterisation", "oscilloscope-input"]
+
+[canvas]
+animated = true
+height = 70
+label_position = "top"
+
+[canvas.port_GND]
+x = 80
+y = 55
+
+[canvas.port_OUT]
+x = 80
+y = 15
+
+[canvas.port_OUT_INV]
+x = 80
+y = 35
+
+[canvas.port_TRIG_IN]
+x = 0
+y = 30
+ports_layout = "custom"
+value_display = "{waveform_type} / {frequency}Hz / {amplitude}Vp"
+width = 80
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "signal-generator"
+palette_group = "Fundamental Electricals > Sources"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/signal-generator.svg"
+tags = ["signal-generator", "source", "waveform", "sine", "square", "laboratory", "bench-instrument"]
+svg_status = "missing"

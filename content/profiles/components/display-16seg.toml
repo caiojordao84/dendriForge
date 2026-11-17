@@ -1,0 +1,344 @@
+# component profile — display-16seg (migrated from legacy TOON)
+# Source: display-16seg.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "display-16seg-profile"
+
+[identification]
+category = "signal"
+family = "electricals"
+id = "display-16seg"
+image = "display-16seg.svg"
+name = "16-Segment Display"
+standard = "IEC 60810"
+subfamily = "displays"
+symbol = "display-16seg-symbol.svg"
+symbol_standard = "IEC"
+
+[params.brightness]
+default = 50
+editable = true
+label = "Brightness"
+max = 100
+min = 0
+type = "float"
+unit = "%"
+
+[params.color]
+default = "red"
+editable = true
+label = "LED Color"
+options = ["red", "green", "blue", "amber", "white"]
+type = "enum"
+
+[params.decimal_point]
+default = true
+editable = true
+label = "Decimal Point"
+type = "bool"
+
+[params.digits]
+default = 1
+editable = true
+label = "Number of Digits"
+options = [1, 2, 4]
+type = "enum"
+
+[params.display_type]
+default = "common-cathode"
+editable = true
+label = "Display Type"
+options = ["common-cathode", "common-anode"]
+type = "enum"
+
+[params.if_max]
+default = 0.03
+editable = false
+label = "Absolute Max Segment Current"
+max = 0.1
+min = 0.005
+type = "float"
+unit = "A"
+
+[params.if_rated]
+default = 0.02
+editable = true
+label = "Rated Segment Current"
+options = [0.005, 0.01, 0.02, 0.03, 0.05]
+type = "enum"
+unit = "A"
+
+[params.package]
+default = "18-pin"
+editable = true
+label = "Package"
+options = ["18-pin", "20-pin", "24-pin", "28-pin", "30-pin"]
+type = "enum"
+
+[params.vf_segment]
+default = 2.0
+editable = false
+label = "Segment Forward Voltage"
+max = 4.5
+min = 1.5
+type = "float"
+unit = "V"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "A"
+notes = "segment a"
+type = "power"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "B"
+notes = "segment b"
+type = "power"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "C"
+notes = "segment c"
+type = "power"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "D"
+notes = "segment d"
+type = "power"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "E"
+notes = "segment e"
+type = "power"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "F"
+notes = "segment f"
+type = "power"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "G"
+notes = "segment g"
+type = "power"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "H"
+notes = "segment h"
+type = "power"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "I"
+notes = "segment i"
+type = "power"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "J"
+notes = "segment j"
+type = "power"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "K"
+notes = "segment k"
+type = "power"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "L"
+notes = "segment l"
+type = "power"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "M"
+notes = "segment m"
+type = "power"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "N"
+notes = "segment n"
+type = "power"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "O"
+notes = "segment o"
+type = "power"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "DP"
+notes = "decimal point"
+type = "power"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "CA"
+notes = "common anode / cathode 1"
+type = "power"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "CB"
+notes = "common anode / cathode 2"
+type = "power"
+voltage_max = "5V"
+
+[simulation]
+bidirectional = false
+dynamic = false
+equation = "segments = {a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,dp}; brightness = f(if_rated)"
+model = "basic-analog"
+noise_model = false
+states = ["off", "active", "fault"]
+thermal_model = false
+
+[limits]
+max_current = "100mA"
+max_temp = 85
+max_voltage = "5V"
+min_temp = -40
+warnings = ["Each segment requires its own current-limiting resistor or constant-current driver", "Common-anode and common-cathode variants require inverted drive logic", "Do not drive all segments simultaneously without checking supply current budget", "Use multiplexing timing within persistence-of-vision limits to avoid flicker"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["alphanumeric-display", "clock-display", "panel-meter", "counter", "status-display"]
+
+[canvas]
+animated = true
+height = 70
+label_position = "top"
+
+[canvas.port_A]
+x = 20
+y = 0
+
+[canvas.port_B]
+x = 35
+y = 0
+
+[canvas.port_C]
+x = 50
+y = 0
+
+[canvas.port_CA]
+x = 10
+y = 35
+
+[canvas.port_CB]
+x = 80
+y = 35
+
+[canvas.port_D]
+x = 65
+y = 0
+
+[canvas.port_DP]
+x = 90
+y = 60
+
+[canvas.port_E]
+x = 65
+y = 70
+
+[canvas.port_F]
+x = 50
+y = 70
+
+[canvas.port_G]
+x = 35
+y = 70
+
+[canvas.port_H]
+x = 20
+y = 70
+
+[canvas.port_I]
+x = 0
+y = 20
+
+[canvas.port_J]
+x = 0
+y = 35
+
+[canvas.port_K]
+x = 0
+y = 50
+
+[canvas.port_L]
+x = 90
+y = 20
+
+[canvas.port_M]
+x = 90
+y = 35
+
+[canvas.port_N]
+x = 90
+y = 50
+
+[canvas.port_O]
+x = 45
+y = 35
+ports_layout = "custom"
+value_display = "16-seg {digits} digit(s) / {display_type} / {color}"
+width = 90
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "display-16seg"
+palette_group = "Fundamental Electricals > Displays"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/display-16seg.svg"
+tags = ["sixteen-segment", "display", "led", "alphanumeric", "passive", "indicator", "optical"]
+svg_status = "missing"

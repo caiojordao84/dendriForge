@@ -1,75 +1,145 @@
-# Component profile — Pushbutton NO Start (visual MVP input)
-# Ported from core/components/cmd-pushbutton-no-start.toon
-# SVG authored (DEN-8): core/components/cmd-pushbutton-no-start.svg
+# component profile — cmd-pushbutton-no-start (migrated from legacy TOON)
+# Source: cmd-pushbutton-no-start.toon
+# DEN-14: do not assign ASL 0.0.1
+
 
 [metadata]
-project_name = "cmd-pushbutton-no-start-profile"
-editor = "dendriForge"
 author = "schemasmith"
+editor = "dendriForge"
+project_name = "cmd-pushbutton-no-start-profile"
 
 [identification]
+category = "passive"
+family = "electricals"
 id = "cmd-pushbutton-no-start"
-name = "Pushbutton NO Start"
-family = "command-elements"
-subfamily = "pushbuttons"
-category = "command"
-standard = "IEC 60947-5-1"
 image = "cmd-pushbutton-no-start.svg"
+name = "Pushbutton NO Start"
+standard = "IEC 60947-5-1"
+subfamily = "passives"
 symbol = "cmd-pushbutton-no-start-symbol.svg"
 symbol_standard = "IEC"
 
+[params.actuation_force]
+default = 2.5
+editable = true
+label = "Actuation Force"
+options = [1.5, 2.5, 3.5, 5]
+type = "enum"
+unit = "N"
+
+[params.contact_rating_ac]
+default = 10
+editable = true
+label = "AC Contact Rating"
+options = [3, 5, 10, 16]
+type = "enum"
+unit = "A"
+
+[params.contact_rating_dc]
+default = 6
+editable = true
+label = "DC Contact Rating"
+options = [1, 3, 6, 8, 10]
+type = "enum"
+unit = "A"
+
 [params.contact_state]
-label = "Contact State"
 default = "normally-open"
+editable = true
+label = "Contact State"
 options = ["normally-open", "momentary", "spring-return"]
 type = "enum"
-editable = true
 
-[params.actuation_force]
-label = "Actuation Force"
-unit = "N"
-default = 2.5
-type = "enum"
-options = [1.5, 2.5, 3.5, 5.0]
-editable = true
+[params.electrical_life]
+default = 200000
+editable = false
+label = "Electrical Life"
+max = 1000000
+min = 10000
+type = "float"
+unit = "cycles"
 
 [params.ip_rating]
-label = "Ingress Protection"
 default = "IP65"
+editable = true
+label = "Ingress Protection"
 options = ["IP40", "IP54", "IP65", "IP67"]
 type = "enum"
+
+[params.mechanical_life]
+default = 1000000
+editable = false
+label = "Mechanical Life"
+max = 10000000
+min = 100000
+type = "float"
+unit = "cycles"
+
+[params.package]
+default = "22mm panel"
 editable = true
+label = "Package"
+options = ["16mm panel", "22mm panel", "30mm panel", "DIN-rail", "enclosed"]
+type = "enum"
 
 [[ports]]
-id = "NO1"
-direction = "bidirectional"
-type = "signal"
-notes = "normally-open contact A"
+direction = "input"
+id = "COM"
+notes = "common terminal"
+type = "ground"
 
 [[ports]]
-id = "NO2"
-direction = "bidirectional"
-type = "signal"
-notes = "normally-open contact B"
+current_max = "10A"
+direction = "output"
+id = "NO"
+notes = "normally-open contact"
+type = "digital"
+voltage_max = "250V"
 
 [simulation]
-model = "discrete-contact"
-bidirectional = true
+bidirectional = false
 dynamic = true
-states = ["released", "pressed"]
+model = "ideal"
+noise_model = false
+states = ["open", "closed"]
+thermal_model = false
+
+[limits]
+max_current = "10A"
+max_temp = 70
+max_voltage = "250V"
+min_temp = -25
+warnings = ["This device is momentary and returns to open state when released", "Respect AC/DC contact ratings separately; DC switching is more demanding", "Use an arc suppression network for inductive loads"]
+
+[connections]
+allowed_with = ["mcu-gpio", "relay-coil", "ind-load", "dc-source"]
+forbidden_with = ["ac-source"]
+requires = []
+typical_context = ["start-button", "manual-control", "operator-panel"]
 
 [canvas]
-width = 40
-height = 40
-ports_layout = "custom"
+animated = false
+height = 30
 label_position = "top"
-animated = true
+
+[canvas.port_COM]
+x = 0
+y = 15
+
+[canvas.port_NO]
+x = 50
+y = 15
+ports_layout = "horizontal"
+value_display = "NO Start / {contact_state} / {ip_rating}"
+width = 50
 
 [dendri]
+component_family_skill_id = "electricals-family"
 component_profile_id = "cmd-pushbutton-no-start"
-visual_mvp = true
-svg_path = "core/components/cmd-pushbutton-no-start.svg"
+palette_group = "Fundamental Electricals > Switches"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/cmd-pushbutton-no-start.svg"
+tags = ["pushbutton", "no", "momentary", "switch", "operator", "control", "iec-60947-5-1"]
 svg_status = "authored"
-svg_preferred_path = "content/assets/svg/components/cmd-pushbutton-no-start.svg"
+visual_mvp = true
 svg_required_ids = ["actuator", "contact"]
-svg_note = "Authored DEN-8; canvas prefers content/assets/svg/ with core/ fallback (DEN-14 migrate)"

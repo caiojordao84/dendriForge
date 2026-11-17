@@ -1,0 +1,339 @@
+# board profile — siemens-s7-1200-cpu-1214c (migrated from legacy TOON)
+# Source: siemens-s7-1200-cpu-1214c.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "siemens-s7-1200-cpu-1214c-profile"
+
+[identification]
+category = "plc"
+id = "siemens-s7-1200-cpu-1214c"
+image = "siemens-s7-1200-cpu-1214c.svg"
+manufacturer = "Siemens AG"
+mcu = "Siemens proprietary CPU 1214C DC/DC/DC — 0.085µs bit op; 1.7µs word op; 2.5µs FP; RTC w/480h supercap backup; 4MB load flash; 100KB work RAM; IEC61131-3 LAD-FBD-SCL"
+name = "Siemens SIMATIC S7-1200 CPU 1214C DC/DC/DC — Compact PLC, 100KB work memory, 14 DI 24VDC, 10 DO MOSFET 24VDC 0.5A, 2 AI 0-10V, 6xHSC 100kHz, 4xPTO 100kHz, PROFINET, Modbus TCP, OPC UA, 3 CM + 8 SM + 1 SB expansion"
+url = "https://www.siemens.com/global/en/products/automation/systems/industrial/plc/simatic-s7-1200.html"
+
+[specs]
+clock = 0
+eeprom = 0
+flash_available = 102400
+flash_total = 4194304
+sram = 102400
+voltage = "24V"
+
+[dims]
+h = 100.0
+t = 75.0
+w = 110.0
+
+[[power_pins]]
+direction = "input"
+name = "BOARD_L_PLUS"
+voltage = "24V"
+
+[[power_pins]]
+name = "BOARD_M"
+type = "ground"
+
+[[power_pins]]
+name = "PE"
+type = "ground"
+
+[[power_pins]]
+direction = "output"
+name = "SENS_L_PLUS"
+voltage = "24V"
+
+[[power_pins]]
+name = "SENS_M"
+
+[[power_pins]]
+name = "1_M"
+type = "ground"
+
+[[power_pins]]
+name = "2_M"
+type = "ground"
+
+[[power_pins]]
+direction = "output"
+name = "3_L_PLUS"
+voltage = "24V"
+
+[[power_pins]]
+name = "3_M"
+type = "ground"
+
+[[gpio]]
+int = true
+label = "Ia.0 / HSC0"
+pin = 0
+pwm = false
+roles = ["di"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "Ia.1 / HSC1"
+pin = 1
+pwm = false
+roles = ["di"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "Ia.2 / HSC2"
+pin = 2
+pwm = false
+roles = ["di"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "Ia.3 / HSC3"
+pin = 3
+pwm = false
+roles = ["di"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "Ia.4 / HSC4"
+pin = 4
+pwm = false
+roles = ["di"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "Ia.5 / HSC5"
+pin = 5
+pwm = false
+roles = ["di"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "Ia.6"
+pin = 6
+pwm = false
+roles = ["di"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "Ia.7"
+pin = 7
+pwm = false
+roles = ["di"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "Ib.0"
+pin = 8
+pwm = false
+roles = ["di"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "Ib.1"
+pin = 9
+pwm = false
+roles = ["di"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "Ib.2"
+pin = 10
+pwm = false
+roles = ["di"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "Ib.3"
+pin = 11
+pwm = false
+roles = ["di"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "Ib.4"
+pin = 12
+pwm = false
+roles = ["di"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "Ib.5"
+pin = 13
+pwm = false
+roles = ["di"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "Qa.0"
+pin = 14
+pwm = true
+roles = ["do", "pwm"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "Qa.1"
+pin = 15
+pwm = true
+roles = ["do", "pwm"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "Qa.2"
+pin = 16
+pwm = true
+roles = ["do", "pwm"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "Qa.3"
+pin = 17
+pwm = true
+roles = ["do", "pwm"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "Qa.4"
+pin = 18
+pwm = true
+roles = ["do", "pwm"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "Qa.5"
+pin = 19
+pwm = false
+roles = ["do"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "Qa.6"
+pin = 20
+pwm = false
+roles = ["do"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "Qa.7"
+pin = 21
+pwm = false
+roles = ["do"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "Qb.0"
+pin = 22
+pwm = false
+roles = ["do"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "Qb.1"
+pin = 23
+pwm = false
+roles = ["do"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "AIW0"
+pin = 24
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "AIW2"
+pin = 25
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[peripherals]]
+param = "speed:100Mbit"
+peripheral = "profinet"
+value = "1x-RJ45-10-100Mbps-auto-MDI-X-isolated;proto:PROFINET-IO-controller+device,S7-comm-client+server,TCP-IP,ISO-on-TCP-RFC1006,UDP,Modbus-TCP-client+server,WebServer-user-pages,OPC-UA-V4.4plus;max-PROFINET-devices:16"
+
+[[peripherals]]
+param = "count:6"
+peripheral = "hsc_counters"
+value = "HSC0-5:high-speed-counting;modes:single-phase-100kHz,2-phase-80kHz-differential,A-B-quadrature-80kHz,PTO-direction;inputs:Ia.0-Ia.5;external-reset-start-preset;capture;gate;interrupt-on-CV-equals-PV"
+
+[[peripherals]]
+param = "axes:4"
+peripheral = "pto_motion"
+value = "PTO0-3:pulse-train-output;Qa.0-Qa.3=100kHz;Qa.4=20kHz-max;V-profile+S-curve-motion;axis-homing;MC_MoveAbsolute-MC_MoveRelative-MC_MoveVelocity;requires-external-drive-PULSE+DIR"
+
+[[peripherals]]
+param = "loops:unlimited"
+peripheral = "pid_control"
+value = "PID_Compact:auto-tune-pretuning-fine-tuning;PID_3Step:valve-control;PID_Temp:cascade;sampling-time-configurable;output:analog-or-PWM-digital"
+
+[[peripherals]]
+param = "modules:8"
+peripheral = "expansion_sm"
+value = "up-to-8-Signal-Modules-SM-right-side;types:SM1221-DI,SM1222-DO,SM1223-DI-DO,SM1231-AI,SM1232-AO,SM1234-AI-AO,SM1238-EnergyMeter;5VDC-backplane-bus-max-1600mA"
+
+[[peripherals]]
+param = "modules:1"
+peripheral = "expansion_sb"
+value = "1x-Signal-Board-top-slot;types:SB1221-DI4,SB1222-DO4,SB1223-DI2-DO2,SB1231-AI1,SB1232-AO1,SB1231-RTD,SB1231-TC,SB1241-RS485,CB1241-RS485,BB1297-battery;adds-AO-AI-RS485-or-battery-backup"
+
+[[peripherals]]
+param = "modules:3"
+peripheral = "expansion_cm"
+value = "up-to-3-Communication-Modules-left-side;types:CM1241-RS232,CM1241-RS485,CM1241-RS422,CM1243-5-PROFIBUS-master,CM1244-DP-slave,CM1278-IO-Link-master,CP1242-7-GSM-GPRS;Modbus-RTU-USS-PROFIBUS"
+
+[[peripherals]]
+param = "backup:480h"
+peripheral = "rtc_memory"
+value = "RTC:hardware-real-time-clock;backup:supercapacitor-typ-480h-20-days;no-battery-required;retentive-data:10KB;load-memory:4MB-flash;work-memory:100KB-RAM;battery-SB1297-optional-for-longer-backup"
+
+[usb]
+pid = "0x0000"
+vid = "0x0000"
+
+[restrictions]
+max_io_current = "500mA"
+total_current_limit = "1500mA"
+warnings = ["Digital outputs (MOSFET) have NO overload or short-circuit protection — always install external fuses or breakers rated for the load; a short circuit on any DO will permanently damage the output MOSFET driver; use 0.5A fuses per output channel", "PTO pulse train output is fully supported on this DC/DC/DC variant — Qa.0-Qa.3 support up to 100kHz; Qa.4 supports up to 20kHz; use MC_MoveAbsolute/MC_MoveRelative/MC_MoveVelocity with an external PULSE+DIR drive", "The 2 built-in analog inputs (AIW0, AIW2) support ONLY 0-10VDC — there is NO built-in current (4-20mA) input; to measure 4-20mA, add an external shunt resistor (500 ohm precision) across the analog input; alternatively install SM1231 AI or SB1231 AI for true current inputs with proper isolation", "The built-in analog inputs have NO isolation from the CPU logic — always use shielded and twisted pair cables (max 100m) and connect the shield at only one end (preferably the PLC end) to avoid ground loops; floating signal sources require a reference connection to M terminal of the CPU sensor supply", "The 5VDC backplane bus for expansion modules is limited to 1600mA total — each SM draws approximately 40-200mA from the backplane; if the total current exceeds 1600mA a Power Module PM1207 must be inserted between SMs; always calculate the backplane current budget before selecting expansion modules", "The RTC backup uses an internal supercapacitor (no battery) that provides approximately 480 hours (20 days) of clock backup after power loss — for longer retention the SB1297 Battery Board must be installed in the Signal Board slot; installing SB1297 permanently occupies the SB slot and prevents use of other Signal Boards simultaneously", "OPC UA server is available from firmware V4.4 and TIA Portal V16 — older firmware versions do NOT support OPC UA; before enabling OPC UA ensure the CPU firmware is updated; OPC UA requires a security certificate to be configured in TIA Portal and deployed to the CPU; unsecured OPC UA is disabled by default from V4.4"]
+
+[compatibility]
+certifications = "CE;cULus;UL;FM;RCM;EAC;UKCA;Marine (DNV-GL)"
+frameworks = "IEC61131-3;TIA Portal;PROFINET;Modbus-TCP-RTU;S7-comm;OPC-UA;Web-Server;PROFIBUS-via-CM"
+languages = "Ladder Diagram (LAD);Function Block Diagram (FBD);Structured Control Language (SCL);Sequential Function Chart (SFC via STEP 7 SFC blocks)"
+sw = "STEP 7 Basic V11+ / TIA Portal V11+; TIA Portal Professional V13+ for full SCL and advanced motion; STEP 7 V5.x NOT compatible"
+
+[dendri]
+board_family_skill_id = "siemens-simatic-s7-1200-plc-family"
+board_profile_id = "siemens-s7-1200-cpu-1214c"
+default_language_skills = ["ladder-tia-portal-s7-1200", "fbd-tia-portal-s7-1200", "scl-tia-portal-s7-1200"]
+svg_path = "content/assets/svg/boards/siemens-s7-1200-cpu-1214c.svg"
+svg_status = "authored"

@@ -1,0 +1,143 @@
+# component profile — act-servo (migrated from legacy TOON)
+# Source: act-servo.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "act-servo-profile"
+
+[identification]
+category = "actuator"
+family = "actuators"
+id = "act-servo"
+image = "act-servo.svg"
+name = "Servo Motor (RC/Hobby)"
+standard = "IEC 60034-1"
+subfamily = "maker-prototyping"
+symbol = "act-servo-symbol.svg"
+symbol_standard = "IEC"
+
+[params.angle_range]
+default = 180
+editable = true
+label = "Rotation Range"
+options = [90, 180, 270, 360]
+type = "enum"
+unit = "%"
+
+[params.pulse_max]
+default = 2
+editable = false
+label = "Max Pulse Width"
+max = 2.5
+min = 1.5
+type = "float"
+unit = "V"
+
+[params.pulse_min]
+default = 1
+editable = false
+label = "Min Pulse Width"
+max = 1.5
+min = 0.5
+type = "float"
+unit = "V"
+
+[params.servo_type]
+default = "standard"
+editable = true
+label = "Servo Type"
+options = ["standard", "micro", "high-torque", "continuous-rotation"]
+type = "enum"
+
+[params.torque]
+default = 1
+editable = false
+label = "Stall Torque"
+max = 50
+min = 0.1
+type = "float"
+unit = "V"
+
+[params.voltage]
+default = 5
+editable = true
+label = "Operating Voltage"
+options = [3, 5, 6, 7]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "2A"
+direction = "input"
+id = "VCC"
+notes = "DC supply positive (servo power)"
+type = "power"
+voltage_max = "7V"
+
+[[ports]]
+direction = "input"
+id = "GND"
+notes = "DC supply negative"
+type = "ground"
+
+[[ports]]
+current_max = "10mA"
+direction = "input"
+id = "SIG"
+notes = "PWM control signal — 50Hz / 1-2ms pulse"
+type = "pwm"
+voltage_max = "5V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "basic-analog"
+motion = "rotary"
+noise_model = false
+states = ["idle", "positioning", "fault"]
+thermal_model = false
+
+[limits]
+max_current = "2A"
+max_temp = 70
+max_voltage = "7V"
+min_temp = -20
+warnings = ["Never power servo from MCU 5V pin directly — use dedicated power supply", "Share GND between servo power supply and MCU signal reference", "Stall condition draws peak current — protect supply with current limiting"]
+
+[connections]
+allowed_with = ["mcu-*", "act-servo-drive", "dc-source"]
+forbidden_with = ["ac-source"]
+requires = ["dc-source"]
+typical_context = ["robotics", "rc-vehicle", "pan-tilt-mechanism"]
+
+[canvas]
+animated = true
+height = 50
+label_position = "right"
+
+[canvas.port_GND]
+x = 0
+y = 25
+
+[canvas.port_SIG]
+x = 0
+y = 40
+
+[canvas.port_VCC]
+x = 0
+y = 10
+ports_layout = "custom"
+value_display = "{servo_type} / {angle_range}deg / {voltage}V"
+width = 60
+
+[dendri]
+component_family_skill_id = "actuators-family"
+component_profile_id = "act-servo"
+palette_group = "Actuators > Maker & Prototyping"
+simulation_engine = "digital-io"
+svg_path = "content/assets/svg/components/act-servo.svg"
+tags = ["servo", "actuator", "maker-prototyping", "pwm", "rotary", "robotics"]
+svg_status = "missing"

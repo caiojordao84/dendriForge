@@ -1,0 +1,126 @@
+# component profile — pneu-cylinder-sa-spring (migrated from legacy TOON)
+# Source: pneu-cylinder-sa-spring.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "pneu-cylinder-sa-spring-profile"
+
+[identification]
+category = "actuator"
+family = "pneumatics"
+id = "pneu-cylinder-sa-spring"
+image = "pneu-cylinder-sa-spring.svg"
+name = "Single-Acting Pneumatic Cylinder (Cilindro simples efeito retorno mola)"
+standard = "ISO 6432"
+subfamily = "pneumatic-actuators"
+symbol = "pneu-cylinder-sa-spring-symbol.svg"
+symbol_standard = "ISO"
+
+[params.bore]
+default = 25
+editable = true
+label = "Bore Diameter"
+options = [10, 12, 16, 20, 25, 32, 40]
+type = "enum"
+unit = "mm"
+
+[params.initial_position]
+default = "retracted"
+editable = true
+label = "Initial Position"
+options = ["retracted", "extended"]
+type = "enum"
+
+[params.port_size]
+default = "M5"
+editable = true
+label = "Port Size"
+options = ["M5", "G1/8", "G1/4"]
+type = "enum"
+
+[params.stroke]
+default = 50
+editable = true
+label = "Stroke"
+max = 150
+min = 10
+type = "float"
+unit = "mm"
+
+[params.supply_pressure]
+default = 6
+editable = true
+label = "Supply Pressure"
+max = 10
+min = 2
+type = "float"
+unit = "bar"
+ports = []
+
+[[pneumatic_ports]]
+direction = "bidirectional"
+id = "A"
+notes = "port A — extend"
+pressure_max = "10bar"
+type = "pneumatic"
+
+[[sensor_slots]]
+compatible_sensors = ["pneu-magnetic-cylinder-sensor", "pneu-reed-switch-cylinder"]
+id = "S1"
+position = "retracted-end"
+
+[[sensor_slots]]
+compatible_sensors = ["pneu-magnetic-cylinder-sensor", "pneu-reed-switch-cylinder"]
+id = "S2"
+position = "extended-end"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "pneumatic-linear-actuator"
+motion = "linear"
+noise_model = false
+position_feedback = true
+states = ["retracted", "extending", "extended", "retracting"]
+thermal_model = false
+velocity_model = "simplified"
+
+[limits]
+
+[limits.max_force]
+extend = "calc:pi*(bore/2)^2 * supply_pressure * 0.1"
+max_pressure = 10
+max_temp = 80
+min_pressure = 2
+min_temp = -20
+warnings = ["Single-acting cylinders require a minimum pressure to overcome the internal return spring", "Retract force is strictly dependent on the mechanical spring constant, not air pressure"]
+
+[connections]
+allowed_with = ["pneu-valve-3-2-*", "pneu-flow-control-*", "pneu-quick-exhaust", "pneu-frl-unit"]
+forbidden_with = ["hyd-*", "act-motor-*"]
+requires = ["pneu-frl-unit"]
+typical_context = ["pushing", "clamping", "ejection", "sorting"]
+
+[canvas]
+animated = true
+height = 40
+label_position = "bottom"
+
+[canvas.port_A]
+x = 20
+y = 0
+ports_layout = "custom"
+value_display = "SA Ø{bore}mm × {stroke}mm"
+width = 120
+
+[dendri]
+component_family_skill_id = "pneumatics-family"
+component_profile_id = "pneu-cylinder-sa-spring"
+palette_group = "Pneumatics > Pneumatic Actuators"
+simulation_engine = "pneumatic-motion"
+svg_path = "content/assets/svg/components/pneu-cylinder-sa-spring.svg"
+tags = ["cylinder", "single-acting", "spring-return", "pneumatic", "actuator"]
+svg_status = "missing"

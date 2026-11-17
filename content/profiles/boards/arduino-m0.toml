@@ -1,0 +1,267 @@
+# board profile — arduino-m0 (migrated from legacy TOON)
+# Source: arduino-m0.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "arduino-m0-profile"
+
+[identification]
+category = "maker"
+id = "arduino-m0"
+image = "arduino-m0.svg"
+manufacturer = "Arduino"
+mcu = "ATSAMD21G18"
+name = "Arduino M0"
+url = "https://docs.arduino.cc/retired/boards/arduino-m0/"
+
+[specs]
+clock = 48000000
+eeprom = 0
+flash_available = 258048
+flash_total = 262144
+sram = 32768
+voltage = "3.3V"
+
+[dims]
+h = 53.0
+t = 1.6
+w = 68.5
+
+[[power_pins]]
+direction = "input"
+name = "VIN"
+
+[[power_pins]]
+direction = "output"
+name = "5V"
+voltage = "5V"
+
+[[power_pins]]
+direction = "output"
+name = "3V3"
+voltage = "3.3V"
+
+[[power_pins]]
+name = "GND"
+type = "ground"
+
+[[power_pins]]
+direction = "input"
+name = "RESET"
+
+[[power_pins]]
+direction = "output"
+name = "IOREF"
+voltage = "3.3V"
+
+[[power_pins]]
+direction = "input"
+name = "AREF"
+
+[[gpio]]
+int = false
+label = "D0 / RX"
+pin = 0
+pwm = false
+roles = ["uart-rx"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D1 / TX"
+pin = 1
+pwm = false
+roles = ["uart-tx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D2"
+pin = 2
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D3"
+pin = 3
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D4"
+pin = 4
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D5"
+pin = 5
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D6"
+pin = 6
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D7"
+pin = 7
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D8"
+pin = 8
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D9"
+pin = 9
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D10"
+pin = 10
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D11"
+pin = 11
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D12"
+pin = 12
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D13 / LED"
+pin = 13
+pwm = true
+roles = ["status-led"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "A0"
+pin = 14
+pwm = false
+roles = ["adc:t", "dac"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A1"
+pin = 15
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A2"
+pin = 16
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A3"
+pin = 17
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A4 / SDA"
+pin = 18
+pwm = false
+roles = ["adc:t", "i2c-sda"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A5 / SCL"
+pin = 19
+pwm = false
+roles = ["adc:t", "i2c-scl"]
+type = "analog"
+
+[[peripherals]]
+param = "uarts:1"
+peripheral = "serial"
+value = "pins:0,1"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "i2c"
+value = "sda:18;scl:19"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "spi"
+value = "miso:12;mosi:11;sck:13;ss:10"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "dac"
+value = "pin:14"
+
+[usb]
+chip = "ATSAMD21G18"
+pid = "0x804F"
+type = "Micro-USB"
+vid = "0x2341"
+
+[restrictions]
+max_io_current = "7mA"
+total_current_limit = "500mA"
+warnings = ["GPIO operates at 3.3V — NOT 5V tolerant", "Pins 0/1 shared with hardware UART (Serial5)", "Pins 4 and 10 cannot be used as PWM simultaneously", "Pins 5 and 12 cannot be used as PWM simultaneously"]
+
+[compatibility]
+arduino_core = "1.8.13"
+bootloader = "sam-ba"
+frameworks = "arduino"
+languages = "arduino-cpp"
+pio = "atmelsam"
+
+[dendri]
+board_family_skill_id = "samd-family"
+board_profile_id = "arduino-m0"
+default_language_skills = ["arduino-cpp-samd", "rust-embassy-samd21"]
+svg_path = "content/assets/svg/boards/arduino-m0.svg"
+svg_status = "missing"

@@ -1,0 +1,269 @@
+# board profile — xmc4500-relax-kit (migrated from legacy TOON)
+# Source: xmc4500-relax-kit.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "xmc4500-relax-kit-profile"
+
+[identification]
+category = "maker"
+id = "xmc4500-relax-kit"
+image = "xmc4500-relax-kit.svg"
+manufacturer = "Infineon"
+mcu = "XMC4500-F100K1024"
+name = "Infineon XMC4500 Relax Kit"
+url = "https://www.infineon.com/cms/en/product/evaluation-boards/kit_xmc4500_relax_v1/"
+
+[specs]
+clock = 144000000
+cores = 1
+eeprom = 0
+flash_available = 2097152
+flash_total = 2097152
+sram = 163840
+voltage = "3.3V"
+
+[dims]
+h = 65.0
+t = 15.0
+w = 100.0
+
+[[power_pins]]
+direction = "input"
+name = "5V"
+voltage = "5V"
+
+[[power_pins]]
+direction = "output"
+name = "3V3"
+voltage = "3.3V"
+
+[[power_pins]]
+direction = "input"
+name = "VIN"
+voltage = "7V-12V"
+
+[[power_pins]]
+name = "GND"
+type = "ground"
+
+[[power_pins]]
+direction = "input"
+name = "RESET"
+
+[[gpio]]
+int = false
+label = "D0 / P1.4"
+pin = 0
+pwm = false
+roles = ["uart-rx"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D1 / P1.5"
+pin = 1
+pwm = false
+roles = ["uart-tx"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D2 / P1.6"
+pin = 2
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D3 / P1.2"
+pin = 3
+pwm = true
+roles = ["pwm"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D4 / P1.1"
+pin = 4
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D5 / P1.8"
+pin = 5
+pwm = true
+roles = ["pwm"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D6 / P1.9"
+pin = 6
+pwm = true
+roles = ["pwm"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D7 / P1.0"
+pin = 7
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D8 / P3.4"
+pin = 8
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D9 / P3.5"
+pin = 9
+pwm = true
+roles = ["pwm"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D10 / P3.6"
+pin = 10
+pwm = true
+roles = ["pwm", "spi-ss"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D11 / P3.2"
+pin = 11
+pwm = true
+roles = ["pwm", "spi-mosi"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D12 / P3.1"
+pin = 12
+pwm = false
+roles = ["spi-miso"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D13 / P3.0"
+pin = 13
+pwm = false
+roles = ["spi-sck", "status-led"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "A0 / P14.0"
+pin = 14
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A1 / P14.1"
+pin = 15
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A2 / P14.2"
+pin = 16
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A3 / P14.3"
+pin = 17
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A4 / P14.4"
+pin = 18
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A5 / P14.5"
+pin = 19
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[peripherals]]
+param = "uarts:3"
+peripheral = "serial"
+value = "pins:0,1"
+
+[[peripherals]]
+param = "channels:2"
+peripheral = "i2c"
+value = "sda:7;scl:8"
+
+[[peripherals]]
+param = "channels:2"
+peripheral = "spi"
+value = "miso:12;mosi:11;sck:13;ss:10"
+
+[[peripherals]]
+param = "channels:12"
+peripheral = "adc"
+value = "pins:14,15,16,17,18,19"
+
+[[peripherals]]
+param = "channels:16"
+peripheral = "pwm"
+
+[[peripherals]]
+param = "channels:2"
+peripheral = "dac"
+value = "pins:4;7"
+
+[usb]
+chip = "J-Link-OB"
+pid = "0x0101"
+type = "Micro-AB"
+vid = "0x1366"
+
+[restrictions]
+max_io_current = "8mA"
+total_current_limit = "200mA"
+warnings = ["Arduino Uno R3 header compatible — shield clearance may vary due to 3.3V logic", "On-board J-Link Lite debugger occupies USB connection during programming", "ADC reference voltage is 3.3V; maximum ADC input must not exceed VAREF", "D13 is connected to onboard LED — avoid high-current drive on this pin"]
+
+[compatibility]
+arduino_core = "2.1.0"
+bootloader = "jlink-ob"
+frameworks = "arduino;mbed"
+languages = "arduino-cpp"
+pio = "infineonxmc"
+
+[dendri]
+board_family_skill_id = "xmc-family"
+board_profile_id = "xmc4500-relax-kit"
+default_language_skills = ["arduino-cpp-xmc", "c-cpp-dave"]
+svg_path = "content/assets/svg/boards/xmc4500-relax-kit.svg"
+svg_status = "missing"

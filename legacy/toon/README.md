@@ -22,5 +22,9 @@ corpus — not the Phase 0 / MVP contract.
 - Do **not** author new programs/profiles in TOON.
 - Do **not** treat TOON as a supported Phase 1 / MVP input.
 - New IR lives under `content/` (`.asl.toml` programs, `.toml` profiles).
+- Board / component / screen profiles are migrated to
+  `content/profiles/{boards,components,screens}/*.toml` (DEN-14). Re-run with
+  `dendri migrate-profiles`. SVG assets prefer `content/assets/svg/`.
 - A later cleanup may relocate `core/` → `legacy/toon/core/`; until then this
-  directory documents the freeze without a bulk move.
+  directory documents the freeze without a bulk move. `core/**/*.toon` stays
+  **read-only legacy** until that cleanup.

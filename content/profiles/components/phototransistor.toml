@@ -1,0 +1,114 @@
+# component profile — phototransistor (migrated from legacy TOON)
+# Source: phototransistor.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "phototransistor-profile"
+
+[identification]
+category = "semiconductor"
+family = "electricals"
+id = "phototransistor"
+image = "phototransistor.svg"
+name = "Phototransistor"
+standard = "IEC 60617"
+subfamily = "semiconductors"
+symbol = "phototransistor-symbol.svg"
+symbol_standard = "IEC"
+
+[params.max_ic]
+default = 20
+editable = false
+label = "Max Collector Current"
+type = "float"
+unit = "mA"
+
+[params.max_vce]
+default = 30
+editable = false
+label = "Max Collector-Emitter Voltage"
+type = "float"
+unit = "V"
+
+[params.package]
+default = "THT 5mm"
+editable = true
+label = "Package"
+options = ["THT 3mm", "THT 5mm", "SMD 0805", "SMD 1206"]
+type = "enum"
+
+[params.wavelength]
+default = 850
+editable = true
+label = "Peak Wavelength"
+type = "float"
+unit = "nm"
+
+[[ports]]
+current_max = "20mA"
+direction = "input"
+id = "C"
+notes = "collector"
+type = "analog"
+voltage_max = "30V"
+
+[[ports]]
+current_max = "20mA"
+direction = "output"
+id = "E"
+notes = "emitter"
+type = "analog"
+voltage_max = "30V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "analog-transfer"
+noise_model = false
+states = ["cutoff", "active"]
+thermal_model = false
+
+[limits]
+max_current = "20mA"
+
+[limits.max_power]
+unit = "W"
+value = 0.15
+max_temp = 85
+max_voltage = "30V"
+min_temp = -40
+warnings = ["Avoid exceeding maximum Collector-Emitter voltage (Vce)."]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["light-sensing", "optical-isolation"]
+
+[canvas]
+animated = true
+height = 40
+label_position = "top"
+
+[canvas.port_C]
+x = 20
+y = 0
+
+[canvas.port_E]
+x = 20
+y = 40
+ports_layout = "custom"
+value_display = "{name}"
+width = 40
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "phototransistor"
+palette_group = "Fundamental Electricals > Semiconductors"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/phototransistor.svg"
+tags = ["phototransistor", "semiconductor", "sensor"]
+svg_status = "missing"

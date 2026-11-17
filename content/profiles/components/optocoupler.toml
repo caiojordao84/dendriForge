@@ -1,0 +1,136 @@
+# component profile — optocoupler (migrated from legacy TOON)
+# Source: optocoupler.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "optocoupler-profile"
+
+[identification]
+category = "semiconductor"
+family = "electricals"
+id = "optocoupler"
+image = "optocoupler.svg"
+name = "Optocoupler (PC817 Type)"
+standard = "IEC 60747-5-5"
+subfamily = "semiconductors"
+symbol = "optocoupler-symbol.svg"
+symbol_standard = "IEC"
+
+[params.ctr]
+default = 100
+editable = true
+label = "Current Transfer Ratio"
+max = 600
+min = 50
+type = "float"
+unit = "%"
+
+[params.forward_voltage]
+default = 1.2
+editable = false
+label = "Forward Voltage (LED)"
+type = "float"
+unit = "V"
+
+[params.isolation_voltage]
+default = 5000
+editable = false
+label = "Isolation Voltage"
+type = "float"
+unit = "V"
+
+[params.max_collector_current]
+default = 50
+editable = false
+label = "Max Collector Current"
+type = "float"
+unit = "mA"
+
+[[ports]]
+current_max = "50mA"
+direction = "input"
+id = "A"
+notes = "Anode (LED Input)"
+type = "analog"
+voltage_max = "6V"
+
+[[ports]]
+direction = "output"
+id = "K"
+notes = "Cathode (LED Input)"
+type = "analog"
+
+[[ports]]
+current_max = "50mA"
+direction = "passive"
+id = "C"
+notes = "Collector (Phototransistor)"
+type = "analog"
+voltage_max = "80V"
+
+[[ports]]
+direction = "passive"
+id = "E"
+notes = "Emitter (Phototransistor)"
+type = "analog"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "threshold"
+noise_model = false
+states = ["idle", "conducting"]
+thermal_model = false
+
+[limits]
+max_current = "50mA"
+
+[limits.max_power]
+unit = "W"
+value = 0.2
+max_temp = 110
+max_voltage = "80V"
+min_temp = -30
+warnings = ["Do not exceed isolation voltage limits between input and output sides", "Reverse voltage on LED side (K-A) must not exceed 6V"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = ["resistor"]
+typical_context = ["logic-isolation", "signal-coupling", "high-voltage-protection"]
+
+[canvas]
+animated = true
+height = 40
+label_position = "top"
+
+[canvas.port_A]
+x = 0
+y = 10
+
+[canvas.port_C]
+x = 40
+y = 10
+
+[canvas.port_E]
+x = 40
+y = 30
+
+[canvas.port_K]
+x = 0
+y = 30
+ports_layout = "custom"
+value_display = "{ctr}% CTR"
+width = 40
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "optocoupler"
+palette_group = "Fundamental Electricals > Semiconductors"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/optocoupler.svg"
+tags = ["optocoupler", "isolator", "semiconductor"]
+svg_status = "missing"

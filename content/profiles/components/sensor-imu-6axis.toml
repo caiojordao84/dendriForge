@@ -1,0 +1,170 @@
+# component profile — sensor-imu-6axis (migrated from legacy TOON)
+# Source: sensor-imu-6axis.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "sensor-imu-6axis-profile"
+
+[identification]
+category = "sensor"
+family = "sensors"
+id = "sensor-imu-6axis"
+image = "sensor-imu-6axis.svg"
+name = "IMU 6-Axis Accelerometer Gyroscope"
+standard = "IEC 62047-22"
+subfamily = "motion-position"
+symbol = "sensor-imu-6axis-symbol.svg"
+symbol_standard = "IEC"
+
+[params.accel_range]
+default = "4g"
+editable = true
+label = "Accelerometer Range"
+options = ["2g", "4g", "8g", "16g"]
+type = "enum"
+
+[params.gyro_range]
+default = "500dps"
+editable = true
+label = "Gyroscope Range"
+options = ["250dps", "500dps", "1000dps", "2000dps"]
+type = "enum"
+
+[params.i2c_address]
+default = "0x68"
+editable = true
+label = "I2C Address"
+options = ["0x68", "0x69"]
+type = "enum"
+
+[params.interface]
+default = "I2C"
+editable = true
+label = "Communication Interface"
+options = ["I2C", "SPI"]
+type = "enum"
+
+[params.low_power_mode]
+default = false
+editable = true
+label = "Low Power Mode"
+type = "bool"
+
+[params.supply_voltage]
+default = 3
+editable = true
+label = "Supply Voltage"
+options = [3, 5]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "10mA"
+direction = "input"
+id = "VCC"
+notes = "DC supply positive"
+type = "power"
+voltage_max = "5V"
+
+[[ports]]
+direction = "input"
+id = "GND"
+notes = "DC supply negative"
+type = "ground"
+
+[[ports]]
+current_max = "10mA"
+direction = "bidirectional"
+id = "SCL"
+notes = "I2C clock / SPI clock"
+type = "i2c"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "10mA"
+direction = "bidirectional"
+id = "SDA"
+notes = "I2C data / SPI MOSI"
+type = "i2c"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "10mA"
+direction = "output"
+id = "INT"
+notes = "Interrupt output — configurable"
+type = "digital"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "1mA"
+direction = "input"
+id = "AD0"
+notes = "I2C address select (AD0=0: 0x68, AD0=1: 0x69)"
+type = "digital"
+voltage_max = "5V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "script"
+noise_model = true
+states = ["idle", "measuring", "fault"]
+thermal_model = false
+
+[limits]
+max_current = "10mA"
+max_temp = 85
+max_voltage = "5V"
+min_temp = -40
+warnings = ["Requires proper power supply decoupling capacitors near VCC pin", "Sensor fusion (pitch/roll/yaw) requires external DMP or software filter", "Calibrate offsets at startup — factory calibration may drift with temperature"]
+
+[connections]
+allowed_with = ["mcu-*", "plc-*", "comm-i2c-bus"]
+forbidden_with = ["ac-source"]
+requires = ["dc-source"]
+typical_context = ["motion-tracking", "robotics", "drone-stabilization"]
+
+[canvas]
+animated = false
+height = 70
+label_position = "right"
+
+[canvas.port_AD0]
+x = 50
+y = 50
+
+[canvas.port_GND]
+x = 0
+y = 20
+
+[canvas.port_INT]
+x = 50
+y = 25
+
+[canvas.port_SCL]
+x = 0
+y = 35
+
+[canvas.port_SDA]
+x = 0
+y = 50
+
+[canvas.port_VCC]
+x = 0
+y = 5
+ports_layout = "custom"
+value_display = "{interface} / {accel_range} / {gyro_range}"
+width = 50
+
+[dendri]
+component_family_skill_id = "sensors-family"
+component_profile_id = "sensor-imu-6axis"
+palette_group = "Sensors > Motion & Position"
+simulation_engine = "digital-io"
+svg_path = "content/assets/svg/components/sensor-imu-6axis.svg"
+tags = ["imu", "sensor", "motion-position", "accelerometer", "gyroscope", "i2c"]
+svg_status = "missing"

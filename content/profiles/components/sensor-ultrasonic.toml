@@ -1,0 +1,141 @@
+# component profile — sensor-ultrasonic (migrated from legacy TOON)
+# Source: sensor-ultrasonic.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "sensor-ultrasonic-profile"
+
+[identification]
+category = "sensor"
+family = "sensors"
+id = "sensor-ultrasonic"
+image = "sensor-ultrasonic.svg"
+name = "Ultrasonic Proximity Sensor (Sensor Ultrassónico)"
+standard = "IEC 60947-5-2"
+subfamily = "motion-position"
+symbol = "sensor-ultrasonic-symbol.svg"
+symbol_standard = "IEC"
+
+[params.beam_angle]
+default = 15
+editable = true
+label = "Beam Angle"
+max = 30
+min = 5
+type = "float"
+unit = "°"
+
+[params.output_type]
+default = "PNP-NO"
+editable = true
+label = "Output Type"
+options = ["PNP-NO", "PNP-NC", "NPN-NO", "NPN-NC", "analog-0-10V", "pulse-width"]
+type = "enum"
+
+[params.range]
+default = 2.0
+editable = true
+label = "Sensing Range"
+max = 6.0
+min = 0.1
+type = "float"
+unit = "m"
+
+[params.supply_voltage]
+default = 24
+editable = true
+label = "Supply Voltage"
+options = [5, 12, 24]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "50mA"
+direction = "input"
+id = "VCC"
+notes = "supply +"
+type = "power"
+voltage_max = "24V"
+
+[[ports]]
+direction = "input"
+id = "GND"
+notes = "supply -"
+type = "ground"
+
+[[ports]]
+current_max = "10mA"
+direction = "input"
+id = "TRIG"
+notes = "trigger input (for pulse-width mode)"
+type = "digital"
+voltage_max = "24V"
+
+[[ports]]
+current_max = "200mA"
+direction = "output"
+id = "OUT"
+notes = "signal out / echo"
+type = "digital"
+voltage_max = "24V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "threshold"
+noise_model = false
+output_logic = "{output_type}"
+states = ["idle", "measuring", "fault"]
+thermal_model = false
+trigger = "distance"
+trigger_source = "external"
+
+[limits]
+ip_rating = "IP65"
+max_current = "200mA"
+max_temp = 70
+max_voltage = "{supply_voltage}"
+min_temp = -25
+warnings = ["Acoustic reflections from strongly angled surfaces may cause false negatives", "Soft materials (fabric, foam) absorb sound and reduce effective sensing range", "TRIG port is only required when output_type is set to pulse-width mode"]
+
+[connections]
+allowed_with = ["ind-di-bank", "ind-ai-bank", "plc-*", "relay-*"]
+forbidden_with = ["ac-source"]
+requires = ["dc-source"]
+typical_context = ["object-detection", "collision-avoidance", "distance-measurement"]
+
+[canvas]
+animated = true
+height = 50
+label_position = "top"
+
+[canvas.port_GND]
+x = 20
+y = 50
+
+[canvas.port_OUT]
+x = 40
+y = 25
+
+[canvas.port_TRIG]
+x = 0
+y = 25
+
+[canvas.port_VCC]
+x = 20
+y = 0
+ports_layout = "custom"
+value_display = "{range}m / ∠{beam_angle}°"
+width = 40
+
+[dendri]
+component_family_skill_id = "sensors-family"
+component_profile_id = "sensor-ultrasonic"
+palette_group = "Sensors > Motion & Position"
+simulation_engine = "digital-io"
+svg_path = "content/assets/svg/components/sensor-ultrasonic.svg"
+tags = ["sensor", "ultrasonic", "proximity", "distance", "position"]
+svg_status = "missing"

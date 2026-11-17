@@ -1,0 +1,151 @@
+# component profile — cmd-handwheel-mpg (migrated from legacy TOON)
+# Source: cmd-handwheel-mpg.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "cmd-handwheel-mpg-profile"
+
+[identification]
+category = "command"
+family = "command-elements"
+id = "cmd-handwheel-mpg"
+image = "cmd-handwheel-mpg.svg"
+name = "Handwheel / MPG (Gerador de Pulsos Manual)"
+standard = "IEC 60947-5-1"
+subfamily = "special-interfaces"
+symbol = "cmd-handwheel-mpg-symbol.svg"
+symbol_standard = "IEC"
+
+[params.output_type]
+default = "Line-Driver"
+editable = true
+label = "Output Circuit"
+options = ["Line-Driver", "Open-Collector", "Push-Pull"]
+type = "enum"
+
+[params.pulses_per_rev]
+default = 100
+editable = true
+label = "Pulses Per Revolution (PPR)"
+options = [25, 100]
+type = "enum"
+
+[params.supply_voltage]
+default = 5
+editable = true
+label = "Supply Voltage"
+options = [5, 12, 24]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "VCC"
+notes = "encoder supply voltage"
+type = "power"
+voltage_max = "{supply_voltage}"
+
+[[ports]]
+direction = "input"
+id = "GND"
+notes = "encoder ground"
+type = "ground"
+
+[[ports]]
+current_max = "20mA"
+direction = "output"
+id = "OUT_A"
+notes = "quadrature channel A"
+type = "digital"
+voltage_max = "{supply_voltage}"
+
+[[ports]]
+current_max = "20mA"
+direction = "output"
+id = "OUT_B"
+notes = "quadrature channel B"
+type = "digital"
+voltage_max = "{supply_voltage}"
+
+[[ports]]
+current_max = "20mA"
+direction = "output"
+id = "OUT_A_N"
+notes = "quadrature channel A (inverted)"
+type = "digital"
+voltage_max = "{supply_voltage}"
+
+[[ports]]
+current_max = "20mA"
+direction = "output"
+id = "OUT_B_N"
+notes = "quadrature channel B (inverted)"
+type = "digital"
+voltage_max = "{supply_voltage}"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "digital-io"
+noise_model = false
+states = ["idle", "rotating"]
+thermal_model = false
+
+[limits]
+ip_rating = "IP65"
+max_current = "100mA"
+max_temp = 60
+max_voltage = "{supply_voltage}"
+min_temp = -10
+warnings = ["Line driver outputs require matched differential receivers for high noise immunity", "Verify voltage compatibility with CNC or motion controller inputs"]
+
+[connections]
+allowed_with = ["plc-*", "mcu-*", "ind-di-bank"]
+forbidden_with = ["ac-source"]
+requires = ["dc-source"]
+typical_context = ["cnc-control", "manual-positioning", "hmi-pendant"]
+
+[canvas]
+animated = true
+height = 80
+label_position = "bottom"
+
+[canvas.port_GND]
+x = 60
+y = 0
+
+[canvas.port_OUT_A]
+x = 0
+y = 30
+
+[canvas.port_OUT_A_N]
+x = 80
+y = 30
+
+[canvas.port_OUT_B]
+x = 0
+y = 50
+
+[canvas.port_OUT_B_N]
+x = 80
+y = 50
+
+[canvas.port_VCC]
+x = 20
+y = 0
+ports_layout = "custom"
+value_display = "{pulses_per_rev} PPR MPG"
+width = 80
+
+[dendri]
+component_family_skill_id = "command-elements-family"
+component_profile_id = "cmd-handwheel-mpg"
+palette_group = "Command Elements > Special Interfaces"
+simulation_engine = "digital-io"
+svg_path = "content/assets/svg/components/cmd-handwheel-mpg.svg"
+tags = ["mpg", "handwheel", "encoder", "cnc", "command"]
+svg_status = "missing"

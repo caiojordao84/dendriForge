@@ -1,0 +1,260 @@
+# board profile — nucleo-64-c031c6 (migrated from legacy TOON)
+# Source: nucleo-64-c031c6.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "nucleo-64-c031c6-profile"
+
+[identification]
+category = "embedded"
+id = "stm32-nucleo-64-c031c6"
+image = "stm32-nucleo-64-c031c6.svg"
+manufacturer = "STMicroelectronics"
+mcu = "STM32C031C6"
+name = "STMicroelectronics STM32 Nucleo-64 C031C6"
+url = "https://www.st.com/en/evaluation-tools/nucleo-c031c6.html"
+
+[specs]
+clock = 48000000
+eeprom = 0
+flash_available = 32768
+flash_total = 32768
+sram = 12288
+voltage = "3.3V"
+
+[dims]
+h = 56.0
+t = 12.0
+w = 84.0
+
+[[power_pins]]
+direction = "input"
+name = "5V"
+voltage = "5V"
+
+[[power_pins]]
+direction = "output"
+name = "3V3"
+voltage = "3.3V"
+
+[[power_pins]]
+direction = "input"
+name = "VIN"
+voltage = "7V-12V"
+
+[[power_pins]]
+name = "GND"
+type = "ground"
+
+[[power_pins]]
+direction = "input"
+name = "RESET"
+
+[[gpio]]
+int = false
+label = "D0 / RX"
+pin = 0
+pwm = false
+roles = ["uart-rx"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D1 / TX"
+pin = 1
+pwm = false
+roles = ["uart-tx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D2 / PA10"
+pin = 2
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D3 / PB3"
+pin = 3
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D4 / PB5"
+pin = 4
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D5 / PB4"
+pin = 5
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D6 / PB10"
+pin = 6
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D7 / PA8"
+pin = 7
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D8 / PA9"
+pin = 8
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D9 / PB7"
+pin = 9
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D10 / PB6"
+pin = 10
+pwm = false
+roles = ["spi-ss"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D11 / PA7"
+pin = 11
+pwm = false
+roles = ["spi-mosi"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D12 / PA6"
+pin = 12
+pwm = false
+roles = ["spi-miso"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D13 / PA5"
+pin = 13
+pwm = false
+roles = ["spi-sck", "status-led"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "A0 / PA0"
+pin = 14
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A1 / PA1"
+pin = 15
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A2 / PA4"
+pin = 16
+pwm = false
+roles = ["adc:t", "dac"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A3 / PB0"
+pin = 17
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A4 / PC0"
+pin = 18
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[peripherals]]
+param = "uarts:2"
+peripheral = "serial"
+value = "pins:0,1"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "i2c"
+value = "sda:9;scl:10"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "spi"
+value = "miso:12;mosi:11;sck:13;ss:10"
+
+[[peripherals]]
+param = "channels:12"
+peripheral = "adc"
+value = "pins:14,15,16,17,18"
+
+[[peripherals]]
+param = "channels:4"
+peripheral = "pwm"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "dac"
+value = "pins:16"
+
+[usb]
+chip = "ST-LINK-V3E"
+pid = "0x374E"
+type = "USB-C"
+vid = "0x0483"
+
+[restrictions]
+max_io_current = "20mA"
+total_current_limit = "300mA"
+warnings = ["Arduino Uno R3 header compatible — 3.3V logic level only; not 5V tolerant", "On-board ST-LINK V3E debugger shares USB-C connection with application", "Single ADC with 12-bit resolution — shared across all analog inputs", "No hardware FPU — Cortex-M0+ supports software floating point only"]
+
+[compatibility]
+arduino_core = "2.1.0"
+bootloader = "stlink-v3e"
+frameworks = "arduino;mbed"
+languages = "arduino-cpp"
+pio = "ststm32"
+
+[dendri]
+board_family_skill_id = "stm32-family"
+board_profile_id = "nucleo-64-c031c6"
+default_language_skills = ["arduino-cpp-stm32", "c-cpp-hal-stm32"]
+svg_path = "content/assets/svg/boards/stm32-nucleo-64-c031c6.svg"
+svg_status = "missing"

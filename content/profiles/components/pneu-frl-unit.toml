@@ -1,0 +1,124 @@
+# component profile — pneu-frl-unit (migrated from legacy TOON)
+# Source: pneu-frl-unit.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "pneu-frl-unit-profile"
+
+[identification]
+category = "accessory"
+family = "pneumatics"
+id = "pneu-frl-unit"
+image = "pneu-frl-unit.svg"
+name = "Filter Regulator Lubricator (Filtro-Regulador-Lubrificador FRL)"
+standard = "ISO 1219-1"
+subfamily = "air-preparation"
+symbol = "pneu-frl-unit-symbol.svg"
+symbol_standard = "ISO"
+
+[params.drain_type]
+default = "manual"
+editable = true
+label = "Condensate Drain"
+options = ["manual", "semi-auto", "fully-auto"]
+type = "enum"
+
+[params.filtration_grade]
+default = 40
+editable = true
+label = "Filtration Grade"
+options = [5, 40]
+type = "enum"
+unit = "µm"
+
+[params.flow_rate]
+default = 1200
+editable = true
+label = "Nominal Flow Rate"
+type = "float"
+unit = "l/min"
+
+[params.max_input_pressure]
+default = 16
+editable = false
+label = "Max Input Pressure"
+max = 20
+min = 10
+type = "float"
+unit = "bar"
+
+[params.output_pressure]
+default = 6
+editable = true
+label = "Regulated Output Pressure"
+max = 12
+min = 0.5
+type = "float"
+unit = "bar"
+ports = []
+
+[[pneumatic_ports]]
+direction = "input"
+flow_nominal = "{flow_rate}"
+id = "IN"
+notes = "supply pressure from compressor"
+pressure_max = "16bar"
+type = "pneumatic"
+
+[[pneumatic_ports]]
+direction = "output"
+flow_nominal = "{flow_rate}"
+id = "OUT"
+notes = "regulated conditioned air"
+pressure_max = "{output_pressure}bar"
+type = "pneumatic"
+
+[simulation]
+bidirectional = false
+dynamic = false
+model = "fluid-pressure-source"
+motion = "none"
+noise_model = false
+states = ["active", "empty"]
+thermal_model = false
+
+[limits]
+max_pressure = 16
+max_temp = 60
+min_pressure = 1.5
+min_temp = 0
+warnings = ["Input pressure must be at least 1 bar higher than desired output pressure", "Check lubricator oil level regularly to prevent actuator damage", "Ensure manual drain is emptied periodically to avoid filter element saturation"]
+
+[connections]
+allowed_with = ["pneu-valve-*", "pneu-cylinder-*"]
+forbidden_with = ["hyd-*"]
+requires = []
+typical_context = ["machine-supply", "air-preparation", "pressure-regulation"]
+
+[canvas]
+animated = true
+height = 60
+label_position = "bottom"
+
+[canvas.port_IN]
+x = 0
+y = 20
+
+[canvas.port_OUT]
+x = 60
+y = 20
+ports_layout = "custom"
+value_display = "{output_pressure} bar Regulated"
+width = 60
+
+[dendri]
+component_family_skill_id = "pneumatics-family"
+component_profile_id = "pneu-frl-unit"
+palette_group = "Pneumatics > Air Preparation"
+simulation_engine = "pneumatic-motion"
+svg_path = "content/assets/svg/components/pneu-frl-unit.svg"
+tags = ["frl", "regulator", "filter", "lubricator", "supply"]
+svg_status = "missing"

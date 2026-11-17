@@ -1,0 +1,155 @@
+# component profile — dc-psu-prog (migrated from legacy TOON)
+# Source: dc-psu-prog.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "dc-psu-prog-profile"
+
+[identification]
+category = "source"
+family = "electricals"
+id = "dc-psu-prog"
+image = "dc-psu-prog.svg"
+name = "Programmable DC Laboratory Power Supply"
+standard = "IEC 61010-1"
+subfamily = "sources"
+symbol = "dc-psu-prog-symbol.svg"
+symbol_standard = "IEC"
+url = "https://www.joy-it.net/en/products/JT-PS1440-C-Pro"
+
+[params.current_limit]
+default = 1
+editable = true
+label = "Current Limit"
+max = 24
+min = 0
+type = "float"
+unit = "A"
+
+[params.memory_slot]
+default = 0
+editable = true
+label = "Memory Slot"
+options = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+type = "enum"
+
+[params.ocp_threshold]
+default = 25
+editable = true
+label = "OCP Threshold"
+max = 26
+min = 0
+type = "float"
+unit = "A"
+
+[params.operating_mode]
+default = "CV"
+editable = false
+label = "Operating Mode"
+options = ["CV", "CC"]
+type = "enum"
+
+[params.output_enabled]
+default = true
+editable = true
+label = "Output Enabled"
+type = "bool"
+
+[params.ovp_threshold]
+default = 62
+editable = true
+label = "OVP Threshold"
+max = 66
+min = 0
+type = "float"
+unit = "V"
+
+[params.voltage]
+default = 12
+editable = true
+label = "Output Voltage"
+max = 60
+min = 0
+type = "float"
+unit = "V"
+
+[[ports]]
+current_max = "10A"
+direction = "input"
+id = "AC_IN"
+notes = "AC mains input 230V"
+type = "power"
+voltage_max = "250V"
+
+[[ports]]
+current_max = "24A"
+direction = "output"
+id = "POS"
+notes = "positive DC output terminal"
+type = "power"
+voltage_max = "60V"
+
+[[ports]]
+direction = "output"
+id = "NEG"
+notes = "negative DC output terminal / GND"
+type = "ground"
+
+[simulation]
+bidirectional = false
+dynamic = true
+equation = "V_out = voltage; I_out = min(I_load, current_limit)"
+model = "ideal"
+noise_model = false
+states = ["off", "on", "fault"]
+thermal_model = false
+waveform = "DC"
+
+[limits]
+max_current = "24A"
+
+[limits.max_power]
+unit = "W"
+value = 1440
+max_temp = 40
+max_voltage = "60V"
+min_temp = -10
+warnings = ["Input must be 230V AC — do not connect to other voltages", "Never short-circuit the output terminals", "OVP and OCP must be configured before use in sensitive circuits", "Step-down operation only — output voltage must be below input-derived rail"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["lab-bench", "battery-charging", "device-under-test", "burn-in-test"]
+
+[canvas]
+animated = true
+height = 60
+label_position = "top"
+
+[canvas.port_AC_IN]
+x = 0
+y = 10
+
+[canvas.port_NEG]
+x = 80
+y = 45
+
+[canvas.port_POS]
+x = 80
+y = 15
+ports_layout = "custom"
+value_display = "{voltage}V / {current_limit}A"
+width = 80
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "dc-psu-prog"
+palette_group = "Fundamental Electricals > Sources"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/dc-psu-prog.svg"
+tags = ["dc-power-supply", "programmable", "laboratory", "source", "bench-instrument", "adjustable"]
+svg_status = "missing"

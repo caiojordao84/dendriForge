@@ -1,0 +1,130 @@
+# component profile — hyd-motor-vane (migrated from legacy TOON)
+# Source: hyd-motor-vane.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "hyd-motor-vane-profile"
+
+[identification]
+category = "actuator"
+family = "hydraulics"
+id = "hyd-motor-vane"
+image = "hyd-motor-vane.svg"
+name = "Hydraulic Vane Motor (Motor hid. de palhetas)"
+standard = "ISO 1219-1"
+subfamily = "hydraulic-actuators"
+symbol = "hyd-motor-vane-symbol.svg"
+symbol_standard = "ISO"
+
+[params.displacement]
+default = 32
+editable = true
+label = "Displacement"
+options = [16, 25, 32, 40, 50, 63, 80, 100]
+type = "enum"
+unit = "cm³/rev"
+
+[params.flow_rate]
+default = 48
+editable = false
+label = "Nominal Flow Rate"
+type = "float"
+unit = "l/min"
+
+[params.operating_pressure]
+default = 150
+editable = true
+label = "Operating Pressure"
+max = 250
+min = 10
+type = "float"
+unit = "bar"
+
+[params.speed_rated]
+default = 1500
+editable = true
+label = "Rated Speed"
+max = 3000
+min = 100
+type = "float"
+unit = "RPM"
+ports = []
+
+[[hydraulic_ports]]
+direction = "bidirectional"
+flow_max = "{flow_rate}"
+id = "A"
+notes = "port A — rotate CW"
+pressure_max = "{operating_pressure}bar"
+type = "hydraulic"
+
+[[hydraulic_ports]]
+direction = "bidirectional"
+flow_max = "{flow_rate}"
+id = "B"
+notes = "port B — rotate CCW"
+pressure_max = "{operating_pressure}bar"
+type = "hydraulic"
+
+[[hydraulic_ports]]
+direction = "exhaust"
+flow_max = "5"
+id = "L"
+notes = "case drain (leakage return to tank)"
+pressure_max = "5bar"
+type = "hydraulic"
+
+[simulation]
+bidirectional = true
+dynamic = true
+leakage_model = true
+model = "hydraulic-rotary-actuator"
+motion = "rotary"
+noise_model = false
+states = ["stopped", "rotating-cw", "rotating-ccw", "fault"]
+thermal_model = true
+
+[limits]
+max_pressure = 250
+max_temp = 90
+min_pressure = 10
+min_temp = -20
+warnings = ["Case drain port (L) must be connected directly to the tank with minimal backpressure", "Internal leakage increases with wear and fluid temperature", "Operating torque is a function of differential pressure and displacement"]
+
+[connections]
+allowed_with = ["hyd-valve-4-2-*", "hyd-valve-4-3-*", "hyd-flow-control-*"]
+forbidden_with = ["pneu-*", "act-motor-*"]
+requires = ["hyd-power-unit"]
+typical_context = ["winch-drive", "conveyor-drive", "heavy-duty-rotation"]
+
+[canvas]
+animated = true
+height = 60
+label_position = "bottom"
+
+[canvas.port_A]
+x = 10
+y = 0
+
+[canvas.port_B]
+x = 50
+y = 0
+
+[canvas.port_L]
+x = 30
+y = 60
+ports_layout = "custom"
+value_display = "{displacement}cc / {speed_rated}RPM"
+width = 60
+
+[dendri]
+component_family_skill_id = "hydraulics-family"
+component_profile_id = "hyd-motor-vane"
+palette_group = "Hydraulics > Hydraulic Actuators"
+simulation_engine = "hydraulic-motion"
+svg_path = "content/assets/svg/components/hyd-motor-vane.svg"
+tags = ["motor", "hydraulic", "rotary", "vane", "actuator"]
+svg_status = "missing"

@@ -1,0 +1,192 @@
+# component profile — ac-source-3phase (migrated from legacy TOON)
+# Source: ac-source-3phase.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "ac-source-3phase-profile"
+
+[identification]
+category = "source"
+family = "electricals"
+id = "ac-source-3phase"
+image = "ac-source-3phase.svg"
+name = "Programmable Three-Phase AC Power Source"
+standard = "IEC 61010-1 / IEC 60038"
+subfamily = "sources"
+symbol = "ac-source-3phase-symbol.svg"
+symbol_standard = "IEC"
+
+[params.current_limit]
+default = 10
+editable = true
+label = "Current Limit per Phase"
+max = 100
+min = 0
+type = "float"
+unit = "A"
+
+[params.frequency]
+default = 50
+editable = true
+label = "Frequency"
+options = [50, 60]
+type = "enum"
+unit = "Hz"
+
+[params.output_enabled]
+default = true
+editable = true
+label = "Output Enabled"
+type = "bool"
+
+[params.phase_angle_offset]
+default = 0
+editable = true
+label = "Phase Angle Offset"
+max = 360
+min = 0
+type = "float"
+unit = "V"
+
+[params.phase_sequence]
+default = "RST"
+editable = true
+label = "Phase Sequence"
+options = ["RST", "RTS"]
+type = "enum"
+
+[params.voltage_ll]
+default = 400
+editable = false
+label = "Line-to-Line Voltage (L-L)"
+max = 690
+min = 0
+type = "float"
+unit = "V"
+
+[params.voltage_ln]
+default = 230
+editable = true
+label = "Line-to-Neutral Voltage (L-N)"
+max = 300
+min = 0
+type = "float"
+unit = "V"
+
+[params.wiring]
+default = "WYE-N"
+editable = true
+label = "Wiring Configuration"
+options = ["WYE-N", "WYE", "DELTA"]
+type = "enum"
+
+[[ports]]
+current_max = "100A"
+direction = "output"
+id = "L1"
+notes = "phase L1 / R"
+type = "power"
+voltage_max = "300V"
+
+[[ports]]
+current_max = "100A"
+direction = "output"
+id = "L2"
+notes = "phase L2 / S"
+type = "power"
+voltage_max = "300V"
+
+[[ports]]
+current_max = "100A"
+direction = "output"
+id = "L3"
+notes = "phase L3 / T"
+type = "power"
+voltage_max = "300V"
+
+[[ports]]
+direction = "output"
+id = "N"
+notes = "neutral wire"
+type = "ground"
+
+[[ports]]
+direction = "output"
+id = "PE"
+notes = "protective earth"
+type = "ground"
+
+[[ports]]
+current_max = "100A"
+direction = "input"
+id = "AC_IN"
+notes = "AC mains 3-phase input"
+type = "power"
+voltage_max = "690V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+equation = "V_L1 = voltage_ln*sin(2*pi*f*t); V_L2 = voltage_ln*sin(2*pi*f*t - 2*pi/3); V_L3 = voltage_ln*sin(2*pi*f*t + 2*pi/3)"
+model = "ideal"
+noise_model = false
+states = ["off", "on", "fault"]
+thermal_model = false
+waveform = "sine"
+
+[limits]
+max_current = "100A"
+max_temp = 40
+max_voltage = "690V"
+min_temp = -10
+warnings = ["Ensure correct phase sequence before connecting motor loads", "Never short-circuit phase-to-phase or phase-to-PE terminals", "OVP/OCP protection must be configured before energising sensitive loads", "Verify load wiring (WYE or DELTA) matches source configuration before enabling output"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["motor-drive-testing", "three-phase-load-test", "power-quality-analysis", "lab-bench"]
+
+[canvas]
+animated = true
+height = 80
+label_position = "top"
+
+[canvas.port_AC_IN]
+x = 0
+y = 10
+
+[canvas.port_L1]
+x = 90
+y = 10
+
+[canvas.port_L2]
+x = 90
+y = 30
+
+[canvas.port_L3]
+x = 90
+y = 50
+
+[canvas.port_N]
+x = 90
+y = 65
+
+[canvas.port_PE]
+x = 90
+y = 80
+ports_layout = "custom"
+value_display = "{voltage_ln}V L-N / {voltage_ll}V L-L / {frequency}Hz"
+width = 90
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "ac-source-3phase"
+palette_group = "Fundamental Electricals > Sources"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/ac-source-3phase.svg"
+tags = ["ac-source", "three-phase", "programmable", "laboratory", "source", "wye", "delta"]
+svg_status = "missing"

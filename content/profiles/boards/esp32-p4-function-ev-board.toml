@@ -1,0 +1,282 @@
+# board profile — esp32-p4-function-ev-board (migrated from legacy TOON)
+# Source: esp32-p4-function-ev-board.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "esp32-p4-function-ev-board-profile"
+
+[identification]
+category = "maker"
+id = "esp32-p4-function-ev-board"
+image = "esp32-p4-function-ev-board.svg"
+manufacturer = "Espressif"
+mcu = "Espressif ESP32-P4 (RISC-V dual-core 400 MHz + LP core 40 MHz)"
+name = "ESP32-P4-Function-EV-Board v1.5.2"
+url = "https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32p4/esp32-p4-function-ev-board/user_guide.html"
+
+[specs]
+clock = 400000000
+eeprom = 0
+flash_available = 16252928
+flash_total = 16777216
+sram = 33554432
+voltage = "3.3V"
+
+[dims]
+h = 88.0
+t = 1.6
+w = 74.0
+
+[[power_pins]]
+direction = "input"
+name = "5V"
+voltage = "5V"
+
+[[power_pins]]
+direction = "output"
+name = "3V3"
+voltage = "3.3V"
+
+[[power_pins]]
+name = "GND"
+type = "ground"
+
+[[power_pins]]
+direction = "input"
+name = "RST"
+
+[[power_pins]]
+direction = "input"
+name = "BOOT"
+
+[[gpio]]
+int = true
+label = "GPIO2 / ADC1_CH1"
+pin = 2
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "GPIO3 / ADC1_CH2"
+pin = 3
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "GPIO4 / ADC1_CH3"
+pin = 4
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "GPIO5 / ADC1_CH4"
+pin = 5
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "GPIO6"
+pin = 6
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO7 / SDA"
+pin = 7
+pwm = true
+roles = ["i2c-sda"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO8 / SCL"
+pin = 8
+pwm = true
+roles = ["i2c-scl"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO20 / SCK"
+pin = 20
+pwm = true
+roles = ["spi-sck"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO21 / MOSI"
+pin = 21
+pwm = true
+roles = ["spi-mosi"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO22 / MISO"
+pin = 22
+pwm = true
+roles = ["spi-miso"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO23 / SS"
+pin = 23
+pwm = true
+roles = ["spi-ss"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO26 / LCD PWM"
+pin = 26
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO27 / LCD RST"
+pin = 27
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO32"
+pin = 32
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO33"
+pin = 33
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO36"
+pin = 36
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO37 / U0TXD"
+pin = 37
+pwm = true
+roles = ["uart-tx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO38 / U0RXD"
+pin = 38
+pwm = true
+roles = ["uart-rx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO46"
+pin = 46
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO47"
+pin = 47
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO48"
+pin = 48
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO53"
+pin = 53
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO54"
+pin = 54
+pwm = true
+roles = []
+type = "digital"
+
+[[peripherals]]
+param = "uarts:5"
+peripheral = "serial"
+value = "pins:37,38"
+
+[[peripherals]]
+param = "channels:2"
+peripheral = "i2c"
+value = "sda:7;scl:8"
+
+[[peripherals]]
+param = "channels:3"
+peripheral = "spi"
+value = "miso:22;mosi:21;sck:20;ss:23"
+
+[[peripherals]]
+param = "resolution:12bit"
+peripheral = "adc"
+value = "pins:2;3;4;5"
+
+[usb]
+chip = "native"
+pid = "0x1001"
+type = "USB-C"
+vid = "0x303A"
+
+[restrictions]
+max_io_current = "25mA"
+total_current_limit = "500mA"
+warnings = ["All I/O pins operate at 3.3V; not 5V tolerant", "GPIO0/GPIO1 not broken out on J1 (marked NC); reserved for internal use", "GPIO26/GPIO27 used by LCD backlight PWM and reset by default", "PSRAM 32MB uses internal SPI bus; not accessible on J1 headers", "Wi-Fi and Bluetooth provided by co-module ESP32-C6-MINI-1; not on ESP32-P4 chip", "USB 2.0 Type-C and Type-A (OTG HS) cannot be used simultaneously", "MIPI-CSI/DSI pins not broken out on J1; dedicated FPC connectors only"]
+
+[compatibility]
+arduino_core = "3.0.0"
+bootloader = "esp32p4-boot"
+frameworks = "arduino"
+languages = "arduino-cpp"
+pio = "espressif32"
+
+[dendri]
+board_family_skill_id = "esp32-family"
+board_profile_id = "esp32-p4-function-ev-board"
+default_language_skills = ["arduino-cpp-esp32", "micropython-esp32", "rust-embassy-esp32"]
+svg_path = "content/assets/svg/boards/esp32-p4-function-ev-board.svg"
+svg_status = "missing"

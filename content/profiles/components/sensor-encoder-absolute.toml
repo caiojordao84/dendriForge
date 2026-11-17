@@ -1,0 +1,160 @@
+# component profile — sensor-encoder-absolute (migrated from legacy TOON)
+# Source: sensor-encoder-absolute.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "sensor-encoder-absolute-profile"
+
+[identification]
+category = "sensor"
+family = "sensors"
+id = "sensor-encoder-absolute"
+image = "sensor-encoder-absolute.svg"
+name = "Absolute Encoder (Encoder Absoluto)"
+standard = "IEC 60947-5-2"
+subfamily = "motion-position"
+symbol = "sensor-encoder-absolute-symbol.svg"
+symbol_standard = "IEC"
+
+[params.max_rpm]
+default = 6000
+editable = false
+label = "Maximum RPM"
+max = 12000
+min = 1000
+type = "float"
+unit = "RPM"
+
+[params.output_protocol]
+default = "SSI"
+editable = true
+label = "Output Protocol"
+options = ["SSI", "Parallel-Gray", "BISS-C"]
+type = "enum"
+
+[params.resolution_bits]
+default = 12
+editable = true
+label = "Resolution (Bits)"
+options = [8, 10, 12, 14, 16, 24]
+type = "enum"
+
+[params.supply_voltage]
+default = 24
+editable = true
+label = "Supply Voltage"
+options = [5, 12, 24]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "VCC"
+notes = "encoder supply voltage"
+type = "power"
+voltage_max = "{supply_voltage}"
+
+[[ports]]
+direction = "input"
+id = "GND"
+notes = "encoder ground"
+type = "ground"
+
+[[ports]]
+current_max = "20mA"
+direction = "input"
+id = "CLK_P"
+notes = "SSI/BISS clock + (RS422 differential)"
+type = "digital"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "20mA"
+direction = "input"
+id = "CLK_N"
+notes = "SSI/BISS clock - (RS422 differential)"
+type = "digital"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "20mA"
+direction = "output"
+id = "DATA_P"
+notes = "SSI/BISS data + (RS422 differential)"
+type = "digital"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "20mA"
+direction = "output"
+id = "DATA_N"
+notes = "SSI/BISS data - (RS422 differential)"
+type = "digital"
+voltage_max = "5V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "digital-io"
+noise_model = false
+states = ["idle", "measuring"]
+thermal_model = false
+
+[limits]
+ip_rating = "IP67"
+max_current = "100mA"
+max_temp = 85
+max_voltage = "{supply_voltage}"
+min_temp = -20
+warnings = ["Clock and Data lines operate on 5V RS422 differential standards, not 24V supply logic", "Ensure proper shielding and twisted pair wiring to prevent data corruption", "Exceeding the maximum mechanical RPM will result in permanent bearing damage"]
+
+[connections]
+allowed_with = ["plc-*", "mcu-*", "act-motor-*", "comm-rs485-stub"]
+forbidden_with = ["ac-source"]
+requires = ["dc-source"]
+typical_context = ["servo-feedback", "cnc-positioning", "robotics-joint-angle"]
+
+[canvas]
+animated = true
+height = 60
+label_position = "bottom"
+
+[canvas.port_CLK_N]
+x = 0
+y = 40
+
+[canvas.port_CLK_P]
+x = 0
+y = 20
+
+[canvas.port_DATA_N]
+x = 60
+y = 40
+
+[canvas.port_DATA_P]
+x = 60
+y = 20
+
+[canvas.port_GND]
+x = 45
+y = 0
+
+[canvas.port_VCC]
+x = 15
+y = 0
+ports_layout = "custom"
+value_display = "{resolution_bits}-bit {output_protocol}"
+width = 60
+
+[dendri]
+component_family_skill_id = "sensors-family"
+component_profile_id = "sensor-encoder-absolute"
+palette_group = "Sensors > Motion & Position"
+simulation_engine = "digital-io"
+svg_path = "content/assets/svg/components/sensor-encoder-absolute.svg"
+tags = ["encoder", "absolute", "ssi", "position", "rs422"]
+svg_status = "missing"

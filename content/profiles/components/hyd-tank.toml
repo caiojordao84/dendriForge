@@ -1,0 +1,88 @@
+# component profile — hyd-tank (migrated from legacy TOON)
+# Source: hyd-tank.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "hyd-tank-profile"
+
+[identification]
+category = "accessory"
+family = "hydraulics"
+id = "hyd-tank"
+image = "hyd-tank.svg"
+name = "Hydraulic Tank / Reservoir (Tanque hidráulico)"
+standard = "ISO 1219-1"
+subfamily = "pumps"
+symbol = "hyd-tank-symbol.svg"
+symbol_standard = "ISO"
+
+[params.capacity]
+default = 50
+editable = true
+label = "Tank Capacity"
+max = 5000
+min = 1
+type = "float"
+unit = "L"
+
+[params.return_pressure]
+default = 0
+editable = false
+label = "Return Line Pressure"
+type = "float"
+unit = "bar"
+ports = []
+
+[[hydraulic_ports]]
+direction = "input"
+id = "T"
+notes = "tank return line (drain/exhaust)"
+pressure_max = "5bar"
+type = "hydraulic"
+
+[simulation]
+bidirectional = false
+dynamic = false
+leakage_model = false
+model = "fluid-pressure-source"
+motion = "none"
+noise_model = false
+states = ["nominal"]
+thermal_model = false
+
+[limits]
+max_pressure = 5
+max_temp = 90
+min_pressure = 0
+min_temp = -20
+warnings = ["Atmospheric pressure reservoir for hydraulic fluid return and leakage drain lines."]
+
+[connections]
+allowed_with = ["hyd-*"]
+forbidden_with = ["pneu-*"]
+requires = []
+typical_context = ["fluid-return", "reservoir", "drain", "exhaust"]
+
+[canvas]
+animated = false
+height = 40
+label_position = "bottom"
+
+[canvas.port_T]
+x = 20
+y = 0
+ports_layout = "custom"
+value_display = "{capacity} L"
+width = 40
+
+[dendri]
+component_family_skill_id = "hydraulics-family"
+component_profile_id = "hyd-tank"
+palette_group = "Hydraulics > Power Units"
+simulation_engine = "hydraulic-motion"
+svg_path = "content/assets/svg/components/hyd-tank.svg"
+tags = ["tank", "reservoir", "return", "hydraulic"]
+svg_status = "missing"

@@ -1,0 +1,143 @@
+# component profile — cmd-operator-panel (migrated from legacy TOON)
+# Source: cmd-operator-panel.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "cmd-operator-panel-profile"
+
+[identification]
+category = "instrument"
+family = "industrial"
+id = "cmd-operator-panel"
+image = "cmd-operator-panel.svg"
+name = "Operator Panel Simple"
+standard = "IEC 61131-3"
+subfamily = "hmi-signaling"
+symbol = "cmd-operator-panel-symbol.svg"
+symbol_standard = "IEC"
+
+[params.display_type]
+default = "7-segment"
+editable = true
+label = "Display Type"
+options = ["none", "7-segment", "LCD", "LED-matrix"]
+type = "enum"
+
+[params.interface]
+default = "discrete-io"
+editable = true
+label = "Control Interface"
+options = ["discrete-io", "I2C", "SPI", "Modbus-RTU"]
+type = "enum"
+
+[params.led_count]
+default = 4
+editable = true
+label = "Number of Status LEDs"
+max = 16
+min = 0
+type = "int"
+
+[params.pushbutton_count]
+default = 4
+editable = true
+label = "Number of Pushbuttons"
+max = 16
+min = 0
+type = "int"
+
+[params.supply_voltage]
+default = 24
+editable = true
+label = "Supply Voltage"
+options = [5, 12, 24]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "500mA"
+direction = "input"
+id = "VCC"
+notes = "DC supply positive"
+type = "power"
+voltage_max = "24V"
+
+[[ports]]
+direction = "input"
+id = "GND"
+notes = "DC supply negative"
+type = "ground"
+
+[[ports]]
+current_max = "200mA"
+direction = "input"
+id = "DI_BUS"
+notes = "Digital inputs from buttons/selectors"
+type = "digital"
+voltage_max = "24V"
+
+[[ports]]
+current_max = "200mA"
+direction = "output"
+id = "DO_BUS"
+notes = "Digital outputs to LEDs/display"
+type = "digital"
+voltage_max = "24V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "function-block-engine"
+noise_model = false
+states = ["idle", "active", "fault"]
+thermal_model = false
+
+[limits]
+ip_rating = "IP54"
+max_current = "500mA"
+max_temp = 55
+max_voltage = "24V"
+min_temp = -10
+warnings = ["Total current draw increases with LED count and display type", "Discrete IO interface requires individual wiring per button and LED", "Verify IP rating matches installation environment requirements"]
+
+[connections]
+allowed_with = ["plc-*", "ind-di-bank", "ind-do-bank", "mcu-*"]
+forbidden_with = ["ac-source"]
+requires = ["dc-source"]
+typical_context = ["machine-panel", "local-control", "status-indication"]
+
+[canvas]
+animated = true
+height = 60
+label_position = "top"
+
+[canvas.port_DI_BUS]
+x = 0
+y = 40
+
+[canvas.port_DO_BUS]
+x = 80
+y = 40
+
+[canvas.port_GND]
+x = 0
+y = 25
+
+[canvas.port_VCC]
+x = 0
+y = 10
+ports_layout = "custom"
+value_display = "{display_type} / {pushbutton_count}btn / {led_count}LED"
+width = 80
+
+[dendri]
+component_family_skill_id = "industrial-family"
+component_profile_id = "cmd-operator-panel"
+palette_group = "Industrial > HMI & Signaling"
+simulation_engine = "function-block-engine"
+svg_path = "content/assets/svg/components/cmd-operator-panel.svg"
+tags = ["operator-panel", "hmi-signaling", "industrial", "pushbutton", "display", "local-control"]
+svg_status = "missing"

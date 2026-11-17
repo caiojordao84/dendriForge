@@ -1,0 +1,156 @@
+# component profile — cmd-selector-3pos-012 (migrated from legacy TOON)
+# Source: cmd-selector-3pos-012.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "cmd-selector-3pos-012-profile"
+
+[identification]
+category = "command"
+family = "command-elements"
+id = "cmd-selector-3pos-012"
+image = "cmd-selector-3pos-012.svg"
+name = "Selector Switch 3-Position 0-1-2"
+standard = "IEC 60947-5-1"
+subfamily = "selectors"
+symbol = "cmd-selector-3pos-012-symbol.svg"
+symbol_standard = "IEC"
+
+[params.color]
+default = "black"
+editable = true
+label = "Knob Color"
+options = ["black", "grey", "red"]
+type = "enum"
+
+[params.contact_config]
+default = "2NO"
+editable = true
+label = "Contact Configuration"
+options = ["2NO", "2NO+2NC", "1CO+1NO"]
+type = "enum"
+
+[params.current_rating]
+default = 10
+editable = false
+label = "Current Rating"
+type = "float"
+unit = "A"
+
+[params.illuminated]
+default = false
+editable = true
+label = "Illuminated"
+type = "bool"
+
+[params.is_maintained]
+default = true
+editable = false
+label = "Maintained Action"
+type = "bool"
+
+[params.positions]
+default = 3
+editable = false
+label = "Number of Positions"
+options = [3]
+type = "enum"
+
+[params.voltage_rating]
+default = 240
+editable = false
+label = "Voltage Rating"
+options = [24, 110, 240, 400]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "10A"
+direction = "input"
+id = "NO1_IN"
+notes = "NO contact 1 input — closes at position 1"
+type = "digital"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "10A"
+direction = "output"
+id = "NO1_OUT"
+notes = "NO contact 1 output — closes at position 1"
+type = "digital"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "10A"
+direction = "input"
+id = "NO2_IN"
+notes = "NO contact 2 input — closes at position 2"
+type = "digital"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "10A"
+direction = "output"
+id = "NO2_OUT"
+notes = "NO contact 2 output — closes at position 2"
+type = "digital"
+voltage_max = "400V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "contact-block"
+noise_model = false
+states = ["position-0", "position-1", "position-2", "fault"]
+thermal_model = false
+trigger = "user-interaction"
+
+[limits]
+ip_rating = "IP65"
+max_current = "10A"
+max_temp = 55
+max_voltage = "400V"
+min_temp = -25
+warnings = ["Do not exceed rated voltage or current on contact terminals", "This is a maintained selector — position holds after actuation", "Verify panel cutout dimensions before mounting (IEC 60947-5-1)"]
+
+[connections]
+allowed_with = ["ind-contact-no", "ind-contact-nc", "ind-coil", "ind-di-bank", "plc-*"]
+forbidden_with = []
+requires = []
+typical_context = ["speed-selection", "mode-selection", "multi-step-control"]
+
+[canvas]
+animated = true
+height = 60
+label_position = "bottom"
+
+[canvas.port_NO1_IN]
+x = 0
+y = 15
+
+[canvas.port_NO1_OUT]
+x = 60
+y = 15
+
+[canvas.port_NO2_IN]
+x = 0
+y = 45
+
+[canvas.port_NO2_OUT]
+x = 60
+y = 45
+ports_layout = "custom"
+value_display = "{contact_config} / {positions}pos / {color}"
+width = 60
+
+[dendri]
+component_family_skill_id = "command-elements-family"
+component_profile_id = "cmd-selector-3pos-012"
+palette_group = "Command Elements > Selectors"
+simulation_engine = "digital-io"
+svg_path = "content/assets/svg/components/cmd-selector-3pos-012.svg"
+tags = ["selector", "command", "selectors", "three-position", "multi-step", "maintained"]
+svg_status = "missing"

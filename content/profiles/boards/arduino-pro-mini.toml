@@ -1,0 +1,246 @@
+# board profile — arduino-pro-mini (migrated from legacy TOON)
+# Source: arduino-pro-mini.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "arduino-pro-mini-profile"
+
+[identification]
+category = "maker"
+id = "arduino-pro-mini"
+image = "arduino-pro-mini.svg"
+manufacturer = "Arduino"
+mcu = "ATmega328P"
+name = "Arduino Pro Mini"
+url = "https://docs.arduino.cc/hardware/pro-mini"
+
+[specs]
+clock = 16000000
+eeprom = 1024
+flash_available = 32256
+flash_total = 32768
+sram = 2048
+voltage = "5V"
+
+[dims]
+h = 18.0
+t = 1.6
+w = 33.0
+
+[[power_pins]]
+direction = "input"
+name = "RAW"
+
+[[power_pins]]
+direction = "output"
+name = "VCC"
+voltage = "5V"
+
+[[power_pins]]
+name = "GND"
+type = "ground"
+
+[[power_pins]]
+direction = "input"
+name = "RST"
+
+[[power_pins]]
+direction = "input"
+name = "AREF"
+
+[[gpio]]
+int = false
+label = "D0 / RX"
+pin = 0
+pwm = false
+roles = ["uart-rx"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D1 / TX"
+pin = 1
+pwm = false
+roles = ["uart-tx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D2"
+pin = 2
+pwm = false
+roles = ["int0"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D3 PWM"
+pin = 3
+pwm = true
+roles = ["int1"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D4"
+pin = 4
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D5 PWM"
+pin = 5
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D6 PWM"
+pin = 6
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D7"
+pin = 7
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D8"
+pin = 8
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D9 PWM"
+pin = 9
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D10 PWM / SS"
+pin = 10
+pwm = true
+roles = ["spi-ss"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D11 PWM / MOSI"
+pin = 11
+pwm = true
+roles = ["spi-mosi"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D12 / MISO"
+pin = 12
+pwm = false
+roles = ["spi-miso"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D13 / LED / SCK"
+pin = 13
+pwm = false
+roles = ["spi-sck", "status-led"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "A0"
+pin = 14
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A1"
+pin = 15
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A2"
+pin = 16
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A3"
+pin = 17
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A4 / SDA"
+pin = 18
+pwm = false
+roles = ["adc:t", "i2c-sda"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A5 / SCL"
+pin = 19
+pwm = false
+roles = ["adc:t", "i2c-scl"]
+type = "analog"
+
+[[peripherals]]
+param = "uarts:1"
+peripheral = "serial"
+value = "pins:0,1"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "i2c"
+value = "sda:18;scl:19"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "spi"
+value = "miso:12;mosi:11;sck:13;ss:10"
+
+[restrictions]
+max_io_current = "40mA"
+total_current_limit = "150mA"
+warnings = ["No onboard USB — requires external FTDI USB-TTL adapter for programming", "RAW pin accepts 7-12V unregulated input", "VCC output voltage depends on board variant (5V or 3.3V version)"]
+
+[compatibility]
+arduino_core = "1.8.19"
+bootloader = "optiboot"
+frameworks = "arduino"
+languages = "arduino-cpp"
+pio = "atmelavr"
+
+[dendri]
+board_family_skill_id = "avr-family"
+board_profile_id = "arduino-pro-mini"
+default_language_skills = ["arduino-cpp-avr", "rust-embassy-avr"]
+svg_path = "content/assets/svg/boards/arduino-pro-mini.svg"
+svg_status = "missing"

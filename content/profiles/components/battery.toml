@@ -1,0 +1,152 @@
+# component profile — battery (migrated from legacy TOON)
+# Source: battery.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "battery-profile"
+
+[identification]
+category = "source"
+family = "electricals"
+id = "battery"
+image = "battery.svg"
+name = "Generic Battery"
+standard = "IEC 60086-1"
+subfamily = "sources"
+symbol = "battery-symbol.svg"
+symbol_standard = "IEC"
+
+[params.capacity]
+default = 7
+editable = true
+label = "Capacity"
+max = 1000
+min = 0.1
+type = "float"
+unit = "V"
+
+[params.chemistry]
+default = "Li-Ion"
+editable = true
+label = "Battery Chemistry"
+options = ["Li-Ion", "LiFePO4", "NiMH", "NiCd", "Lead-Acid", "Alkaline"]
+type = "enum"
+
+[params.cutoff_voltage]
+default = 10
+editable = false
+label = "Discharge Cutoff Voltage"
+max = 90
+min = 0
+type = "float"
+unit = "V"
+
+[params.internal_resistance]
+default = 0.05
+editable = false
+label = "Internal Resistance"
+max = 10
+min = 0.001
+type = "float"
+unit = "Ω"
+
+[params.max_charge_current]
+default = 1
+editable = false
+label = "Max Charge Current"
+max = 500
+min = 0.01
+type = "float"
+unit = "A"
+
+[params.max_discharge_current]
+default = 5
+editable = false
+label = "Max Discharge Current"
+max = 1000
+min = 0.01
+type = "float"
+unit = "A"
+
+[params.nominal_voltage]
+default = 12
+editable = true
+label = "Nominal Voltage"
+max = 96
+min = 1.2
+type = "float"
+unit = "V"
+
+[params.soc]
+default = 100
+editable = true
+label = "State of Charge"
+max = 100
+min = 0
+type = "float"
+unit = "%"
+
+[[ports]]
+current_max = "1000A"
+direction = "bidirectional"
+id = "POS"
+notes = "positive terminal"
+type = "power"
+voltage_max = "96V"
+
+[[ports]]
+direction = "bidirectional"
+id = "NEG"
+notes = "negative terminal / GND"
+type = "ground"
+
+[simulation]
+bidirectional = true
+dynamic = true
+equation = "V_out = nominal_voltage * (soc/100) - I * internal_resistance"
+model = "basic-analog"
+noise_model = false
+states = ["idle", "charging", "discharging", "fault"]
+thermal_model = false
+waveform = "DC"
+
+[limits]
+max_current = "1000A"
+max_temp = 60
+max_voltage = "96V"
+min_temp = -20
+warnings = ["Never short-circuit battery terminals — risk of fire and explosion", "Do not charge beyond rated max charge current", "Do not discharge below cutoff voltage — permanent capacity loss may occur", "Li-Ion and LiFePO4 cells require a dedicated BMS for safe operation"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["portable-power", "backup-supply", "ev-system", "energy-storage"]
+
+[canvas]
+animated = false
+height = 40
+label_position = "left"
+
+[canvas.port_NEG]
+x = 60
+y = 30
+
+[canvas.port_POS]
+x = 60
+y = 10
+ports_layout = "custom"
+value_display = "{nominal_voltage}V / {capacity}Ah ({chemistry})"
+width = 60
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "battery"
+palette_group = "Fundamental Electricals > Sources"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/battery.svg"
+tags = ["battery", "source", "dc", "energy-storage", "rechargeable", "portable"]
+svg_status = "missing"

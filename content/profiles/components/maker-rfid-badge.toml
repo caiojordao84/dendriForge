@@ -1,0 +1,90 @@
+# component profile — maker-rfid-badge (migrated from legacy TOON)
+# Source: maker-rfid-badge.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "maker-rfid-badge-profile"
+
+[identification]
+category = "node"
+family = "communication"
+id = "maker-rfid-badge"
+image = "maker-rfid-badge.svg"
+name = "RFID Badge 13.56MHz (Badge RFID)"
+standard = "ISO/IEC 14443-A"
+subfamily = "wireless"
+symbol = "maker-rfid-badge-symbol.svg"
+symbol_standard = "custom"
+
+[params.memory_size]
+default = 1024
+editable = false
+label = "Memory Size"
+options = [144, 504, 1024, 4096]
+type = "enum"
+unit = "bytes"
+
+[params.protocol]
+default = "MIFARE-Classic-1K"
+editable = true
+label = "Protocol"
+options = ["MIFARE-Classic-1K", "NTAG213", "NTAG215"]
+type = "enum"
+
+[params.uid]
+default = "DE:AD:BE:EF"
+editable = true
+label = "Badge UID (Hex)"
+type = "string"
+ports = []
+
+[[protocol_ports]]
+direction = "bidirectional"
+id = "RF"
+notes = "13.56MHz wireless RF interface"
+protocol = "ISO-14443-A"
+
+[simulation]
+bidirectional = true
+dynamic = true
+model = "digital-io"
+noise_model = false
+protocol_emulation = true
+states = ["idle", "transmitting"]
+thermal_model = false
+
+[limits]
+ip_rating = "IP54"
+max_temp = 50
+min_temp = -10
+warnings = ["Passive component — powered entirely by the reader's RF field", "Operating distance is highly dependent on the reader's antenna size and power"]
+
+[connections]
+allowed_with = ["comm-rfid-reader", "maker-rfid-*", "comm-*"]
+forbidden_with = []
+requires = []
+typical_context = ["access-control", "attendance-system", "maker-projects"]
+
+[canvas]
+animated = true
+height = 60
+label_position = "bottom"
+
+[canvas.port_RF]
+x = 20
+y = 30
+ports_layout = "custom"
+value_display = "{uid}"
+width = 40
+
+[dendri]
+component_family_skill_id = "communication-family"
+component_profile_id = "maker-rfid-badge"
+palette_group = "Communication > Wireless"
+simulation_engine = "protocol-stub-engine"
+svg_path = "content/assets/svg/components/maker-rfid-badge.svg"
+tags = ["rfid", "badge", "wireless", "tag"]
+svg_status = "missing"

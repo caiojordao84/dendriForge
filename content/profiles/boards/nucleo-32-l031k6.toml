@@ -1,0 +1,247 @@
+# board profile — nucleo-32-l031k6 (migrated from legacy TOON)
+# Source: nucleo-32-l031k6.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "nucleo-32-l031k6-profile"
+
+[identification]
+category = "embedded"
+id = "stm32-nucleo-32-l031k6"
+image = "stm32-nucleo-32-l031k6.svg"
+manufacturer = "STMicroelectronics"
+mcu = "STM32L031K6"
+name = "STMicroelectronics STM32 Nucleo-32 L031K6"
+url = "https://www.st.com/en/evaluation-tools/nucleo-l031k6.html"
+
+[specs]
+clock = 32000000
+eeprom = 256
+flash_available = 32768
+flash_total = 32768
+sram = 8192
+voltage = "3.3V"
+
+[dims]
+h = 25.0
+t = 10.0
+w = 48.0
+
+[[power_pins]]
+direction = "input"
+name = "5V"
+voltage = "5V"
+
+[[power_pins]]
+direction = "output"
+name = "3V3"
+voltage = "3.3V"
+
+[[power_pins]]
+name = "GND"
+type = "ground"
+
+[[power_pins]]
+direction = "input"
+name = "RESET"
+
+[[gpio]]
+int = false
+label = "D0 / RX"
+pin = 0
+pwm = false
+roles = ["uart-rx"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D1 / TX"
+pin = 1
+pwm = false
+roles = ["uart-tx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D2 / PA10"
+pin = 2
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D3 / PB3"
+pin = 3
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D4 / PB4"
+pin = 4
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D5 / PB5"
+pin = 5
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D6 / PB6"
+pin = 6
+pwm = false
+roles = ["spi-ss"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D7 / PA8"
+pin = 7
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D8 / PA9"
+pin = 8
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D9 / PB7"
+pin = 9
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D11 / PA7"
+pin = 10
+pwm = false
+roles = ["spi-mosi"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D12 / PA6"
+pin = 11
+pwm = false
+roles = ["spi-miso"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D13 / PA5"
+pin = 12
+pwm = false
+roles = ["spi-sck", "status-led"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "A0 / PA0"
+pin = 13
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A1 / PA1"
+pin = 14
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A2 / PA4"
+pin = 15
+pwm = false
+roles = ["adc:t", "dac"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A3 / PC0"
+pin = 16
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A4 / PC1"
+pin = 17
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[peripherals]]
+param = "uarts:2"
+peripheral = "serial"
+value = "pins:0,1"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "i2c"
+value = "sda:9;scl:6"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "spi"
+value = "miso:11;mosi:10;sck:12;ss:6"
+
+[[peripherals]]
+param = "channels:12"
+peripheral = "adc"
+value = "pins:13,14,15,16,17"
+
+[[peripherals]]
+param = "channels:4"
+peripheral = "pwm"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "dac"
+value = "pins:15"
+
+[usb]
+chip = "ST-LINK-V2-1"
+pid = "0x374B"
+type = "Micro-USB"
+vid = "0x0483"
+
+[restrictions]
+max_io_current = "3mA"
+total_current_limit = "200mA"
+warnings = ["Arduino Nano header compatible — 3.3V logic level only; not 5V tolerant", "Ultra-low-power Cortex-M0+ — GPIO drive strength limited to 3mA per pin", "PB6 serves as both SPI SS and I2C SCL — only one function active at a time", "On-board ST-LINK V2-1 debugger shares Micro-USB connection with application", "PA0 is shared with WKUP button on some revisions — check board silkscreen"]
+
+[compatibility]
+arduino_core = "2.1.0"
+bootloader = "stlink-v2-1"
+frameworks = "arduino;mbed"
+languages = "arduino-cpp"
+pio = "ststm32"
+
+[dendri]
+board_family_skill_id = "stm32-family"
+board_profile_id = "nucleo-32-l031k6"
+default_language_skills = ["arduino-cpp-stm32", "c-cpp-hal-stm32"]
+svg_path = "content/assets/svg/boards/stm32-nucleo-32-l031k6.svg"
+svg_status = "missing"

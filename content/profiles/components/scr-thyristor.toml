@@ -1,0 +1,126 @@
+# component profile — scr-thyristor (migrated from legacy TOON)
+# Source: scr-thyristor.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "scr-thyristor-profile"
+
+[identification]
+category = "semiconductor"
+family = "electricals"
+id = "scr-thyristor"
+image = "scr-thyristor.svg"
+name = "SCR Thyristor"
+standard = "IEC 60617"
+subfamily = "semiconductors"
+symbol = "scr-thyristor-symbol.svg"
+symbol_standard = "IEC"
+
+[params.i_gt]
+default = 15
+editable = true
+label = "Gate Trigger Current"
+type = "float"
+unit = "mA"
+
+[params.i_t_avg]
+default = 8
+editable = false
+label = "Average On-State Current"
+type = "float"
+unit = "A"
+
+[params.v_drm]
+default = 400
+editable = true
+label = "Peak Repetitive Off-State Voltage"
+type = "float"
+unit = "V"
+
+[params.v_gt]
+default = 1.5
+editable = false
+label = "Gate Trigger Voltage"
+type = "float"
+unit = "V"
+
+[[ports]]
+current_max = "8A"
+direction = "input"
+id = "A"
+notes = "Anode"
+type = "analog"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "8A"
+direction = "output"
+id = "K"
+notes = "Cathode"
+type = "analog"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "50mA"
+direction = "input"
+id = "G"
+notes = "Gate"
+type = "analog"
+voltage_max = "1.5V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "ideal"
+noise_model = false
+states = ["off", "triggering", "latching"]
+thermal_model = false
+
+[limits]
+max_current = "8A"
+
+[limits.max_power]
+unit = "W"
+value = 12.0
+max_temp = 125
+max_voltage = "400V"
+min_temp = -40
+warnings = ["Gate current must be limited to prevent semiconductor damage", "The device remains conducting until the current falls below the holding current"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["power-switching", "phase-control", "rectification"]
+
+[canvas]
+animated = true
+height = 60
+label_position = "top"
+
+[canvas.port_A]
+x = 20
+y = 0
+
+[canvas.port_G]
+x = 0
+y = 40
+
+[canvas.port_K]
+x = 20
+y = 60
+ports_layout = "custom"
+value_display = "{name}"
+width = 40
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "scr-thyristor"
+palette_group = "Fundamental Electricals > Semiconductors"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/scr-thyristor.svg"
+tags = ["thyristor", "semiconductor", "power-electronics"]
+svg_status = "missing"

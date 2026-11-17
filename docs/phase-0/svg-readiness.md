@@ -9,7 +9,7 @@ Phase 1 / `dendri-sim` do not invent asset paths later.
 | Rule | Detail |
 |---|---|
 | Path field | Profiles use `image` (board photo/render) and optional `symbol` (schematic glyph) |
-| Relative root | Paths are relative to the profile’s family directory (`boards/`, `components/`, `screens/`) today under `core/`; Phase 1 packer should resolve via `content/assets/svg/{boards,components,screens}/` once assets are relocated |
+| Relative root | DEN-14: profiles declare `svg_path` under `content/assets/svg/{boards,components,screens}/`. Loader prefers that tree, then falls back to legacy `core/{family}/` |
 | Naming | `{profile-id}.svg` for board/component body; `{profile-id}-symbol.svg` for IEC/ISO schematic symbol |
 | Coordinate space | Component canvas uses profile `canvas.width` / `canvas.height` with port anchors in the same space |
 | Optional until renderer | Missing SVGs must **warn**, not hard-fail validate (Phase 0 policy) |
@@ -36,24 +36,28 @@ Phase 1 / `dendri-sim` do not invent asset paths later.
 ### SVGs present today
 
 ```
-core/boards/arduino-uno-r3.svg
-core/boards/esp32-devkitc-v4.svg
-core/boards/raspberry-pi-pico.svg
-core/boards/siemens-s7-1200-cpu-1214c-corrigido.svg   # profile id expects siemens-s7-1200-cpu-1214c.svg
-core/components/led.svg
+content/assets/svg/boards/arduino-uno-r3.svg
+content/assets/svg/boards/esp32-devkitc-v4.svg
+content/assets/svg/boards/raspberry-pi-pico.svg
+content/assets/svg/boards/siemens-s7-1200-cpu-1214c.svg   # staged from core/…-corrigido.svg
+content/assets/svg/components/led.svg
+content/assets/svg/components/cmd-pushbutton-no-start.svg
+# legacy seeds retained under core/boards|components/*.svg
 ```
+
+Full missing inventory: `content/assets/svg/GAPS.md`.
 
 ## Visual MVP set (locked for Phase 1 sim)
 
 | Role | Profile id | Required SVG path (do not invent later) |
 |---|---|---|
-| Board | `arduino-uno-r3` | `core/boards/arduino-uno-r3.svg` → later `content/assets/svg/boards/arduino-uno-r3.svg` |
-| Indicator | `led` | `core/components/led.svg` → later `content/assets/svg/components/led.svg` |
-| Input | `cmd-pushbutton-no-start` | `core/components/cmd-pushbutton-no-start.svg` (**authored DEN-8**; also staged under `content/assets/svg/components/`) |
+| Board | `arduino-uno-r3` | `content/assets/svg/boards/arduino-uno-r3.svg` |
+| Indicator | `led` | `content/assets/svg/components/led.svg` |
+| Input | `cmd-pushbutton-no-start` | `content/assets/svg/components/cmd-pushbutton-no-start.svg` |
 | Symbol (LED) | `led` | `led-symbol.svg` (MISSING; optional for MVP canvas) |
 | Symbol (button) | `cmd-pushbutton-no-start` | `cmd-pushbutton-no-start-symbol.svg` (MISSING; optional) |
 
-Sample TOML profiles for this trio live under `content/profiles/`.
+All board/component/screen TOML profiles live under `content/profiles/` (DEN-14).
 
 ## Phase 1 note
 

@@ -1,0 +1,118 @@
+# component profile — pneu-motor-vane (migrated from legacy TOON)
+# Source: pneu-motor-vane.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "pneu-motor-vane-profile"
+
+[identification]
+category = "actuator"
+family = "pneumatics"
+id = "pneu-motor-vane"
+image = "pneu-motor-vane.svg"
+name = "Pneumatic Vane Motor (Motor pneumático de palhetas)"
+standard = "ISO 1219-1"
+subfamily = "pneumatic-actuators"
+symbol = "pneu-motor-vane-symbol.svg"
+symbol_standard = "ISO"
+
+[params.displacement]
+default = 50
+editable = true
+label = "Displacement"
+max = 500
+min = 10
+type = "float"
+unit = "cm³/rev"
+
+[params.flow_rate]
+default = 400
+editable = false
+label = "Nominal Air Consumption"
+type = "float"
+unit = "l/min"
+
+[params.speed_rated]
+default = 3000
+editable = true
+label = "Rated Speed (No Load)"
+max = 10000
+min = 500
+type = "float"
+unit = "RPM"
+
+[params.supply_pressure]
+default = 6
+editable = true
+label = "Supply Pressure"
+max = 8
+min = 2
+type = "float"
+unit = "bar"
+ports = []
+
+[[pneumatic_ports]]
+direction = "bidirectional"
+flow_nominal = "{flow_rate}"
+id = "A"
+notes = "port A — rotate CW"
+pressure_max = "8bar"
+type = "pneumatic"
+
+[[pneumatic_ports]]
+direction = "bidirectional"
+flow_nominal = "{flow_rate}"
+id = "B"
+notes = "port B — rotate CCW"
+pressure_max = "8bar"
+type = "pneumatic"
+
+[simulation]
+bidirectional = true
+dynamic = true
+model = "pneumatic-rotary-actuator"
+motion = "rotary"
+noise_model = true
+states = ["stopped", "rotating-cw", "rotating-ccw", "fault"]
+thermal_model = false
+
+[limits]
+max_pressure = 8
+max_temp = 80
+min_pressure = 2
+min_temp = -10
+warnings = ["Requires properly lubricated air for prolonged vane life", "Do not exceed maximum RPM to avoid catastrophic mechanical failure"]
+
+[connections]
+allowed_with = ["pneu-valve-5-2-*", "pneu-valve-5-3-*", "pneu-flow-control-*"]
+forbidden_with = ["hyd-*", "act-motor-*"]
+requires = ["pneu-frl-unit"]
+typical_context = ["high-speed-drilling", "agitation", "spindle-drive"]
+
+[canvas]
+animated = true
+height = 60
+label_position = "bottom"
+
+[canvas.port_A]
+x = 10
+y = 0
+
+[canvas.port_B]
+x = 50
+y = 0
+ports_layout = "custom"
+value_display = "{displacement}cc / {speed_rated}RPM"
+width = 60
+
+[dendri]
+component_family_skill_id = "pneumatics-family"
+component_profile_id = "pneu-motor-vane"
+palette_group = "Pneumatics > Pneumatic Actuators"
+simulation_engine = "pneumatic-motion"
+svg_path = "content/assets/svg/components/pneu-motor-vane.svg"
+tags = ["motor", "pneumatic", "rotary", "vane", "actuator"]
+svg_status = "missing"

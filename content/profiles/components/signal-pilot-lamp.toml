@@ -1,0 +1,160 @@
+# component profile — signal-pilot-lamp (migrated from legacy TOON)
+# Source: signal-pilot-lamp.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "signal-pilot-lamp-profile"
+
+[identification]
+category = "passive"
+family = "electricals"
+id = "signal-pilot-lamp"
+image = "signal-pilot-lamp.svg"
+name = "Signal Pilot Lamp"
+standard = "IEC 60810"
+subfamily = "passives"
+symbol = "signal-pilot-lamp-symbol.svg"
+symbol_standard = "IEC"
+
+[params.brightness]
+default = 100
+editable = true
+label = "Brightness"
+max = 100
+min = 0
+type = "float"
+unit = "%"
+
+[params.color]
+default = "green"
+editable = true
+label = "Color"
+options = ["red", "green", "yellow", "blue", "white", "amber", "orange", "custom"]
+type = "enum"
+
+[params.current_max]
+default = 0.03
+editable = false
+label = "Absolute Max Current"
+max = 0.1
+min = 0.003
+type = "float"
+unit = "A"
+
+[params.current_rated]
+default = 0.02
+editable = true
+label = "Rated Current"
+options = [0.005, 0.01, 0.02, 0.03, 0.05]
+type = "enum"
+unit = "A"
+
+[params.flashing_mode]
+default = "steady"
+editable = true
+label = "Flashing Mode"
+options = ["steady", "flashing", "blinking", "pulsing", "custom"]
+type = "enum"
+
+[params.led_type]
+default = "standard-pilot-lamp"
+editable = true
+label = "Lamp Type"
+options = ["standard-pilot-lamp", "panel-led", "modular-led", "bulb-lamp", "custom"]
+type = "enum"
+
+[params.lens_type]
+default = "flat"
+editable = true
+label = "Lens Type"
+options = ["flat", "domed", "flush", "fresnel", "custom"]
+type = "enum"
+
+[params.package]
+default = "22mm panel"
+editable = true
+label = "Package"
+options = ["16mm panel", "22mm panel", "30mm panel", "pilot-module", "custom"]
+type = "enum"
+
+[params.power_rated]
+default = 0.5
+editable = false
+label = "Power Rating"
+max = 10
+min = 0.01
+type = "float"
+unit = "W"
+
+[params.supply_voltage]
+default = 24
+editable = true
+label = "Supply Voltage"
+options = [12, 24, 48, 110, 220]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "50mA"
+direction = "input"
+id = "A"
+notes = "anode / positive terminal"
+type = "power"
+voltage_max = "250V"
+
+[[ports]]
+direction = "input"
+id = "K"
+notes = "cathode / negative terminal"
+type = "ground"
+
+[simulation]
+bidirectional = false
+dynamic = false
+equation = "V_f = 1.8..3.3V depending on color; I_f = (V_supply - V_f) / R_series; brightness = f(I_f, lens_type)"
+model = "basic-analog"
+noise_model = false
+states = ["off", "on", "flashing", "fault"]
+thermal_model = false
+
+[limits]
+max_current = "50mA"
+max_power = "{power_rated}W"
+max_temp = 85
+max_voltage = "250V"
+min_temp = -40
+warnings = ["Always use a current-limiting resistor or constant-current driver — never connect the lamp directly to a voltage source", "Do not exceed the absolute maximum current — brightness and lifetime degrade with overdrive", "For AC circuits or higher voltages, use a lamp assembly rated for the installation", "Flashing / pulsing modes must be implemented by the controller or driver, not by overdriving the lamp"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["indicator", "pilot-lamp", "status-display", "operator-panel", "alarm"]
+
+[canvas]
+animated = true
+height = 40
+label_position = "top"
+
+[canvas.port_A]
+x = 0
+y = 20
+
+[canvas.port_K]
+x = 50
+y = 20
+ports_layout = "custom"
+value_display = "{color} / {supply_voltage}V / {flashing_mode}"
+width = 50
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "signal-pilot-lamp"
+palette_group = "Fundamental Electricals > Passives"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/signal-pilot-lamp.svg"
+tags = ["pilot-lamp", "indicator", "light", "passive", "optical", "panel", "iec-60810"]
+svg_status = "missing"

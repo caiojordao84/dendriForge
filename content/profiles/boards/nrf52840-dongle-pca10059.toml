@@ -1,0 +1,214 @@
+# board profile — nrf52840-dongle-pca10059 (migrated from legacy TOON)
+# Source: nrf52840-dongle-pca10059.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "nrf52840-dongle-pca10059-profile"
+
+[identification]
+category = "maker"
+id = "nrf52840-dongle-pca10059"
+image = "nrf52840-dongle-pca10059.svg"
+manufacturer = "Nordic Semiconductor"
+mcu = "Nordic nRF52840 (ARM Cortex-M4F with FPU)"
+name = "Nordic Semiconductor nRF52840 Dongle (PCA10059)"
+url = "https://www.nordicsemi.com/Products/Development-hardware/nRF52840-Dongle"
+
+[specs]
+clock = 64000000
+eeprom = 0
+flash_available = 983040
+flash_total = 1048576
+sram = 262144
+voltage = "3.3V"
+
+[dims]
+h = 37.0
+t = 1.0
+w = 15.0
+
+[[power_pins]]
+direction = "input"
+name = "USB"
+voltage = "5V"
+
+[[power_pins]]
+direction = "output"
+name = "VDD"
+voltage = "3.3V"
+
+[[power_pins]]
+name = "GND"
+type = "ground"
+
+[[power_pins]]
+direction = "input"
+name = "RESET"
+
+[[gpio]]
+int = true
+label = "P0.02 / AIN0"
+pin = 2
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "P0.03"
+pin = 3
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.04 / AIN2"
+pin = 4
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "P0.05"
+pin = 5
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.06 / LED1 (Green)"
+pin = 6
+pwm = true
+roles = ["status-led"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.07"
+pin = 7
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.08 / LED2 (Red)"
+pin = 8
+pwm = true
+roles = ["status-led"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.12 / LED4 (Blue)"
+pin = 12
+pwm = true
+roles = ["status-led"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.13"
+pin = 13
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.15"
+pin = 15
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.17"
+pin = 17
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.20"
+pin = 20
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.29 / AIN5"
+pin = 29
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "P0.31 / AIN7"
+pin = 31
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "P1.06 / BTN1 / RESET"
+pin = 38
+pwm = true
+roles = []
+type = "digital"
+
+[[peripherals]]
+param = "uarts:2"
+peripheral = "serial"
+value = "pins:null"
+
+[[peripherals]]
+param = "channels:2"
+peripheral = "i2c"
+value = "sda:null;scl:null"
+
+[[peripherals]]
+param = "channels:3"
+peripheral = "spi"
+value = "miso:null;mosi:null;sck:null;ss:null"
+
+[[peripherals]]
+param = "resolution:12bit"
+peripheral = "adc"
+value = "pins:2;4;29;31"
+
+[usb]
+chip = "native"
+pid = "0x521F"
+type = "USB-A"
+vid = "0x1915"
+
+[restrictions]
+max_io_current = "4mA"
+total_current_limit = "15mA"
+warnings = ["All I/O pins operate at 3.3V (1.7-3.6V range); NOT 5V tolerant", "Only 15 GPIO exposed on edge castellation; no Arduino headers present", "P0.09/P0.10 are NFC1/NFC2 antenna pins; shared with GPIO — disable NFC in firmware to use as GPIO", "P0.06/P0.08/P1.09/P0.12 are LED1/LED2/LED3/LED4 — reconfigure in code for general GPIO", "P1.06 is BUTTON1 and also SW2 RESET; do not tie HIGH at power-on", "P0.18 is RESET button (SW1); not exposed on edge castellation", "No SEGGER J-Link onboard; flashing via USB DFU bootloader (nrfutil) only", "UART/SPI/I2C have no fixed default pin mapping; assign any available GPIO via PSEL registers"]
+
+[compatibility]
+arduino_core = "1.1.1"
+bootloader = "nrf52840-open-dfu"
+frameworks = "arduino"
+languages = "arduino-cpp"
+pio = "nordicnrf52"
+
+[dendri]
+board_family_skill_id = "nrf52-family"
+board_profile_id = "nrf52840-dongle-pca10059"
+default_language_skills = ["zephyr-nrf52", "arduino-cpp-nrf52", "rust-embassy-nrf52"]
+svg_path = "content/assets/svg/boards/nrf52840-dongle-pca10059.svg"
+svg_status = "missing"

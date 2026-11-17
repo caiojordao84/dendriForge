@@ -1,0 +1,272 @@
+# board profile — arduino-uno-r4-wifi (migrated from legacy TOON)
+# Source: arduino-uno-r4-wifi.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "arduino-uno-r4-wifi-profile"
+
+[identification]
+category = "maker"
+id = "arduino-uno-r4-wifi"
+image = "arduino-uno-r4-wifi.svg"
+manufacturer = "Arduino"
+mcu = "Renesas RA4M1 (R7FA4M1AB3CFM#AA0)"
+name = "Arduino Uno R4 WiFi"
+url = "https://store.arduino.cc/products/uno-r4-wifi"
+
+[specs]
+clock = 48000000
+eeprom = 8192
+flash_available = 262144
+flash_total = 262144
+sram = 32768
+voltage = "5V"
+
+[dims]
+h = 53.34
+t = 1.6
+w = 68.85
+
+[[power_pins]]
+direction = "input"
+name = "VIN"
+
+[[power_pins]]
+direction = "output"
+name = "5V"
+voltage = "5V"
+
+[[power_pins]]
+direction = "output"
+name = "3V3"
+voltage = "3.3V"
+
+[[power_pins]]
+name = "GND"
+type = "ground"
+
+[[power_pins]]
+direction = "input"
+name = "RESET"
+
+[[power_pins]]
+direction = "output"
+name = "IOREF"
+voltage = "5V"
+
+[[power_pins]]
+direction = "input"
+name = "AREF"
+
+[[gpio]]
+int = true
+label = "D0 / RX"
+pin = 0
+pwm = false
+roles = ["uart-rx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D1 / TX"
+pin = 1
+pwm = false
+roles = ["uart-tx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D2"
+pin = 2
+pwm = false
+roles = ["int0"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D3 PWM"
+pin = 3
+pwm = true
+roles = ["int1"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D4"
+pin = 4
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D5 PWM"
+pin = 5
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D6 PWM"
+pin = 6
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D7"
+pin = 7
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D8"
+pin = 8
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D9 PWM"
+pin = 9
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D10 PWM / SS"
+pin = 10
+pwm = true
+roles = ["spi-ss"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D11 PWM / MOSI"
+pin = 11
+pwm = true
+roles = ["spi-mosi"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D12 / MISO"
+pin = 12
+pwm = false
+roles = ["spi-miso"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D13 / LED / SCK"
+pin = 13
+pwm = false
+roles = ["spi-sck", "status-led"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "A0 / DAC"
+pin = 14
+pwm = false
+roles = ["adc:t", "dac"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A1"
+pin = 15
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "A2"
+pin = 16
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "A3"
+pin = 17
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "A4 / SDA"
+pin = 18
+pwm = false
+roles = ["adc:t", "i2c-sda"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "A5 / SCL"
+pin = 19
+pwm = false
+roles = ["adc:t", "i2c-scl"]
+type = "analog"
+
+[[peripherals]]
+param = "uarts:1"
+peripheral = "serial"
+value = "pins:0,1"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "i2c"
+value = "sda:18;scl:19"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "spi"
+value = "miso:12;mosi:11;sck:13;ss:10"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "dac"
+value = "pin:14"
+
+[[peripherals]]
+param = "resolution:14bit"
+peripheral = "adc"
+value = "pins:14;15;16;17;18;19"
+
+[usb]
+chip = "native"
+pid = "0x0069"
+type = "USB-C"
+vid = "0x2341"
+
+[restrictions]
+max_io_current = "8mA"
+total_current_limit = "200mA"
+warnings = ["Pins 0/1 shared with USB Serial", "Pin 13 has onboard LED interference", "Max GPIO current is 8mA, lower than Uno R3 40mA", "ESP32-S3 header and Qwiic connector are 3.3V only", "VIN accepts 6-24V; do not exceed 24V"]
+
+[compatibility]
+arduino_core = "1.0.0"
+bootloader = "dfu"
+frameworks = "arduino"
+languages = "arduino-cpp"
+pio = "renesas-ra"
+
+[dendri]
+board_family_skill_id = "renesas-ra-family"
+board_profile_id = "arduino-uno-r4-wifi"
+default_language_skills = ["arduino-cpp-renesas", "rust-embassy-ra"]
+svg_path = "content/assets/svg/boards/arduino-uno-r4-wifi.svg"
+svg_status = "missing"

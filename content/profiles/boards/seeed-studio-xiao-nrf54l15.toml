@@ -1,0 +1,230 @@
+# board profile — seeed-studio-xiao-nrf54l15 (migrated from legacy TOON)
+# Source: seeed-studio-xiao-nrf54l15.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "seeed-studio-xiao-nrf54l15-profile"
+
+[identification]
+category = "maker"
+id = "seeed-studio-xiao-nrf54l15"
+image = "seeed-studio-xiao-nrf54l15.svg"
+manufacturer = "Seeed Studio"
+mcu = "Nordic nRF54L15 (ARM Cortex-M33 + RISC-V FLPR coprocessor)"
+name = "Seeed Studio XIAO nRF54L15"
+url = "https://www.seeedstudio.com/Seeed-Studio-XIAO-nRF54L15-p-6374.html"
+
+[specs]
+clock = 128000000
+eeprom = 0
+flash_available = 1474560
+flash_total = 1572864
+sram = 262144
+voltage = "3.3V"
+
+[dims]
+h = 21.0
+t = 3.5
+w = 17.8
+
+[[power_pins]]
+direction = "input"
+name = "VIN"
+
+[[power_pins]]
+direction = "output"
+name = "5V"
+voltage = "5V"
+
+[[power_pins]]
+direction = "output"
+name = "3V3"
+voltage = "3.3V"
+
+[[power_pins]]
+name = "GND"
+type = "ground"
+
+[[power_pins]]
+direction = "input"
+name = "RESET"
+
+[[power_pins]]
+direction = "input"
+name = "VBAT"
+
+[[gpio]]
+int = true
+label = "D0 / A0 / P1.04"
+pin = 0
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "D1 / A1 / P1.05"
+pin = 1
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "D2 / A2 / P1.06"
+pin = 2
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "D3 / A3 / P1.07"
+pin = 3
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "D4 / SDA / P1.10"
+pin = 4
+pwm = true
+roles = ["i2c-sda"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D5 / SCL / P1.11"
+pin = 5
+pwm = true
+roles = ["i2c-scl"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D6 / TX / P2.08"
+pin = 6
+pwm = true
+roles = ["uart-tx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D7 / RX / P2.07"
+pin = 7
+pwm = true
+roles = ["uart-rx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D8 / SCK / P2.01"
+pin = 8
+pwm = true
+roles = ["spi-sck"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D9 / MISO / P2.04"
+pin = 9
+pwm = true
+roles = ["spi-miso"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D10 / MOSI / P2.02"
+pin = 10
+pwm = true
+roles = ["spi-mosi", "status-led"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D11 / SCL-1 / P0.03"
+pin = 11
+pwm = true
+roles = ["i2c-scl"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D12 / SDA-1 / P0.04"
+pin = 12
+pwm = true
+roles = ["i2c-sda"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D13 / P2.10"
+pin = 13
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D14 / P2.09"
+pin = 14
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D15 / P2.06"
+pin = 15
+pwm = true
+roles = []
+type = "digital"
+
+[[peripherals]]
+param = "uarts:1"
+peripheral = "serial"
+value = "pins:6,7"
+
+[[peripherals]]
+param = "channels:2"
+peripheral = "i2c"
+value = "sda:4;scl:5"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "spi"
+value = "miso:9;mosi:10;sck:8;ss:null"
+
+[[peripherals]]
+param = "resolution:14bit"
+peripheral = "adc"
+value = "pins:0;1;2;3"
+
+[usb]
+chip = "native"
+pid = "0x0060"
+type = "USB-C"
+vid = "0x2886"
+
+[restrictions]
+max_io_current = "10mA"
+total_current_limit = "200mA"
+warnings = ["All I/O pins operate at 3.3V; not 5V tolerant", "D11/D12 are secondary I2C; cannot use simultaneously with SPI on same bus", "NFC pads (P1.02/P1.03) not broken out on standard headers", "RISC-V FLPR coprocessor shares RAM; reserve at least 64KB for coprocessor", "LiPo charging built-in via VBAT pad; charge current configurable", "Boot requires UART disabled in prj.conf when running on battery only"]
+
+[compatibility]
+arduino_core = "1.0.0"
+bootloader = "nrf54l15-boot"
+frameworks = "arduino"
+languages = "arduino-cpp"
+pio = "nordicnrf54"
+
+[dendri]
+board_family_skill_id = "nrf54-family"
+board_profile_id = "seeed-studio-xiao-nrf54l15"
+default_language_skills = ["arduino-cpp-nrf54", "zephyr-nrf54", "rust-embassy-nrf54"]
+svg_path = "content/assets/svg/boards/seeed-studio-xiao-nrf54l15.svg"
+svg_status = "missing"

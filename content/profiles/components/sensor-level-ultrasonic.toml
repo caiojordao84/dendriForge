@@ -1,0 +1,127 @@
+# component profile — sensor-level-ultrasonic (migrated from legacy TOON)
+# Source: sensor-level-ultrasonic.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "sensor-level-ultrasonic-profile"
+
+[identification]
+category = "sensor"
+family = "sensors"
+id = "sensor-level-ultrasonic"
+image = "sensor-level-ultrasonic.svg"
+name = "Ultrasonic Level Sensor (Sensor de Nível Ultrassónico)"
+standard = "IEC 60947-5-7"
+subfamily = "process"
+symbol = "sensor-level-ultrasonic-symbol.svg"
+symbol_standard = "IEC"
+
+[params.blanking_zone]
+default = 0.2
+editable = false
+label = "Blanking Zone (Dead Band)"
+type = "float"
+unit = "m"
+
+[params.measuring_range]
+default = 5.0
+editable = true
+label = "Measuring Range"
+max = 15.0
+min = 0.5
+type = "float"
+unit = "m"
+
+[params.output_type]
+default = "analog-4-20mA"
+editable = true
+label = "Output Type"
+options = ["analog-4-20mA", "analog-0-10V", "digital-IO-Link"]
+type = "enum"
+
+[params.supply_voltage]
+default = 24
+editable = true
+label = "Supply Voltage"
+options = [12, 24]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "VCC"
+notes = "supply +"
+type = "power"
+voltage_max = "24V"
+
+[[ports]]
+direction = "input"
+id = "GND"
+notes = "supply -"
+type = "ground"
+
+[[ports]]
+current_max = "30mA"
+direction = "output"
+id = "OUT"
+notes = "analog level output or IO-Link"
+type = "analog"
+voltage_max = "24V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "analog-transfer"
+noise_model = true
+output_logic = "{output_type}"
+states = ["measuring", "loss-of-echo", "out-of-range", "fault"]
+thermal_model = false
+trigger = "distance"
+trigger_source = "external"
+
+[limits]
+ip_rating = "IP67"
+max_current = "100mA"
+max_temp = 70
+max_voltage = "{supply_voltage}"
+min_temp = -20
+warnings = ["Objects or medium level inside the blanking zone will not be measured correctly", "Heavy foam, steam, or turbulent surfaces may cause loss of echo", "Ensure perpendicular alignment to the target surface for accurate reflection"]
+
+[connections]
+allowed_with = ["ind-ai-bank", "plc-*", "comm-iolink-master-stub"]
+forbidden_with = ["ac-source"]
+requires = ["dc-source"]
+typical_context = ["tank-level", "water-treatment", "silo-monitoring", "process-control"]
+
+[canvas]
+animated = true
+height = 60
+label_position = "left"
+
+[canvas.port_GND]
+x = 25
+y = 60
+
+[canvas.port_OUT]
+x = 50
+y = 30
+
+[canvas.port_VCC]
+x = 25
+y = 0
+ports_layout = "vertical"
+value_display = "{measuring_range}m Level"
+width = 50
+
+[dendri]
+component_family_skill_id = "sensors-family"
+component_profile_id = "sensor-level-ultrasonic"
+palette_group = "Sensors > Process"
+simulation_engine = "digital-io"
+svg_path = "content/assets/svg/components/sensor-level-ultrasonic.svg"
+tags = ["sensor", "ultrasonic", "level", "process", "analog"]
+svg_status = "missing"

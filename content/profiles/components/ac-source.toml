@@ -1,0 +1,133 @@
+# component profile — ac-source (migrated from legacy TOON)
+# Source: ac-source.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "ac-source-profile"
+
+[identification]
+category = "source"
+family = "electricals"
+id = "ac-source"
+image = "ac-source.svg"
+name = "Single-Phase AC Power Source"
+standard = "IEC 61010-1 / IEC 60038"
+subfamily = "sources"
+symbol = "ac-source-symbol.svg"
+symbol_standard = "IEC"
+
+[params.current_limit]
+default = 10
+editable = true
+label = "Current Limit"
+max = 100
+min = 0
+type = "float"
+unit = "A"
+
+[params.frequency]
+default = 50
+editable = true
+label = "Frequency"
+options = [50, 60]
+type = "enum"
+unit = "Hz"
+
+[params.output_enabled]
+default = true
+editable = true
+label = "Output Enabled"
+type = "bool"
+
+[params.phase_angle]
+default = 0
+editable = true
+label = "Phase Angle Offset"
+max = 360
+min = 0
+type = "float"
+unit = "V"
+
+[params.voltage]
+default = 230
+editable = true
+label = "Output Voltage (RMS)"
+max = 300
+min = 0
+type = "float"
+unit = "V"
+
+[[ports]]
+current_max = "100A"
+direction = "output"
+id = "L"
+notes = "line / hot terminal"
+type = "power"
+voltage_max = "300V"
+
+[[ports]]
+direction = "output"
+id = "N"
+notes = "neutral terminal"
+type = "ground"
+
+[[ports]]
+direction = "output"
+id = "PE"
+notes = "protective earth"
+type = "ground"
+
+[simulation]
+bidirectional = false
+dynamic = true
+equation = "V_out = voltage * sqrt(2) * sin(2*pi*frequency*t + phase_angle)"
+model = "ideal"
+noise_model = false
+states = ["off", "on", "fault"]
+thermal_model = false
+waveform = "sine"
+
+[limits]
+max_current = "100A"
+max_temp = 40
+max_voltage = "300V"
+min_temp = -10
+warnings = ["Never short-circuit L and N terminals", "Always connect PE before energising the circuit", "Verify load current rating before enabling output"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["lab-bench", "appliance-testing", "load-test", "power-quality-analysis"]
+
+[canvas]
+animated = true
+height = 60
+label_position = "left"
+
+[canvas.port_L]
+x = 70
+y = 10
+
+[canvas.port_N]
+x = 70
+y = 35
+
+[canvas.port_PE]
+x = 70
+y = 55
+ports_layout = "custom"
+value_display = "{voltage}V / {frequency}Hz"
+width = 70
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "ac-source"
+palette_group = "Fundamental Electricals > Sources"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/ac-source.svg"
+tags = ["ac-source", "single-phase", "laboratory", "source", "adjustable"]
+svg_status = "missing"

@@ -1,0 +1,253 @@
+# board profile — esp32-s3-relay-6ch (migrated from legacy TOON)
+# Source: esp32-s3-relay-6ch.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "esp32-s3-relay-6ch-profile"
+
+[identification]
+category = "maker"
+id = "esp32-s3-relay-6ch"
+image = "esp32-s3-relay-6ch.svg"
+manufacturer = "Waveshare"
+mcu = "ESP32-S3 Xtensa LX7 dual-core up to 240 MHz; 16MB flash; 8MB PSRAM; WiFi 802.11 b/g/n; BLE 5.0; 6x SPDT relay 10A; isolated RS485; 7-30V DC; Pico-HAT header; DIN-rail"
+name = "Waveshare ESP32-S3 Relay 6CH"
+url = "https://www.waveshare.com/wiki/ESP32-S3-Relay-6CH"
+specs = "flashtotal 16777216 | flashavailable 16777216 | sram 8388608 | eeprom 0 | clock 240000000 | voltage \"3.3V\" | cores 2 | wifi \"802.11 b/g/n\" | bluetooth \"BLE 5.0\""
+dims = "w 120.0 | h 96.0 | t 27.5"
+
+[[power_pins]]
+direction = "input"
+name = "VIN"
+voltage = "7-30V"
+
+[[power_pins]]
+name = "GND"
+type = "ground"
+
+[[power_pins]]
+direction = "input"
+name = "USB5V"
+voltage = "5V"
+
+[[power_pins]]
+direction = "output"
+name = "3V3"
+voltage = "3.3V"
+
+[[gpio]]
+int = false
+label = "GPIO1 — Relay 1 (active-HIGH; optocoupler; SPDT 10A 250VAC/30VDC; ADC1-CH0)"
+pin = 1
+pwm = true
+roles = ["do"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "GPIO2 — Relay 2 (active-HIGH; strapping: HIGH=SPI boot; ADC1-CH1)"
+pin = 2
+pwm = true
+roles = ["do"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "GPIO3 — Relay 3 (active-HIGH; ADC1-CH2)"
+pin = 3
+pwm = true
+roles = ["do"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "GPIO4 — Relay 4 (active-HIGH; ADC1-CH3)"
+pin = 4
+pwm = true
+roles = ["do"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "GPIO5 — Relay 5 (active-HIGH; ADC1-CH4)"
+pin = 5
+pwm = true
+roles = ["do"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "GPIO6 — Relay 6 (active-HIGH; ADC1-CH5)"
+pin = 6
+pwm = true
+roles = ["do"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "GPIO8 — RS485 DE/RE control (HIGH=TX; LOW=RX; SP3485; strapping: ROM msgs; ADC1-CH7)"
+pin = 8
+pwm = false
+roles = ["do"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "GPIO9 — Free GPIO Pico-HAT; ADC1-CH8; TOUCH9"
+pin = 9
+pwm = false
+roles = ["di", "do"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "GPIO10 — Free GPIO Pico-HAT; ADC1-CH9; TOUCH10"
+pin = 10
+pwm = false
+roles = ["di", "do"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "GPIO11 — Free GPIO Pico-HAT; ADC2-CH0 (avoid with WiFi)"
+pin = 11
+pwm = false
+roles = ["di", "do"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "GPIO12 — Free GPIO Pico-HAT; ADC2-CH1 (avoid with WiFi)"
+pin = 12
+pwm = false
+roles = ["di", "do"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "GPIO13 — Free GPIO Pico-HAT; ADC2-CH2 (avoid with WiFi)"
+pin = 13
+pwm = false
+roles = ["di", "do"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "GPIO14 — Free GPIO Pico-HAT; ADC2-CH3 (avoid with WiFi)"
+pin = 14
+pwm = false
+roles = ["di", "do"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "GPIO15 — Free GPIO Pico-HAT; ADC2-CH4 (avoid with WiFi)"
+pin = 15
+pwm = false
+roles = ["di", "do"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "GPIO16 — Free GPIO Pico-HAT; ADC2-CH5 (avoid with WiFi)"
+pin = 16
+pwm = false
+roles = ["di", "do"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "GPIO17 — RS485 TX (SP3485 DI); UART1-TX"
+pin = 17
+pwm = false
+roles = ["uart-tx"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "GPIO18 — RS485 RX (SP3485 RO); UART1-RX"
+pin = 18
+pwm = false
+roles = ["uart-rx"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "GPIO19 — USB D- (native USB CDC/JTAG); do not use as GPIO when USB active"
+pin = 19
+pwm = false
+roles = ["di", "do"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "GPIO20 — USB D+ (native USB CDC/JTAG); do not use as GPIO when USB active"
+pin = 20
+pwm = false
+roles = ["di", "do"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO21 — Free GPIO Pico-HAT; interrupt-capable"
+pin = 21
+pwm = false
+roles = ["di", "do"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "GPIO38 — Free GPIO Pico-HAT"
+pin = 38
+pwm = false
+roles = ["di", "do"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "GPIO48 — Onboard status LED (active-HIGH; PWM; strapping on some HW revisions)"
+pin = 48
+pwm = true
+roles = ["status-led"]
+type = "digital"
+
+[[peripherals]]
+param = "uart1"
+peripheral = "serial"
+value = "tx17|rx18"
+
+[[peripherals]]
+param = "channels1"
+peripheral = "i2c"
+value = "sda21|scl38"
+
+[[peripherals]]
+param = "channels2"
+peripheral = "adc"
+value = "adc1:pins1,2,3,4,5,6,8,9,10"
+
+[[peripherals]]
+param = "channels8"
+peripheral = "pwm"
+value = "ledc-any-gpio"
+
+[[peripherals]]
+param = "chip \"ESP32-S3-native\""
+peripheral = "usb: type USB-C"
+value = "vid \"0x303A\""
+
+[restrictions]
+max_io_current = "40mA"
+total_current_limit = "1200mA"
+warnings = ["GPIO1-GPIO6 drive relay coils via optocouplers; GPIO only sources signal (~5mA); relay coil powered by internal 5V; relay contact max 10A 250VAC or 30VDC (SRD-05VDC-SL-C); never connect loads exceeding 10A to relay contacts", "GPIO2 is a strapping pin; must be HIGH at boot for normal SPI boot; pulling LOW at power-on forces download mode; add 10k pull-up if relay driver circuit can backfeed GPIO2 LOW during power-on transients", "GPIO8 is a strapping pin; HIGH at reset enables ROM UART messages on UART0; ensure GPIO8 is LOW (RS485 RX mode) before reset to avoid unexpected serial output on boot", "ADC2 channels (GPIO11-GPIO20) unreliable during active WiFi TX; use only ADC1 (GPIO1-GPIO10) for analog sensing concurrent with WiFi", "GPIO19/GPIO20 are native USB D-/D+; do not use as GPIO when USB CDC or JTAG is active; only free for GPIO in non-USB applications", "RS485 isolated via digital isolator; RS485-GND terminal must be connected to bus common ground at remote device; floating RS485-GND causes common-mode noise and Modbus CRC errors; isolation rated typically 2500V RMS", "Relay contacts are electrically independent but share PCB proximity; mains voltage on one relay can capacitively couple to adjacent contacts; maintain IEC 60664-1 creepage/clearance for mains-rated applications", "DC input 7-30V via screw terminal; below 7V relay coils may chatter; above 30V input protection may be damaged; install TVS diode on input rail when sharing supply with inductive loads", "GPIO48 onboard status LED; also a strapping pin on some HW revisions; verify silkscreen revision before using GPIO48 for application logic"]
+compatibility = "pio esp32s3box | frameworks \"arduino;espidf\" | languages \"arduino-cpp;micropython;rust-embassy\" | bootloader \"esp-idf-bootloader\""
+
+[dendri]
+board_family_skill_id = "esp32-xtensa-family"
+board_profile_id = "esp32-s3-relay-6ch"
+default_language_skills = ["arduino-cpp-esp32", "espidf-c-esp32"]
+svg_path = "content/assets/svg/boards/esp32-s3-relay-6ch.svg"
+svg_status = "missing"

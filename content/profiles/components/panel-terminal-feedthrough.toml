@@ -1,0 +1,115 @@
+# component profile — panel-terminal-feedthrough (migrated from legacy TOON)
+# Source: panel-terminal-feedthrough.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "panel-terminal-feedthrough-profile"
+
+[identification]
+category = "distribution"
+family = "panel-infrastructure"
+id = "panel-terminal-feedthrough"
+image = "panel-terminal-feedthrough.svg"
+name = "Feedthrough Terminal Block (Borne de Passagem)"
+standard = "IEC 60947-7-1"
+subfamily = "terminals"
+symbol = "panel-terminal-feedthrough-symbol.svg"
+symbol_standard = "IEC"
+
+[params.color]
+default = "grey"
+editable = true
+label = "Color"
+options = ["grey", "blue", "green-yellow", "red", "black"]
+type = "enum"
+
+[params.rated_current]
+default = 24
+editable = false
+label = "Rated Current"
+max = 76
+min = 10
+type = "float"
+unit = "A"
+
+[params.rated_voltage]
+default = 800
+editable = false
+label = "Rated Voltage"
+max = 1000
+min = 250
+type = "float"
+unit = "V"
+
+[params.wire_cross_section]
+default = 2.5
+editable = true
+label = "Wire Cross Section"
+options = [1.5, 2.5, 4, 6, 10, 16]
+type = "enum"
+unit = "mm²"
+
+[[ports]]
+current_max = "24A"
+direction = "passive"
+id = "L_IN"
+notes = "line input"
+type = "power"
+voltage_max = "800V"
+
+[[ports]]
+current_max = "24A"
+direction = "passive"
+id = "L_OUT"
+notes = "line output"
+type = "power"
+voltage_max = "800V"
+
+[simulation]
+bidirectional = true
+dynamic = false
+model = "ideal"
+noise_model = false
+states = ["nominal"]
+thermal_model = false
+
+[limits]
+max_current = "24A"
+max_temp = 105
+max_voltage = "800V"
+min_temp = -40
+warnings = ["Tighten screw terminals to recommended torque", "Green-yellow color should be strictly reserved for PE (Protective Earth) connections"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["din-rail", "control-panel", "wire-distribution"]
+
+[canvas]
+animated = false
+height = 60
+label_position = "top"
+
+[canvas.port_L_IN]
+x = 0
+y = 30
+
+[canvas.port_L_OUT]
+x = 20
+y = 30
+ports_layout = "horizontal"
+value_display = "{wire_cross_section}mm²"
+width = 20
+
+[dendri]
+component_family_skill_id = "panel-infrastructure-family"
+component_profile_id = "panel-terminal-feedthrough"
+palette_group = "Panel Infrastructure > Terminals"
+simulation_engine = "digital-io"
+svg_path = "content/assets/svg/components/panel-terminal-feedthrough.svg"
+tags = ["terminal-block", "borne", "din-rail", "feedthrough"]
+svg_status = "missing"

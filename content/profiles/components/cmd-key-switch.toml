@@ -1,0 +1,157 @@
+# component profile — cmd-key-switch (migrated from legacy TOON)
+# Source: cmd-key-switch.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "cmd-key-switch-profile"
+
+[identification]
+category = "command"
+family = "command-elements"
+id = "cmd-key-switch"
+image = "cmd-key-switch.svg"
+name = "Key Switch Manual/Auto/Off"
+standard = "IEC 60947-5-1"
+subfamily = "selectors"
+symbol = "cmd-key-switch-symbol.svg"
+symbol_standard = "IEC"
+
+[params.contact_config]
+default = "2NO"
+editable = true
+label = "Contact Configuration"
+options = ["2NO", "2NO+2NC", "1CO+1NO"]
+type = "enum"
+
+[params.current_rating]
+default = 10
+editable = false
+label = "Current Rating"
+type = "float"
+unit = "A"
+
+[params.cylinder_profile]
+default = "standard"
+editable = true
+label = "Key Cylinder Profile"
+options = ["standard", "CES", "RST", "custom"]
+type = "enum"
+
+[params.is_maintained]
+default = true
+editable = false
+label = "Maintained Action"
+type = "bool"
+
+[params.key_removal_position]
+default = "off"
+editable = true
+label = "Key Removal Position"
+options = ["off", "all-positions"]
+type = "enum"
+
+[params.positions]
+default = 3
+editable = false
+label = "Number of Positions"
+options = [2, 3]
+type = "enum"
+
+[params.voltage_rating]
+default = 240
+editable = false
+label = "Voltage Rating"
+options = [24, 110, 240, 400]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "10A"
+direction = "input"
+id = "MAN_IN"
+notes = "MANUAL contact input — closes at position MANUAL"
+type = "digital"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "10A"
+direction = "output"
+id = "MAN_OUT"
+notes = "MANUAL contact output — closes at position MANUAL"
+type = "digital"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "10A"
+direction = "input"
+id = "AUTO_IN"
+notes = "AUTO contact input — closes at position AUTO"
+type = "digital"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "10A"
+direction = "output"
+id = "AUTO_OUT"
+notes = "AUTO contact output — closes at position AUTO"
+type = "digital"
+voltage_max = "400V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "contact-block"
+noise_model = false
+states = ["off", "manual", "auto", "fault"]
+thermal_model = false
+trigger = "user-interaction"
+
+[limits]
+ip_rating = "IP65"
+max_current = "10A"
+max_temp = 55
+max_voltage = "400V"
+min_temp = -25
+warnings = ["Do not exceed rated voltage or current on contact terminals", "Key switch is maintained — position holds until key is rotated", "Key can only be removed at the configured key_removal_position", "Verify panel cutout dimensions before mounting (IEC 60947-5-1)"]
+
+[connections]
+allowed_with = ["ind-contact-no", "ind-contact-nc", "ind-coil", "ind-di-bank", "plc-*", "ind-safety-relay-block"]
+forbidden_with = []
+requires = []
+typical_context = ["manual-auto-control", "access-control", "maintenance-mode-selection"]
+
+[canvas]
+animated = true
+height = 60
+label_position = "bottom"
+
+[canvas.port_AUTO_IN]
+x = 0
+y = 45
+
+[canvas.port_AUTO_OUT]
+x = 60
+y = 45
+
+[canvas.port_MAN_IN]
+x = 0
+y = 15
+
+[canvas.port_MAN_OUT]
+x = 60
+y = 15
+ports_layout = "custom"
+value_display = "{contact_config} / OFF-MAN-AUTO / {cylinder_profile}"
+width = 60
+
+[dendri]
+component_family_skill_id = "command-elements-family"
+component_profile_id = "cmd-key-switch"
+palette_group = "Command Elements > Selectors"
+simulation_engine = "digital-io"
+svg_path = "content/assets/svg/components/cmd-key-switch.svg"
+tags = ["key-switch", "command", "selectors", "three-position", "manual-auto", "key-operated", "maintained"]
+svg_status = "missing"

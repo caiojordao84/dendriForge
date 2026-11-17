@@ -1,0 +1,134 @@
+# component profile — act-buzzer (migrated from legacy TOON)
+# Source: act-buzzer.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "act-buzzer-profile"
+
+[identification]
+category = "passive"
+family = "electricals"
+id = "act-buzzer"
+image = "act-buzzer.svg"
+name = "Buzzer"
+standard = "IEC 60947-5-1"
+subfamily = "passives"
+symbol = "act-buzzer-symbol.svg"
+symbol_standard = "IEC"
+
+[params.current_draw]
+default = 20
+editable = true
+label = "Current Draw"
+options = [5, 10, 20, 30, 50, 80]
+type = "enum"
+unit = "mA"
+
+[params.duty_cycle]
+default = 50
+editable = true
+label = "Duty Cycle"
+max = 100
+min = 1
+type = "float"
+unit = "%"
+
+[params.package]
+default = "panel"
+editable = true
+label = "Package"
+options = ["panel", "pcb-mount", "enclosed"]
+type = "enum"
+
+[params.polarity]
+default = "non-polarized"
+editable = true
+label = "Polarity"
+options = ["non-polarized", "polarized"]
+type = "enum"
+
+[params.sound_level]
+default = 75
+editable = true
+label = "Sound Level"
+options = [65, 70, 75, 85, 95]
+type = "enum"
+unit = "dB"
+
+[params.supply_voltage]
+default = 12
+editable = true
+label = "Supply Voltage"
+options = [3.3, 5, 12, 24, 48]
+type = "enum"
+unit = "V"
+
+[params.tone_type]
+default = "continuous"
+editable = true
+label = "Tone Type"
+options = ["continuous", "beep", "pulsed"]
+type = "enum"
+
+[[ports]]
+current_max = "80mA"
+direction = "input"
+id = "VP"
+notes = "positive supply"
+type = "power"
+voltage_max = "48V"
+
+[[ports]]
+direction = "input"
+id = "VN"
+notes = "negative supply / ground"
+type = "ground"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "ideal"
+noise_model = false
+states = ["off", "active", "fault"]
+thermal_model = false
+
+[limits]
+max_current = "80mA"
+max_temp = 70
+max_voltage = "48V"
+min_temp = -20
+warnings = ["Use a supply voltage within the specified range to avoid overheating", "Do not cover the sound outlet or airflow paths", "Respect duty cycle limits for continuous audible operation", "Mounting and sealing affect acoustic output and ingress protection"]
+
+[connections]
+allowed_with = ["dc-source", "mcu-gpio", "relay-coil"]
+forbidden_with = []
+requires = []
+typical_context = ["alarm", "panel-indication", "audible-warning", "status-signal"]
+
+[canvas]
+
+[canvas."port_V+"]
+x = 0
+y = 15
+
+[canvas."port_V-"]
+x = 0
+y = 25
+animated = true
+height = 40
+label_position = "top"
+ports_layout = "horizontal"
+value_display = "Buzzer / {supply_voltage}V / {sound_level}dB"
+width = 50
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "act-buzzer"
+palette_group = "Fundamental Electricals > Actuators"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/act-buzzer.svg"
+tags = ["buzzer", "audible", "alarm", "signal", "passive", "sounder", "iec-60947-5-1"]
+svg_status = "missing"
