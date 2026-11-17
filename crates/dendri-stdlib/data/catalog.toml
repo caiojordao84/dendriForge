@@ -625,7 +625,7 @@ category = "iec_fb"
 signature = "IN: BOOL, PT: TIME → Q: BOOL, ET: TIME"
 returns = "FB"
 aliases = []
-notes = "IEC 61131-3 timer on-delay — sim semantics Phase 1"
+notes = "IEC 61131-3 timer on-delay. Call form: TON(IN,PT) or TON(instance,IN,PT) → Q; ET clamped at PT"
 iec_norm = "IEC 61131-3"
 
 [[ops]]
@@ -634,6 +634,7 @@ category = "iec_fb"
 signature = "IN: BOOL, PT: TIME → Q: BOOL, ET: TIME"
 returns = "FB"
 aliases = []
+notes = "IEC 61131-3 timer off-delay. Call form: TOF(IN,PT) or TOF(instance,IN,PT) → Q"
 iec_norm = "IEC 61131-3"
 
 [[ops]]
@@ -642,6 +643,7 @@ category = "iec_fb"
 signature = "IN: BOOL, PT: TIME → Q: BOOL, ET: TIME"
 returns = "FB"
 aliases = []
+notes = "IEC 61131-3 pulse timer. Call form: TP(IN,PT) or TP(instance,IN,PT) → Q"
 iec_norm = "IEC 61131-3"
 
 [[ops]]
@@ -650,6 +652,7 @@ category = "iec_fb"
 signature = "CU: BOOL, R: BOOL, PV: INT → Q: BOOL, CV: INT"
 returns = "FB"
 aliases = []
+notes = "Call form: CTU(CU,R,PV) or CTU(instance,CU,R,PV) → Q; CV mirrored to `{instance}_CV` when present"
 iec_norm = "IEC 61131-3"
 
 [[ops]]
@@ -658,6 +661,7 @@ category = "iec_fb"
 signature = "CD: BOOL, LD: BOOL, PV: INT → Q: BOOL, CV: INT"
 returns = "FB"
 aliases = []
+notes = "Call form: CTD(CD,LD,PV) or CTD(instance,CD,LD,PV) → Q"
 iec_norm = "IEC 61131-3"
 
 [[ops]]
@@ -667,6 +671,25 @@ signature = "CU: BOOL, CD: BOOL, R: BOOL, LD: BOOL, PV: INT → QU: BOOL, QD: BO
 returns = "FB"
 aliases = []
 iec_norm = "IEC 61131-3"
+notes = "Call form: CTUD(CU,CD,R,LD,PV) or CTUD(instance,CU,CD,R,LD,PV) → QU; CV/QD mirrored to instance vars when present"
+
+[[ops]]
+canonical = "R_TRIG"
+category = "iec_fb"
+signature = "CLK: BOOL → Q: BOOL"
+returns = "FB"
+aliases = []
+iec_norm = "IEC 61131-3"
+notes = "Rising-edge detect. Call form: R_TRIG(CLK) or R_TRIG(instance, CLK) → Q"
+
+[[ops]]
+canonical = "F_TRIG"
+category = "iec_fb"
+signature = "CLK: BOOL → Q: BOOL"
+returns = "FB"
+aliases = []
+iec_norm = "IEC 61131-3"
+notes = "Falling-edge detect. Call form: F_TRIG(CLK) or F_TRIG(instance, CLK) → Q"
 
 [[ops]]
 canonical = "VENDOR_EXTENSION"

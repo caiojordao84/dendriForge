@@ -31,6 +31,22 @@ fn s03_program() -> dendri_ast::Program {
     load_asl("content/fixtures/sim/S03-control-flow-get-bool.asl.toml")
 }
 
+fn s04_program() -> dendri_ast::Program {
+    load_asl("content/fixtures/sim/S04-pwm-adc-map.asl.toml")
+}
+
+fn s05_program() -> dendri_ast::Program {
+    load_asl("content/fixtures/sim/S05-uart-i2c-spi.asl.toml")
+}
+
+fn s06_program() -> dendri_ast::Program {
+    load_asl("content/fixtures/sim/S06-iec-tof-trig.asl.toml")
+}
+
+fn s07_program() -> dendri_ast::Program {
+    load_asl("content/fixtures/sim/S07-iec-counters.asl.toml")
+}
+
 fn text_langs() -> [SourceLanguage; 3] {
     [
         SourceLanguage::Cpp,
@@ -208,11 +224,126 @@ fn parse_s03_control_flow_fixtures_run_sim() {
 }
 
 #[test]
+fn roundtrip_s04_pwm_adc_all_text_langs() {
+    let p = s04_program();
+    for lang in text_langs() {
+        roundtrip_language(lang, &p).unwrap_or_else(|e| panic!("{lang:?} S04: {e}"));
+    }
+}
+
+#[test]
+fn roundtrip_s05_uart_buses_all_text_langs() {
+    let p = s05_program();
+    for lang in text_langs() {
+        roundtrip_language(lang, &p).unwrap_or_else(|e| panic!("{lang:?} S05: {e}"));
+    }
+}
+
+#[test]
+fn roundtrip_s06_tof_trig_all_text_langs() {
+    let p = s06_program();
+    for lang in text_langs() {
+        roundtrip_language(lang, &p).unwrap_or_else(|e| panic!("{lang:?} S06: {e}"));
+    }
+}
+
+#[test]
+fn roundtrip_s07_counters_all_text_langs() {
+    let p = s07_program();
+    for lang in text_langs() {
+        roundtrip_language(lang, &p).unwrap_or_else(|e| panic!("{lang:?} S07: {e}"));
+    }
+}
+
+#[test]
+fn parse_s04_pwm_adc_fixtures_run_sim() {
+    let cases = [
+        (
+            SourceLanguage::Cpp,
+            "content/fixtures/frontends/S04-pwm-adc.cpp",
+        ),
+        (
+            SourceLanguage::Micropython,
+            "content/fixtures/frontends/S04-pwm-adc.py",
+        ),
+        (SourceLanguage::St, "content/fixtures/frontends/S04-pwm-adc.st"),
+    ];
+    let mut adc = HashMap::new();
+    adc.insert(34, 32768);
+    for (lang, rel) in cases {
+        let src = std::fs::read_to_string(repo_root().join(rel)).expect(rel);
+        let program = parse_source(lang, &src).unwrap_or_else(|e| panic!("parse {rel}: {e}"));
+        let mut sim = Simulator::from_program(
+            program,
+            &SimConfig {
+                max_cycles: 1,
+                initial_adc: adc.clone(),
+                ..SimConfig::default()
+            },
+        );
+        sim.run(1).unwrap_or_else(|e| panic!("sim {rel}: {e}"));
+        let trace = sim.trace_text();
+        assert!(
+            trace.contains("ADC_READ pin=34"),
+            "{lang:?} S04 missing ADC:\n{trace}"
+        );
+        assert!(
+            trace.contains("PWM_DUTY pin=25 duty=127"),
+            "{lang:?} S04 missing PWM duty:\n{trace}"
+        );
+    }
+}
+
+#[test]
+fn parse_s06_tof_trig_fixtures_run_sim() {
+    let cases = [
+        (
+            SourceLanguage::Cpp,
+            "content/fixtures/frontends/S06-tof-trig.cpp",
+        ),
+        (
+            SourceLanguage::Micropython,
+            "content/fixtures/frontends/S06-tof-trig.py",
+        ),
+        (SourceLanguage::St, "content/fixtures/frontends/S06-tof-trig.st"),
+    ];
+    for (lang, rel) in cases {
+        let src = std::fs::read_to_string(repo_root().join(rel)).expect(rel);
+        let program = parse_source(lang, &src).unwrap_or_else(|e| panic!("parse {rel}: {e}"));
+        let mut sim = Simulator::from_program(
+            program,
+            &SimConfig {
+                max_cycles: 3,
+                ..SimConfig::default()
+            },
+        );
+        sim.run(3).unwrap_or_else(|e| panic!("sim {rel}: {e}"));
+        let trace = sim.trace_text();
+        assert!(
+            trace.contains("R_TRIG id=rt1"),
+            "{lang:?} S06 missing R_TRIG:\n{trace}"
+        );
+        assert!(
+            trace.contains("TOF id=tof1"),
+            "{lang:?} S06 missing TOF:\n{trace}"
+        );
+        assert!(
+            trace.contains("F_TRIG id=ft1 Q=true"),
+            "{lang:?} S06 missing F_TRIG rising fall:\n{trace}"
+        );
+    }
+}
+
+#[test]
 fn emit_from_asl_matches_language_parse() {
     for (label, p) in [
         ("S01", s01_program()),
         ("S02", s02_program()),
         ("S03", s03_program()),
+        ("S04", s04_program()),
+        ("S05", s05_program()),
+        ("S06", s06_program()),
+        ("S07", s07_program()),
     ] {
         for lang in text_langs() {
             let text = emit_source(lang, &p).unwrap();

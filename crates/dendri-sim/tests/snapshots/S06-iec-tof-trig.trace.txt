@@ -1,0 +1,35 @@
+t=     0 BOOT
+t=     0 SETUP_DONE
+t=     0 SCAN_START cycle=1
+t=     0 R_TRIG id=rt1 Q=true
+t=     0 ASSIGN rise=true
+t=     0 F_TRIG id=ft1 Q=false
+t=     0 ASSIGN fall=false
+t=     0 TOF id=tof1 Q=true ET=0
+t=     0 ASSIGN q=true
+t=     0 PIN_WRITE pin=13 value=true
+t=     0 ASSIGN btn=false
+t=     0 WAIT ms=100
+t=   100 SCAN_END cycle=1
+t=   100 SCAN_START cycle=2
+t=   100 R_TRIG id=rt1 Q=false
+t=   100 ASSIGN rise=false
+t=   100 F_TRIG id=ft1 Q=true
+t=   100 ASSIGN fall=true
+t=   100 TOF id=tof1 Q=true ET=0
+t=   100 ASSIGN q=true
+t=   100 PIN_WRITE pin=13 value=true
+t=   100 ASSIGN btn=false
+t=   100 WAIT ms=100
+t=   200 SCAN_END cycle=2
+t=   200 SCAN_START cycle=3
+t=   200 R_TRIG id=rt1 Q=false
+t=   200 ASSIGN rise=false
+t=   200 F_TRIG id=ft1 Q=false
+t=   200 ASSIGN fall=false
+t=   200 TOF id=tof1 Q=true ET=100
+t=   200 ASSIGN q=true
+t=   200 PIN_WRITE pin=13 value=true
+t=   200 ASSIGN btn=false
+t=   200 WAIT ms=100
+t=   300 SCAN_END cycle=3

@@ -89,6 +89,10 @@ fn st_init(init: &str, ty: DataType) -> String {
                 format!("T#{init}")
             }
         }
+        DataType::String => {
+            let inner = init.trim().trim_matches('"').trim_matches('\'');
+            format!("'{inner}'")
+        }
         _ => init.to_string(),
     }
 }

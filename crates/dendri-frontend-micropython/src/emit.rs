@@ -18,7 +18,24 @@ pub fn emit_micropython(program: &Program) -> String {
     if let Some(name) = &program.metadata.project_name {
         out.push_str(&format!("# project: {name}\n"));
     }
-    out.push_str("from machine import Pin\n");
+    let needs = scan_machine_imports(program);
+    let mut imports = vec!["Pin".to_string()];
+    if needs.pwm {
+        imports.push("PWM".into());
+    }
+    if needs.adc {
+        imports.push("ADC".into());
+    }
+    if needs.i2c {
+        imports.push("I2C".into());
+    }
+    if needs.spi {
+        imports.push("SPI".into());
+    }
+    if needs.uart {
+        imports.push("UART".into());
+    }
+    out.push_str(&format!("from machine import {}\n", imports.join(", ")));
     out.push_str("from time import sleep_ms\n\n");
 
     for h in &program.hardware {
@@ -133,6 +150,143 @@ fn to_lower_snake(s: &str) -> String {
 
 fn pin_obj_name(label: &str) -> String {
     format!("{}_pin", to_lower_snake(label).trim_end_matches("_pin"))
+}
+
+fn pwm_obj_name(label: &str) -> String {
+    format!("{}_pwm", to_lower_snake(label).trim_end_matches("_pin"))
+}
+
+fn adc_obj_name(label: &str) -> String {
+    format!("{}_adc", to_lower_snake(label).trim_end_matches("_pin"))
+}
+
+struct MachineNeeds {
+    pwm: bool,
+    adc: bool,
+    i2c: bool,
+    spi: bool,
+    uart: bool,
+}
+
+fn scan_machine_imports(program: &Program) -> MachineNeeds {
+    let mut n = MachineNeeds {
+        pwm: false,
+        adc: false,
+        i2c: false,
+        spi: false,
+        uart: false,
+    };
+    let mut walk = |stmts: &[Stmt]| {
+        for s in stmts {
+            walk_stmt_imports(s, &mut n);
+        }
+    };
+    walk(&program.setup);
+    walk(&program.loop_body);
+    for f in &program.functions {
+        walk(&f.body);
+    }
+    n
+}
+
+fn walk_stmt_imports(stmt: &Stmt, n: &mut MachineNeeds) {
+    match stmt {
+        Stmt::Call { name, .. } => mark_import(name, n),
+        Stmt::Assign { value, .. } => walk_expr_imports(value, n),
+        Stmt::If {
+            condition,
+            then,
+            elif,
+            else_body,
+        } => {
+            walk_expr_imports(condition, n);
+            for s in then {
+                walk_stmt_imports(s, n);
+            }
+            for a in elif {
+                walk_expr_imports(&a.condition, n);
+                for s in &a.then {
+                    walk_stmt_imports(s, n);
+                }
+            }
+            if let Some(b) = else_body {
+                for s in b {
+                    walk_stmt_imports(s, n);
+                }
+            }
+        }
+        Stmt::While { condition, body } => {
+            walk_expr_imports(condition, n);
+            for s in body {
+                walk_stmt_imports(s, n);
+            }
+        }
+        Stmt::For { to, body, .. } => {
+            walk_expr_imports(to, n);
+            for s in body {
+                walk_stmt_imports(s, n);
+            }
+        }
+        Stmt::Return { value: Some(v) } => walk_expr_imports(v, n),
+        _ => {}
+    }
+}
+
+fn walk_expr_imports(expr: &Expr, n: &mut MachineNeeds) {
+    match expr {
+        Expr::Call { name, args } => {
+            mark_import(name, n);
+            for a in args {
+                walk_expr_imports(a, n);
+            }
+        }
+        Expr::Unary { expr, .. } => walk_expr_imports(expr, n),
+        Expr::Binop { left, right, .. } => {
+            walk_expr_imports(left, n);
+            walk_expr_imports(right, n);
+        }
+        _ => {}
+    }
+}
+
+fn mark_import(name: &str, n: &mut MachineNeeds) {
+    match name {
+        "CFG_PWM_OUTPUT" | "SET_PWM_DUTY" | "SET_PWM_FREQ" | "GET_PWM_DUTY" => n.pwm = true,
+        "CFG_ADC_INPUT" | "READ_ADC" => n.adc = true,
+        "CFG_I2C" | "CFG_SENSOR_I2C" => n.i2c = true,
+        "CFG_SPI" => n.spi = true,
+        "CFG_SERIAL" | "SERIAL_PRINT" | "SERIAL_PRINTLN" | "SERIAL_READ" | "SERIAL_READLN"
+        | "SERIAL_AVAILABLE" | "SERIAL_FLUSH" => n.uart = true,
+        _ => {}
+    }
+}
+
+fn resolve_pwm_obj(expr: &Expr, labels: &HashMap<u32, String>) -> String {
+    match expr {
+        Expr::Uint { value } => {
+            if let Some(l) = labels.get(&(*value as u32)) {
+                pwm_obj_name(l)
+            } else {
+                format!("pwm_{value}")
+            }
+        }
+        Expr::Var { name } => pwm_obj_name(name),
+        other => emit_expr(other, labels),
+    }
+}
+
+fn resolve_adc_obj(expr: &Expr, labels: &HashMap<u32, String>) -> String {
+    match expr {
+        Expr::Uint { value } => {
+            if let Some(l) = labels.get(&(*value as u32)) {
+                adc_obj_name(l)
+            } else {
+                format!("adc_{value}")
+            }
+        }
+        Expr::Var { name } => adc_obj_name(name),
+        other => emit_expr(other, labels),
+    }
 }
 
 fn mpy_init(ty: DataType, init: &str) -> String {
@@ -268,6 +422,68 @@ fn emit_stmt(
                     };
                     out.push_str(&format!("{pad}{obj}.value({val})\n"));
                 }
+                "CFG_PWM_OUTPUT" => {
+                    let obj = resolve_pwm_obj(&args[0], labels);
+                    let pin = resolve_pin_const(&args[0], labels);
+                    let freq = args
+                        .get(1)
+                        .map(|e| emit_expr(e, labels))
+                        .unwrap_or_else(|| "1000".into());
+                    out.push_str(&format!("{pad}{obj} = PWM(Pin({pin}), freq={freq})\n"));
+                }
+                "SET_PWM_DUTY" => {
+                    let obj = resolve_pwm_obj(&args[0], labels);
+                    let duty = args
+                        .get(1)
+                        .map(|e| emit_expr(e, labels))
+                        .unwrap_or_else(|| "0".into());
+                    out.push_str(&format!("{pad}{obj}.duty_u16({duty})\n"));
+                }
+                "SET_PWM_FREQ" => {
+                    let obj = resolve_pwm_obj(&args[0], labels);
+                    let hz = args
+                        .get(1)
+                        .map(|e| emit_expr(e, labels))
+                        .unwrap_or_else(|| "1000".into());
+                    out.push_str(&format!("{pad}{obj}.freq({hz})\n"));
+                }
+                "CFG_ADC_INPUT" => {
+                    let obj = resolve_adc_obj(&args[0], labels);
+                    let pin = resolve_pin_const(&args[0], labels);
+                    out.push_str(&format!("{pad}{obj} = ADC(Pin({pin}))\n"));
+                }
+                "CFG_SERIAL" => {
+                    let baud = args
+                        .first()
+                        .map(|e| emit_expr(e, labels))
+                        .unwrap_or_else(|| "9600".into());
+                    out.push_str(&format!("{pad}uart_0 = UART(0, baudrate={baud})\n"));
+                }
+                "SERIAL_PRINT" => {
+                    let msg = args
+                        .first()
+                        .map(|e| emit_expr(e, labels))
+                        .unwrap_or_else(|| "\"\"".into());
+                    out.push_str(&format!("{pad}uart_0.write({msg})\n"));
+                }
+                "SERIAL_PRINTLN" => {
+                    let msg = args
+                        .first()
+                        .map(|e| emit_expr(e, labels))
+                        .unwrap_or_else(|| "\"\"".into());
+                    out.push_str(&format!("{pad}uart_0.write({msg} + \"\\n\")\n"));
+                }
+                "SERIAL_FLUSH" => out.push_str(&format!("{pad}uart_0.flush()\n")),
+                "CFG_I2C" | "CFG_SPI" => {
+                    // Emit ASL call form so bus/cs/freq round-trip; `I2C(...)` / `SPI(...)`
+                    // constructors are still accepted by the parser.
+                    let a = args
+                        .iter()
+                        .map(|e| emit_expr(e, labels))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    out.push_str(&format!("{pad}{name}({a})\n"));
+                }
                 "WAIT_TIME" => {
                     let a = args
                         .first()
@@ -391,7 +607,12 @@ fn emit_expr(expr: &Expr, labels: &HashMap<u32, String>) -> String {
         Expr::Lit { value } => format!("{value:?}"),
         Expr::Call { name, args } => match name.as_str() {
             "GET_BOOL" => format!("{}.value()", resolve_pin_obj(&args[0], labels)),
+            "READ_ADC" => format!("{}.read_u16()", resolve_adc_obj(&args[0], labels)),
+            "GET_PWM_DUTY" => format!("{}.duty_u16()", resolve_pwm_obj(&args[0], labels)),
             "GET_SYS_TIME" => "ticks_ms()".into(),
+            "SERIAL_AVAILABLE" => "uart_0.any()".into(),
+            "SERIAL_READ" => "uart_0.read(1)".into(),
+            "SERIAL_READLN" => "uart_0.readline()".into(),
             other => {
                 let a = args
                     .iter()

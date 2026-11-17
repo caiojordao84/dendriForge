@@ -948,6 +948,7 @@ fn parse_hw_comment(body: &str) -> Option<HardwareEntry> {
     let mut label = String::new();
     let mut role = String::from("digital-out");
     let mut io_mode = IoMode::Do;
+    let mut hw_type = HwType::Digital;
     for part in body.split_whitespace() {
         if let Some(v) = part.strip_prefix("pin=") {
             pin = v.parse().ok();
@@ -955,6 +956,12 @@ fn parse_hw_comment(body: &str) -> Option<HardwareEntry> {
             label = v.to_string();
         } else if let Some(v) = part.strip_prefix("role=") {
             role = v.to_string();
+        } else if let Some(v) = part.strip_prefix("type=") {
+            hw_type = match v {
+                "Analog" | "analog" => HwType::Analog,
+                "Bool" | "bool" | "BOOL" => HwType::Bool,
+                _ => HwType::Digital,
+            };
         } else if let Some(v) = part.strip_prefix("mode=") {
             io_mode = match v {
                 "Di" | "DI" => IoMode::Di,
@@ -965,7 +972,7 @@ fn parse_hw_comment(body: &str) -> Option<HardwareEntry> {
     }
     Some(HardwareEntry {
         pin: pin?,
-        hw_type: HwType::Digital,
+        hw_type,
         io_mode,
         label: if label.is_empty() {
             format!("pin{pin}", pin = pin.unwrap())
@@ -988,18 +995,28 @@ fn infer_hardware(setup: &[Stmt], loop_body: &[Stmt]) -> Vec<HardwareEntry> {
             if !seen.insert(pin) {
                 continue;
             }
-            let (io_mode, role) = match name.as_str() {
-                "CFG_DIGITAL_OUTPUT" => (IoMode::Do, "digital-out"),
+            let (io_mode, role, hw_type) = match name.as_str() {
+                "CFG_DIGITAL_OUTPUT" => (IoMode::Do, "digital-out", HwType::Digital),
                 "CFG_DIGITAL_INPUT" | "CFG_DIGITAL_INPUT_PULLUP" | "CFG_DIGITAL_INPUT_PULLDOWN" => {
-                    (IoMode::Di, "digital-in")
+                    (IoMode::Di, "digital-in", HwType::Digital)
                 }
-                "SET_BOOL" | "GET_BOOL" => (IoMode::Do, "digital-out"),
+                "CFG_PWM_OUTPUT" | "SET_PWM_DUTY" | "SET_PWM_FREQ" | "GET_PWM_DUTY" => {
+                    (IoMode::Do, "pwm-out", HwType::Digital)
+                }
+                "CFG_ADC_INPUT" | "READ_ADC" => (IoMode::Di, "analog-in", HwType::Analog),
+                "SET_BOOL" | "GET_BOOL" => (IoMode::Do, "digital-out", HwType::Digital),
+                // CFG_I2C / CFG_SPI / CFG_SERIAL use non-pin-first args — skip here.
                 _ => continue,
             };
-            if name.starts_with("CFG_") || name == "SET_BOOL" || name == "GET_BOOL" {
+            if name.starts_with("CFG_")
+                || matches!(
+                    name.as_str(),
+                    "SET_BOOL" | "GET_BOOL" | "SET_PWM_DUTY" | "READ_ADC"
+                )
+            {
                 out.push(HardwareEntry {
                     pin,
-                    hw_type: HwType::Digital,
+                    hw_type,
                     io_mode,
                     label: format!("pin{pin}"),
                     target_role: role.into(),

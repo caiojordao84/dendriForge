@@ -1,0 +1,50 @@
+t=     0 BOOT
+t=     0 SETUP_DONE
+t=     0 SCAN_START cycle=1
+t=     0 ASSIGN pulse=false
+t=     0 CTU id=ctu1 Q=false CV=0
+t=     0 ASSIGN qu=false
+t=     0 CTD id=ctd1 Q=false CV=3
+t=     0 ASSIGN qd=false
+t=     0 CTUD id=ctud1 Q=false CV=0
+t=     0 ASSIGN qu=false
+t=     0 ASSIGN pulse=true
+t=     0 CTU id=ctu1 Q=false CV=1
+t=     0 ASSIGN qu=false
+t=     0 CTD id=ctd1 Q=false CV=2
+t=     0 ASSIGN qd=false
+t=     0 CTUD id=ctud1 Q=false CV=1
+t=     0 ASSIGN qu=false
+t=     0 SCAN_END cycle=1
+t=     0 SCAN_START cycle=2
+t=     0 ASSIGN pulse=false
+t=     0 CTU id=ctu1 Q=false CV=1
+t=     0 ASSIGN qu=false
+t=     0 CTD id=ctd1 Q=false CV=2
+t=     0 ASSIGN qd=false
+t=     0 CTUD id=ctud1 Q=false CV=1
+t=     0 ASSIGN qu=false
+t=     0 ASSIGN pulse=true
+t=     0 CTU id=ctu1 Q=false CV=2
+t=     0 ASSIGN qu=false
+t=     0 CTD id=ctd1 Q=false CV=1
+t=     0 ASSIGN qd=false
+t=     0 CTUD id=ctud1 Q=false CV=2
+t=     0 ASSIGN qu=false
+t=     0 SCAN_END cycle=2
+t=     0 SCAN_START cycle=3
+t=     0 ASSIGN pulse=false
+t=     0 CTU id=ctu1 Q=false CV=2
+t=     0 ASSIGN qu=false
+t=     0 CTD id=ctd1 Q=false CV=1
+t=     0 ASSIGN qd=false
+t=     0 CTUD id=ctud1 Q=false CV=2
+t=     0 ASSIGN qu=false
+t=     0 ASSIGN pulse=true
+t=     0 CTU id=ctu1 Q=true CV=3
+t=     0 ASSIGN qu=true
+t=     0 CTD id=ctd1 Q=true CV=0
+t=     0 ASSIGN qd=true
+t=     0 CTUD id=ctud1 Q=true CV=3
+t=     0 ASSIGN qu=true
+t=     0 SCAN_END cycle=3

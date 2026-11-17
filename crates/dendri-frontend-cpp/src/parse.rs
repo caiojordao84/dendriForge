@@ -57,6 +57,7 @@ enum Tok {
     Not,
     BitNot,
     PlusPlus,
+    Dot,
     Eof,
 }
 
@@ -204,6 +205,10 @@ impl<'a> Lexer<'a> {
                     Ok((Tok::Plus, line, col))
                 }
             }
+            b'.' => {
+                self.bump();
+                Ok((Tok::Dot, line, col))
+            }
             b'-' => {
                 self.bump();
                 Ok((Tok::Minus, line, col))
@@ -341,6 +346,7 @@ impl<'a> Lexer<'a> {
 #[derive(Debug, Clone)]
 struct HwAnno {
     pin: u32,
+    hw_type: HwType,
     io_mode: IoMode,
     label: String,
     target_role: String,
@@ -496,7 +502,7 @@ impl Parser {
                     if let Some(anno) = self.hw_annos.get(&label) {
                         hardware.push(HardwareEntry {
                             pin: anno.pin,
-                            hw_type: HwType::Digital,
+                            hw_type: anno.hw_type,
                             io_mode: anno.io_mode,
                             label: anno.label.clone(),
                             target_role: anno.target_role.clone(),
@@ -822,7 +828,7 @@ impl Parser {
             });
         }
 
-        // assign or call
+        // assign or call (including Serial.println / Wire.begin member calls)
         let name = match self.bump() {
             Tok::Ident(s) => s,
             other => return Err(self.err(format!("expected statement, got {other:?}"))),
@@ -839,6 +845,20 @@ impl Parser {
                 target: name,
                 value,
             });
+        }
+
+        if matches!(self.peek(), Tok::Dot) {
+            self.bump();
+            let method = match self.bump() {
+                Tok::Ident(m) => m,
+                _ => return Err(self.err("expected method name after '.'")),
+            };
+            let args = self.parse_arg_list()?;
+            match self.bump() {
+                Tok::Semi => {}
+                _ => return Err(self.err("expected ';' after member call")),
+            }
+            return Ok(lower_member_call_stmt(&name, &method, args));
         }
 
         if matches!(self.peek(), Tok::LParen) {
@@ -1166,7 +1186,15 @@ impl Parser {
                 }
             }
             Tok::Ident(name) => {
-                if matches!(self.peek(), Tok::LParen) {
+                if matches!(self.peek(), Tok::Dot) {
+                    self.bump();
+                    let method = match self.bump() {
+                        Tok::Ident(m) => m,
+                        _ => return Err(self.err("expected method after '.'")),
+                    };
+                    let args = self.parse_arg_list()?;
+                    Ok(lower_member_call_expr(&name, &method, args))
+                } else if matches!(self.peek(), Tok::LParen) {
                     let args = self.parse_arg_list()?;
                     Ok(lower_call_expr(&name, args))
                 } else {
@@ -1175,6 +1203,97 @@ impl Parser {
             }
             other => Err(self.err(format!("expected expression, got {other:?}"))),
         }
+    }
+}
+
+fn lower_member_call_stmt(object: &str, method: &str, args: Vec<Expr>) -> Stmt {
+    match (object, method) {
+        ("Serial", "begin") => Stmt::Call {
+            name: "CFG_SERIAL".into(),
+            args,
+        },
+        ("Serial", "print") => Stmt::Call {
+            name: "SERIAL_PRINT".into(),
+            args,
+        },
+        ("Serial", "println") => Stmt::Call {
+            name: "SERIAL_PRINTLN".into(),
+            args,
+        },
+        ("Serial", "flush") => Stmt::Call {
+            name: "SERIAL_FLUSH".into(),
+            args,
+        },
+        ("Wire", "begin") => {
+            // Wire.begin(sda, scl) — bus=0, freq default 100000 when omitted.
+            let mut a = vec![Expr::Uint { value: 0 }];
+            if args.len() >= 2 {
+                a.push(args[0].clone());
+                a.push(args[1].clone());
+                a.push(args.get(2).cloned().unwrap_or(Expr::Int { value: 100_000 }));
+            } else {
+                a.extend([
+                    Expr::Uint { value: 21 },
+                    Expr::Uint { value: 22 },
+                    Expr::Int { value: 100_000 },
+                ]);
+            }
+            Stmt::Call {
+                name: "CFG_I2C".into(),
+                args: a,
+            }
+        }
+        ("SPI", "begin") => {
+            // SPI.begin(sck, miso, mosi, cs) ESP32 order → ASL CFG_SPI(bus,mosi,miso,sck,cs)
+            if args.len() >= 4 {
+                Stmt::Call {
+                    name: "CFG_SPI".into(),
+                    args: vec![
+                        Expr::Uint { value: 1 },
+                        args[2].clone(), // mosi
+                        args[1].clone(), // miso
+                        args[0].clone(), // sck
+                        args[3].clone(), // cs
+                    ],
+                }
+            } else {
+                Stmt::Call {
+                    name: "CFG_SPI".into(),
+                    args: vec![
+                        Expr::Uint { value: 1 },
+                        Expr::Uint { value: 23 },
+                        Expr::Int { value: 19 },
+                        Expr::Uint { value: 18 },
+                        Expr::Uint { value: 5 },
+                    ],
+                }
+            }
+        }
+        _ => Stmt::Call {
+            name: format!("{object}_{method}"),
+            args,
+        },
+    }
+}
+
+fn lower_member_call_expr(object: &str, method: &str, args: Vec<Expr>) -> Expr {
+    match (object, method) {
+        ("Serial", "available") => Expr::Call {
+            name: "SERIAL_AVAILABLE".into(),
+            args,
+        },
+        ("Serial", "read") => Expr::Call {
+            name: "SERIAL_READ".into(),
+            args,
+        },
+        ("Serial", "readStringUntil") => Expr::Call {
+            name: "SERIAL_READLN".into(),
+            args: vec![],
+        },
+        _ => Expr::Call {
+            name: format!("{object}_{method}"),
+            args,
+        },
     }
 }
 
@@ -1224,6 +1343,10 @@ fn lower_call_stmt(name: &str, args: Vec<Expr>) -> Stmt {
             name: "WAIT_TIME_US".into(),
             args,
         },
+        "analogWrite" => Stmt::Call {
+            name: "SET_PWM_DUTY".into(),
+            args,
+        },
         other => Stmt::Call {
             name: other.into(),
             args,
@@ -1235,6 +1358,10 @@ fn lower_call_expr(name: &str, args: Vec<Expr>) -> Expr {
     match name {
         "digitalRead" => Expr::Call {
             name: "GET_BOOL".into(),
+            args,
+        },
+        "analogRead" => Expr::Call {
+            name: "READ_ADC".into(),
             args,
         },
         "millis" => Expr::Call {
@@ -1390,6 +1517,7 @@ fn parse_asl_hw_anno(body: &str) -> Option<HwAnno> {
     let mut label = String::new();
     let mut role = String::from("digital-out");
     let mut io_mode = IoMode::Do;
+    let mut hw_type = HwType::Digital;
     for part in body.split_whitespace() {
         if let Some(v) = part.strip_prefix("pin=") {
             pin = v.parse().ok();
@@ -1397,6 +1525,12 @@ fn parse_asl_hw_anno(body: &str) -> Option<HwAnno> {
             label = v.to_string();
         } else if let Some(v) = part.strip_prefix("role=") {
             role = v.to_string();
+        } else if let Some(v) = part.strip_prefix("type=") {
+            hw_type = match v {
+                "Analog" | "analog" => HwType::Analog,
+                "Bool" | "bool" | "BOOL" => HwType::Bool,
+                _ => HwType::Digital,
+            };
         } else if let Some(v) = part.strip_prefix("mode=") {
             io_mode = match v {
                 "Di" | "DI" => IoMode::Di,
@@ -1411,6 +1545,7 @@ fn parse_asl_hw_anno(body: &str) -> Option<HwAnno> {
     }
     Some(HwAnno {
         pin,
+        hw_type,
         io_mode,
         label,
         target_role: role,

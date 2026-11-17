@@ -38,6 +38,14 @@ jobs:
             cargo run -q -p dendri-cli -- frontend-roundtrip --lang "$lang" content/fixtures/sim/S02-ton-on-delay.asl.toml
             echo "== frontend-roundtrip $lang S03"
             cargo run -q -p dendri-cli -- frontend-roundtrip --lang "$lang" content/fixtures/sim/S03-control-flow-get-bool.asl.toml
+            echo "== frontend-roundtrip $lang S04"
+            cargo run -q -p dendri-cli -- frontend-roundtrip --lang "$lang" content/fixtures/sim/S04-pwm-adc-map.asl.toml
+            echo "== frontend-roundtrip $lang S05"
+            cargo run -q -p dendri-cli -- frontend-roundtrip --lang "$lang" content/fixtures/sim/S05-uart-i2c-spi.asl.toml
+            echo "== frontend-roundtrip $lang S06"
+            cargo run -q -p dendri-cli -- frontend-roundtrip --lang "$lang" content/fixtures/sim/S06-iec-tof-trig.asl.toml
+            echo "== frontend-roundtrip $lang S07"
+            cargo run -q -p dendri-cli -- frontend-roundtrip --lang "$lang" content/fixtures/sim/S07-iec-counters.asl.toml
           done
           cargo test -p dendri-frontends --test frontend_acceptance
           cargo test -p dendri-frontends --test visual_acceptance

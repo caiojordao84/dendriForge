@@ -1,14 +1,16 @@
-//! MicroPython ↔ ASL AST frontend (current sim opcode set).
+//! MicroPython ↔ ASL AST frontend (priority-2 sim opcode set).
 //!
 //! Supported surface:
-//! - `from machine import Pin` / `from time import sleep_ms`
-//! - pin constants + `*_pin` objects (`Pin.IN` / `OUT` / `PULL_UP` / `PULL_DOWN`)
+//! - `from machine import Pin[, PWM, ADC, UART, I2C, SPI]` / `from time import sleep_ms`
+//! - pin constants + `*_pin` / `*_pwm` / `*_adc` objects
 //! - `ASL_HW` / `ASL_DATA` comments for label + type round-trip
 //! - `def setup():` / `def loop():` plus entry `setup(); while True: loop()`
-//! - `.value(0|1)` / `sleep_ms` / `if` / `elif` / `else` / `while` / `for … range` / `TON(...)`
+//! - `.value(0|1)` / `PWM`/`duty_u16` / `ADC`/`read_u16` / `uart_0.write` / `sleep_ms`
+//! - IEC FBs as calls: `TON`/`TOF`/`CTU`/`R_TRIG`/…
+//! - `CFG_I2C` / `CFG_SPI` ASL call form (constructors accepted on parse)
 //!
 //! Not supported yet: classes, async, ISR decorators,
-//! `machine.PWM` / ADC / I2C / SPI (priority 2 — wait for sim).
+//! full I2C/SPI transfer APIs (DEN-12+).
 
 mod emit;
 mod parse;
