@@ -1,14 +1,14 @@
-//! MicroPython ↔ ASL AST frontend (MVP subset).
+//! MicroPython ↔ ASL AST frontend (current sim opcode set).
 //!
-//! Supported surface (blink-class programs):
+//! Supported surface:
 //! - `from machine import Pin` / `from time import sleep_ms`
-//! - pin constants `LED_PIN = 13` and objects `led_pin = Pin(LED_PIN, Pin.OUT)`
-//! - TIME-like consts (`ON_TIME = 100`) and bool/int vars
+//! - pin constants + `*_pin` objects (`Pin.IN` / `OUT` / `PULL_UP` / `PULL_DOWN`)
+//! - `ASL_HW` / `ASL_DATA` comments for label + type round-trip
 //! - `def setup():` / `def loop():` plus entry `setup(); while True: loop()`
-//! - `.value(0|1)` / `sleep_ms` / `if` / `elif` / `else` / `while` / `for … range`
+//! - `.value(0|1)` / `sleep_ms` / `if` / `elif` / `else` / `while` / `for … range` / `TON(...)`
 //!
-//! Not supported yet: classes, list/dict comprehensions, async, ISR decorators,
-//! full `machine` peripheral surface (PWM/ADC/I2C/SPI beyond future DEN work).
+//! Not supported yet: classes, async, ISR decorators,
+//! `machine.PWM` / ADC / I2C / SPI (priority 2 — wait for sim).
 
 mod emit;
 mod parse;

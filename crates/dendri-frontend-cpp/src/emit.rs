@@ -22,16 +22,23 @@ pub fn emit_cpp(program: &Program) -> String {
 
     for h in &program.hardware {
         out.push_str(&format!(
-            "const int {} = {};\n",
-            h.label,
-            h.pin
+            "// ASL_HW: pin={} type={:?} mode={:?} label={} role={}\n",
+            h.pin, h.hw_type, h.io_mode, h.label, h.target_role
         ));
+        out.push_str(&format!("const int {} = {};\n", h.label, h.pin));
     }
     if !program.hardware.is_empty() {
         out.push('\n');
     }
 
     for d in &program.data {
+        out.push_str(&format!(
+            "// ASL_DATA: name={} type={} scope={} unit={}\n",
+            d.name,
+            d.data_type.as_str(),
+            scope_tag(d.scope),
+            d.unit
+        ));
         match d.scope {
             Scope::Const => {
                 let (ty, val) = cpp_const(d.data_type, &d.init);
@@ -92,13 +99,10 @@ fn cpp_const(ty: DataType, init: &str) -> (&'static str, String) {
         ),
         DataType::Real | DataType::Lreal => ("float", init.to_string()),
         DataType::String => ("String", format!("\"{init}\"")),
-        _ => ("unsigned long", {
-            if init.chars().all(|c| c.is_ascii_digit()) {
-                format!("{init}UL")
-            } else {
-                init.to_string()
-            }
-        }),
+        DataType::Int | DataType::Dint => ("int", init.to_string()),
+        DataType::Uint | DataType::Byte | DataType::Word | DataType::Dword => {
+            ("unsigned int", init.to_string())
+        }
     }
 }
 
@@ -120,6 +124,17 @@ fn cpp_var(ty: DataType, init: &str) -> (&'static str, String) {
         DataType::String => ("String", format!("String(\"{}\")", init.trim_matches('"'))),
         DataType::Int | DataType::Dint => ("int", init.to_string()),
         _ => ("unsigned int", init.to_string()),
+    }
+}
+
+fn scope_tag(scope: Scope) -> &'static str {
+    match scope {
+        Scope::Const => "CONST",
+        Scope::Var => "VAR",
+        Scope::Retain => "RETAIN",
+        Scope::Persistent => "PERSISTENT",
+        Scope::Temp => "TEMP",
+        Scope::Extern => "EXTERN",
     }
 }
 
@@ -231,6 +246,9 @@ fn emit_call(name: &str, args: &[Expr], labels: &HashMap<u32, String>) -> String
         }
         "CFG_DIGITAL_INPUT_PULLUP" => {
             format!("pinMode({}, INPUT_PULLUP)", resolve_pin(&args[0], labels))
+        }
+        "CFG_DIGITAL_INPUT_PULLDOWN" => {
+            format!("pinMode({}, INPUT_PULLDOWN)", resolve_pin(&args[0], labels))
         }
         "SET_BOOL" => {
             let pin = resolve_pin(&args[0], labels);

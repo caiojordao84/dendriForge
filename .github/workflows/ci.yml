@@ -30,8 +30,14 @@ jobs:
       - name: frontend round-trips (C++ / MicroPython / ST / Ladder / SFC)
         run: |
           for lang in cpp micropython st ladder sfc; do
-            echo "== frontend-roundtrip $lang"
+            echo "== frontend-roundtrip $lang S01"
             cargo run -q -p dendri-cli -- frontend-roundtrip --lang "$lang" content/fixtures/sim/S01-blink-set-bool-wait.asl.toml
+          done
+          for lang in cpp micropython st; do
+            echo "== frontend-roundtrip $lang S02"
+            cargo run -q -p dendri-cli -- frontend-roundtrip --lang "$lang" content/fixtures/sim/S02-ton-on-delay.asl.toml
+            echo "== frontend-roundtrip $lang S03"
+            cargo run -q -p dendri-cli -- frontend-roundtrip --lang "$lang" content/fixtures/sim/S03-control-flow-get-bool.asl.toml
           done
           cargo test -p dendri-frontends --test frontend_acceptance
           cargo test -p dendri-frontends --test visual_acceptance

@@ -1,15 +1,14 @@
-//! Arduino-style C++ ↔ ASL AST frontend (MVP subset).
+//! Arduino-style C++ ↔ ASL AST frontend (current sim opcode set).
 //!
-//! Supported surface (blink-class programs):
-//! - `const int pinLabel = N;` hardware pins
-//! - `const unsigned long NAME = N UL;` → ASL `TIME` consts (`T#Nms`)
-//! - `bool` / `int` vars
-//! - `void setup()` / `void loop()`
+//! Supported surface:
+//! - `const int pinLabel = N;` hardware pins (`// ASL_HW:` for DI/DO + non-`*Pin` labels)
+//! - `const unsigned long` → `TIME`; `ASL_DATA` for UINT/INT/BOOL/REAL honesty
+//! - `void setup()` / `void loop()` / user functions
 //! - `pinMode` / `digitalWrite` / `digitalRead` / `delay` / `millis`
-//! - `if` / `else` / `while` / simple `for` / assign / call
+//! - `if` / `else if` / `else` / `while` / simple `for` / assign / call / `TON(...)`
 //!
 //! Not supported yet: classes, templates, pointers, `#include` semantics,
-//! multi-file sketches, AVR/ESP HAL specifics beyond Arduino core aliases.
+//! PWM/ADC/UART Arduino APIs (priority 2 — wait for sim).
 
 mod emit;
 mod parse;

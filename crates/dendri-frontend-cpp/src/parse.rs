@@ -33,6 +33,7 @@ enum Tok {
     Output,
     Input,
     InputPullup,
+    InputPulldown,
     Assign,
     Semi,
     Comma,
@@ -323,6 +324,7 @@ impl<'a> Lexer<'a> {
                     "OUTPUT" => Tok::Output,
                     "INPUT" => Tok::Input,
                     "INPUT_PULLUP" => Tok::InputPullup,
+                    "INPUT_PULLDOWN" => Tok::InputPulldown,
                     _ => Tok::Ident(id),
                 };
                 Ok((tok, line, col))
@@ -336,20 +338,49 @@ impl<'a> Lexer<'a> {
     }
 }
 
+#[derive(Debug, Clone)]
+struct HwAnno {
+    pin: u32,
+    io_mode: IoMode,
+    label: String,
+    target_role: String,
+}
+
+#[derive(Debug, Clone)]
+struct DataAnno {
+    data_type: DataType,
+    scope: Scope,
+    unit: String,
+}
+
 struct Parser {
     tokens: Vec<(Tok, usize, usize)>,
     pos: usize,
     project_name: Option<String>,
     pin_consts: HashMap<String, u32>,
+    hw_annos: HashMap<String, HwAnno>,
+    data_annos: HashMap<String, DataAnno>,
 }
 
 impl Parser {
     fn from_src(src: &str) -> Result<Self, CppParseError> {
         let mut project_name = None;
+        let mut hw_annos = HashMap::new();
+        let mut data_annos = HashMap::new();
         for line in src.lines() {
             let t = line.trim();
             if let Some(rest) = t.strip_prefix("// project:") {
                 project_name = Some(rest.trim().to_string());
+            }
+            if let Some(rest) = t.strip_prefix("// ASL_HW:") {
+                if let Some(hw) = parse_asl_hw_anno(rest.trim()) {
+                    hw_annos.insert(hw.label.clone(), hw);
+                }
+            }
+            if let Some(rest) = t.strip_prefix("// ASL_DATA:") {
+                if let Some((name, anno)) = parse_asl_data_anno(rest.trim()) {
+                    data_annos.insert(name, anno);
+                }
             }
         }
         let mut lex = Lexer::new(src);
@@ -367,6 +398,8 @@ impl Parser {
             pos: 0,
             project_name,
             pin_consts: HashMap::new(),
+            hw_annos,
+            data_annos,
         })
     }
 
@@ -460,13 +493,23 @@ impl Parser {
                 let (entry, pin_opt) = self.parse_decl()?;
                 if let Some((label, pin)) = pin_opt {
                     self.pin_consts.insert(label.clone(), pin);
-                    hardware.push(HardwareEntry {
-                        pin,
-                        hw_type: HwType::Digital,
-                        io_mode: IoMode::Do,
-                        label,
-                        target_role: "digital-out".into(),
-                    });
+                    if let Some(anno) = self.hw_annos.get(&label) {
+                        hardware.push(HardwareEntry {
+                            pin: anno.pin,
+                            hw_type: HwType::Digital,
+                            io_mode: anno.io_mode,
+                            label: anno.label.clone(),
+                            target_role: anno.target_role.clone(),
+                        });
+                    } else {
+                        hardware.push(HardwareEntry {
+                            pin,
+                            hw_type: HwType::Digital,
+                            io_mode: IoMode::Do,
+                            label,
+                            target_role: "digital-out".into(),
+                        });
+                    }
                 } else {
                     data.push(entry);
                 }
@@ -594,80 +637,112 @@ impl Parser {
             _ => return Err(self.err("expected ';' after declaration")),
         }
 
-        // Pin constant: const int ledPin = 13;
+        // Pin constant: ASL_HW annotation, or legacy `*Pin` const int label.
         if is_const && (type_name == "int" || type_name == "unsigned int") {
             if let Expr::Uint { value } = init_expr {
-                return Ok((
-                    DataEntry {
-                        name: name.clone(),
-                        data_type: DataType::Uint,
-                        scope: Scope::Const,
-                        init: value.to_string(),
-                        unit: "-".into(),
-                    },
-                    Some((name, value as u32)),
-                ));
+                let is_pin = self.hw_annos.contains_key(&name) || name.ends_with("Pin");
+                if is_pin {
+                    return Ok((
+                        DataEntry {
+                            name: name.clone(),
+                            data_type: DataType::Uint,
+                            scope: Scope::Const,
+                            init: value.to_string(),
+                            unit: "-".into(),
+                        },
+                        Some((name, value as u32)),
+                    ));
+                }
             }
         }
 
-        let (data_type, init, unit) = match type_name.as_str() {
+        let mut data_type;
+        let mut init;
+        let mut unit;
+        match type_name.as_str() {
             "bool" => {
                 let v = match init_expr {
                     Expr::Bool { value: true } => "TRUE",
                     _ => "FALSE",
                 };
-                (DataType::Bool, v.to_string(), "-".into())
+                data_type = DataType::Bool;
+                init = v.to_string();
+                unit = "-".into();
             }
-            "unsigned long" | "unsigned int" => {
-                // TIME when const unsigned long used as delay — treat as TIME.
+            "unsigned long" => {
                 let ms = match init_expr {
                     Expr::Uint { value } => value,
                     _ => 0,
                 };
                 if is_const {
-                    (
-                        DataType::Time,
-                        format!("T#{ms}ms"),
-                        "ms".into(),
-                    )
+                    data_type = DataType::Time;
+                    init = format!("T#{ms}ms");
+                    unit = "ms".into();
                 } else {
-                    (DataType::Uint, ms.to_string(), "-".into())
+                    data_type = DataType::Uint;
+                    init = ms.to_string();
+                    unit = "-".into();
                 }
             }
-            "float" => (
-                DataType::Real,
-                match init_expr {
+            "unsigned int" => {
+                let n = match init_expr {
+                    Expr::Uint { value } => value,
+                    _ => 0,
+                };
+                data_type = DataType::Uint;
+                init = n.to_string();
+                unit = "-".into();
+            }
+            "float" => {
+                data_type = DataType::Real;
+                init = match init_expr {
                     Expr::Real { value } => value.to_string(),
                     Expr::Uint { value } => value.to_string(),
                     _ => "0".into(),
-                },
-                "-".into(),
-            ),
-            "int" => (
-                DataType::Int,
-                match init_expr {
+                };
+                unit = "-".into();
+            }
+            "int" => {
+                data_type = DataType::Int;
+                init = match init_expr {
                     Expr::Uint { value } => value.to_string(),
                     Expr::Int { value } => value.to_string(),
                     _ => "0".into(),
-                },
-                "-".into(),
-            ),
-            "String" => (
-                DataType::String,
-                match init_expr {
+                };
+                unit = "-".into();
+            }
+            "String" => {
+                data_type = DataType::String;
+                init = match init_expr {
                     Expr::String { value } => format!("\"{value}\""),
                     _ => "\"\"".into(),
-                },
-                "-".into(),
-            ),
-            _ => (DataType::Uint, "0".into(), "-".into()),
+                };
+                unit = "-".into();
+            }
+            _ => {
+                data_type = DataType::Uint;
+                init = "0".into();
+                unit = "-".into();
+            }
         };
+
+        let mut scope = if is_const { Scope::Const } else { Scope::Var };
+        if let Some(anno) = self.data_annos.get(&name) {
+            data_type = anno.data_type;
+            scope = anno.scope;
+            unit = anno.unit.clone();
+            if data_type == DataType::Time {
+                if let Ok(ms) = init.parse::<u64>() {
+                    init = format!("T#{ms}ms");
+                }
+            }
+        }
 
         Ok((
             DataEntry {
                 name,
                 data_type,
-                scope: if is_const { Scope::Const } else { Scope::Var },
+                scope,
                 init,
                 unit,
             },
@@ -868,13 +943,12 @@ impl Parser {
                 _ => return Err(self.err("MVP for requires int init or empty")),
             }
         };
-        // condition: i < expr
+        // condition: i < expr  (parse add-expr, not full expr — `<` is the for-bound op)
         let to = if matches!(self.peek(), Tok::Semi) {
             self.bump();
             Expr::Uint { value: 0 }
         } else {
-            let _lhs = self.parse_expr()?;
-            // expect < or <=
+            let _lhs = self.parse_add()?;
             let op = self.bump();
             let bound = self.parse_expr()?;
             match self.bump() {
@@ -1068,6 +1142,9 @@ impl Parser {
             Tok::InputPullup => Ok(Expr::Var {
                 name: "INPUT_PULLUP".into(),
             }),
+            Tok::InputPulldown => Ok(Expr::Var {
+                name: "INPUT_PULLDOWN".into(),
+            }),
             Tok::Uint(v) => Ok(Expr::Uint { value: v }),
             Tok::Int(v) => Ok(Expr::Int { value: v }),
             Tok::Real(v) => Ok(Expr::Real { value: v }),
@@ -1109,19 +1186,17 @@ fn lower_call_stmt(name: &str, args: Vec<Expr>) -> Stmt {
             let opcode = match mode {
                 Some(Expr::Var { name }) if name == "OUTPUT" => "CFG_DIGITAL_OUTPUT",
                 Some(Expr::Var { name }) if name == "INPUT_PULLUP" => "CFG_DIGITAL_INPUT_PULLUP",
-                Some(Expr::Var { name }) if name == "INPUT" => "CFG_DIGITAL_INPUT",
-                // OUTPUT/INPUT tokens parsed as Bool? — we map High etc. Use Output tok via Var
-                _ => {
-                    // peek at raw — parse_primary maps Output → Var OUTPUT
-                    "CFG_DIGITAL_OUTPUT"
+                Some(Expr::Var { name }) if name == "INPUT_PULLDOWN" => {
+                    "CFG_DIGITAL_INPUT_PULLDOWN"
                 }
+                Some(Expr::Var { name }) if name == "INPUT" => "CFG_DIGITAL_INPUT",
+                _ => "CFG_DIGITAL_OUTPUT",
             };
-            // Better mode detection from token mapping: Output→ we need fix parse_primary
             let opcode = match mode {
-                Some(Expr::Bool { value: true }) => "CFG_DIGITAL_OUTPUT", // shouldn't happen
                 Some(Expr::Var { name: m }) => match m.as_str() {
                     "OUTPUT" => "CFG_DIGITAL_OUTPUT",
                     "INPUT_PULLUP" => "CFG_DIGITAL_INPUT_PULLUP",
+                    "INPUT_PULLDOWN" => "CFG_DIGITAL_INPUT_PULLDOWN",
                     "INPUT" => "CFG_DIGITAL_INPUT",
                     _ => opcode,
                 },
@@ -1262,7 +1337,9 @@ fn refine_hardware_from_setup(hardware: &mut [HardwareEntry], setup: &[Stmt]) {
             };
             if let Some(h) = hardware.iter_mut().find(|h| h.pin == pin) {
                 match name.as_str() {
-                    "CFG_DIGITAL_INPUT" | "CFG_DIGITAL_INPUT_PULLUP" => {
+                    "CFG_DIGITAL_INPUT"
+                    | "CFG_DIGITAL_INPUT_PULLUP"
+                    | "CFG_DIGITAL_INPUT_PULLDOWN" => {
                         h.io_mode = IoMode::Di;
                         h.target_role = "digital-in".into();
                     }
@@ -1291,7 +1368,9 @@ fn infer_hardware_from_calls(setup: &[Stmt]) -> Vec<HardwareEntry> {
             }
             let (io_mode, role) = match name.as_str() {
                 "CFG_DIGITAL_OUTPUT" => (IoMode::Do, "digital-out"),
-                "CFG_DIGITAL_INPUT" | "CFG_DIGITAL_INPUT_PULLUP" => (IoMode::Di, "digital-in"),
+                "CFG_DIGITAL_INPUT"
+                | "CFG_DIGITAL_INPUT_PULLUP"
+                | "CFG_DIGITAL_INPUT_PULLDOWN" => (IoMode::Di, "digital-in"),
                 _ => continue,
             };
             out.push(HardwareEntry {
@@ -1304,6 +1383,71 @@ fn infer_hardware_from_calls(setup: &[Stmt]) -> Vec<HardwareEntry> {
         }
     }
     out
+}
+
+fn parse_asl_hw_anno(body: &str) -> Option<HwAnno> {
+    let mut pin = None;
+    let mut label = String::new();
+    let mut role = String::from("digital-out");
+    let mut io_mode = IoMode::Do;
+    for part in body.split_whitespace() {
+        if let Some(v) = part.strip_prefix("pin=") {
+            pin = v.parse().ok();
+        } else if let Some(v) = part.strip_prefix("label=") {
+            label = v.to_string();
+        } else if let Some(v) = part.strip_prefix("role=") {
+            role = v.to_string();
+        } else if let Some(v) = part.strip_prefix("mode=") {
+            io_mode = match v {
+                "Di" | "DI" => IoMode::Di,
+                "Bi" | "BI" => IoMode::Bi,
+                _ => IoMode::Do,
+            };
+        }
+    }
+    let pin = pin?;
+    if label.is_empty() {
+        label = format!("pin{pin}");
+    }
+    Some(HwAnno {
+        pin,
+        io_mode,
+        label,
+        target_role: role,
+    })
+}
+
+fn parse_asl_data_anno(body: &str) -> Option<(String, DataAnno)> {
+    let mut name = None;
+    let mut data_type = DataType::Uint;
+    let mut scope = Scope::Var;
+    let mut unit = String::from("-");
+    for part in body.split_whitespace() {
+        if let Some(v) = part.strip_prefix("name=") {
+            name = Some(v.to_string());
+        } else if let Some(v) = part.strip_prefix("type=") {
+            data_type = DataType::parse(v)?;
+        } else if let Some(v) = part.strip_prefix("scope=") {
+            scope = match v {
+                "CONST" => Scope::Const,
+                "RETAIN" => Scope::Retain,
+                "PERSISTENT" => Scope::Persistent,
+                "TEMP" => Scope::Temp,
+                "EXTERN" => Scope::Extern,
+                _ => Scope::Var,
+            };
+        } else if let Some(v) = part.strip_prefix("unit=") {
+            unit = v.to_string();
+        }
+    }
+    Some((
+        name?,
+        DataAnno {
+            data_type,
+            scope,
+            unit,
+        },
+    ))
 }
 
 /// Parse Arduino-style C++ source into the shared ASL [`Program`] AST.
