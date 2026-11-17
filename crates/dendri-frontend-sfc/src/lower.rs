@@ -1,8 +1,12 @@
 //! Lower GRAFCET / SFC charts to ASL setup/loop (step-token state machine).
 //!
-//! MVP strategy: one BOOL token per step (`__sfc_<id>`). Active steps run their
+//! Strategy: one BOOL token per step (`__sfc_<id>`). Active steps run their
 //! actions each scan; transitions fire when all source steps are active and the
-//! receptivity is true, then deactivate sources and activate targets.
+//! receptivity is true.
+//!
+//! Transition apply is **two-phase**: all `__sfc_fire_*` flags are computed
+//! first, then all token updates run. That keeps competing OR receptivities
+//! stable within a scan (sources clear after every fire is decided).
 
 use dendri_ast::expr::{BinaryOp, Expr};
 use dendri_ast::stmt::Stmt;
@@ -75,7 +79,7 @@ pub fn lower_grafcet_to_program(
         });
     }
 
-    // 2) Evaluate transitions (collect fires, then apply — single pass via temps).
+    // 2a) Phase 1 — evaluate every transition fire flag (AND of receptivity + sources).
     for tr in &block.transitions {
         let mut cond = tr.condition.clone();
         for src in &tr.from {
@@ -98,10 +102,14 @@ pub fn lower_grafcet_to_program(
             });
         }
         loop_body.push(Stmt::Assign {
-            target: fire.clone(),
+            target: fire,
             value: cond,
         });
+    }
 
+    // 2b) Phase 2 — apply all fires (multi from/to = AND join / AND fork).
+    for tr in &block.transitions {
+        let fire = format!("__sfc_fire_{}", tr.id);
         let mut then_body = Vec::new();
         for src in &tr.from {
             then_body.push(Stmt::Assign {

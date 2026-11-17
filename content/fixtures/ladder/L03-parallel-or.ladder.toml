@@ -1,0 +1,63 @@
+# Ladder — one-level parallel OR rail (DEN-12).
+# Power = (a OR b) → coil out → SET_BOOL when out is true.
+# With a=TRUE, b=FALSE the coil energizes.
+
+name = "L03-parallel-or"
+
+[[hardware]]
+pin = 13
+hw_type = "digital"
+io_mode = "DO"
+label = "ledPin"
+target_role = "digital-out"
+
+[[data]]
+name = "a"
+type = "BOOL"
+scope = "VAR"
+init = "TRUE"
+unit = "-"
+
+[[data]]
+name = "b"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "out"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 13 }]
+
+[[rungs]]
+id = "r1"
+row = 0
+comment = "parallel OR then coil"
+
+[[rungs.cells]]
+kind = "parallel"
+col = 0
+branches = [
+  { id = "b0", cells = [{ kind = "contact_no", operand = "a", col = 0 }] },
+  { id = "b1", cells = [{ kind = "contact_no", operand = "b", col = 0 }] },
+]
+
+[[rungs.cells]]
+kind = "coil"
+operand = "out"
+col = 1
+
+[[rungs.cells]]
+kind = "action"
+col = 2
+stmts = [
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 13 }, { kind = "var", name = "out" }] },
+]

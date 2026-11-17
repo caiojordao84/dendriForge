@@ -1,0 +1,92 @@
+# SFC — AND divergence then AND convergence (DEN-12).
+# S0 -fork-> (Sa || Sb) -join-> S_done. Both branches set flags; join writes pin.
+
+name = "G02-and-divergence"
+initial_steps = ["S0"]
+
+[[hardware]]
+pin = 13
+hw_type = "digital"
+io_mode = "DO"
+label = "ledPin"
+target_role = "digital-out"
+
+[[data]]
+name = "flag_a"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "flag_b"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 13 }]
+
+[[setup]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "uint", value = 13 }, { kind = "bool", value = false }]
+
+[[steps]]
+id = "S0"
+initial = true
+x = 0.0
+y = 0.0
+comment = "idle"
+actions = []
+
+[[steps]]
+id = "Sa"
+initial = false
+x = -60.0
+y = 80.0
+comment = "branch A"
+actions = [
+  { kind = "assign", target = "flag_a", value = { kind = "bool", value = true } },
+]
+
+[[steps]]
+id = "Sb"
+initial = false
+x = 60.0
+y = 80.0
+comment = "branch B"
+actions = [
+  { kind = "assign", target = "flag_b", value = { kind = "bool", value = true } },
+]
+
+[[steps]]
+id = "S_done"
+initial = false
+x = 0.0
+y = 160.0
+comment = "joined"
+actions = [
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 13 }, { kind = "bool", value = true }] },
+]
+
+[[transitions]]
+id = "T_fork"
+from = ["S0"]
+to = ["Sa", "Sb"]
+condition = { kind = "bool", value = true }
+comment = "AND divergence"
+x = 0.0
+y = 40.0
+
+[[transitions]]
+id = "T_join"
+from = ["Sa", "Sb"]
+to = ["S_done"]
+condition = { kind = "bool", value = true }
+comment = "AND convergence"
+x = 0.0
+y = 120.0

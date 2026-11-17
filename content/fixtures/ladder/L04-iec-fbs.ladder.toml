@@ -1,0 +1,128 @@
+# Ladder — honest DEN-11 IEC FB coverage (TON/TOF/R_TRIG/CTU).
+# btn starts TRUE: R_TRIG fires once; TON/TOF see IN=true; CTU sees rising CU on first scan.
+
+name = "L04-iec-fbs"
+
+[[hardware]]
+pin = 13
+hw_type = "digital"
+io_mode = "DO"
+label = "ledPin"
+target_role = "digital-out"
+
+[[data]]
+name = "btn"
+type = "BOOL"
+scope = "VAR"
+init = "TRUE"
+unit = "-"
+
+[[data]]
+name = "reset"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "pv"
+type = "INT"
+scope = "CONST"
+init = "1"
+unit = "-"
+
+[[data]]
+name = "PT"
+type = "TIME"
+scope = "CONST"
+init = "T#100ms"
+unit = "ms"
+
+[[data]]
+name = "ctu1_CV"
+type = "INT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 13 }]
+
+[[rungs]]
+id = "r_edge"
+row = 0
+comment = "R_TRIG on btn"
+
+[[rungs.cells]]
+kind = "contact_no"
+operand = "btn"
+col = 0
+
+[[rungs.cells]]
+kind = "fb_edge"
+rising = true
+instance = "rt1"
+col = 1
+
+[[rungs]]
+id = "r_ton"
+row = 1
+comment = "TON powered by btn"
+
+[[rungs.cells]]
+kind = "contact_no"
+operand = "btn"
+col = 0
+
+[[rungs.cells]]
+kind = "fb_timer"
+fb = "TON"
+instance = "ton1"
+args = [{ kind = "var", name = "PT" }]
+col = 1
+
+[[rungs]]
+id = "r_tof"
+row = 2
+comment = "TOF powered by btn"
+
+[[rungs.cells]]
+kind = "contact_no"
+operand = "btn"
+col = 0
+
+[[rungs.cells]]
+kind = "fb_timer"
+fb = "TOF"
+instance = "tof1"
+args = [{ kind = "var", name = "PT" }]
+col = 1
+
+[[rungs]]
+id = "r_ctu"
+row = 3
+comment = "CTU with always-true rail (first-scan rising CU)"
+
+[[rungs.cells]]
+kind = "fb_counter"
+fb = "CTU"
+instance = "ctu1"
+args = [
+  { kind = "var", name = "reset" },
+  { kind = "var", name = "pv" },
+]
+col = 0
+
+[[rungs]]
+id = "r_out"
+row = 4
+comment = "prove sim still writes pin"
+
+[[rungs.cells]]
+kind = "action"
+col = 0
+stmts = [
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 13 }, { kind = "bool", value = true }] },
+]
