@@ -1,0 +1,224 @@
+# component profile — act-relay-industrial (migrated from legacy TOON)
+# Source: act-relay-industrial.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "act-relay-industrial-profile"
+
+[identification]
+category = "switching"
+family = "actuators"
+id = "act-relay-industrial"
+image = "act-relay-industrial.svg"
+name = "Industrial Relay (DPDT)"
+standard = "IEC 61810-1"
+subfamily = "industrial-electrical"
+symbol = "act-relay-industrial-symbol.svg"
+symbol_standard = "IEC"
+
+[params.coil_current]
+default = 120
+editable = false
+label = "Coil Current"
+options = [50, 80, 100, 120, 200, 400]
+type = "enum"
+unit = "mA"
+
+[params.coil_voltage]
+default = 24
+editable = true
+label = "Coil Nominal Voltage"
+options = [5, 6, 9, 12, 24, 48, 110, 230]
+type = "enum"
+unit = "V"
+
+[params.contact_config]
+default = "DPDT"
+editable = true
+label = "Contact Configuration"
+options = ["SPST-NO", "SPST-NC", "SPDT", "DPDT"]
+type = "enum"
+
+[params.contact_current_max]
+default = 10
+editable = true
+label = "Max Contact Current"
+options = [3, 5, 8, 10, 16, 25]
+type = "enum"
+unit = "A"
+
+[params.contact_voltage_max]
+default = 250
+editable = true
+label = "Max Contact Voltage"
+options = [30, 125, 250, 400]
+type = "enum"
+unit = "V"
+
+[params.dropout_voltage]
+default = 2.4
+editable = false
+label = "Drop-out Voltage"
+type = "float"
+unit = "V"
+
+[params.flyback]
+default = false
+editable = true
+label = "Flyback Diode Included"
+type = "bool"
+
+[params.mounting]
+default = "DIN-rail"
+editable = true
+label = "Mounting"
+options = ["DIN-rail", "panel", "PCB", "socket"]
+type = "enum"
+
+[params.operate_time]
+default = 20
+editable = false
+label = "Operate Time"
+type = "int"
+unit = "ms"
+
+[params.pickup_voltage]
+default = 19.2
+editable = false
+label = "Pick-up Voltage"
+type = "float"
+unit = "V"
+
+[params.release_time]
+default = 20
+editable = false
+label = "Release Time"
+type = "int"
+unit = "ms"
+
+[[ports]]
+current_max = "400mA"
+direction = "input"
+id = "A1"
+notes = "coil positive supply"
+type = "power"
+voltage_max = "230V"
+
+[[ports]]
+direction = "input"
+id = "A2"
+notes = "coil negative / common ground"
+type = "ground"
+
+[[ports]]
+current_max = "25A"
+direction = "passive"
+id = "COM1"
+notes = "contact 1 common"
+type = "power"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "25A"
+direction = "passive"
+id = "NO1"
+notes = "contact 1 normally open"
+type = "power"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "25A"
+direction = "passive"
+id = "NC1"
+notes = "contact 1 normally closed"
+type = "power"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "25A"
+direction = "passive"
+id = "NO2"
+notes = "contact 2 normally open"
+type = "power"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "25A"
+direction = "passive"
+id = "NC2"
+notes = "contact 2 normally closed"
+type = "power"
+voltage_max = "400V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "relay-coil"
+noise_model = false
+states = ["de-energised", "energised", "fault"]
+thermal_model = false
+
+[limits]
+max_current = "25A"
+
+[limits.max_power]
+unit = "W"
+value = 2.4
+max_temp = 85
+max_voltage = "400V"
+min_temp = -40
+warnings = ["Always install flyback protection on the coil supply when driven by MCU or PLC outputs", "Do not exceed rated contact current — use contactor for loads above 16A", "Contact bounce may occur at switching; use debounce logic for digital inputs", "Coil pickup and dropout voltages define safe operating voltage window"]
+
+[connections]
+allowed_with = ["relay-driver", "relay-driver-opto", "ind-do-bank", "mcu-gpio", "dc-source", "ac-source", "pneu-valve-*", "hyd-valve-*", "act-motor-*"]
+forbidden_with = []
+requires = ["dc-source"]
+typical_context = ["industrial-io", "panel-control", "motor-switching", "lamp-control", "safety-circuit"]
+
+[canvas]
+animated = true
+height = 60
+label_position = "top"
+
+[canvas.port_A1]
+x = 35
+y = 0
+
+[canvas.port_A2]
+x = 35
+y = 60
+
+[canvas.port_COM1]
+x = 0
+y = 20
+
+[canvas.port_NC1]
+x = 70
+y = 30
+
+[canvas.port_NC2]
+x = 70
+y = 55
+
+[canvas.port_NO1]
+x = 70
+y = 10
+
+[canvas.port_NO2]
+x = 70
+y = 45
+ports_layout = "custom"
+value_display = "Industrial Relay / {coil_voltage}V / {contact_current_max}A / {contact_config}"
+width = 70
+
+[dendri]
+component_family_skill_id = "actuators-family"
+component_profile_id = "act-relay-industrial"
+palette_group = "Actuators > Industrial Electrical"
+simulation_engine = "digital-io"
+svg_path = "content/assets/svg/components/act-relay-industrial.svg"
+tags = ["relay", "industrial", "dpdt", "switching", "coil", "actuator"]
+svg_status = "missing"

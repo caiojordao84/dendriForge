@@ -1,0 +1,156 @@
+# component profile — ind-servo-drive-profile (migrated from legacy TOON)
+# Source: ind-servo-drive-profile.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "ind-servo-drive-profile-profile"
+
+[identification]
+category = "function-block"
+family = "industrial"
+id = "ind-servo-drive-profile"
+image = "ind-servo-drive-profile.svg"
+name = "Industrial Servo Drive Profile (PLCopen)"
+standard = "IEC 61800-7 / PLCopen MC"
+subfamily = "motor-drives"
+symbol = "ind-servo-drive-profile-symbol.svg"
+symbol_standard = "IEC"
+
+[params.axis_mode]
+default = "position"
+editable = true
+label = "Axis Mode"
+options = ["position", "velocity", "torque", "homing"]
+type = "enum"
+
+[params.encoder_resolution]
+default = 10000
+editable = false
+label = "Encoder Resolution"
+max = 10000000
+min = 100
+type = "float"
+unit = "V"
+
+[params.following_error_limit]
+default = 100
+editable = true
+label = "Following Error Limit"
+max = 10000
+min = 1
+type = "float"
+unit = "V"
+
+[params.homing_method]
+default = "limit-switch"
+editable = true
+label = "Homing Method"
+options = ["limit-switch", "index-pulse", "hardstop", "absolute"]
+type = "enum"
+
+[params.max_acceleration]
+default = 5000
+editable = true
+label = "Max Acceleration"
+max = 500000
+min = 10
+type = "float"
+unit = "V"
+
+[params.max_velocity]
+default = 1000
+editable = true
+label = "Max Velocity"
+max = 100000
+min = 1
+type = "float"
+unit = "V"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "ENABLE"
+notes = "Drive enable signal — active high"
+type = "digital"
+voltage_max = "24V"
+
+[[ports]]
+current_max = "100mA"
+direction = "output"
+id = "READY"
+notes = "Drive ready feedback"
+type = "digital"
+voltage_max = "24V"
+
+[[ports]]
+current_max = "100mA"
+direction = "output"
+id = "FAULT"
+notes = "Drive fault output — active high on fault"
+type = "digital"
+voltage_max = "24V"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "RESET"
+notes = "Fault reset input — rising edge clears fault"
+type = "digital"
+voltage_max = "24V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "function-block-engine"
+noise_model = false
+states = ["disabled", "ready", "running", "fault"]
+thermal_model = false
+
+[limits]
+max_current = "100mA"
+max_temp = 55
+max_voltage = "24V"
+min_temp = -10
+warnings = ["Following error fault triggers if axis position lags beyond following_error_limit", "Always home axis before executing absolute positioning moves", "Disable drive before changing axis configuration parameters"]
+
+[connections]
+allowed_with = ["act-servo-drive", "plc-*", "ind-do-bank", "ind-di-bank"]
+forbidden_with = []
+requires = ["act-servo-drive"]
+typical_context = ["motion-control", "cnc-profile", "axis-management"]
+
+[canvas]
+animated = true
+height = 60
+label_position = "top"
+
+[canvas.port_ENABLE]
+x = 0
+y = 15
+
+[canvas.port_FAULT]
+x = 70
+y = 45
+
+[canvas.port_READY]
+x = 70
+y = 15
+
+[canvas.port_RESET]
+x = 0
+y = 45
+ports_layout = "custom"
+value_display = "{axis_mode} / {max_velocity}rpm / {encoder_resolution}ppr"
+width = 70
+
+[dendri]
+component_family_skill_id = "industrial-family"
+component_profile_id = "ind-servo-drive-profile"
+palette_group = "Industrial > Motor Drives"
+simulation_engine = "function-block-engine"
+svg_path = "content/assets/svg/components/ind-servo-drive-profile.svg"
+tags = ["servo-drive-profile", "industrial", "motor-drives", "plcopen", "motion-control", "function-block"]
+svg_status = "missing"

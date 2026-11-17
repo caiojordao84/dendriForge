@@ -1,0 +1,147 @@
+# component profile — diode-zener (migrated from legacy TOON)
+# Source: diode-zener.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "diode-zener-profile"
+
+[identification]
+category = "passive"
+family = "electricals"
+id = "diode-zener"
+image = "diode-zener.svg"
+name = "Zener Diode"
+standard = "IEC 60747-2"
+subfamily = "passives"
+symbol = "diode-zener-symbol.svg"
+symbol_standard = "IEC"
+
+[params.dynamic_resistance]
+default = 7
+editable = false
+label = "Dynamic Resistance"
+max = 200
+min = 0.1
+type = "float"
+unit = "Ω"
+
+[params.if_rated]
+default = 0.005
+editable = true
+label = "Rated Test Current"
+options = [0.001, 0.005, 0.01, 0.02, 0.05, 0.1]
+type = "enum"
+unit = "A"
+
+[params.leakage_current]
+default = 0.000001
+editable = false
+label = "Reverse Leakage Current"
+max = 0.1
+min = 0
+type = "float"
+unit = "A"
+
+[params.package]
+default = "BZX55"
+editable = true
+label = "Package"
+options = ["SOD-123", "SOD-323", "SMA", "SMB", "SMC", "BZX55", "DO-35", "DO-41"]
+type = "enum"
+
+[params.power_rated]
+default = 0.5
+editable = true
+label = "Power Rating"
+options = [0.25, 0.5, 1, 3, 5, 10]
+type = "enum"
+unit = "W"
+
+[params.temp_coefficient]
+default = 0
+editable = true
+label = "Temperature Coefficient"
+options = [-2, -1, 0, 1, 2]
+type = "enum"
+unit = "V"
+
+[params.tolerance]
+default = 5
+editable = true
+label = "Voltage Tolerance"
+options = [1, 2, 5, 10]
+type = "enum"
+unit = "%"
+
+[params.vz]
+default = 5.1
+editable = true
+label = "Zener Voltage"
+options = [2.4, 3.3, 3.6, 4.3, 5.1, 6.2, 8.2, 9.1, 12, 15, 18, 24]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "5A"
+direction = "input"
+id = "A"
+notes = "anode"
+type = "power"
+voltage_max = "100V"
+
+[[ports]]
+direction = "output"
+id = "K"
+notes = "cathode"
+type = "ground"
+
+[simulation]
+bidirectional = false
+dynamic = true
+equation = "V_k = vz + I_z * dynamic_resistance when reverse-biased; forward behavior like diode"
+model = "lookup-table"
+noise_model = false
+states = ["off", "regulation", "breakdown"]
+thermal_model = true
+
+[limits]
+max_current = "5A"
+max_power = "{power_rated}W"
+max_temp = 175
+max_voltage = "100V"
+min_temp = -55
+warnings = ["Zener regulation requires a series resistor to limit current", "Exceeding power rating in breakdown will permanently damage the device", "Higher temperature increases leakage current and shifts breakdown voltage", "Choose tolerance and test current matching the intended regulation point"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["voltage-reference", "regulator", "clamp", "protection", "shunt-reference"]
+
+[canvas]
+animated = false
+height = 30
+label_position = "top"
+
+[canvas.port_A]
+x = 0
+y = 15
+
+[canvas.port_K]
+x = 50
+y = 15
+ports_layout = "horizontal"
+value_display = "Zener {vz}V / {power_rated}W"
+width = 50
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "diode-zener"
+palette_group = "Fundamental Electricals > Passives"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/diode-zener.svg"
+tags = ["diode", "zener", "passive", "reference", "semiconductor", "clamp", "iec-60747-2"]
+svg_status = "missing"

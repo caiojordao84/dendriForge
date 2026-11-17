@@ -1,0 +1,122 @@
+# component profile — current-source-ideal (migrated from legacy TOON)
+# Source: current-source-ideal.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "current-source-ideal-profile"
+
+[identification]
+category = "source"
+family = "electricals"
+id = "current-source-ideal"
+image = "current-source-ideal.svg"
+name = "Ideal Current Source"
+standard = "IEC 60050-131"
+subfamily = "sources"
+symbol = "current-source-ideal-symbol.svg"
+symbol_standard = "IEC"
+
+[params.compliance_voltage]
+default = 30
+editable = true
+label = "Compliance Voltage"
+max = 1000
+min = 0
+type = "float"
+unit = "V"
+
+[params.current]
+default = 1
+editable = true
+label = "Output Current"
+max = 1000
+min = 0
+type = "float"
+unit = "A"
+
+[params.frequency]
+default = 50
+editable = true
+label = "Frequency (AC modes only)"
+max = 1000000
+min = 0.001
+type = "float"
+unit = "V"
+
+[params.output_enabled]
+default = true
+editable = true
+label = "Output Enabled"
+type = "bool"
+
+[params.waveform_type]
+default = "DC"
+editable = true
+label = "Waveform Type"
+options = ["DC", "sine", "square", "triangle", "pwm"]
+type = "enum"
+
+[[ports]]
+current_max = "1000A"
+direction = "output"
+id = "HI"
+notes = "current source high terminal"
+type = "analog"
+voltage_max = "1000V"
+
+[[ports]]
+direction = "output"
+id = "LO"
+notes = "current source low terminal / return"
+type = "ground"
+
+[simulation]
+bidirectional = false
+dynamic = true
+equation = "I_out = current (constant regardless of load impedance, within compliance_voltage)"
+model = "ideal"
+noise_model = false
+states = ["off", "on", "compliance-limit"]
+thermal_model = false
+waveform = "DC"
+
+[limits]
+max_current = "1000A"
+max_temp = 70
+max_voltage = "1000V"
+min_temp = -10
+warnings = ["Open-circuit operation will drive voltage to compliance limit — connect load before enabling", "Compliance voltage defines the maximum terminal voltage; exceeding it causes current regulation loss", "Ideal model assumes infinite output impedance — real implementations must add parallel impedance"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["circuit-analysis", "sensor-excitation", "led-driving", "transistor-biasing"]
+
+[canvas]
+animated = true
+height = 50
+label_position = "left"
+
+[canvas.port_HI]
+x = 60
+y = 10
+
+[canvas.port_LO]
+x = 60
+y = 40
+ports_layout = "custom"
+value_display = "{current}A ({waveform_type})"
+width = 60
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "current-source-ideal"
+palette_group = "Fundamental Electricals > Sources"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/current-source-ideal.svg"
+tags = ["current-source", "ideal", "source", "dc", "analog"]
+svg_status = "missing"

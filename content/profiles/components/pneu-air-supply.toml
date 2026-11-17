@@ -1,0 +1,88 @@
+# component profile — pneu-air-supply (migrated from legacy TOON)
+# Source: pneu-air-supply.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "pneu-air-supply-profile"
+
+[identification]
+category = "source"
+family = "pneumatics"
+id = "pneu-air-supply"
+image = "pneu-air-supply.svg"
+name = "Compressed Air Supply (Saída de ar comprimido)"
+standard = "ISO 1219-1"
+subfamily = "air-preparation"
+symbol = "pneu-air-supply-symbol.svg"
+symbol_standard = "ISO"
+
+[params.flow_rate]
+default = 1000
+editable = true
+label = "Nominal Flow Rate"
+type = "float"
+unit = "l/min"
+
+[params.supply_pressure]
+default = 6
+editable = true
+label = "Supply Pressure"
+max = 16
+min = 0
+type = "float"
+unit = "bar"
+ports = []
+
+[[pneumatic_ports]]
+direction = "output"
+flow_nominal = "{flow_rate}"
+id = "OUT"
+notes = "compressed air output"
+pressure_max = "16bar"
+type = "pneumatic"
+
+[simulation]
+bidirectional = false
+dynamic = false
+model = "fluid-pressure-source"
+motion = "none"
+noise_model = false
+states = ["active"]
+thermal_model = false
+
+[limits]
+max_pressure = 16
+max_temp = 60
+min_pressure = 0
+min_temp = -10
+warnings = ["Primary pneumatic energy source; ideally route through an FRL unit before actuators."]
+
+[connections]
+allowed_with = ["pneu-*"]
+forbidden_with = ["hyd-*"]
+requires = []
+typical_context = ["air-supply", "compressor-outlet", "pressure-line"]
+
+[canvas]
+animated = true
+height = 40
+label_position = "bottom"
+
+[canvas.port_OUT]
+x = 20
+y = 0
+ports_layout = "custom"
+value_display = "{supply_pressure} bar"
+width = 40
+
+[dendri]
+component_family_skill_id = "pneumatics-family"
+component_profile_id = "pneu-air-supply"
+palette_group = "Pneumatics > Air Preparation"
+simulation_engine = "pneumatic-motion"
+svg_path = "content/assets/svg/components/pneu-air-supply.svg"
+tags = ["source", "supply", "air", "pneumatic"]
+svg_status = "missing"

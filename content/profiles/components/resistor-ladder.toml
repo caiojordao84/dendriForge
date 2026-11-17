@@ -1,0 +1,167 @@
+# component profile — resistor-ladder (migrated from legacy TOON)
+# Source: resistor-ladder.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "resistor-ladder-profile"
+
+[identification]
+category = "passive"
+family = "electricals"
+id = "resistor-ladder"
+image = "resistor-ladder.svg"
+name = "Resistor Ladder Network"
+standard = "IEC 60062"
+subfamily = "passives"
+symbol = "resistor-ladder-symbol.svg"
+symbol_standard = "IEC"
+
+[params.ladder_type]
+default = "R-2R"
+editable = true
+label = "Ladder Type"
+options = ["R-2R", "binary-weighted", "voltage-divider-chain"]
+type = "enum"
+
+[params.num_bits]
+default = 8
+editable = true
+label = "Number of Bits / Taps"
+options = [4, 6, 8, 10, 12, 16]
+type = "enum"
+
+[params.package]
+default = "SIP-9"
+editable = true
+label = "Package"
+options = ["SIP-5", "SIP-9", "SIP-11", "SIP-17", "SMD-0402-array", "SMD-0603-array"]
+type = "enum"
+
+[params.power_rating]
+default = 0.063
+editable = true
+label = "Power Rating per Resistor"
+options = [0.063, 0.125, 0.25]
+type = "enum"
+unit = "W"
+
+[params.r_unit]
+default = 10000
+editable = true
+label = "Unit Resistance (R)"
+options = [1000, 2200, 4700, 10000, 22000, 47000, 100000]
+type = "enum"
+unit = "Ω"
+
+[params.tolerance]
+default = 1
+editable = true
+label = "Resistance Tolerance"
+options = [0.1, 0.5, 1, 5]
+type = "enum"
+unit = "%"
+
+[params.vref_high]
+default = 3.3
+editable = true
+label = "Reference Voltage High (Vref+)"
+options = [1.8, 2.5, 3.3, 5]
+type = "enum"
+unit = "V"
+
+[params.vref_low]
+default = 0
+editable = true
+label = "Reference Voltage Low (Vref-)"
+max = 5
+min = 0
+type = "float"
+unit = "V"
+
+[[ports]]
+current_max = "50mA"
+direction = "input"
+id = "VREF_H"
+notes = "high reference voltage rail"
+type = "power"
+voltage_max = "5V"
+
+[[ports]]
+direction = "input"
+id = "VREF_L"
+notes = "low reference voltage rail / GND"
+type = "ground"
+
+[[ports]]
+current_max = "10mA"
+direction = "input"
+id = "D_IN"
+notes = "digital input bus (for R-2R DAC mode)"
+type = "digital"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "10mA"
+direction = "output"
+id = "VOUT"
+notes = "analog voltage output (DAC / tap output)"
+type = "analog"
+voltage_max = "5V"
+
+[simulation]
+bidirectional = false
+dynamic = false
+equation = "V_out = vref_low + (D_IN / (2^num_bits - 1)) * (vref_high - vref_low)"
+model = "lookup-table"
+noise_model = false
+states = ["nominal"]
+thermal_model = false
+
+[limits]
+max_current = "50mA"
+max_temp = 125
+max_voltage = "5V"
+min_temp = -55
+warnings = ["Tolerance mismatch between R and 2R resistors directly degrades DAC linearity — use matched pairs (0.1% or better)", "Output impedance is R/2 for R-2R — buffer with op-amp for low-impedance loads", "Binary-weighted ladders require precise MSB resistors — any error is weighted by bit position", "Total power dissipation is cumulative across all resistors — verify thermal budget"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["dac-circuit", "adc-reference", "voltage-divider", "audio-dac", "level-shifting"]
+
+[canvas]
+animated = false
+height = 70
+label_position = "top"
+
+[canvas.port_D_IN]
+x = 45
+y = 0
+
+[canvas.port_VOUT]
+x = 90
+y = 35
+
+[canvas.port_VREF_H]
+x = 0
+y = 10
+
+[canvas.port_VREF_L]
+x = 0
+y = 60
+ports_layout = "custom"
+value_display = "{ladder_type} / {num_bits}-bit / R={r_unit}Ω"
+width = 90
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "resistor-ladder"
+palette_group = "Fundamental Electricals > Passives"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/resistor-ladder.svg"
+tags = ["resistor-ladder", "r-2r", "passive", "dac", "analog", "voltage-divider", "network"]
+svg_status = "missing"

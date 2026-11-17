@@ -1,0 +1,139 @@
+# component profile — diode (migrated from legacy TOON)
+# Source: diode.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "diode-profile"
+
+[identification]
+category = "passive"
+family = "electricals"
+id = "diode"
+image = "diode.svg"
+name = "Diode"
+standard = "IEC 60747-2"
+subfamily = "passives"
+symbol = "diode-symbol.svg"
+symbol_standard = "IEC"
+
+[params.if_rated]
+default = 0.01
+editable = true
+label = "Rated Forward Current"
+options = [0.001, 0.01, 0.05, 0.1, 0.2, 1, 3, 10]
+type = "enum"
+unit = "A"
+
+[params.junction_capacitance]
+default = 2
+editable = false
+label = "Junction Capacitance"
+max = 100
+min = 0.1
+type = "float"
+unit = "V"
+
+[params.leakage_current]
+default = 0.000001
+editable = false
+label = "Reverse Leakage Current"
+max = 0.1
+min = 0
+type = "float"
+unit = "A"
+
+[params.package]
+default = "DO-41"
+editable = true
+label = "Package"
+options = ["SMD-0201", "SMD-0402", "SMD-0603", "SMD-0805", "SMD-1206", "SOD-123", "SOD-323", "SMA", "SMB", "SMC", "DO-41", "DO-15", "DO-201"]
+type = "enum"
+
+[params.recovery_time]
+default = 75
+editable = true
+label = "Reverse Recovery Time"
+options = [4, 20, 35, 50, 75, 100, 200, 500]
+type = "enum"
+unit = "V"
+
+[params.vf]
+default = 0.7
+editable = false
+label = "Forward Voltage (Vf)"
+max = 5
+min = 0.1
+type = "float"
+unit = "V"
+
+[params.vr_max]
+default = 50
+editable = true
+label = "Max Reverse Voltage"
+options = [20, 40, 50, 100, 200, 400, 600, 1000]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "10A"
+direction = "input"
+id = "A"
+notes = "anode (positive terminal)"
+type = "power"
+voltage_max = "1000V"
+
+[[ports]]
+direction = "output"
+id = "K"
+notes = "cathode (negative terminal)"
+type = "ground"
+
+[simulation]
+bidirectional = false
+dynamic = true
+equation = "I = I_s * (exp(V_d/(n*Vt)) - 1)"
+model = "basic-analog"
+noise_model = false
+states = ["off", "forward", "breakdown"]
+thermal_model = true
+
+[limits]
+max_current = "10A"
+max_temp = 175
+max_voltage = "1000V"
+min_temp = -55
+warnings = ["Observe polarity: anode to positive, cathode to negative in forward bias", "Reverse voltage beyond Vr_max may cause avalanche or permanent damage", "Forward current requires series limiting to prevent thermal runaway", "Switching applications must consider reverse recovery time to avoid losses"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["rectifier", "clamp", "protection", "signal-conditioning", "power-supply"]
+
+[canvas]
+animated = false
+height = 30
+label_position = "top"
+
+[canvas.port_A]
+x = 0
+y = 15
+
+[canvas.port_K]
+x = 50
+y = 15
+ports_layout = "horizontal"
+value_display = "Diode Vf={vf}V / Vr={vr_max}V"
+width = 50
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "diode"
+palette_group = "Fundamental Electricals > Passives"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/diode.svg"
+tags = ["diode", "rectifier", "passive", "semiconductor", "protection", "analog", "iec-60747-2"]
+svg_status = "missing"

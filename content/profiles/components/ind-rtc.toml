@@ -1,0 +1,121 @@
+# component profile — ind-rtc (migrated from legacy TOON)
+# Source: ind-rtc.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "ind-rtc-profile"
+
+[identification]
+category = "function-block"
+family = "industrial"
+id = "ind-rtc"
+image = "ind-rtc.svg"
+name = "Industrial Real-Time Clock (Relógio de tempo real)"
+standard = "IEC 61131-3"
+subfamily = "process-modules"
+symbol = "ind-rtc-symbol.svg"
+symbol_standard = "IEC"
+
+[params.sync_mode]
+default = "NTP"
+editable = true
+label = "Synchronization Mode"
+options = ["NTP", "Manual", "GPS"]
+type = "enum"
+
+[params.time_zone]
+default = 0
+editable = true
+label = "Time Zone (UTC Offset)"
+max = 14
+min = -12
+type = "int"
+
+[params.update_interval]
+default = 1000
+editable = true
+label = "Update Interval"
+max = 60000
+min = 100
+type = "int"
+unit = "ms"
+
+[[ports]]
+direction = "input"
+id = "EN"
+notes = "enable clock updates"
+type = "bool"
+
+[[ports]]
+direction = "input"
+id = "SYNC"
+notes = "trigger manual sync"
+type = "bool"
+
+[[ports]]
+direction = "output"
+id = "TIMESTAMP"
+notes = "current UNIX timestamp"
+type = "dword"
+
+[[ports]]
+direction = "output"
+id = "VALID"
+notes = "time is valid / synced"
+type = "bool"
+
+[simulation]
+bidirectional = false
+dynamic = true
+equation = "TIMESTAMP = current_time_ms; VALID = true"
+model = "function-block-engine"
+noise_model = false
+real_time = true
+scan_cycle_aware = true
+states = ["active", "disabled"]
+thermal_model = false
+
+[limits]
+warnings = ["Timestamp output is a 32-bit DWORD, ensure PLC handles epoch rollover", "NTP sync requires network connectivity block"]
+
+[connections]
+allowed_with = ["plc-*", "ind-*", "comm-*"]
+forbidden_with = []
+requires = []
+typical_context = ["time-synchronization", "event-logging", "scheduling"]
+
+[canvas]
+animated = false
+height = 60
+label_position = "top"
+
+[canvas.port_EN]
+x = 0
+y = 15
+
+[canvas.port_SYNC]
+x = 0
+y = 45
+
+[canvas.port_TIMESTAMP]
+x = 80
+y = 15
+
+[canvas.port_VALID]
+x = 80
+y = 45
+ports_layout = "custom"
+value_display = "RTC"
+width = 80
+
+[dendri]
+component_family_skill_id = "industrial-family"
+component_profile_id = "ind-rtc"
+palette_group = "Industrial > Process Modules"
+simulation_engine = "function-block-engine"
+svg_path = "content/assets/svg/components/ind-rtc.svg"
+tags = ["rtc", "time", "function-block", "industrial"]
+svg_status = "missing"

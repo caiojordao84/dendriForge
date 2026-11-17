@@ -1,0 +1,246 @@
+# component profile — cmd-rfid-reader (migrated from legacy TOON)
+# Source: cmd-rfid-reader.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "cmd-rfid-reader-profile"
+
+[identification]
+category = "command"
+family = "command-elements"
+id = "cmd-rfid-reader"
+image = "cmd-rfid-reader.svg"
+name = "RFID/Badge Reader Module (MFRC522 RC522 13.56 MHz)"
+standard = "ISO/IEC 14443-A"
+subfamily = "special-interfaces"
+symbol = "cmd-rfid-reader-symbol.svg"
+symbol_standard = "custom"
+url = "https://www.nxp.com/docs/en/data-sheet/MFRC522.pdf"
+
+[params.card_memory]
+default = 1024
+editable = false
+label = "Typical Tag Memory (bytes)"
+max = 4096
+min = 64
+type = "int"
+
+[params.data_rate_max]
+default = 848
+editable = false
+label = "Contactless Data Rate (kbps)"
+max = 848
+min = 106
+type = "float"
+
+[params.fifo_size]
+default = 64
+editable = false
+label = "Internal FIFO Buffer (bytes)"
+max = 64
+min = 64
+type = "int"
+
+[params.interface]
+default = "SPI"
+editable = true
+label = "Host Interface"
+options = ["SPI", "I2C", "UART"]
+type = "enum"
+
+[params.irq_mode]
+default = "open-drain"
+editable = true
+label = "IRQ Interrupt Mode"
+options = ["open-drain", "CMOS-push-pull"]
+type = "enum"
+
+[params.power_down_current]
+default = 10
+editable = false
+label = "Power-Down Current (uA)"
+max = 10
+min = 10
+type = "float"
+
+[params.read_range]
+default = 50
+editable = false
+label = "Read Range"
+max = 50
+min = 10
+type = "float"
+
+[params.rf_frequency]
+default = 13.56
+editable = false
+label = "RF Operating Frequency"
+max = 13.56
+min = 13.56
+type = "float"
+
+[params.spi_max_speed]
+default = 10
+editable = false
+label = "SPI Max Clock Speed (Mbps)"
+max = 10
+min = 0.001
+type = "float"
+
+[params.supply_voltage]
+default = 3.3
+editable = false
+label = "Supply Voltage"
+options = [3.3]
+type = "enum"
+unit = "V"
+
+[params.supported_tags]
+default = "MIFARE-Classic-1K"
+editable = false
+label = "Supported Tag Types"
+options = ["MIFARE-Classic-1K", "MIFARE-Classic-4K", "MIFARE-Mini", "MIFARE-Ultralight", "MIFARE-DESFire", "NTAG2xx"]
+type = "enum"
+
+[params.uid_length]
+default = "4-byte"
+editable = false
+label = "UID Length (bytes)"
+options = ["4-byte", "7-byte", "10-byte"]
+type = "enum"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "VCC"
+notes = "3.3V supply — do NOT connect to 5V; operating range 2.5V to 3.3V; exceeding 3.6V permanently damages MFRC522 IC"
+type = "power"
+voltage_max = "3.3V"
+
+[[ports]]
+direction = "input"
+id = "GND"
+notes = "ground reference"
+type = "ground"
+
+[[ports]]
+current_max = "1mA"
+direction = "input"
+id = "SCK"
+notes = "SPI serial clock input — max 10 MHz; also used as I2C clock in I2C mode; 5V tolerant"
+type = "spi"
+voltage_max = "3.3V"
+
+[[ports]]
+current_max = "1mA"
+direction = "input"
+id = "MOSI"
+notes = "SPI master out slave in — data from MCU to module; also UART TX in UART mode; 5V tolerant"
+type = "spi"
+voltage_max = "3.3V"
+
+[[ports]]
+current_max = "1mA"
+direction = "output"
+id = "MISO"
+notes = "SPI master in slave out — data from module to MCU; also UART RX and I2C SDA output; 5V tolerant"
+type = "spi"
+voltage_max = "3.3V"
+
+[[ports]]
+current_max = "1mA"
+direction = "input"
+id = "SDA"
+notes = "SPI slave select active-low / I2C serial data input-output; 5V tolerant; also labelled SS or NSS on some modules"
+type = "spi"
+voltage_max = "3.3V"
+
+[[ports]]
+current_max = "1mA"
+direction = "input"
+id = "RST"
+notes = "hardware reset active-low; pull HIGH for normal operation; pull LOW to reset; 5V tolerant; connect to MCU GPIO"
+type = "digital"
+voltage_max = "3.3V"
+
+[[ports]]
+current_max = "1mA"
+direction = "output"
+id = "IRQ"
+notes = "interrupt request output — open-drain by default; signals card detection without polling; connect to MCU interrupt pin with 4.7k pull-up; optional but recommended for low-power designs"
+type = "digital"
+voltage_max = "3.3V"
+
+[simulation]
+bidirectional = true
+dynamic = true
+equation = "UID = read_tag(); auth = CRYPTO1(key, UID); data = read_block(block_addr) if auth else null"
+model = "digital-io"
+noise_model = false
+states = ["idle", "scanning", "reading", "authenticated"]
+thermal_model = false
+
+[limits]
+max_current = "100mA"
+max_temp = 80
+max_voltage = "3.3V"
+min_temp = -20
+warnings = ["VCC is 3.3V ONLY — the MFRC522 IC absolute maximum supply voltage is 3.6V; connecting VCC to 5V will permanently destroy the IC; always power from the 3.3V rail of the MCU or a dedicated 3.3V regulator", "Communication pins SCK MOSI MISO SDA RST and IRQ are 5V tolerant on the RC522 PCB module due to onboard protection resistors — however the bare MFRC522 IC is NOT 5V tolerant; never apply 5V to a bare IC or a stripped-down variant without protection resistors", "Maximum read range is approximately 50mm (5cm) and depends heavily on tag antenna size and PCB antenna tuning — do NOT expect reliable reads beyond 3 to 4cm in practice; metallic surfaces, water and the human body all reduce effective range; keep at least 10cm clearance from large metal objects", "RST pin must be driven HIGH before communication — at power-on hold RST LOW for at least 100 microseconds then release HIGH; if RST floats the module may lock up; connect RST to a dedicated MCU GPIO with a software-controlled reset sequence on startup", "IRQ pin is open-drain by default — it requires a pull-up resistor (4.7k to 10k to 3.3V) to be usable as an interrupt source; without pull-up the pin floats and generates spurious interrupts; if IRQ is unused leave it unconnected or configure it as disabled in firmware", "The module uses CRYPTO1 authentication for MIFARE Classic cards — CRYPTO1 has known cryptographic vulnerabilities and should NOT be used for high-security access control; for secure applications use MIFARE DESFire EV2 or EV3 with 3DES or AES authentication", "Multiple modules on the same SPI bus are supported using separate SDA (SS) lines per module — never assert two SDA lines simultaneously; minimum SPI clock cycle time is 100ns giving 10MHz max; use short wires and avoid capacitive loads above 10pF on SPI lines to prevent signal integrity issues"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["access-control", "attendance-tracking", "inventory-management", "nfc-payment-stub", "door-lock", "asset-identification"]
+
+[canvas]
+animated = true
+height = 90
+label_position = "top"
+
+[canvas.port_GND]
+x = 0
+y = 20
+
+[canvas.port_IRQ]
+x = 0
+y = 48
+
+[canvas.port_MISO]
+x = 70
+y = 14
+
+[canvas.port_MOSI]
+x = 70
+y = 28
+
+[canvas.port_RST]
+x = 0
+y = 34
+
+[canvas.port_SCK]
+x = 70
+y = 42
+
+[canvas.port_SDA]
+x = 70
+y = 56
+
+[canvas.port_VCC]
+x = 0
+y = 8
+ports_layout = "custom"
+value_display = "13.56 MHz / {interface} / {read_range}mm range"
+width = 70
+
+[dendri]
+component_family_skill_id = "command-elements-family"
+component_profile_id = "cmd-rfid-reader"
+palette_group = "Command Elements > Special Interfaces"
+simulation_engine = "digital-io"
+svg_path = "content/assets/svg/components/cmd-rfid-reader.svg"
+tags = ["rfid", "nfc", "badge-reader", "mfrc522", "rc522", "mifare", "spi", "iso14443", "access-control"]
+svg_status = "missing"

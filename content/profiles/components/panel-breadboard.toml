@@ -1,0 +1,234 @@
+# component profile — panel-breadboard (migrated from legacy TOON)
+# Source: panel-breadboard.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "panel-breadboard-profile"
+
+[identification]
+category = "accessory"
+family = "panel-infrastructure"
+id = "panel-breadboard"
+image = "panel-breadboard.svg"
+name = "Solderless Breadboard (830 / 400 / 200 tie-points)"
+subfamily = "terminals"
+symbol = "panel-breadboard-symbol.svg"
+symbol_standard = "custom"
+
+[params.adhesive_backing]
+default = true
+editable = false
+label = "Self-Adhesive Backing"
+type = "bool"
+
+[params.contact_life]
+default = 50000
+editable = false
+label = "Contact Life (insertions)"
+max = 50000
+min = 50000
+type = "int"
+
+[params.contact_material]
+default = "phosphor-bronze-nickel-plated"
+editable = false
+label = "Contact Material"
+options = ["phosphor-bronze-nickel-plated", "stainless-steel"]
+type = "enum"
+
+[params.extendable]
+default = true
+editable = false
+label = "Snap-Together Extension Clips"
+type = "bool"
+
+[params.hole_pitch]
+default = 2.54
+editable = false
+label = "Hole Pitch (mm)"
+max = 2.54
+min = 2.54
+type = "float"
+
+[params.max_current]
+default = 2
+editable = false
+label = "Max Rated Current per Rail"
+max = 5
+min = 1
+type = "float"
+
+[params.max_voltage]
+default = 36
+editable = false
+label = "Max Rated Voltage"
+options = [36]
+type = "enum"
+unit = "V"
+
+[params.power_rail_count]
+default = 4
+editable = false
+label = "Power Rails"
+options = [4, 4, 0]
+type = "enum"
+
+[params.rail_split]
+default = true
+editable = false
+label = "Power Rails Split at Centre"
+type = "bool"
+
+[params.size]
+default = "830"
+editable = true
+label = "Breadboard Size"
+options = ["830", "400", "200"]
+type = "enum"
+
+[params.tie_points_ic_area]
+default = 630
+editable = false
+label = "IC Area Tie-Points"
+options = [630, 300, 170]
+type = "enum"
+
+[params.tie_points_power_rails]
+default = 200
+editable = false
+label = "Power Rail Tie-Points"
+options = [200, 100, 0]
+type = "enum"
+
+[params.tie_points_total]
+default = 830
+editable = false
+label = "Total Tie-Points"
+options = [830, 400, 200]
+type = "enum"
+
+[params.wire_gauge_max]
+default = 20
+editable = false
+label = "Max Wire Gauge (AWG)"
+max = 20
+min = 20
+type = "int"
+
+[params.wire_gauge_min]
+default = 29
+editable = false
+label = "Min Wire Gauge (AWG)"
+max = 29
+min = 29
+type = "int"
+
+[[ports]]
+current_max = "2A"
+direction = "input"
+id = "PWR_A"
+notes = "power rail A top — positive supply bus; runs full length (may be split at centre on 830); connect to VCC or regulated output"
+type = "power"
+voltage_max = "36V"
+
+[[ports]]
+direction = "input"
+id = "GND_A"
+notes = "ground rail A top — return bus; connect to supply GND"
+type = "ground"
+
+[[ports]]
+current_max = "2A"
+direction = "input"
+id = "PWR_B"
+notes = "power rail B bottom — independent positive supply bus; can carry different voltage from PWR_A"
+type = "power"
+voltage_max = "36V"
+
+[[ports]]
+direction = "input"
+id = "GND_B"
+notes = "ground rail B bottom — return bus for bottom power rail"
+type = "ground"
+
+[[ports]]
+current_max = "2A"
+direction = "passive"
+id = "IC_AREA_TOP"
+notes = "IC area upper half — 5-hole vertical columns a to e; rows numbered 1 to 30/63; each column internally connected"
+type = "analog"
+voltage_max = "36V"
+
+[[ports]]
+current_max = "2A"
+direction = "passive"
+id = "IC_AREA_BOT"
+notes = "IC area lower half — 5-hole vertical columns f to j; same row number shares centre gap; DIP IC straddles gap"
+type = "analog"
+voltage_max = "36V"
+
+[simulation]
+bidirectional = true
+dynamic = false
+equation = "V_node = V_source if connected via jumper; Z = 0 within same column strip; Z = inf across centre gap"
+model = "ideal"
+noise_model = false
+states = ["nominal"]
+thermal_model = false
+
+[limits]
+max_current = "2A"
+max_temp = 84
+max_voltage = "36V"
+min_temp = -20
+warnings = ["Maximum rated voltage is 36V DC and maximum current per strip is 2A — do NOT use breadboards for mains AC voltage (110V or 230V) under any circumstances; mains voltage on a breadboard is lethal and will arc between adjacent tie-points at 2.54mm spacing", "Power rails on the 830-point breadboard are SPLIT in the centre — the top 25 and bottom 25 holes of each rail are NOT internally connected; always bridge the split with a jumper wire when you need the full rail length; failure to do so will leave half the circuit unpowered with no visible indication", "Wire gauge must be between 20 AWG and 29 AWG (0.32mm to 0.81mm diameter) — wires thinner than 29 AWG will not make reliable spring contact and may fall out; wires thicker than 20 AWG will permanently deform the spring contacts reducing grip for all future insertions; always use solid-core wire, not stranded", "Contact life is rated at 50000 insertions per hole — in practice repeated insertions with component leads wider than 0.7mm will degrade contacts faster; damaged contacts cause intermittent connections that are extremely difficult to debug; replace breadboard if resistance between connected holes exceeds 1 ohm", "Breadboard parasitic capacitance is approximately 2pF per tie-point and stray inductance is approximately 20nH per jumper — these parasitics make breadboards unreliable above 10 MHz; do NOT use for RF circuits, high-speed digital signals above 10 MHz, or precision analog circuits sensitive to pC-level charge injection", "The 200-point mini breadboard has NO power rails — supply and ground must be distributed via jumper wires from component tie-points; plan power distribution carefully before placing components to avoid rat-nest wiring", "Multiple breadboards snap together via extension clips on the sides — when extending ensure the centre gap of each board aligns correctly; misaligned boards will have incorrect row numbering and create confusing cross-connections; always verify row continuity with a multimeter after snapping boards together", "Self-adhesive backing is single-use — once pressed onto a surface the tape loses significant holding strength if peeled; on vibrating surfaces (motors, machinery) secure the breadboard with screws through the optional mounting holes or use additional mechanical retention; loss of adhesion can cause shorts if the board shifts"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["circuit-prototyping", "electronics-education", "sensor-testing", "mcu-development", "component-evaluation", "rapid-prototype"]
+
+[canvas]
+animated = false
+height = 60
+label_position = "top"
+
+[canvas.port_GND_A]
+x = 0
+y = 18
+
+[canvas.port_GND_B]
+x = 120
+y = 18
+
+[canvas.port_IC_AREA_BOT]
+x = 60
+y = 38
+
+[canvas.port_IC_AREA_TOP]
+x = 60
+y = 25
+
+[canvas.port_PWR_A]
+x = 0
+y = 8
+
+[canvas.port_PWR_B]
+x = 120
+y = 8
+ports_layout = "custom"
+value_display = "{tie_points_total}pt / {tie_points_ic_area}IC + {tie_points_power_rails}rail / {hole_pitch}mm"
+width = 120
+
+[dendri]
+component_family_skill_id = "panel-infrastructure-family"
+component_profile_id = "panel-breadboard"
+palette_group = "Panel Infrastructure > Terminals"
+simulation_engine = "digital-io"
+svg_path = "content/assets/svg/components/panel-breadboard.svg"
+tags = ["breadboard", "solderless", "prototyping", "tie-points", "panel-infrastructure", "terminals", "through-hole", "jumper", "dip-ic"]
+svg_status = "missing"

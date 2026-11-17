@@ -1,0 +1,133 @@
+# screen profile — ind-hmi-trend-chart (migrated from legacy TOON)
+# Source: ind-hmi-trend-chart.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "ind-hmi-trend-chart-profile"
+
+[identification]
+category = "function-block"
+family = "industrial"
+id = "ind-hmi-trend-chart"
+image = "ind-hmi-trend-chart.svg"
+name = "HMI Trend Chart"
+standard = "IEC 61131-3"
+subfamily = "hmi-signaling"
+symbol = "ind-hmi-trend-chart-symbol.svg"
+symbol_standard = "IEC"
+
+[params.channels]
+default = 4
+editable = true
+label = "Number of Channels"
+max = 16
+min = 1
+type = "int"
+
+[params.data_type]
+default = "float"
+editable = true
+label = "Data Type"
+options = ["float", "int", "bool"]
+type = "enum"
+
+[params.history_depth]
+default = 3600
+editable = true
+label = "History Depth (samples)"
+max = 1000000
+min = 100
+type = "int"
+
+[params.sample_rate]
+default = 1
+editable = true
+label = "Sample Rate"
+max = 100
+min = 0.1
+type = "float"
+unit = "V"
+
+[params.time_window]
+default = 60
+editable = true
+label = "Time Window"
+max = 86400
+min = 1
+type = "float"
+unit = "V"
+
+[[ports]]
+direction = "input"
+id = "DATA_IN"
+notes = "Process variable input (float/int)"
+type = "analog"
+
+[[ports]]
+current_max = "10mA"
+direction = "input"
+id = "TRIGGER"
+notes = "External trigger for snapshot or clear"
+type = "digital"
+voltage_max = "24V"
+
+[[ports]]
+current_max = "10mA"
+direction = "output"
+id = "STATUS"
+notes = "Chart active / buffer overflow status"
+type = "digital"
+voltage_max = "24V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "function-block-engine"
+noise_model = false
+states = ["idle", "recording", "fault"]
+thermal_model = false
+
+[limits]
+max_current = "10mA"
+max_temp = 55
+max_voltage = "24V"
+min_temp = -10
+warnings = ["High sample_rate with many channels increases HMI CPU load significantly", "Buffer overflow clears oldest samples — increase history_depth if needed", "Trend chart is a display-only function block — does not affect process control"]
+
+[connections]
+allowed_with = ["plc-*", "ind-hmi-numeric-indicator", "ind-pid-controller"]
+forbidden_with = []
+requires = []
+typical_context = ["process-monitoring", "alarm-analysis", "data-logging"]
+
+[canvas]
+animated = true
+height = 60
+label_position = "top"
+
+[canvas.port_DATA_IN]
+x = 0
+y = 20
+
+[canvas.port_STATUS]
+x = 100
+y = 30
+
+[canvas.port_TRIGGER]
+x = 0
+y = 45
+ports_layout = "custom"
+value_display = "{channels}ch / {time_window}s / {sample_rate}Hz"
+width = 100
+
+[dendri]
+component_family_skill_id = "industrial-family"
+component_profile_id = "ind-hmi-trend-chart"
+palette_group = "Industrial > HMI & Signaling"
+simulation_engine = "function-block-engine"
+svg_path = "content/assets/svg/screens/ind-hmi-trend-chart.svg"
+tags = ["hmi-trend-chart", "hmi-signaling", "industrial", "trend", "monitoring", "function-block"]
+svg_status = "missing"

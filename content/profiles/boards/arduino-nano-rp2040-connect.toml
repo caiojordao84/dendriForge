@@ -1,0 +1,279 @@
+# board profile — arduino-nano-rp2040-connect (migrated from legacy TOON)
+# Source: arduino-nano-rp2040-connect.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "arduino-nano-rp2040-connect-profile"
+
+[identification]
+category = "maker"
+id = "arduino-nano-rp2040-connect"
+image = "arduino-nano-rp2040-connect.svg"
+manufacturer = "Arduino"
+mcu = "RP2040"
+name = "Arduino Nano RP2040 Connect"
+url = "https://store.arduino.cc/products/arduino-nano-rp2040-connect"
+
+[specs]
+clock = 133000000
+eeprom = 0
+flash_available = 16777216
+flash_total = 16777216
+sram = 270336
+voltage = "3.3V"
+
+[dims]
+h = 18.0
+t = 1.6
+w = 45.0
+
+[[power_pins]]
+direction = "input"
+name = "VIN"
+
+[[power_pins]]
+direction = "output"
+name = "3V3"
+voltage = "3.3V"
+
+[[power_pins]]
+name = "GND"
+type = "ground"
+
+[[power_pins]]
+direction = "input"
+name = "RESET"
+
+[[power_pins]]
+direction = "output"
+name = "VUSB"
+voltage = "5V"
+
+[[power_pins]]
+direction = "output"
+name = "IOREF"
+voltage = "3.3V"
+
+[[gpio]]
+int = true
+label = "D0 / TX"
+pin = 0
+pwm = true
+roles = ["uart-tx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D1 / RX"
+pin = 1
+pwm = true
+roles = ["uart-rx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D2"
+pin = 2
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D3"
+pin = 3
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D4"
+pin = 4
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D5"
+pin = 5
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D6"
+pin = 6
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D7"
+pin = 7
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D8"
+pin = 8
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D9"
+pin = 9
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D10 / SS"
+pin = 10
+pwm = true
+roles = ["spi-ss"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D11 / MOSI"
+pin = 11
+pwm = true
+roles = ["spi-mosi"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D12 / MISO"
+pin = 12
+pwm = true
+roles = ["spi-miso"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D13 / LED / SCK"
+pin = 13
+pwm = true
+roles = ["spi-sck", "status-led"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "A0 / D14"
+pin = 14
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "A1 / D15"
+pin = 15
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "A2 / D16"
+pin = 16
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "A3 / D17"
+pin = 17
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "A4 / SDA"
+pin = 18
+pwm = true
+roles = ["i2c-sda"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "A5 / SCL"
+pin = 19
+pwm = true
+roles = ["i2c-scl"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "A6"
+pin = 20
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A7"
+pin = 21
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[peripherals]]
+param = "uarts:2"
+peripheral = "serial"
+value = "pins:0,1"
+
+[[peripherals]]
+param = "channels:2"
+peripheral = "i2c"
+value = "sda:18;scl:19"
+
+[[peripherals]]
+param = "channels:2"
+peripheral = "spi"
+value = "miso:12;mosi:11;sck:13;ss:10"
+
+[[peripherals]]
+param = "channels:4"
+peripheral = "adc"
+value = "pins:14;15;16;17"
+
+[usb]
+chip = "RP2040"
+pid = "0x0058"
+type = "Micro-USB"
+vid = "0x2341"
+
+[restrictions]
+max_io_current = "4mA"
+total_current_limit = "300mA"
+warnings = ["GPIO operates at 3.3V only; not 5V tolerant", "Pin 13 has onboard LED interference", "A6 and A7 do not support PWM or interrupts", "Maximum total current draw from 3.3V pin is 800mA"]
+
+[compatibility]
+arduino_core = "4.0.0"
+bootloader = "rp2040-bootrom"
+frameworks = "arduino"
+languages = "arduino-cpp"
+pio = "rp2040"
+
+[dendri]
+board_family_skill_id = "rp2040-family"
+board_profile_id = "arduino-nano-rp2040-connect"
+default_language_skills = ["arduino-cpp-rp2040", "micropython-rp2040"]
+svg_path = "content/assets/svg/boards/arduino-nano-rp2040-connect.svg"
+svg_status = "missing"

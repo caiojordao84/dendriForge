@@ -1,0 +1,152 @@
+# component profile — sensor-flame (migrated from legacy TOON)
+# Source: sensor-flame.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "sensor-flame-profile"
+
+[identification]
+category = "sensor"
+family = "sensors"
+id = "sensor-flame"
+image = "sensor-flame.svg"
+name = "Flame Detector Sensor"
+standard = "IEC 60079-29-1"
+subfamily = "environment"
+symbol = "sensor-flame-symbol.svg"
+symbol_standard = "IEC"
+
+[params.detection_angle]
+default = 60
+editable = false
+label = "Detection Angle"
+max = 120
+min = 30
+type = "float"
+unit = "%"
+
+[params.output_type]
+default = "DO+AO"
+editable = true
+label = "Output Type"
+options = ["DO", "AO", "DO+AO"]
+type = "enum"
+
+[params.response_time]
+default = 15
+editable = false
+label = "Response Time"
+max = 50
+min = 5
+type = "float"
+unit = "V"
+
+[params.sensitivity]
+default = "medium"
+editable = true
+label = "Sensitivity"
+options = ["low", "medium", "high"]
+type = "enum"
+
+[params.spectral_range]
+default = "760-1100nm"
+editable = false
+label = "Spectral Range"
+options = ["760-1100nm", "185-260nm", "4.3um-CO2"]
+type = "enum"
+
+[params.supply_voltage]
+default = 5
+editable = true
+label = "Supply Voltage"
+options = [3, 5]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "VCC"
+notes = "DC supply positive"
+type = "power"
+voltage_max = "5V"
+
+[[ports]]
+direction = "input"
+id = "GND"
+notes = "DC supply negative"
+type = "ground"
+
+[[ports]]
+current_max = "20mA"
+direction = "output"
+id = "DO"
+notes = "Digital output — LOW when flame detected"
+type = "digital"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "20mA"
+direction = "output"
+id = "AO"
+notes = "Analog output — voltage decreases with flame intensity"
+type = "analog"
+voltage_max = "5V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "threshold"
+noise_model = false
+states = ["idle", "detected", "fault"]
+thermal_model = false
+trigger = "proximity"
+
+[limits]
+max_current = "100mA"
+max_temp = 85
+max_voltage = "5V"
+min_temp = -40
+warnings = ["DO output is active LOW — logic LOW indicates flame presence", "Sensor detects IR from sunlight and incandescent lamps — filter ambient light", "Not a certified safety device — do not use as sole fire detection in safety systems", "Detection angle is approximately 60 degrees from sensor axis"]
+
+[connections]
+allowed_with = ["ind-di-bank", "plc-*", "mcu-*", "ind-contact-no"]
+forbidden_with = ["ac-source"]
+requires = ["dc-source"]
+typical_context = ["fire-detection", "burner-control", "flame-monitoring"]
+
+[canvas]
+animated = true
+height = 60
+label_position = "right"
+
+[canvas.port_AO]
+x = 50
+y = 40
+
+[canvas.port_DO]
+x = 50
+y = 20
+
+[canvas.port_GND]
+x = 25
+y = 60
+
+[canvas.port_VCC]
+x = 25
+y = 0
+ports_layout = "custom"
+value_display = "{output_type} / {spectral_range} / {sensitivity}"
+width = 50
+
+[dendri]
+component_family_skill_id = "sensors-family"
+component_profile_id = "sensor-flame"
+palette_group = "Sensors > Environment"
+simulation_engine = "digital-io"
+svg_path = "content/assets/svg/components/sensor-flame.svg"
+tags = ["flame-sensor", "sensor", "environment", "fire-detection", "infrared", "analog"]
+svg_status = "missing"

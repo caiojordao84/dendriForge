@@ -1,0 +1,202 @@
+# component profile — maker-tft (migrated from legacy TOON)
+# Source: maker-tft.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "maker-tft-profile"
+
+[identification]
+category = "signal"
+family = "electricals"
+id = "maker-tft"
+image = "maker-tft.svg"
+name = "TFT Color Display"
+standard = "IEC 61747-1"
+subfamily = "displays"
+symbol = "maker-tft-symbol.svg"
+symbol_standard = "IEC"
+
+[params.backlight]
+default = "pwm"
+editable = true
+label = "Backlight Control"
+options = ["always-on", "pwm", "digital"]
+type = "enum"
+
+[params.driver_ic]
+default = "ILI9341"
+editable = true
+label = "Driver IC"
+options = ["ILI9341", "ST7735", "ST7789", "ILI9488", "ILI9486", "HX8357"]
+type = "enum"
+
+[params.interface]
+default = "SPI"
+editable = true
+label = "Interface"
+options = ["SPI", "parallel-8bit", "parallel-16bit", "RGB"]
+type = "enum"
+
+[params.resolution]
+default = "320x240"
+editable = true
+label = "Resolution"
+options = ["128x128", "160x128", "240x240", "320x240", "480x320", "800x480"]
+type = "enum"
+
+[params.size]
+default = "2.4in"
+editable = true
+label = "Screen Size"
+options = ["1.44in", "1.8in", "2.0in", "2.4in", "2.8in", "3.5in", "4.0in"]
+type = "enum"
+
+[params.supply_voltage]
+default = 3
+editable = true
+label = "Supply Voltage"
+options = [3, 5]
+type = "enum"
+unit = "V"
+
+[params.touch]
+default = "none"
+editable = true
+label = "Touch Panel"
+options = ["none", "resistive", "capacitive"]
+type = "enum"
+
+[[ports]]
+current_max = "200mA"
+direction = "input"
+id = "VCC"
+notes = "DC supply positive"
+type = "power"
+voltage_max = "5V"
+
+[[ports]]
+direction = "input"
+id = "GND"
+notes = "DC supply negative"
+type = "ground"
+
+[[ports]]
+current_max = "5mA"
+direction = "input"
+id = "CLK"
+notes = "SPI clock"
+type = "spi"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "5mA"
+direction = "input"
+id = "MOSI"
+notes = "SPI data in (MOSI)"
+type = "spi"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "5mA"
+direction = "input"
+id = "CS"
+notes = "Chip select — active low"
+type = "digital"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "5mA"
+direction = "input"
+id = "DC"
+notes = "Data/Command select"
+type = "digital"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "5mA"
+direction = "input"
+id = "RST"
+notes = "Hardware reset — active low"
+type = "digital"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "BL"
+notes = "Backlight control (PWM or digital)"
+type = "pwm"
+voltage_max = "5V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "script"
+noise_model = false
+states = ["off", "initializing", "displaying"]
+thermal_model = false
+
+[limits]
+max_current = "200mA"
+max_temp = 70
+max_voltage = "5V"
+min_temp = -20
+warnings = ["3.3V logic MCUs must use level shifter when driving 5V TFT SPI lines", "Backlight is the main power consumer — dim or disable when not needed", "SPI clock frequency must not exceed driver IC maximum (typically 40-80MHz)", "Pull RST low for minimum 10ms on power-up before sending init commands"]
+
+[connections]
+allowed_with = ["mcu-*", "comm-i2c-bus"]
+forbidden_with = ["ac-source"]
+requires = ["dc-source"]
+typical_context = ["color-ui", "sensor-dashboard", "image-display"]
+
+[canvas]
+animated = true
+height = 90
+label_position = "right"
+
+[canvas.port_BL]
+x = 0
+y = 88
+
+[canvas.port_CLK]
+x = 0
+y = 28
+
+[canvas.port_CS]
+x = 0
+y = 52
+
+[canvas.port_DC]
+x = 0
+y = 64
+
+[canvas.port_GND]
+x = 0
+y = 15
+
+[canvas.port_MOSI]
+x = 0
+y = 40
+
+[canvas.port_RST]
+x = 0
+y = 76
+
+[canvas.port_VCC]
+x = 0
+y = 5
+ports_layout = "custom"
+value_display = "{resolution} / {size} / {driver_ic} / {touch}"
+width = 80
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "maker-tft"
+palette_group = "Fundamental Electricals > Displays"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/maker-tft.svg"
+tags = ["tft", "display", "semiconductors", "color", "spi", "graphic", "maker"]
+svg_status = "missing"

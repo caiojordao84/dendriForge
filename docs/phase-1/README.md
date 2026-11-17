@@ -19,8 +19,8 @@
 | `dendri-editor` | iced 0.13 Ladder/SFC visual editor MVP |
 | `dendri-sim` | Scan-cycle ticks; interactive `step` / pin APIs; opcode traces |
 | `dendri-canvas` | Live SVG binding for Uno + LED + button (DEN-13) |
-| `dendri-profiles` | Load board/component profiles + SVG hooks |
-| `dendri-cli` | `dendri validate\|roundtrip\|sim\|canvas-sim\|emit-*\|parse-source\|frontend-roundtrip\|sync-visual\|…` |
+| `dendri-profiles` | Load board/component/screen TOML profiles + SVG hooks; TOON→TOML migrate |
+| `dendri-cli` | `dendri validate\|roundtrip\|sim\|canvas-sim\|profiles\|migrate-profiles\|emit-*\|…` |
 
 Language coverage: [`frontends.md`](./frontends.md), [`ladder-sfc.md`](./ladder-sfc.md).
 
@@ -32,7 +32,7 @@ Extension **`.dendri.toml`**: `[metadata]` + `[board]` + `[[components]]` + `[[w
 
 ## SVG hooks + live canvas
 
-See `docs/phase-0/svg-readiness.md`. Profiles load for `arduino-uno-r3`, `led`, `cmd-pushbutton-no-start`. Assets under `content/assets/svg/` (preferred) with `core/` fallback. `dendri-canvas` binds scan-cycle pins to SVG classes; iced **Sim SVG** pane + `dendri canvas-sim` for CI.
+See `docs/phase-0/svg-readiness.md`. All boards/components/screens live under `content/profiles/` (DEN-14). MVP trio + staged board SVGs under `content/assets/svg/` (preferred) with `core/` fallback. `dendri-canvas` binds scan-cycle pins to SVG classes; iced **Sim SVG** pane + `dendri canvas-sim` for CI.
 
 ## Commands
 
@@ -46,4 +46,7 @@ cargo run -p dendri-cli -- frontend-roundtrip --lang ladder content/fixtures/sim
 cargo run -p dendri-cli -- sync-visual content/fixtures/projects/P01-uno-led-blink.dendri.toml
 cargo run -p dendri-editor
 cargo run -p dendri-cli -- profiles
+cargo run -p dendri-cli -- profiles --all
+cargo run -p dendri-cli -- migrate-profiles
 ```
+

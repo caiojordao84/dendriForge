@@ -1,0 +1,186 @@
+# board profile — seeed-studio-xiao-samd21 (migrated from legacy TOON)
+# Source: seeed-studio-xiao-samd21.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "seeed-studio-xiao-samd21-profile"
+
+[identification]
+category = "maker"
+id = "seeed-studio-xiao-samd21"
+image = "seeed-studio-xiao-samd21.svg"
+manufacturer = "Seeed Studio"
+mcu = "Microchip SAMD21G18 (ARM Cortex-M0+)"
+name = "Seeed Studio XIAO SAMD21"
+url = "https://www.seeedstudio.com/Seeeduino-XIAO-Arduino-Microcontroller-SAMD21-Cortex-M0-p-4426.html"
+
+[specs]
+clock = 48000000
+eeprom = 0
+flash_available = 253952
+flash_total = 262144
+sram = 32768
+voltage = "3.3V"
+
+[dims]
+h = 20.0
+t = 3.5
+w = 17.5
+
+[[power_pins]]
+direction = "input"
+name = "VIN"
+
+[[power_pins]]
+direction = "output"
+name = "3V3"
+voltage = "3.3V"
+
+[[power_pins]]
+name = "GND"
+type = "ground"
+
+[[power_pins]]
+direction = "input"
+name = "RESET"
+
+[[power_pins]]
+direction = "output"
+name = "5V"
+voltage = "5V"
+
+[[gpio]]
+int = true
+label = "A0 / D0 / DAC"
+pin = 0
+pwm = false
+roles = ["adc:t", "dac"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "A1 / D1"
+pin = 1
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "A2 / D2"
+pin = 2
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "A3 / D3"
+pin = 3
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "A4 / D4 / SDA"
+pin = 4
+pwm = true
+roles = ["adc:t", "i2c-sda"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "A5 / D5 / SCL"
+pin = 5
+pwm = true
+roles = ["adc:t", "i2c-scl"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "A6 / D6 / TX"
+pin = 6
+pwm = true
+roles = ["adc:t", "uart-tx"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "A7 / D7 / RX"
+pin = 7
+pwm = true
+roles = ["adc:t", "uart-rx"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "A8 / D8 / SCK"
+pin = 8
+pwm = true
+roles = ["adc:t", "spi-sck"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "A9 / D9 / MISO"
+pin = 9
+pwm = true
+roles = ["adc:t", "spi-miso"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "A10 / D10 / MOSI / LED"
+pin = 10
+pwm = true
+roles = ["adc:t", "spi-mosi", "status-led"]
+type = "analog"
+
+[[peripherals]]
+param = "uarts:1"
+peripheral = "serial"
+value = "pins:6,7"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "i2c"
+value = "sda:4;scl:5"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "spi"
+value = "miso:9;mosi:10;sck:8;ss:null"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "dac"
+value = "pin:0"
+
+[usb]
+chip = "native"
+pid = "0x802F"
+type = "USB-C"
+vid = "0x2886"
+
+[restrictions]
+max_io_current = "7mA"
+total_current_limit = "200mA"
+warnings = ["All I/O pins operate at 3.3V; do not exceed 3.3V on any I/O", "Pin 5 and pin 7 cannot be used as interrupts simultaneously", "DAC output only on pin 0 (A0); 10-bit resolution", "ADC is 12-bit; use analogReadResolution(12) in sketch", "No onboard voltage regulator protection against reverse polarity"]
+
+[compatibility]
+arduino_core = "1.8.14"
+bootloader = "uf2-samd"
+frameworks = "arduino"
+languages = "arduino-cpp"
+pio = "atmelsam"
+
+[dendri]
+board_family_skill_id = "samd21-family"
+board_profile_id = "seeed-studio-xiao-samd21"
+default_language_skills = ["arduino-cpp-samd", "circuitpython-samd"]
+svg_path = "content/assets/svg/boards/seeed-studio-xiao-samd21.svg"
+svg_status = "missing"

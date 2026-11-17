@@ -1,0 +1,161 @@
+# component profile — inductor (migrated from legacy TOON)
+# Source: inductor.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "inductor-profile"
+
+[identification]
+category = "passive"
+family = "electricals"
+id = "inductor"
+image = "inductor.svg"
+name = "Inductor"
+standard = "IEC 62024-1"
+subfamily = "passives"
+symbol = "inductor-symbol.svg"
+symbol_standard = "IEC"
+
+[params.core_type]
+default = "ferrite"
+editable = true
+label = "Core Type"
+options = ["air", "ferrite", "iron-powder", "laminated-iron", "MPP", "sendust", "high-flux"]
+type = "enum"
+
+[params.current_rated]
+default = 1
+editable = true
+label = "Rated Current (DC)"
+max = 1000
+min = 0.001
+type = "float"
+unit = "A"
+
+[params.current_saturation]
+default = 1.5
+editable = false
+label = "Saturation Current"
+max = 2000
+min = 0.001
+type = "float"
+unit = "A"
+
+[params.dcr]
+default = 0.15
+editable = false
+label = "DC Resistance (DCR)"
+max = 100
+min = 0.001
+type = "float"
+unit = "Ω"
+
+[params.inductance]
+default = 0.0001
+editable = true
+label = "Inductance"
+max = 100
+min = 0.000000001
+type = "float"
+unit = "H"
+
+[params.package]
+default = "SMD-1210"
+editable = true
+label = "Package"
+options = ["SMD-0402", "SMD-0603", "SMD-0805", "SMD-1008", "SMD-1210", "SMD-1812", "SMD-2520", "THT-radial", "THT-axial", "THT-toroid"]
+type = "enum"
+
+[params.q_factor]
+default = 30
+editable = false
+label = "Quality Factor (Q)"
+max = 1000
+min = 1
+type = "float"
+unit = "V"
+
+[params.self_resonant_freq]
+default = 10000000
+editable = false
+label = "Self-Resonant Frequency (SRF)"
+max = 10000000000
+min = 1000
+type = "float"
+unit = "V"
+
+[params.tolerance]
+default = 20
+editable = true
+label = "Inductance Tolerance"
+options = [1, 2, 5, 10, 20]
+type = "enum"
+unit = "%"
+
+[params.winding_type]
+default = "single"
+editable = true
+label = "Winding Type"
+options = ["single", "coupled", "toroidal", "shielded", "unshielded"]
+type = "enum"
+
+[[ports]]
+direction = "passive"
+id = "A"
+notes = "terminal A"
+type = "analog"
+
+[[ports]]
+direction = "passive"
+id = "B"
+notes = "terminal B"
+type = "analog"
+
+[simulation]
+bidirectional = true
+dynamic = true
+equation = "V = inductance * dI/dt; Z_L = j * 2 * pi * f * inductance + dcr"
+model = "basic-analog"
+noise_model = false
+states = ["nominal", "saturated"]
+thermal_model = false
+
+[limits]
+max_current = "{current_rated}"
+max_temp = 125
+min_temp = -55
+warnings = ["Do not exceed saturation current — inductance drops sharply and switching regulators may lose control", "DCR causes I²R losses — verify thermal budget at maximum rated current", "Above self-resonant frequency the inductor behaves capacitively — verify SRF vs operating frequency", "Unshielded inductors radiate EMI — maintain clearance from sensitive analog and RF circuitry"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["boost-converter", "buck-converter", "filter", "choke", "energy-storage", "resonant-circuit"]
+
+[canvas]
+animated = false
+height = 25
+label_position = "top"
+
+[canvas.port_A]
+x = 0
+y = 12
+
+[canvas.port_B]
+x = 60
+y = 12
+ports_layout = "horizontal"
+value_display = "{inductance}H / {current_rated}A ({core_type})"
+width = 60
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "inductor"
+palette_group = "Fundamental Electricals > Passives"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/inductor.svg"
+tags = ["inductor", "passive", "analog", "filter", "choke", "iec-62024"]
+svg_status = "missing"

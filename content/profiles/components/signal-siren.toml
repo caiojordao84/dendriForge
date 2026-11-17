@@ -1,0 +1,141 @@
+# component profile — signal-siren (migrated from legacy TOON)
+# Source: signal-siren.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "signal-siren-profile"
+
+[identification]
+category = "passive"
+family = "electricals"
+id = "signal-siren"
+image = "signal-siren.svg"
+name = "Signal Siren"
+standard = "IEC 60947-5-1"
+subfamily = "passives"
+symbol = "signal-siren-symbol.svg"
+symbol_standard = "IEC"
+
+[params.current_draw]
+default = 100
+editable = true
+label = "Current Draw"
+options = [50, 80, 100, 150, 200, 300]
+type = "enum"
+unit = "mA"
+
+[params.duty_cycle]
+default = 50
+editable = true
+label = "Duty Cycle"
+max = 100
+min = 1
+type = "float"
+unit = "%"
+
+[params.ip_rating]
+default = "IP65"
+editable = true
+label = "Ingress Protection"
+options = ["IP54", "IP65", "IP67"]
+type = "enum"
+
+[params.mounting]
+default = "surface"
+editable = true
+label = "Mounting"
+options = ["surface", "panel", "enclosed"]
+type = "enum"
+
+[params.package]
+default = "industrial siren"
+editable = true
+label = "Package"
+options = ["industrial siren", "panel siren", "enclosed"]
+type = "enum"
+
+[params.sound_level]
+default = 105
+editable = true
+label = "Sound Level"
+options = [90, 100, 105, 110, 115]
+type = "enum"
+unit = "dB"
+
+[params.supply_voltage]
+default = 24
+editable = true
+label = "Supply Voltage"
+options = [12, 24, 48, 110, 230]
+type = "enum"
+unit = "V"
+
+[params.tone_pattern]
+default = "sweep"
+editable = true
+label = "Tone Pattern"
+options = ["sweep", "continuous", "warble", "pulsed"]
+type = "enum"
+
+[[ports]]
+current_max = "300mA"
+direction = "input"
+id = "VP"
+notes = "positive supply"
+type = "power"
+voltage_max = "230V"
+
+[[ports]]
+direction = "input"
+id = "VN"
+notes = "negative supply / ground"
+type = "ground"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "ideal"
+noise_model = false
+states = ["off", "active", "fault"]
+thermal_model = false
+
+[limits]
+max_current = "300mA"
+max_temp = 70
+max_voltage = "230V"
+min_temp = -20
+warnings = ["Use a supply voltage within the specified range to avoid overheating", "Do not cover the horn outlet or rotating acoustic elements", "Respect duty cycle limits for continuous audible operation", "High sound levels may require hearing protection in the installed environment"]
+
+[connections]
+allowed_with = ["dc-source", "ac-source", "mcu-gpio", "relay-coil"]
+forbidden_with = []
+requires = []
+typical_context = ["alarm", "warning", "audible-warning", "status-signal"]
+
+[canvas]
+
+[canvas."port_V+"]
+x = 0
+y = 15
+
+[canvas."port_V-"]
+x = 0
+y = 25
+animated = true
+height = 40
+label_position = "top"
+ports_layout = "horizontal"
+value_display = "Signal siren / {supply_voltage}V / {sound_level}dB"
+width = 50
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "signal-siren"
+palette_group = "Fundamental Electricals > Actuators"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/signal-siren.svg"
+tags = ["siren", "audible", "alarm", "signal", "passive", "sounder", "iec-60947-5-1"]
+svg_status = "missing"

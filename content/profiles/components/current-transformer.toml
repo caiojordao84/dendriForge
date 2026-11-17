@@ -1,0 +1,160 @@
+# component profile — current-transformer (migrated from legacy TOON)
+# Source: current-transformer.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "current-transformer-profile"
+
+[identification]
+category = "passive"
+family = "electricals"
+id = "current-transformer"
+image = "current-transformer.svg"
+name = "Current Transformer (CT) — Ideal"
+standard = "IEC 61869-2"
+subfamily = "passives"
+symbol = "current-transformer-symbol.svg"
+symbol_standard = "IEC"
+
+[params.accuracy_class]
+default = "1"
+editable = true
+label = "Accuracy Class"
+options = ["0.1", "0.2", "0.5", "1", "3", "5", "5P", "10P"]
+type = "enum"
+
+[params.burden]
+default = 5
+editable = true
+label = "Rated Burden (VA)"
+options = [2.5, 5, 7.5, 10, 15, 20, 30]
+type = "enum"
+unit = "V"
+
+[params.frequency]
+default = 50
+editable = true
+label = "Rated Frequency"
+options = [50, 60]
+type = "enum"
+unit = "V"
+
+[params.insulation_voltage]
+default = 0.72
+editable = true
+label = "Insulation Voltage"
+options = [0.72, 3, 6, 10, 15, 20, 30, 36]
+type = "enum"
+unit = "V"
+
+[params.rated_current_primary]
+default = 100
+editable = false
+label = "Rated Primary Current"
+max = 10000
+min = 1
+type = "float"
+unit = "A"
+
+[params.rated_current_secondary]
+default = 5
+editable = true
+label = "Rated Secondary Current"
+options = [1, 5]
+type = "enum"
+unit = "A"
+
+[params.ratio]
+default = "100:5"
+editable = true
+label = "Current Ratio (Ip:Is)"
+options = ["5:5", "10:5", "25:5", "50:5", "100:5", "200:5", "400:5", "600:5", "1000:5", "1200:5", "2000:5"]
+type = "enum"
+
+[[ports]]
+current_max = "10000A"
+direction = "input"
+id = "P1"
+notes = "primary winding terminal P1"
+type = "analog"
+voltage_max = "36000V"
+
+[[ports]]
+current_max = "10000A"
+direction = "input"
+id = "P2"
+notes = "primary winding terminal P2"
+type = "analog"
+voltage_max = "36000V"
+
+[[ports]]
+current_max = "5A"
+direction = "output"
+id = "S1"
+notes = "secondary winding terminal S1"
+type = "analog"
+voltage_max = "10V"
+
+[[ports]]
+direction = "output"
+id = "S2"
+notes = "secondary winding terminal S2"
+type = "ground"
+
+[simulation]
+bidirectional = false
+dynamic = true
+equation = "I_s = I_p / ratio; V_s = I_s * burden"
+model = "ideal"
+noise_model = false
+states = ["nominal", "open-secondary", "fault"]
+thermal_model = false
+
+[limits]
+max_current = "10000A"
+max_temp = 105
+max_voltage = "36000V"
+min_temp = -10
+warnings = ["NEVER open-circuit the secondary of an energised CT — high voltage spike will damage insulation and may cause injury", "Always short-circuit secondary terminals when CT is not connected to a burden", "Accuracy class degrades if burden exceeds rated VA — keep burden at or below rated value", "Ideal model assumes zero magnetising current and unity coupling — real CT introduces phase and ratio errors"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["energy-metering", "protection-relay", "overcurrent-detection", "power-quality"]
+
+[canvas]
+animated = false
+height = 60
+label_position = "top"
+
+[canvas.port_P1]
+x = 0
+y = 15
+
+[canvas.port_P2]
+x = 0
+y = 45
+
+[canvas.port_S1]
+x = 70
+y = 15
+
+[canvas.port_S2]
+x = 70
+y = 45
+ports_layout = "custom"
+value_display = "CT {ratio} / {accuracy_class} / {burden}VA"
+width = 70
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "current-transformer"
+palette_group = "Fundamental Electricals > Transformers"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/current-transformer.svg"
+tags = ["current-transformer", "ct", "measurement", "protection", "transformer", "iec-61869"]
+svg_status = "missing"

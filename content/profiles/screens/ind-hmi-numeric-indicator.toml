@@ -1,0 +1,125 @@
+# screen profile — ind-hmi-numeric-indicator (migrated from legacy TOON)
+# Source: ind-hmi-numeric-indicator.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "ind-hmi-numeric-indicator-profile"
+
+[identification]
+category = "instrument"
+family = "industrial"
+id = "ind-hmi-numeric-indicator"
+image = "ind-hmi-numeric-indicator.svg"
+name = "HMI Numeric Indicator"
+standard = "IEC 61131-3"
+subfamily = "hmi-signaling"
+symbol = "ind-hmi-numeric-indicator-symbol.svg"
+symbol_standard = "IEC"
+
+[params.alarm_high]
+default = 100
+editable = true
+label = "High Alarm Threshold"
+type = "float"
+
+[params.alarm_low]
+default = 0
+editable = true
+label = "Low Alarm Threshold"
+type = "float"
+
+[params.data_type]
+default = "float"
+editable = true
+label = "Data Type"
+options = ["float", "int", "dword"]
+type = "enum"
+
+[params.decimal_places]
+default = 2
+editable = true
+label = "Decimal Places"
+max = 6
+min = 0
+type = "int"
+
+[params.unit_label]
+default = ""
+editable = true
+label = "Engineering Unit Label"
+type = "string"
+
+[[ports]]
+direction = "input"
+id = "VALUE_IN"
+notes = "Process value input (float/int)"
+type = "analog"
+
+[[ports]]
+current_max = "10mA"
+direction = "output"
+id = "ALARM_HI"
+notes = "High alarm output — active when value exceeds alarm_high"
+type = "digital"
+voltage_max = "24V"
+
+[[ports]]
+current_max = "10mA"
+direction = "output"
+id = "ALARM_LO"
+notes = "Low alarm output — active when value falls below alarm_low"
+type = "digital"
+voltage_max = "24V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "function-block-engine"
+noise_model = false
+states = ["normal", "alarm", "fault"]
+thermal_model = false
+
+[limits]
+max_current = "10mA"
+max_temp = 55
+max_voltage = "24V"
+min_temp = -10
+warnings = ["Alarm outputs are display-only — do not use as sole safety interlock", "Set alarm_high above alarm_low to avoid permanent alarm condition", "Engineering unit label is cosmetic only — does not perform unit conversion"]
+
+[connections]
+allowed_with = ["plc-*", "ind-hmi-trend-chart", "ind-pid-controller", "sensor-*"]
+forbidden_with = []
+requires = []
+typical_context = ["value-display", "process-monitoring", "alarm-indication"]
+
+[canvas]
+animated = true
+height = 50
+label_position = "top"
+
+[canvas.port_ALARM_HI]
+x = 80
+y = 10
+
+[canvas.port_ALARM_LO]
+x = 80
+y = 40
+
+[canvas.port_VALUE_IN]
+x = 0
+y = 25
+ports_layout = "custom"
+value_display = "{data_type} / {decimal_places}dp / {unit_label}"
+width = 80
+
+[dendri]
+component_family_skill_id = "industrial-family"
+component_profile_id = "ind-hmi-numeric-indicator"
+palette_group = "Industrial > HMI & Signaling"
+simulation_engine = "function-block-engine"
+svg_path = "content/assets/svg/screens/ind-hmi-numeric-indicator.svg"
+tags = ["hmi-numeric-indicator", "hmi-signaling", "industrial", "numeric-display", "alarm"]
+svg_status = "missing"

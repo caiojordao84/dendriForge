@@ -1,0 +1,324 @@
+# board profile — raspberry-pi-pico-2-w (migrated from legacy TOON)
+# Source: raspberry-pi-pico-2-w.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "raspberry-pi-pico-2-w-profile"
+
+[identification]
+category = "maker"
+id = "raspberry-pi-pico-2-w"
+image = "raspberry-pi-pico-2-w.svg"
+manufacturer = "Raspberry Pi"
+mcu = "RP2350"
+name = "Raspberry Pi Pico 2 W"
+url = "https://www.raspberrypi.com/products/raspberry-pi-pico-2-w/"
+
+[specs]
+bluetooth = "BLE 5.2"
+clock = 150000000
+eeprom = 0
+flash_available = 4194304
+flash_total = 4194304
+sram = 532480
+voltage = "3.3V"
+wifi = "802.11n 2.4GHz"
+
+[dims]
+h = 51.0
+t = 1.0
+w = 21.0
+
+[[power_pins]]
+direction = "input"
+name = "VBUS"
+voltage = "5V"
+
+[[power_pins]]
+direction = "input"
+name = "VSYS"
+voltage = "5V"
+
+[[power_pins]]
+direction = "output"
+name = "3V3"
+voltage = "3.3V"
+
+[[power_pins]]
+direction = "input"
+name = "3V3_EN"
+voltage = "3.3V"
+
+[[power_pins]]
+name = "GND"
+type = "ground"
+
+[[power_pins]]
+direction = "input"
+name = "ADC_VREF"
+voltage = "3.3V"
+
+[[gpio]]
+int = true
+label = "GP0"
+pin = 0
+pwm = true
+roles = ["uart-tx", "i2c-sda", "spi-rx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP1"
+pin = 1
+pwm = true
+roles = ["uart-rx", "i2c-scl", "spi-csn"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP2"
+pin = 2
+pwm = true
+roles = ["uart-cts", "i2c-sda", "spi-sck"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP3"
+pin = 3
+pwm = true
+roles = ["uart-rts", "i2c-scl", "spi-tx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP4"
+pin = 4
+pwm = true
+roles = ["uart-tx", "i2c-sda", "spi-rx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP5"
+pin = 5
+pwm = true
+roles = ["uart-rx", "i2c-scl", "spi-csn"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP6"
+pin = 6
+pwm = true
+roles = ["uart-cts", "i2c-sda", "spi-sck"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP7"
+pin = 7
+pwm = true
+roles = ["uart-rts", "i2c-scl", "spi-tx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP8"
+pin = 8
+pwm = true
+roles = ["uart-tx", "i2c-sda", "spi-rx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP9"
+pin = 9
+pwm = true
+roles = ["uart-rx", "i2c-scl", "spi-csn"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP10"
+pin = 10
+pwm = true
+roles = ["uart-cts", "i2c-sda", "spi-sck"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP11"
+pin = 11
+pwm = true
+roles = ["uart-rts", "i2c-scl", "spi-tx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP12"
+pin = 12
+pwm = true
+roles = ["uart-tx", "i2c-sda", "spi-rx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP13"
+pin = 13
+pwm = true
+roles = ["uart-rx", "i2c-scl", "spi-csn"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP14"
+pin = 14
+pwm = true
+roles = ["uart-cts", "i2c-sda", "spi-sck"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP15"
+pin = 15
+pwm = true
+roles = ["uart-rts", "i2c-scl", "spi-tx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP16"
+pin = 16
+pwm = true
+roles = ["uart-tx", "i2c-sda", "spi-rx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP17"
+pin = 17
+pwm = true
+roles = ["uart-rx", "i2c-scl", "spi-csn"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP18"
+pin = 18
+pwm = true
+roles = ["uart-cts", "i2c-sda", "spi-sck"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP19"
+pin = 19
+pwm = true
+roles = ["uart-rts", "i2c-scl", "spi-tx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP20"
+pin = 20
+pwm = true
+roles = ["uart-tx", "i2c-sda"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP21"
+pin = 21
+pwm = true
+roles = ["uart-rx", "i2c-scl"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP22"
+pin = 22
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GP26 / A0"
+pin = 26
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "GP27 / A1"
+pin = 27
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "GP28 / A2"
+pin = 28
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[peripherals]]
+param = "uarts:2"
+peripheral = "serial"
+value = "pins:0,1"
+
+[[peripherals]]
+param = "channels:2"
+peripheral = "i2c"
+value = "sda:0;scl:1"
+
+[[peripherals]]
+param = "channels:2"
+peripheral = "spi"
+value = "miso:0;mosi:3;sck:2;ss:1"
+
+[[peripherals]]
+param = "channels:24"
+peripheral = "pwm"
+
+[[peripherals]]
+param = "channels:3"
+peripheral = "adc"
+value = "pins:26,27,28"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "adc"
+value = "temp:internal"
+
+[usb]
+chip = "RP2350"
+pid = "0x0010"
+type = "Micro-USB"
+vid = "0x2E8A"
+
+[restrictions]
+max_io_current = "4mA"
+total_current_limit = "300mA"
+warnings = ["GPIO logic level is 3.3V only — not 5V tolerant", "GP23, GP24, GP25, GP29 are used by the CYW43439 wireless chip — not exposed as GPIO", "GP26-GP28 shared with ADC inputs; avoid high-impedance floating", "ADC reference is 3.3V; ADC_VREF pin must not exceed VSYS", "WiFi and BLE cannot be used simultaneously on the CYW43439 — only one at a time"]
+
+[compatibility]
+arduino_core = "4.0.1"
+bootloader = "rp2350-boot"
+frameworks = "arduino"
+languages = "arduino-cpp"
+pio = "raspberrypi"
+
+[dendri]
+board_family_skill_id = "rp2350-family"
+board_profile_id = "raspberry-pi-pico-2-w"
+default_language_skills = ["arduino-cpp-rp2350", "micropython-rp2350", "rust-embassy-rp2350"]
+svg_path = "content/assets/svg/boards/raspberry-pi-pico-2-w.svg"
+svg_status = "missing"

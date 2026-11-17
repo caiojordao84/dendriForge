@@ -1,0 +1,124 @@
+# component profile — sensor-ldr (migrated from legacy TOON)
+# Source: sensor-ldr.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "sensor-ldr-profile"
+
+[identification]
+category = "passive"
+family = "electricals"
+id = "sensor-ldr"
+image = "sensor-ldr.svg"
+name = "LDR Light Dependent Resistor"
+standard = "IEC 60747-7"
+subfamily = "passives"
+symbol = "sensor-ldr-symbol.svg"
+symbol_standard = "IEC"
+
+[params.gamma]
+default = 0.7
+editable = false
+label = "Gamma (slope)"
+max = 1.0
+min = 0.5
+type = "float"
+unit = "Ω"
+
+[params.package]
+default = "THT-5mm"
+editable = true
+label = "Package"
+options = ["THT-5mm", "THT-10mm", "THT-12mm", "SMD"]
+type = "enum"
+
+[params.resistance_dark]
+default = 1000000
+editable = false
+label = "Dark Resistance"
+max = 10000000
+min = 100000
+type = "float"
+unit = "Ω"
+
+[params.resistance_light]
+default = 1000
+editable = false
+label = "Light Resistance (10 lux)"
+max = 10000
+min = 100
+type = "float"
+unit = "Ω"
+
+[params.spectral_peak]
+default = "540nm"
+editable = false
+label = "Spectral Peak Response"
+options = ["540nm", "560nm", "610nm"]
+type = "enum"
+
+[[ports]]
+direction = "passive"
+id = "A"
+notes = "terminal A (no polarity)"
+type = "analog"
+
+[[ports]]
+direction = "passive"
+id = "B"
+notes = "terminal B (no polarity)"
+type = "analog"
+
+[simulation]
+bidirectional = true
+dynamic = true
+equation = "R = resistance_light * (lux ^ -gamma)"
+model = "lookup-table"
+noise_model = false
+states = ["dark", "illuminated"]
+thermal_model = false
+
+[limits]
+max_current = "100mA"
+
+[limits.max_power]
+unit = "W"
+value = 200
+max_temp = 75
+max_voltage = "150V"
+min_temp = -30
+warnings = ["Resistance varies nonlinearly with illuminance — use lookup table for accurate simulation", "Do not exceed maximum power dissipation", "Response time is slow (tens of ms) — not suitable for fast optical switching"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = ["resistor"]
+typical_context = ["light-sensing", "automatic-lighting", "twilight-switch"]
+
+[canvas]
+animated = false
+height = 20
+label_position = "top"
+
+[canvas.port_A]
+x = 0
+y = 10
+
+[canvas.port_B]
+x = 60
+y = 10
+ports_layout = "horizontal"
+value_display = "{resistance_light}Ω @ 10lux"
+width = 60
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "sensor-ldr"
+palette_group = "Fundamental Electricals > Passives"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/sensor-ldr.svg"
+tags = ["ldr", "photoresistor", "passive", "light-sensor", "analog", "electricals"]
+svg_status = "missing"

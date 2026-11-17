@@ -1,0 +1,152 @@
+# component profile — pwm-source (migrated from legacy TOON)
+# Source: pwm-source.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "pwm-source-profile"
+
+[identification]
+category = "source"
+family = "electricals"
+id = "pwm-source"
+image = "pwm-source.svg"
+name = "PWM Signal Source"
+standard = "IEC 61131-2"
+subfamily = "sources"
+symbol = "pwm-source-symbol.svg"
+symbol_standard = "IEC"
+
+[params.current_limit]
+default = 0.5
+editable = true
+label = "Output Current Limit"
+max = 10
+min = 0
+type = "float"
+unit = "A"
+
+[params.duty_cycle]
+default = 50
+editable = true
+label = "Duty Cycle"
+max = 100
+min = 0
+type = "float"
+unit = "%"
+
+[params.frequency]
+default = 1000
+editable = true
+label = "PWM Frequency"
+max = 1000000
+min = 1
+type = "float"
+unit = "V"
+
+[params.output_enabled]
+default = true
+editable = true
+label = "Output Enabled"
+type = "bool"
+
+[params.polarity]
+default = "normal"
+editable = true
+label = "Output Polarity"
+options = ["normal", "inverted"]
+type = "enum"
+
+[params.voltage_high]
+default = 5
+editable = true
+label = "High Level Voltage"
+max = 24
+min = 1.8
+type = "float"
+unit = "V"
+
+[params.voltage_low]
+default = 0
+editable = false
+label = "Low Level Voltage"
+max = 5
+min = 0
+type = "float"
+unit = "V"
+
+[[ports]]
+current_max = "10A"
+direction = "output"
+id = "OUT"
+notes = "PWM signal output"
+type = "pwm"
+voltage_max = "24V"
+
+[[ports]]
+direction = "output"
+id = "GND"
+notes = "signal ground reference"
+type = "ground"
+
+[[ports]]
+current_max = "10mA"
+direction = "input"
+id = "SYNC"
+notes = "external sync / trigger input"
+type = "digital"
+voltage_max = "5V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+equation = "V_out = (t % (1/frequency)) < (duty_cycle/100 * 1/frequency) ? voltage_high : voltage_low"
+model = "ideal"
+noise_model = false
+states = ["off", "running", "fault"]
+thermal_model = false
+waveform = "pwm"
+
+[limits]
+max_current = "10A"
+max_temp = 85
+max_voltage = "24V"
+min_temp = -40
+warnings = ["Do not exceed voltage_high above load maximum rated input voltage", "Ensure GND is shared with the driven load to avoid floating reference", "High-frequency PWM on inductive loads requires a flyback diode"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["motor-speed-control", "led-dimming", "dc-dc-converter", "servo-control"]
+
+[canvas]
+animated = true
+height = 60
+label_position = "top"
+
+[canvas.port_GND]
+x = 70
+y = 45
+
+[canvas.port_OUT]
+x = 70
+y = 15
+
+[canvas.port_SYNC]
+x = 0
+y = 30
+ports_layout = "custom"
+value_display = "{frequency}Hz / {duty_cycle}% / {voltage_high}V"
+width = 70
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "pwm-source"
+palette_group = "Fundamental Electricals > Sources"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/pwm-source.svg"
+tags = ["pwm", "source", "signal", "digital", "pulse", "adjustable"]
+svg_status = "missing"

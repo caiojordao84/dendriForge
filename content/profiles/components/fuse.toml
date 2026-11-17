@@ -1,0 +1,147 @@
+# component profile — fuse (migrated from legacy TOON)
+# Source: fuse.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "fuse-profile"
+
+[identification]
+category = "passive"
+family = "electricals"
+id = "fuse"
+image = "fuse.svg"
+name = "Fuse"
+standard = "IEC 60127-1"
+subfamily = "passives"
+symbol = "fuse-symbol.svg"
+symbol_standard = "IEC"
+
+[params.ambient_derating]
+default = 25
+editable = false
+label = "Ambient Derating"
+max = 125
+min = -40
+type = "float"
+unit = "V"
+
+[params.breaking_capacity]
+default = 35
+editable = true
+label = "Breaking Capacity"
+options = [10, 35, 50, 100, 150, 300, 1500]
+type = "enum"
+unit = "A"
+
+[params.fuse_type]
+default = "fast-acting"
+editable = true
+label = "Fuse Type"
+options = ["fast-acting", "time-delay", "resettable-ptc", "smd", "cartridge", "blade", "ceramic", "glass"]
+type = "enum"
+
+[params.i2t]
+default = 0.5
+editable = false
+label = "Melting I²t"
+max = 500
+min = 0.01
+type = "float"
+unit = "V"
+
+[params.package]
+default = "5x20mm"
+editable = true
+label = "Package"
+options = ["0603", "0805", "1206", "1206-slow", "5x20mm", "6x30mm", "10x38mm", "blade-mini", "blade-midi", "cartidge-5x20"]
+type = "enum"
+
+[params.rated_current]
+default = 1
+editable = true
+label = "Rated Current"
+options = [0.05, 0.1, 0.2, 0.5, 1, 2, 3, 5, 10, 15, 20]
+type = "enum"
+unit = "A"
+
+[params.rated_voltage]
+default = 250
+editable = true
+label = "Rated Voltage"
+options = [32, 50, 63, 125, 250, 300, 500, 600]
+type = "enum"
+unit = "V"
+
+[params.resistance_cold]
+default = 0.02
+editable = false
+label = "Cold Resistance"
+max = 10
+min = 0.001
+type = "float"
+unit = "Ω"
+
+[[ports]]
+current_max = "20A"
+direction = "input"
+id = "IN"
+notes = "input terminal"
+type = "power"
+voltage_max = "600V"
+
+[[ports]]
+current_max = "20A"
+direction = "output"
+id = "OUT"
+notes = "output terminal"
+type = "power"
+voltage_max = "600V"
+
+[simulation]
+bidirectional = true
+dynamic = true
+model = "lookup-table"
+noise_model = false
+states = ["nominal", "heating", "open"]
+thermal_model = true
+
+[limits]
+max_current = "20A"
+max_temp = 125
+max_voltage = "600V"
+min_temp = -40
+warnings = ["A fuse is a sacrificial protection device and must be replaced after it opens", "Select fuse type and breaking capacity to match the protected circuit fault level", "Derating with ambient temperature and enclosure heat is required for reliable operation", "Do not bypass a blown fuse; investigate and correct the fault first"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["overcurrent-protection", "power-input", "branch-protection", "safety", "distribution"]
+
+[canvas]
+animated = false
+height = 30
+label_position = "top"
+
+[canvas.port_IN]
+x = 0
+y = 15
+
+[canvas.port_OUT]
+x = 60
+y = 15
+ports_layout = "horizontal"
+value_display = "Fuse {rated_current}A / {rated_voltage}V / {fuse_type}"
+width = 60
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "fuse"
+palette_group = "Fundamental Electricals > Passives"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/fuse.svg"
+tags = ["fuse", "protection", "passive", "overcurrent", "safety", "sacrificial", "iec-60127"]
+svg_status = "missing"

@@ -1,0 +1,201 @@
+# component profile — act-vfd (migrated from legacy TOON)
+# Source: act-vfd.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "act-vfd-profile"
+
+[identification]
+category = "actuator"
+family = "actuators"
+id = "act-vfd"
+image = "act-vfd.svg"
+name = "Variable Frequency Drive (VFD)"
+standard = "IEC 61800-2"
+subfamily = "motor-drives"
+symbol = "act-vfd-symbol.svg"
+symbol_standard = "IEC"
+
+[params.braking]
+default = "DC-injection"
+editable = true
+label = "Braking Method"
+options = ["DC-injection", "dynamic-braking", "regenerative"]
+type = "enum"
+
+[params.command_interface]
+default = "analog-10V"
+editable = true
+label = "Command Interface"
+options = ["analog-10V", "analog-4-20mA", "Modbus-RTU", "Profibus", "EtherNet-IP", "CANopen"]
+type = "enum"
+
+[params.control_mode]
+default = "V/f"
+editable = true
+label = "Control Mode"
+options = ["V/f", "vector", "sensorless-vector", "flux-vector"]
+type = "enum"
+
+[params.output_frequency]
+default = 50
+editable = true
+label = "Max Output Frequency"
+max = 500
+min = 10
+type = "float"
+unit = "V"
+
+[params.power_rating]
+default = 1500
+editable = true
+label = "Rated Power"
+max = 630000
+min = 100
+type = "float"
+unit = "W"
+
+[params.supply_voltage]
+default = 400
+editable = true
+label = "Supply Voltage"
+options = [110, 230, 400, 480, 690]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "1000A"
+direction = "input"
+id = "L1"
+notes = "AC supply phase L1"
+type = "power"
+voltage_max = "690V"
+
+[[ports]]
+current_max = "1000A"
+direction = "input"
+id = "L2"
+notes = "AC supply phase L2"
+type = "power"
+voltage_max = "690V"
+
+[[ports]]
+current_max = "1000A"
+direction = "input"
+id = "L3"
+notes = "AC supply phase L3"
+type = "power"
+voltage_max = "690V"
+
+[[ports]]
+direction = "input"
+id = "PE"
+notes = "Protective earth"
+type = "ground"
+
+[[ports]]
+current_max = "1000A"
+direction = "output"
+id = "U"
+notes = "Motor phase U output"
+type = "power"
+voltage_max = "690V"
+
+[[ports]]
+current_max = "1000A"
+direction = "output"
+id = "V"
+notes = "Motor phase V output"
+type = "power"
+voltage_max = "690V"
+
+[[ports]]
+current_max = "1000A"
+direction = "output"
+id = "W"
+notes = "Motor phase W output"
+type = "power"
+voltage_max = "690V"
+
+[[ports]]
+current_max = "1000A"
+direction = "output"
+id = "BR"
+notes = "Dynamic braking resistor terminal"
+type = "power"
+voltage_max = "690V"
+
+[simulation]
+bidirectional = true
+dynamic = true
+model = "basic-analog"
+motion = "rotary"
+noise_model = false
+states = ["off", "ready", "running", "fault"]
+thermal_model = true
+
+[limits]
+ip_rating = "IP54"
+max_current = "1000A"
+max_temp = 50
+max_voltage = "690V"
+min_temp = -10
+warnings = ["Always connect protective earth before applying power", "Allow minimum 5 minutes discharge time before accessing drive terminals after power off", "Install line reactor or EMC filter on input for compliance with IEC 61800-3", "Never connect power factor correction capacitors on VFD output terminals"]
+
+[connections]
+allowed_with = ["motor-ac-3ph", "ind-safety-relay-block", "plc-*", "ind-di-bank", "ind-do-bank"]
+forbidden_with = []
+requires = ["ac-source"]
+typical_context = ["pump-speed-control", "fan-drive", "conveyor-speed", "hvac"]
+
+[canvas]
+animated = true
+height = 100
+label_position = "bottom"
+
+[canvas.port_BR]
+x = 80
+y = 85
+
+[canvas.port_L1]
+x = 0
+y = 10
+
+[canvas.port_L2]
+x = 0
+y = 25
+
+[canvas.port_L3]
+x = 0
+y = 40
+
+[canvas.port_PE]
+x = 0
+y = 55
+
+[canvas.port_U]
+x = 80
+y = 25
+
+[canvas.port_V]
+x = 80
+y = 45
+
+[canvas.port_W]
+x = 80
+y = 65
+ports_layout = "custom"
+value_display = "{power_rating}W / {supply_voltage}V / {control_mode}"
+width = 80
+
+[dendri]
+component_family_skill_id = "actuators-family"
+component_profile_id = "act-vfd"
+palette_group = "Actuators > Motor Drives"
+simulation_engine = "digital-io"
+svg_path = "content/assets/svg/components/act-vfd.svg"
+tags = ["vfd", "inverter", "actuator", "motor-drives", "variable-frequency", "industrial", "ac-drive"]
+svg_status = "missing"

@@ -1,0 +1,133 @@
+# component profile — act-ir-transmitter (migrated from legacy TOON)
+# Source: act-ir-transmitter.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "act-ir-transmitter-profile"
+
+[identification]
+category = "stub"
+family = "communication"
+id = "act-ir-transmitter"
+image = "act-ir-transmitter.svg"
+name = "Infrared Transmitter (Transmissor de infravermelho)"
+standard = "custom"
+subfamily = "wireless"
+symbol = "act-ir-transmitter-symbol.svg"
+symbol_standard = "custom"
+
+[params.angle]
+default = 15
+editable = true
+label = "Emission Angle"
+max = 60
+min = 5
+type = "float"
+unit = "°"
+
+[params.carrier_frequency]
+default = 38
+editable = true
+label = "Carrier Frequency"
+options = [38, 40, 56]
+type = "enum"
+unit = "kHz"
+
+[params.intensity]
+default = 10
+editable = true
+label = "Emission Intensity"
+max = 100
+min = 1
+type = "float"
+unit = "mW/sr"
+
+[params.supply_voltage]
+default = 5
+editable = true
+label = "Supply Voltage"
+options = [3.3, 5]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "50mA"
+direction = "input"
+id = "VCC"
+notes = "supply +"
+type = "power"
+voltage_max = "{supply_voltage}"
+
+[[ports]]
+direction = "input"
+id = "GND"
+notes = "supply -"
+type = "ground"
+
+[[ports]]
+current_max = "20mA"
+direction = "input"
+id = "DATA"
+notes = "transmission data input"
+type = "digital"
+voltage_max = "{supply_voltage}"
+
+[[protocol_ports]]
+direction = "output"
+id = "RF"
+notes = "wireless infrared interface"
+protocol = "IR"
+
+[simulation]
+bidirectional = true
+dynamic = true
+model = "script"
+noise_model = false
+states = ["idle", "transmitting"]
+thermal_model = false
+
+[limits]
+ip_rating = "IP20"
+max_current = "50mA"
+max_temp = 85
+max_voltage = "{supply_voltage}"
+min_temp = -10
+warnings = ["The transmitter and receiver must have compatible carrier frequencies (e.g., both 38kHz).", "Direct current through the IR LED must be limited with a resistor if not integrated."]
+
+[connections]
+allowed_with = ["sensor-ir-receiver", "mcu-*", "plc-*"]
+forbidden_with = ["ac-source"]
+requires = ["dc-source"]
+typical_context = ["remote-control", "wireless-data-link", "object-detection"]
+
+[canvas]
+animated = true
+height = 40
+label_position = "top"
+
+[canvas.port_DATA]
+x = 20
+y = 40
+
+[canvas.port_GND]
+x = 30
+y = 0
+
+[canvas.port_VCC]
+x = 10
+y = 0
+ports_layout = "custom"
+value_display = "{carrier_frequency} kHz"
+width = 40
+
+[dendri]
+component_family_skill_id = "communication-family"
+component_profile_id = "act-ir-transmitter"
+palette_group = "Comunicacao > Wireless"
+simulation_engine = "protocol-stub-engine"
+svg_path = "content/assets/svg/components/act-ir-transmitter.svg"
+tags = ["act", "optical", "ir", "transmitter", "communication", "maker"]
+svg_status = "missing"

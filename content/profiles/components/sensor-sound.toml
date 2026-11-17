@@ -1,0 +1,120 @@
+# component profile — sensor-sound (migrated from legacy TOON)
+# Source: sensor-sound.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "sensor-sound-profile"
+
+[identification]
+category = "sensor"
+family = "sensors"
+id = "sensor-sound"
+image = "sensor-sound.svg"
+name = "Sound Sensor (Sensor de Som)"
+standard = "IEC 60947-5-2"
+subfamily = "environment"
+symbol = "sensor-sound-symbol.svg"
+symbol_standard = "IEC"
+
+[params.output_type]
+default = "analog-0-10V"
+editable = true
+label = "Output Type"
+options = ["analog-0-10V", "analog-4-20mA", "digital-PNP"]
+type = "enum"
+
+[params.sensitivity]
+default = 50
+editable = true
+label = "Sensitivity"
+max = 130
+min = 30
+type = "float"
+unit = "dB"
+
+[params.supply_voltage]
+default = 24
+editable = true
+label = "Supply Voltage"
+options = [5, 12, 24]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "VCC"
+notes = "supply +"
+type = "power"
+voltage_max = "24V"
+
+[[ports]]
+direction = "input"
+id = "GND"
+notes = "supply -"
+type = "ground"
+
+[[ports]]
+current_max = "20mA"
+direction = "output"
+id = "OUT"
+notes = "signal output (analog or digital)"
+type = "analog"
+voltage_max = "10V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "threshold"
+noise_model = true
+output_logic = "{output_type}"
+states = ["idle", "measuring", "fault"]
+thermal_model = false
+trigger = "sound"
+trigger_source = "external"
+
+[limits]
+ip_rating = "IP54"
+max_current = "100mA"
+max_temp = 60
+max_voltage = "{supply_voltage}"
+min_temp = -10
+warnings = ["Do not expose to direct liquid spray or heavy dust", "Analog ground must share a common reference with the acquisition module"]
+
+[connections]
+allowed_with = ["ind-ai-bank", "ind-di-bank", "plc-*"]
+forbidden_with = ["ac-source"]
+requires = ["dc-source"]
+typical_context = ["noise-monitoring", "hvac", "security-systems"]
+
+[canvas]
+animated = true
+height = 40
+label_position = "right"
+
+[canvas.port_GND]
+x = 20
+y = 40
+
+[canvas.port_OUT]
+x = 40
+y = 20
+
+[canvas.port_VCC]
+x = 20
+y = 0
+ports_layout = "vertical"
+value_display = "Sound Sensor"
+width = 40
+
+[dendri]
+component_family_skill_id = "sensors-family"
+component_profile_id = "sensor-sound"
+palette_group = "Sensors > Environment"
+simulation_engine = "digital-io"
+svg_path = "content/assets/svg/components/sensor-sound.svg"
+tags = ["sensor", "sound", "environment"]
+svg_status = "missing"

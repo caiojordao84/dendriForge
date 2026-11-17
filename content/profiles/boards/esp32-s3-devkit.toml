@@ -1,0 +1,413 @@
+# board profile — esp32-s3-devkit (migrated from legacy TOON)
+# Source: esp32-s3-devkit.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "esp32-s3-devkitc-1-profile"
+
+[identification]
+category = "maker"
+id = "esp32-s3-devkitc-1"
+image = "esp32-s3-devkitc-1.svg"
+manufacturer = "Espressif"
+mcu = "ESP32-S3-WROOM-1"
+name = "ESP32-S3-DevKitC-1"
+url = "https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-devkitc-1/user_guide_v1.0.html"
+
+[specs]
+bluetooth = "BLE 5.0"
+clock = 240000000
+cores = 2
+eeprom = 0
+flash_available = 8388608
+flash_total = 8388608
+sram = 524288
+voltage = "3.3V"
+wifi = "802.11b/g/n"
+
+[dims]
+h = 28.4
+t = 1.6
+w = 68.3
+
+[[power_pins]]
+direction = "output"
+name = "3V3"
+voltage = "3.3V"
+
+[[power_pins]]
+direction = "input"
+name = "5V"
+voltage = "5V"
+
+[[power_pins]]
+name = "GND"
+type = "ground"
+
+[[power_pins]]
+direction = "input"
+name = "RST"
+
+[[power_pins]]
+direction = "input"
+name = "EN"
+
+[[power_pins]]
+direction = "input"
+name = "VUSB"
+voltage = "5V"
+
+[[gpio]]
+int = true
+label = "GPIO0"
+pin = 0
+pwm = true
+roles = ["boot-strap", "boot"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO1"
+pin = 1
+pwm = true
+roles = ["adc1-ch0", "touch1"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO2"
+pin = 2
+pwm = true
+roles = ["adc1-ch1", "touch2"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO3"
+pin = 3
+pwm = true
+roles = ["adc1-ch2", "touch3", "jtag-strap"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO4"
+pin = 4
+pwm = true
+roles = ["adc1-ch3", "touch4"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO5"
+pin = 5
+pwm = true
+roles = ["adc1-ch4", "touch5"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO6"
+pin = 6
+pwm = true
+roles = ["adc1-ch5", "touch6"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO7"
+pin = 7
+pwm = true
+roles = ["adc1-ch6", "touch7"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO8"
+pin = 8
+pwm = true
+roles = ["adc1-ch7", "touch8"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO9"
+pin = 9
+pwm = true
+roles = ["adc1-ch8", "touch9", "fspi-hd"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO10"
+pin = 10
+pwm = true
+roles = ["adc1-ch9", "touch10", "fspi-cs0"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO11"
+pin = 11
+pwm = true
+roles = ["adc2-ch0", "touch11", "fspi-d"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO12"
+pin = 12
+pwm = true
+roles = ["adc2-ch1", "touch12", "fspi-clk"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO13"
+pin = 13
+pwm = true
+roles = ["adc2-ch2", "touch13", "fspi-q"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO14"
+pin = 14
+pwm = true
+roles = ["adc2-ch3", "touch14", "fspi-wp"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO15"
+pin = 15
+pwm = true
+roles = ["adc2-ch4", "uart0-rts"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO16"
+pin = 16
+pwm = true
+roles = ["adc2-ch5", "uart0-cts"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO17"
+pin = 17
+pwm = true
+roles = ["adc2-ch6", "uart1-tx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO18"
+pin = 18
+pwm = true
+roles = ["adc2-ch7", "uart1-rx"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "GPIO19 / USB-"
+pin = 19
+pwm = true
+roles = ["usb-dm", "adc2-ch8"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "GPIO20 / USB+"
+pin = 20
+pwm = true
+roles = ["usb-dp", "adc2-ch9"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO21"
+pin = 21
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "GPIO35"
+pin = 35
+pwm = false
+roles = ["spi-psram", "reserved"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "GPIO36"
+pin = 36
+pwm = false
+roles = ["spi-psram", "reserved"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "GPIO37"
+pin = 37
+pwm = false
+roles = ["spi-psram", "reserved"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO38"
+pin = 38
+pwm = true
+roles = ["fspi-wp", "subspiwp"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO39"
+pin = 39
+pwm = true
+roles = ["jtag-mtck", "subspics1"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO40"
+pin = 40
+pwm = true
+roles = ["jtag-mtdo"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO41"
+pin = 41
+pwm = true
+roles = ["jtag-mtdi"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO42"
+pin = 42
+pwm = true
+roles = ["jtag-mtms"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "GPIO43 / TX"
+pin = 43
+pwm = true
+roles = ["uart0-tx"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "GPIO44 / RX"
+pin = 44
+pwm = true
+roles = ["uart0-rx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO45"
+pin = 45
+pwm = true
+roles = ["boot-strap", "vdd-spi"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO46"
+pin = 46
+pwm = true
+roles = ["boot-strap", "rom-messages"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO47"
+pin = 47
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "GPIO48 / RGB"
+pin = 48
+pwm = true
+roles = ["rgb-led", "status-led"]
+type = "digital"
+
+[[peripherals]]
+param = "uart0:1"
+peripheral = "serial"
+value = "pins:43,44"
+
+[[peripherals]]
+param = "uart1:1"
+peripheral = "serial"
+value = "pins:17,18"
+
+[[peripherals]]
+param = "channels:2"
+peripheral = "i2c"
+value = "sda:8;scl:9"
+
+[[peripherals]]
+param = "fspi:1"
+peripheral = "spi"
+value = "miso:13;mosi:11;sck:12;ss:10"
+
+[[peripherals]]
+param = "ledc:8"
+peripheral = "pwm"
+value = "pins:1,2,3,4,5,6,7,8"
+
+[[peripherals]]
+param = "adc1:10"
+peripheral = "adc"
+value = "pins:1,2,3,4,5,6,7,8,9,10"
+
+[[peripherals]]
+param = "adc2:10"
+peripheral = "adc"
+value = "pins:11,12,13,14,15,16,17,18,19,20"
+
+[[peripherals]]
+param = "channels:0"
+peripheral = "dac"
+
+[usb]
+chip = "CP2102N"
+pid = "0x1001"
+type = "USB-Micro-B"
+vid = "0x303A"
+
+[restrictions]
+max_io_current = "40mA"
+total_current_limit = "1200mA"
+warnings = ["GPIO35, GPIO36, GPIO37 reserved for PSRAM on N8R8/WROOM-2 variants", "GPIO19/GPIO20 are USB OTG D-/D+ — avoid unless using native USB", "GPIO0 is boot strapping pin — must be HIGH at boot for normal operation", "GPIO3 is boot strapping pin for JTAG interface selection", "GPIO45 is boot strapping pin for VDD_SPI voltage selection", "GPIO46 is boot strapping pin — affects boot mode and ROM messages", "GPIO48 drives onboard RGB LED (WS2812 addressable)"]
+
+[compatibility]
+bootloader = "esp-idf"
+espressif_i_d_f = "5.1"
+frameworks = "arduino;espidf"
+languages = "arduino-cpp"
+pio = "espressif32"
+
+[dendri]
+board_family_skill_id = "esp32s3-xtensa-family"
+board_profile_id = "esp32-s3-devkit"
+default_language_skills = ["arduino-cpp-esp32s3", "rust-embassy-esp32s3"]
+svg_path = "content/assets/svg/boards/esp32-s3-devkitc-1.svg"
+svg_status = "missing"

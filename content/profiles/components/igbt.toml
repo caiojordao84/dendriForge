@@ -1,0 +1,125 @@
+# component profile — igbt (migrated from legacy TOON)
+# Source: igbt.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "igbt-profile"
+
+[identification]
+category = "semiconductor"
+family = "electricals"
+id = "igbt"
+image = "igbt.svg"
+name = "IGBT (Insulated Gate Bipolar Transistor)"
+standard = "IEC 60747-9"
+subfamily = "semiconductors"
+symbol = "igbt-symbol.svg"
+symbol_standard = "IEC"
+
+[params.ic_max]
+default = 40.0
+editable = true
+label = "Max Collector Current"
+type = "float"
+unit = "A"
+
+[params.package]
+default = "TO-247"
+editable = true
+label = "Package"
+options = ["TO-220", "TO-247", "TO-264", "SOT-227"]
+type = "enum"
+
+[params.vce_sat]
+default = 1.7
+editable = true
+label = "Collector-Emitter Saturation Voltage"
+type = "float"
+unit = "V"
+
+[params.vge_threshold]
+default = 5.8
+editable = true
+label = "Gate Threshold Voltage"
+max = 9.0
+min = 3.0
+type = "float"
+unit = "V"
+
+[[ports]]
+direction = "input"
+id = "G"
+notes = "Gate terminal (insulated)"
+type = "analog"
+voltage_max = "20V"
+
+[[ports]]
+current_max = "{ic_max}"
+direction = "input"
+id = "C"
+notes = "Collector terminal"
+type = "power"
+
+[[ports]]
+current_max = "{ic_max}"
+direction = "output"
+id = "E"
+notes = "Emitter terminal"
+type = "ground"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "ideal"
+noise_model = false
+states = ["off", "saturation", "active"]
+thermal_model = true
+
+[limits]
+max_current = "{ic_max}"
+
+[limits.max_power]
+unit = "W"
+value = 150
+max_temp = 175
+max_voltage = "600V"
+min_temp = -55
+warnings = ["Gate-Emitter voltage must never exceed +/- 20V", "Always use a proper heatsink; thermal runaway can occur at high current"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = ["gate-driver"]
+typical_context = ["motor-inverter", "pfc-circuit", "induction-heating"]
+
+[canvas]
+animated = true
+height = 60
+label_position = "top"
+
+[canvas.port_C]
+x = 40
+y = 10
+
+[canvas.port_E]
+x = 40
+y = 50
+
+[canvas.port_G]
+x = 0
+y = 30
+ports_layout = "custom"
+value_display = "{name}"
+width = 40
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "igbt"
+palette_group = "Fundamental Electricals > Semiconductors"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/igbt.svg"
+tags = ["igbt", "semiconductor", "power-transistor", "switching"]
+svg_status = "missing"

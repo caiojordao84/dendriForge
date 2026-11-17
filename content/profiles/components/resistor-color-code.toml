@@ -1,0 +1,104 @@
+# component profile — resistor-color-code (migrated from legacy TOON)
+# Source: resistor-color-code.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "resistor-color-code-profile"
+
+[identification]
+category = "passive"
+family = "electricals"
+id = "resistor-color-code"
+image = "resistor-color-code.svg"
+name = "Resistor Color Code Reference"
+standard = "IEC 60062"
+subfamily = "passives"
+symbol = "resistor-color-code-symbol.svg"
+symbol_standard = "IEC"
+
+[params.band1]
+default = "brown"
+editable = true
+label = "Band 1 (1st significant digit)"
+options = ["black", "brown", "red", "orange", "yellow", "green", "blue", "violet", "grey", "white"]
+type = "enum"
+
+[params.band2]
+default = "black"
+editable = true
+label = "Band 2 (2nd significant digit)"
+options = ["black", "brown", "red", "orange", "yellow", "green", "blue", "violet", "grey", "white"]
+type = "enum"
+
+[params.band3]
+default = "brown"
+editable = true
+label = "Band 3 (3rd significant digit / multiplier on 4-band)"
+options = ["black", "brown", "red", "orange", "yellow", "green", "blue", "violet", "grey", "white", "gold", "silver"]
+type = "enum"
+
+[params.band4]
+default = "gold"
+editable = true
+label = "Band 4 (multiplier on 5/6-band / tolerance on 4-band)"
+options = ["black", "brown", "red", "orange", "yellow", "green", "blue", "violet", "grey", "white", "gold", "silver"]
+type = "enum"
+
+[params.band5]
+default = "brown"
+editable = true
+label = "Band 5 (tolerance on 5/6-band)"
+options = ["brown", "red", "green", "blue", "violet", "grey", "gold", "silver"]
+type = "enum"
+
+[params.band6]
+default = "brown"
+editable = true
+label = "Band 6 (temp. coefficient — 6-band only)"
+options = ["black", "brown", "red", "orange", "yellow", "green", "blue", "violet", "grey", "white"]
+type = "enum"
+
+[params.num_bands]
+default = 4
+editable = true
+label = "Number of Bands"
+options = [4, 5, 6]
+type = "enum"
+ports = []
+
+[simulation]
+bidirectional = false
+dynamic = false
+model = "lookup-table"
+noise_model = false
+states = ["nominal"]
+thermal_model = false
+
+[limits]
+warnings = ["Band 1 must never be black (black = 0, not valid as first significant digit)", "6-band temp coefficient band values map to ppm/°C — consult IEC 60062 table"]
+
+[connections]
+allowed_with = ["resistor"]
+forbidden_with = []
+requires = []
+typical_context = ["resistor-identification", "color-code-lookup", "component-reference"]
+
+[canvas]
+animated = false
+height = 30
+label_position = "bottom"
+ports_layout = "horizontal"
+value_display = "{band1}/{band2}/{band3}/{band4}"
+width = 80
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "resistor-color-code"
+palette_group = "Fundamental Electricals > Passives"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/resistor-color-code.svg"
+tags = ["resistor", "color-code", "lookup-table", "reference", "iec-60062"]
+svg_status = "missing"

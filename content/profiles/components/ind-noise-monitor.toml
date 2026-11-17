@@ -1,0 +1,144 @@
+# component profile — ind-noise-monitor (migrated from legacy TOON)
+# Source: ind-noise-monitor.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "ind-noise-monitor-profile"
+
+[identification]
+category = "monitor"
+family = "industrial"
+id = "ind-noise-monitor"
+image = "ind-noise-monitor.svg"
+name = "Industrial Noise Monitor (Monitor de Ruído)"
+standard = "IEC 61672-1"
+subfamily = "process-modules"
+symbol = "ind-noise-monitor-symbol.svg"
+symbol_standard = "IEC"
+
+[params.alarm_threshold]
+default = 85
+editable = true
+label = "Alarm Threshold"
+max = 130
+min = 40
+type = "float"
+unit = "dB"
+
+[params.averaging_time]
+default = 1
+editable = true
+label = "Averaging Time"
+max = 60
+min = 0.1
+type = "float"
+unit = "s"
+
+[params.output_mode]
+default = "4-20mA"
+editable = true
+label = "Output Signal"
+options = ["0-10V", "4-20mA"]
+type = "enum"
+
+[[ports]]
+current_max = "500mA"
+direction = "input"
+id = "VCC"
+notes = "module power supply +"
+type = "power"
+voltage_max = "24V"
+
+[[ports]]
+direction = "input"
+id = "GND"
+notes = "module power supply -"
+type = "ground"
+
+[[ports]]
+current_max = "10mA"
+direction = "input"
+id = "MIC_IN"
+notes = "microphone / sound sensor input"
+type = "analog"
+voltage_max = "10V"
+
+[[ports]]
+current_max = "20mA"
+direction = "output"
+id = "LEVEL_OUT"
+notes = "analog noise level output"
+type = "analog"
+voltage_max = "24V"
+
+[[ports]]
+current_max = "2A"
+direction = "output"
+id = "ALARM_OUT"
+notes = "alarm digital output (relay or solid state)"
+type = "digital"
+voltage_max = "24V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+equation = "LEVEL_OUT = MIC_IN; ALARM_OUT = (LEVEL_OUT > alarm_threshold)"
+model = "function-block-engine"
+noise_model = false
+real_time = true
+scan_cycle_aware = true
+states = ["active", "alarm", "fault"]
+thermal_model = false
+
+[limits]
+max_current = "500mA"
+max_temp = 60
+max_voltage = "24V"
+min_temp = -10
+warnings = ["Ensure microphone input is properly shielded against EMI", "Calibration required periodically according to local acoustic regulations"]
+
+[connections]
+allowed_with = ["sensor-sound*", "plc-*", "ind-ai-bank", "ind-do-bank"]
+forbidden_with = ["ac-source"]
+requires = ["dc-source"]
+typical_context = ["occupational-safety", "factory-floor", "environmental-monitoring"]
+
+[canvas]
+animated = true
+height = 80
+label_position = "top"
+
+[canvas.port_ALARM_OUT]
+x = 60
+y = 55
+
+[canvas.port_GND]
+x = 0
+y = 70
+
+[canvas.port_LEVEL_OUT]
+x = 60
+y = 25
+
+[canvas.port_MIC_IN]
+x = 0
+y = 40
+
+[canvas.port_VCC]
+x = 0
+y = 10
+ports_layout = "custom"
+value_display = "{alarm_threshold}dB Limit"
+width = 60
+
+[dendri]
+component_family_skill_id = "industrial-family"
+component_profile_id = "ind-noise-monitor"
+palette_group = "Industrial > Process Modules"
+simulation_engine = "function-block-engine"
+svg_path = "content/assets/svg/components/ind-noise-monitor.svg"
+tags = ["monitor", "noise", "industrial", "acoustic"]
+svg_status = "missing"

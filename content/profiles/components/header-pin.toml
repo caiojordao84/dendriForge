@@ -1,0 +1,106 @@
+# component profile — header-pin (migrated from legacy TOON)
+# Source: header-pin.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "header-pin-profile"
+
+[identification]
+category = "passive"
+family = "electricals"
+id = "header-pin"
+image = "header-pin.svg"
+name = "Pin Header (Macho/Fêmea)"
+standard = "IEC 60603-13"
+subfamily = "passives"
+symbol = "header-pin-symbol.svg"
+symbol_standard = "IEC"
+
+[params.gender]
+default = "male"
+editable = true
+label = "Gender"
+options = ["male", "female"]
+type = "enum"
+
+[params.pitch]
+default = 2.54
+editable = true
+label = "Pitch"
+options = [1.27, 2, 2.54, 5.08]
+type = "enum"
+unit = "mm"
+
+[params.rated_current]
+default = 3
+editable = false
+label = "Rated Current"
+max = 5
+min = 1
+type = "float"
+unit = "A"
+
+[[ports]]
+current_max = "3A"
+direction = "passive"
+id = "IN"
+notes = "pin side A"
+type = "analog"
+voltage_max = "250V"
+
+[[ports]]
+current_max = "3A"
+direction = "passive"
+id = "OUT"
+notes = "pin side B"
+type = "analog"
+voltage_max = "250V"
+
+[simulation]
+bidirectional = true
+dynamic = false
+model = "ideal"
+noise_model = false
+states = ["nominal"]
+thermal_model = false
+
+[limits]
+max_current = "3A"
+max_temp = 105
+max_voltage = "250V"
+min_temp = -40
+warnings = ["Ensure correct pitch alignment before insertion"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["pcb-connection", "wire-to-board", "jumper"]
+
+[canvas]
+animated = false
+height = 40
+label_position = "right"
+
+[canvas.port_IN]
+x = 10
+y = 0
+
+[canvas.port_OUT]
+x = 10
+y = 40
+ports_layout = "vertical"
+value_display = "{pitch}mm {gender}"
+width = 20
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "header-pin"
+palette_group = "Electricals > Passives"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/header-pin.svg"
+tags = ["header", "pin", "connector"]
+svg_status = "missing"

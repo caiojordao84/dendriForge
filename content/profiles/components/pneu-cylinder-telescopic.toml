@@ -1,0 +1,133 @@
+# component profile — pneu-cylinder-telescopic (migrated from legacy TOON)
+# Source: pneu-cylinder-telescopic.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "pneu-cylinder-telescopic-profile"
+
+[identification]
+category = "actuator"
+family = "pneumatics"
+id = "pneu-cylinder-telescopic"
+image = "pneu-cylinder-telescopic.svg"
+name = "Telescopic Pneumatic Cylinder (Cilindro telescópico)"
+standard = "custom"
+subfamily = "pneumatic-actuators"
+symbol = "pneu-cylinder-telescopic-symbol.svg"
+symbol_standard = "ISO"
+
+[params.bore]
+default = 50
+editable = true
+label = "Max Bore Diameter"
+options = [32, 40, 50, 63, 80]
+type = "enum"
+unit = "mm"
+
+[params.initial_position]
+default = "retracted"
+editable = true
+label = "Initial Position"
+options = ["retracted", "extended"]
+type = "enum"
+
+[params.port_size]
+default = "G1/4"
+editable = true
+label = "Port Size"
+options = ["G1/8", "G1/4", "G3/8"]
+type = "enum"
+
+[params.stages]
+default = 3
+editable = true
+label = "Number of Stages"
+options = [2, 3, 4]
+type = "enum"
+
+[params.stroke]
+default = 300
+editable = true
+label = "Total Stroke"
+max = 2000
+min = 50
+type = "float"
+unit = "mm"
+
+[params.supply_pressure]
+default = 6
+editable = true
+label = "Supply Pressure"
+max = 10
+min = 2
+type = "float"
+unit = "bar"
+ports = []
+
+[[pneumatic_ports]]
+direction = "bidirectional"
+id = "A"
+notes = "port A — extend (single-acting load return)"
+pressure_max = "10bar"
+type = "pneumatic"
+
+[[sensor_slots]]
+compatible_sensors = ["pneu-magnetic-cylinder-sensor"]
+id = "S1"
+position = "retracted-end"
+
+[[sensor_slots]]
+compatible_sensors = ["pneu-magnetic-cylinder-sensor"]
+id = "S2"
+position = "extended-end"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "pneumatic-linear-actuator"
+motion = "linear"
+noise_model = false
+position_feedback = true
+states = ["retracted", "extending", "extended", "retracting"]
+thermal_model = false
+velocity_model = "simplified"
+
+[limits]
+
+[limits.max_force]
+extend = "calc:pi*(bore/2)^2 * supply_pressure * 0.1"
+max_pressure = 10
+max_temp = 80
+min_pressure = 2
+min_temp = -20
+warnings = ["Force and speed change dynamically as inner stages extend due to smaller effective bore areas", "Requires external load or gravity for retraction (single-acting model)"]
+
+[connections]
+allowed_with = ["pneu-valve-3-2-*", "pneu-flow-control-*", "pneu-frl-unit"]
+forbidden_with = ["hyd-*", "act-motor-*"]
+requires = ["pneu-frl-unit"]
+typical_context = ["lifting", "long-stroke-compact-space"]
+
+[canvas]
+animated = true
+height = 40
+label_position = "bottom"
+
+[canvas.port_A]
+x = 20
+y = 0
+ports_layout = "custom"
+value_display = "Tele Ø{bore}mm × {stroke}mm ({stages} stg)"
+width = 120
+
+[dendri]
+component_family_skill_id = "pneumatics-family"
+component_profile_id = "pneu-cylinder-telescopic"
+palette_group = "Pneumatics > Pneumatic Actuators"
+simulation_engine = "pneumatic-motion"
+svg_path = "content/assets/svg/components/pneu-cylinder-telescopic.svg"
+tags = ["cylinder", "telescopic", "single-acting", "pneumatic", "actuator", "linear"]
+svg_status = "missing"

@@ -1,0 +1,279 @@
+# board profile — nucleo-f401re (migrated from legacy TOON)
+# Source: nucleo-f401re.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "nucleo-f401re-profile"
+
+[identification]
+category = "embedded"
+id = "nucleo-f401re"
+image = "nucleo-f401re.svg"
+manufacturer = "STMicroelectronics"
+mcu = "STM32F401RET6"
+name = "ST Nucleo-F401RE"
+url = "https://www.st.com/en/microcontrollers-microprocessors/stm32f401re.html"
+
+[specs]
+clock = 84000000
+eeprom = 0
+flash_available = 524288
+flash_total = 524288
+sram = 98304
+voltage = "3.3V"
+
+[dims]
+h = 56.0
+t = 1.6
+w = 84.0
+
+[[power_pins]]
+direction = "input"
+name = "VIN"
+
+[[power_pins]]
+direction = "output"
+name = "5V"
+voltage = "5V"
+
+[[power_pins]]
+direction = "output"
+name = "3V3"
+voltage = "3.3V"
+
+[[power_pins]]
+name = "GND"
+type = "ground"
+
+[[power_pins]]
+direction = "output"
+name = "IOREF"
+voltage = "3.3V"
+
+[[power_pins]]
+direction = "input"
+name = "NRST"
+
+[[gpio]]
+int = true
+label = "D0 / RX"
+pin = 0
+pwm = false
+roles = ["uart-rx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D1 / TX"
+pin = 1
+pwm = false
+roles = ["uart-tx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D2"
+pin = 2
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D3"
+pin = 3
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D4"
+pin = 4
+pwm = false
+roles = ["spi-mosi"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D5"
+pin = 5
+pwm = true
+roles = ["spi-miso"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D6"
+pin = 6
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D7"
+pin = 7
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D8 / TX1"
+pin = 8
+pwm = true
+roles = ["uart-tx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D9"
+pin = 9
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D10 / SS"
+pin = 10
+pwm = true
+roles = ["spi-ss"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D11 / MOSI"
+pin = 11
+pwm = false
+roles = ["spi-mosi"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D12 / MISO"
+pin = 12
+pwm = false
+roles = ["spi-miso"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D13 / SCK / LED"
+pin = 13
+pwm = true
+roles = ["spi-sck", "status-led"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D14 / SDA"
+pin = 14
+pwm = false
+roles = ["i2c-sda"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D15 / SCL"
+pin = 15
+pwm = false
+roles = ["i2c-scl"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "A0"
+pin = 16
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "A1"
+pin = 17
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "A2 / SS"
+pin = 18
+pwm = false
+roles = ["adc:t", "spi-ss"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "A3"
+pin = 19
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "A4"
+pin = 20
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "A5"
+pin = 21
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[peripherals]]
+param = "uarts:4"
+peripheral = "serial"
+value = "pins:0,1"
+
+[[peripherals]]
+param = "channels:3"
+peripheral = "i2c"
+value = "sda:14;scl:15"
+
+[[peripherals]]
+param = "channels:3"
+peripheral = "spi"
+value = "miso:12;mosi:11;sck:13;ss:10"
+
+[[peripherals]]
+param = "channels:1;bits:12"
+peripheral = "adc"
+value = "pins:16;17;18;19;20;21"
+
+[usb]
+chip = "ST-LINK/V2-1"
+pid = "0x374B"
+type = "Micro-AB"
+vid = "0x0483"
+
+[restrictions]
+max_io_current = "20mA"
+total_current_limit = "160mA"
+warnings = ["D0/D1 (PA2/PA3) shared with ST-LINK Virtual COM — reconfigure JP6 to free pins", "No DAC on STM32F401RET6 — use external DAC IC or PWM with filter", "All I/O pins are 3.3V logic only — NOT 5V tolerant", "No built-in bootloader — programming requires ST-LINK SWD", "Total MCU supply current must not exceed 160mA across all I/O pins"]
+
+[compatibility]
+arduino_core = "STM32duino"
+bootloader = "none"
+frameworks = "arduino"
+languages = "arduino-cpp"
+pio = "ststm32"
+
+[dendri]
+board_family_skill_id = "stm32f4-family"
+board_profile_id = "nucleo-f401re"
+default_language_skills = ["arduino-cpp-stm32f4", "c-stm32-hal"]
+svg_path = "content/assets/svg/boards/nucleo-f401re.svg"
+svg_status = "missing"

@@ -1,0 +1,173 @@
+# component profile — thermistor-ptc (migrated from legacy TOON)
+# Source: thermistor-ptc.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "thermistor-ptc-profile"
+
+[identification]
+category = "passive"
+family = "electricals"
+id = "thermistor-ptc"
+image = "thermistor-ptc.svg"
+name = "PTC Thermistor"
+standard = "IEC 60738-1"
+subfamily = "passives"
+symbol = "thermistor-ptc-symbol.svg"
+symbol_standard = "IEC"
+
+[params.current_rated]
+default = 0.5
+editable = true
+label = "Rated Hold Current (Ih)"
+max = 100
+min = 0.01
+type = "float"
+unit = "A"
+
+[params.current_trip]
+default = 1
+editable = false
+label = "Trip Current (It)"
+max = 200
+min = 0.02
+type = "float"
+unit = "A"
+
+[params.package]
+default = "SMD-1812"
+editable = true
+label = "Package"
+options = ["SMD-0402", "SMD-0603", "SMD-0805", "SMD-1206", "SMD-1210", "SMD-1812", "SMD-2920", "THT-disc", "THT-radial", "axial-leaded"]
+type = "enum"
+
+[params.ptc_type]
+default = "ceramic-BaTiO3"
+editable = true
+label = "PTC Type"
+options = ["ceramic-BaTiO3", "polymer-PPTC", "silistor-Si"]
+type = "enum"
+
+[params.reset_type]
+default = "self-resetting"
+editable = true
+label = "Reset Type"
+options = ["self-resetting", "manual-reset"]
+type = "enum"
+
+[params.resistance_25]
+default = 100
+editable = true
+label = "Resistance at 25°C (R25)"
+options = [10, 22, 47, 100, 220, 470, 1000, 2200, 5000]
+type = "enum"
+unit = "Ω"
+
+[params.resistance_max]
+default = 100000
+editable = false
+label = "Max Resistance at Tc+30°C"
+max = 100000000
+min = 1000
+type = "float"
+unit = "Ω"
+
+[params.resistance_min]
+default = 50
+editable = false
+label = "Minimum Resistance (Rmin)"
+max = 10000
+min = 1
+type = "float"
+unit = "Ω"
+
+[params.switch_temp]
+default = 120
+editable = true
+label = "Switching Temperature (Tc)"
+options = [60, 80, 100, 110, 120, 130, 150, 170, 200, 240, 270]
+type = "enum"
+unit = "V"
+
+[params.time_to_trip]
+default = 8
+editable = false
+label = "Time to Trip at 2×Ih"
+max = 120
+min = 0.1
+type = "float"
+unit = "V"
+
+[params.voltage_rated]
+default = 265
+editable = true
+label = "Rated Voltage"
+options = [6, 12, 24, 30, 60, 120, 265]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "200A"
+direction = "passive"
+id = "A"
+notes = "PTC thermistor terminal A"
+type = "analog"
+voltage_max = "265V"
+
+[[ports]]
+current_max = "200A"
+direction = "passive"
+id = "B"
+notes = "PTC thermistor terminal B"
+type = "analog"
+voltage_max = "265V"
+
+[simulation]
+bidirectional = true
+dynamic = true
+equation = "R(T) = resistance_25 * exp(alpha * (T - 25)) for T < switch_temp; R(T) = resistance_min * exp(beta * (T - switch_temp)) for T >= switch_temp; alpha < 0, beta >> 0"
+model = "lookup-table"
+noise_model = false
+states = ["nominal", "tripped", "fault"]
+thermal_model = true
+
+[limits]
+max_current = "200A"
+max_temp = 125
+max_voltage = "265V"
+min_temp = -40
+warnings = ["Polymer PPTC requires cooling below hold current to reset — allow sufficient recovery time after trip", "Do not use ceramic PTC (BaTiO3) for precision temperature measurement — use NTC instead", "Inrush current at cold start may be 10–100× rated current — verify downstream circuit tolerance", "Repeated tripping degrades PPTC hold/trip current ratings over time — check datasheet trip endurance"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["overcurrent-protection", "inrush-limiting", "motor-protection", "battery-protection", "self-resetting-fuse"]
+
+[canvas]
+animated = false
+height = 30
+label_position = "top"
+
+[canvas.port_A]
+x = 0
+y = 15
+
+[canvas.port_B]
+x = 50
+y = 15
+ports_layout = "horizontal"
+value_display = "PTC {resistance_25}Ω / Tc={switch_temp}°C / Ih={current_rated}A ({ptc_type})"
+width = 50
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "thermistor-ptc"
+palette_group = "Fundamental Electricals > Passives"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/thermistor-ptc.svg"
+tags = ["thermistor", "ptc", "overcurrent-protection", "passive", "analog", "thermal", "iec-60738"]
+svg_status = "missing"

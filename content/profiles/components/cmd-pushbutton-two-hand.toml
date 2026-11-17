@@ -1,0 +1,166 @@
+# component profile — cmd-pushbutton-two-hand (migrated from legacy TOON)
+# Source: cmd-pushbutton-two-hand.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "cmd-pushbutton-two-hand-profile"
+
+[identification]
+category = "passive"
+family = "electricals"
+id = "cmd-pushbutton-two-hand"
+image = "cmd-pushbutton-two-hand.svg"
+name = "Pushbutton Two-Hand"
+standard = "IEC 60947-5-5"
+subfamily = "passives"
+symbol = "cmd-pushbutton-two-hand-symbol.svg"
+symbol_standard = "IEC"
+
+[params.actuation_force]
+default = 5.0
+editable = true
+label = "Actuation Force"
+options = [3, 5, 7, 10]
+type = "enum"
+unit = "N"
+
+[params.channel_count]
+default = 2
+editable = false
+label = "Channel Count"
+options = [2]
+type = "enum"
+
+[params.contact_type]
+default = "normally-open"
+editable = true
+label = "Contact Type"
+options = ["normally-open", "momentary", "spring-return"]
+type = "enum"
+
+[params.electrical_life]
+default = 200000
+editable = false
+label = "Electrical Life"
+max = 1000000
+min = 10000
+type = "float"
+unit = "cycles"
+
+[params.ip_rating]
+default = "IP65"
+editable = true
+label = "Ingress Protection"
+options = ["IP54", "IP65", "IP67"]
+type = "enum"
+
+[params.mechanical_life]
+default = 1000000
+editable = false
+label = "Mechanical Life"
+max = 10000000
+min = 100000
+type = "float"
+unit = "cycles"
+
+[params.package]
+default = "dual hand station"
+editable = true
+label = "Package"
+options = ["dual hand station", "22mm panel", "enclosed"]
+type = "enum"
+
+[params.time_window_ms]
+default = 500
+editable = true
+label = "Simultaneity Window"
+options = [250, 500, 750, 1000]
+type = "enum"
+unit = "ms"
+
+[[ports]]
+current_max = "5A"
+direction = "input"
+id = "CH1"
+notes = "channel 1 contact"
+type = "digital"
+voltage_max = "250V"
+
+[[ports]]
+current_max = "5A"
+direction = "input"
+id = "CH2"
+notes = "channel 2 contact"
+type = "digital"
+voltage_max = "250V"
+
+[[ports]]
+direction = "input"
+id = "COM"
+notes = "common return"
+type = "ground"
+
+[[ports]]
+current_max = "5A"
+direction = "output"
+id = "OUT"
+notes = "safety output to control relay"
+type = "digital"
+voltage_max = "250V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "ideal"
+noise_model = false
+states = ["idle", "ready", "active"]
+thermal_model = false
+
+[limits]
+max_current = "5A"
+max_temp = 70
+max_voltage = "250V"
+min_temp = -25
+warnings = ["Both channels must be actuated within the simultaneity window for output to energise", "Use this device only as part of a safety-rated control system", "Do not bypass safety logic or defeat the two-hand requirement", "Maintain the specified IP rating and test the safety chain regularly"]
+
+[connections]
+allowed_with = ["mcu-gpio", "safety-relay", "relay-coil", "dc-source"]
+forbidden_with = ["ac-source"]
+requires = ["safety-relay"]
+typical_context = ["press-operator", "machine-safety", "two-hand-control"]
+
+[canvas]
+animated = false
+height = 40
+label_position = "top"
+
+[canvas.port_CH1]
+x = 0
+y = 10
+
+[canvas.port_CH2]
+x = 0
+y = 30
+
+[canvas.port_COM]
+x = 35
+y = 40
+
+[canvas.port_OUT]
+x = 70
+y = 20
+ports_layout = "custom"
+value_display = "Two-hand / {time_window_ms}ms / {ip_rating}"
+width = 70
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "cmd-pushbutton-two-hand"
+palette_group = "Fundamental Electricals > Switches"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/cmd-pushbutton-two-hand.svg"
+tags = ["pushbutton", "safety", "two-hand", "switch", "operator", "control", "iec-60947-5-5"]
+svg_status = "missing"

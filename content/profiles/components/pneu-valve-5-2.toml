@@ -1,0 +1,194 @@
+# component profile — pneu-valve-5-2 (migrated from legacy TOON)
+# Source: pneu-valve-5-2.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "pneu-valve-5-2-profile"
+
+[identification]
+category = "valve"
+family = "pneumatics"
+id = "pneu-valve-5-2"
+image = "pneu-valve-5-2.svg"
+name = "5/2 Directional Control Valve (Válvula 5/2 Vias)"
+standard = "ISO 1219-1"
+subfamily = "directional-valves"
+symbol = "pneu-valve-5-2-symbol.svg"
+symbol_standard = "ISO"
+
+[params.actuation_type]
+default = "solenoid"
+editable = true
+label = "Actuation Type (Acionamento)"
+options = ["solenoid", "manual-lever", "pneumatic-pilot"]
+type = "enum"
+
+[params.flow_rate]
+default = 1000
+editable = true
+label = "Nominal Flow Rate"
+max = 10000
+min = 200
+type = "float"
+unit = "l/min"
+
+[params.return_type]
+default = "spring"
+editable = true
+label = "Return Mechanism (Retorno)"
+options = ["spring", "solenoid", "pneumatic-pilot"]
+type = "enum"
+
+[params.supply_pressure]
+default = 10
+editable = false
+label = "Max Supply Pressure"
+max = 16
+min = 2
+type = "float"
+unit = "bar"
+
+[[ports]]
+current_max = "500mA"
+direction = "input"
+id = "SOL_A_VCC"
+notes = "solenoid A power (actuate port A)"
+type = "power"
+voltage_max = "24V"
+
+[[ports]]
+direction = "input"
+id = "SOL_A_GND"
+notes = "solenoid A ground"
+type = "ground"
+
+[[ports]]
+current_max = "500mA"
+direction = "input"
+id = "SOL_B_VCC"
+notes = "solenoid B power (actuate port B) - leave unconnected if return_type is spring"
+type = "power"
+voltage_max = "24V"
+
+[[ports]]
+direction = "input"
+id = "SOL_B_GND"
+notes = "solenoid B ground"
+type = "ground"
+
+[[pneumatic_ports]]
+direction = "input"
+flow_nominal = "{flow_rate}"
+id = "P"
+notes = "supply pressure port (1)"
+pressure_max = "10bar"
+type = "pneumatic"
+
+[[pneumatic_ports]]
+direction = "bidirectional"
+flow_nominal = "{flow_rate}"
+id = "A"
+notes = "work port A (4)"
+pressure_max = "10bar"
+type = "pneumatic"
+
+[[pneumatic_ports]]
+direction = "bidirectional"
+flow_nominal = "{flow_rate}"
+id = "B"
+notes = "work port B (2)"
+pressure_max = "10bar"
+type = "pneumatic"
+
+[[pneumatic_ports]]
+direction = "exhaust"
+id = "EA"
+notes = "exhaust port for A (5)"
+type = "pneumatic"
+
+[[pneumatic_ports]]
+direction = "exhaust"
+id = "EB"
+notes = "exhaust port for B (3)"
+type = "pneumatic"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "pneumatic-valve"
+motion = "none"
+noise_model = false
+states = ["position-b-active", "position-a-active"]
+thermal_model = false
+
+[limits]
+ip_rating = "IP65"
+max_current = "500mA"
+max_pressure = 10
+max_temp = 60
+max_voltage = "24V"
+min_pressure = 2
+min_temp = -10
+warnings = ["If return_type is 'spring', SOL_B electrical ports are non-functional and should be ignored.", "Simulation model will correctly route P->A/B and exhaust ports dynamically."]
+
+[connections]
+allowed_with = ["pneu-cylinder-da-*", "pneu-frl-unit", "pneu-flow-control-*", "relay-*", "plc-*", "mcu-*", "ind-do-bank", "dc-source", "ac-source"]
+forbidden_with = ["hyd-*"]
+requires = ["pneu-frl-unit"]
+typical_context = ["double-acting-cylinder-control", "pneumatic-logic", "directional-control"]
+
+[canvas]
+animated = true
+height = 60
+label_position = "bottom"
+
+[canvas.port_A]
+x = 25
+y = 60
+
+[canvas.port_B]
+x = 75
+y = 60
+
+[canvas.port_EA]
+x = 20
+y = 0
+
+[canvas.port_EB]
+x = 80
+y = 0
+
+[canvas.port_P]
+x = 50
+y = 0
+
+[canvas.port_SOL_A_GND]
+x = 0
+y = 40
+
+[canvas.port_SOL_A_VCC]
+x = 0
+y = 20
+
+[canvas.port_SOL_B_GND]
+x = 100
+y = 40
+
+[canvas.port_SOL_B_VCC]
+x = 100
+y = 20
+ports_layout = "custom"
+value_display = "5/2 {actuation_type} / {return_type}"
+width = 100
+
+[dendri]
+component_family_skill_id = "pneumatics-family"
+component_profile_id = "pneu-valve-5-2"
+palette_group = "Pneumatics > Directional Valves"
+simulation_engine = "pneumatic-motion"
+svg_path = "content/assets/svg/components/pneu-valve-5-2.svg"
+tags = ["valve", "size-5-2", "directional", "pneumatic", "double-acting"]
+svg_status = "missing"

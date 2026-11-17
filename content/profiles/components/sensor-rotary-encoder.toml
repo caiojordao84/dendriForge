@@ -1,0 +1,138 @@
+# component profile — sensor-rotary-encoder (migrated from legacy TOON)
+# Source: sensor-rotary-encoder.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "sensor-rotary-encoder-profile"
+
+[identification]
+category = "sensor"
+family = "sensors"
+id = "sensor-rotary-encoder"
+image = "sensor-rotary-encoder.svg"
+name = "Manual Rotary Encoder (Encoder Rotativo Manual)"
+standard = "IEC 60947-5-2"
+subfamily = "motion-position"
+symbol = "sensor-rotary-encoder-symbol.svg"
+symbol_standard = "IEC"
+
+[params.has_pushbutton]
+default = true
+editable = false
+label = "Integrated Pushbutton"
+type = "bool"
+
+[params.pulses_per_rev]
+default = 20
+editable = true
+label = "Pulses Per Revolution (PPR)"
+options = [12, 15, 20, 24, 30]
+type = "enum"
+
+[params.supply_voltage]
+default = 5
+editable = true
+label = "Supply Voltage"
+options = [3.3, 5, 12, 24]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "50mA"
+direction = "input"
+id = "VCC"
+notes = "encoder supply voltage"
+type = "power"
+voltage_max = "{supply_voltage}"
+
+[[ports]]
+direction = "input"
+id = "GND"
+notes = "encoder ground"
+type = "ground"
+
+[[ports]]
+current_max = "20mA"
+direction = "output"
+id = "OUT_A"
+notes = "quadrature channel A"
+type = "digital"
+voltage_max = "{supply_voltage}"
+
+[[ports]]
+current_max = "20mA"
+direction = "output"
+id = "OUT_B"
+notes = "quadrature channel B"
+type = "digital"
+voltage_max = "{supply_voltage}"
+
+[[ports]]
+current_max = "20mA"
+direction = "output"
+id = "SW_OUT"
+notes = "pushbutton switch output (active low)"
+type = "digital"
+voltage_max = "{supply_voltage}"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "digital-io"
+noise_model = false
+states = ["idle", "rotating"]
+thermal_model = false
+
+[limits]
+ip_rating = "IP54"
+max_current = "50mA"
+max_temp = 70
+max_voltage = "{supply_voltage}"
+min_temp = -10
+warnings = ["Hardware debouncing (RC filter) is highly recommended for channels A, B, and SW", "Output channels are typically open-collector and may require external pull-up resistors"]
+
+[connections]
+allowed_with = ["mcu-*", "plc-*", "ind-di-bank"]
+forbidden_with = ["ac-source"]
+requires = ["dc-source"]
+typical_context = ["hmi-navigation", "menu-selection", "parameter-adjustment"]
+
+[canvas]
+animated = true
+height = 50
+label_position = "top"
+
+[canvas.port_GND]
+x = 30
+y = 0
+
+[canvas.port_OUT_A]
+x = 0
+y = 50
+
+[canvas.port_OUT_B]
+x = 20
+y = 50
+
+[canvas.port_SW_OUT]
+x = 40
+y = 50
+
+[canvas.port_VCC]
+x = 10
+y = 0
+ports_layout = "custom"
+value_display = "{pulses_per_rev} PPR"
+width = 40
+
+[dendri]
+component_family_skill_id = "sensors-family"
+component_profile_id = "sensor-rotary-encoder"
+palette_group = "Sensors > Motion & Position"
+simulation_engine = "digital-io"
+svg_path = "content/assets/svg/components/sensor-rotary-encoder.svg"
+tags = ["encoder", "rotary", "quadrature", "manual", "hmi"]
+svg_status = "missing"

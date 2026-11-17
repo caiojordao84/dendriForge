@@ -1,0 +1,255 @@
+# component profile — motor-dc-industrial (migrated from legacy TOON)
+# Source: motor-dc-industrial.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "motor-dc-industrial-profile"
+
+[identification]
+category = "actuator"
+family = "actuators"
+id = "motor-dc-industrial"
+image = "motor-dc-industrial.svg"
+name = "Industrial DC Motor"
+standard = "IEC 60034-1 / IEC 60034-8"
+subfamily = "industrial-electrical"
+symbol = "motor-dc-industrial-symbol.svg"
+symbol_standard = "IEC"
+
+[params.armature_resistance]
+default = 0.5
+editable = false
+label = "Armature Resistance (Ra)"
+max = 100
+min = 0.01
+type = "float"
+unit = "Ω"
+
+[params.back_emf_constant]
+default = 0.11
+editable = false
+label = "Back-EMF Constant (Ke)"
+max = 10
+min = 0.001
+type = "float"
+unit = "V"
+
+[params.current_rated]
+default = 21
+editable = false
+label = "Rated Armature Current"
+max = 10000
+min = 0.1
+type = "float"
+unit = "A"
+
+[params.drive_mode]
+default = "1Q"
+editable = true
+label = "Drive Mode"
+options = ["1Q", "2Q", "4Q"]
+type = "enum"
+
+[params.duty_cycle]
+default = "S1"
+editable = true
+label = "Duty Cycle"
+options = ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"]
+type = "enum"
+
+[params.efficiency]
+default = 88
+editable = false
+label = "Rated Efficiency"
+max = 97
+min = 60
+type = "float"
+unit = "%"
+
+[params.excitation_type]
+default = "permanent-magnet"
+editable = true
+label = "Excitation Type"
+options = ["permanent-magnet", "shunt", "series", "compound", "separately-excited"]
+type = "enum"
+
+[params.insulation_class]
+default = "F"
+editable = true
+label = "Insulation Class"
+options = ["B", "F", "H"]
+type = "enum"
+
+[params.mounting]
+default = "B3"
+editable = true
+label = "Mounting Form"
+options = ["B3", "B5", "B14", "B34", "B35", "V1"]
+type = "enum"
+
+[params.power_rated]
+default = 3700
+editable = true
+label = "Rated Power"
+max = 5000000
+min = 10
+type = "float"
+unit = "W"
+
+[params.protection_class]
+default = "IP44"
+editable = true
+label = "Protection Class (IP)"
+options = ["IP20", "IP23", "IP44", "IP54", "IP55"]
+type = "enum"
+
+[params.speed_max]
+default = 3000
+editable = false
+label = "Maximum Speed"
+max = 10000
+min = 100
+type = "float"
+unit = "V"
+
+[params.speed_rated]
+default = 1500
+editable = false
+label = "Rated Speed"
+max = 6000
+min = 100
+type = "float"
+unit = "V"
+
+[params.torque_constant]
+default = 1.05
+editable = false
+label = "Torque Constant (Kt)"
+max = 100
+min = 0.001
+type = "float"
+unit = "V"
+
+[params.torque_rated]
+default = 23.5
+editable = false
+label = "Rated Torque"
+max = 100000
+min = 0.01
+type = "float"
+unit = "V"
+
+[params.torque_stall]
+default = 70.5
+editable = false
+label = "Stall Torque"
+max = 300000
+min = 0.01
+type = "float"
+unit = "V"
+
+[params.voltage_field]
+default = 180
+editable = true
+label = "Field Excitation Voltage"
+options = [110, 180, 220, 440]
+type = "enum"
+unit = "V"
+
+[params.voltage_rated]
+default = 180
+editable = true
+label = "Rated Armature Voltage"
+options = [24, 48, 90, 110, 180, 220, 440, 600, 750]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "10000A"
+direction = "input"
+id = "A1"
+notes = "armature terminal A1 (positive)"
+type = "power"
+voltage_max = "750V"
+
+[[ports]]
+direction = "input"
+id = "A2"
+notes = "armature terminal A2 (negative)"
+type = "ground"
+
+[[ports]]
+current_max = "10A"
+direction = "input"
+id = "F1"
+notes = "field winding terminal F1 (positive)"
+type = "analog"
+voltage_max = "440V"
+
+[[ports]]
+current_max = "10A"
+direction = "input"
+id = "F2"
+notes = "field winding terminal F2 (negative)"
+type = "analog"
+voltage_max = "440V"
+
+[simulation]
+bidirectional = true
+dynamic = true
+equation = "V_a = back_emf_constant * speed + current_rated * armature_resistance; T = torque_constant * current_rated"
+model = "basic-analog"
+motion = "rotary"
+noise_model = false
+states = ["off", "starting", "running", "braking", "fault"]
+thermal_model = true
+
+[limits]
+ip_rating = "IP44"
+max_current = "10000A"
+max_temp = 40
+max_voltage = "750V"
+min_temp = -20
+warnings = ["Never open the field circuit of shunt or compound motors under load — runaway condition may occur", "Armature current must be limited at startup — use soft-start or current-limited drive", "4Q drive required for regenerative braking and rapid direction reversal", "Brush inspection and replacement must be performed at scheduled maintenance intervals", "Field weakening above base speed reduces torque — verify load requirements before operating in flux-weakening region"]
+
+[connections]
+allowed_with = ["dc-source", "dc-psu-prog", "battery"]
+forbidden_with = ["ac-source", "ac-source-3phase"]
+requires = ["dc-source"]
+typical_context = ["dc-drive", "conveyor", "crane", "winder", "extruder", "rolling-mill"]
+
+[canvas]
+animated = true
+height = 80
+label_position = "right"
+
+[canvas.port_A1]
+x = 0
+y = 20
+
+[canvas.port_A2]
+x = 0
+y = 40
+
+[canvas.port_F1]
+x = 0
+y = 60
+
+[canvas.port_F2]
+x = 0
+y = 75
+ports_layout = "custom"
+value_display = "{power_rated}W / {voltage_rated}V / {speed_rated}rpm ({excitation_type})"
+width = 90
+
+[dendri]
+component_family_skill_id = "actuators-family"
+component_profile_id = "motor-dc-industrial"
+palette_group = "Actuators > Industrial Electrical"
+simulation_engine = "digital-io"
+svg_path = "content/assets/svg/components/motor-dc-industrial.svg"
+tags = ["motor", "dc", "industrial", "actuator", "brushed", "variable-speed", "torque-control", "iec-60034"]
+svg_status = "missing"

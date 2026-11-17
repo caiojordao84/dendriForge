@@ -1,0 +1,144 @@
+# component profile — cmd-estop-mushroom (migrated from legacy TOON)
+# Source: cmd-estop-mushroom.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "cmd-estop-mushroom-profile"
+
+[identification]
+category = "passive"
+family = "electricals"
+id = "cmd-estop-mushroom"
+image = "cmd-estop-mushroom.svg"
+name = "E-Stop Mushroom Changeover"
+standard = "IEC 60947-5-5"
+subfamily = "passives"
+symbol = "cmd-estop-mushroom-symbol.svg"
+symbol_standard = "IEC"
+
+[params.contact_layout]
+default = "1NC+1NO"
+editable = true
+label = "Contact Layout"
+options = ["1NC", "1NC+1NO", "2NC", "2NC+1NO"]
+type = "enum"
+
+[params.head_diameter]
+default = 40
+editable = true
+label = "Head Diameter"
+options = [30, 40, 60]
+type = "enum"
+unit = "mm"
+
+[params.ip_rating]
+default = "IP65"
+editable = true
+label = "Ingress Protection"
+options = ["IP54", "IP65", "IP67"]
+type = "enum"
+
+[params.mechanical_life]
+default = 100000
+editable = false
+label = "Mechanical Life"
+max = 1000000
+min = 10000
+type = "float"
+unit = "cycles"
+
+[params.package]
+default = "22mm panel"
+editable = true
+label = "Package"
+options = ["22mm panel", "30mm panel", "40mm mushroom", "enclosed"]
+type = "enum"
+
+[params.reset_type]
+default = "twist-release"
+editable = true
+label = "Reset Type"
+options = ["twist-release", "pull-release", "key-release"]
+type = "enum"
+
+[params.safety_rating]
+default = "SIL3"
+editable = true
+label = "Safety Category"
+options = ["PL e", "SIL2", "SIL3"]
+type = "enum"
+
+[[ports]]
+direction = "input"
+id = "COM"
+notes = "common terminal"
+type = "ground"
+
+[[ports]]
+current_max = "10A"
+direction = "output"
+id = "NC"
+notes = "normally-closed safety contact"
+type = "digital"
+voltage_max = "250V"
+
+[[ports]]
+current_max = "10A"
+direction = "output"
+id = "NO"
+notes = "normally-open auxiliary contact"
+type = "digital"
+voltage_max = "250V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "ideal"
+noise_model = false
+states = ["armed", "tripped", "reset"]
+thermal_model = false
+
+[limits]
+max_current = "10A"
+max_temp = 70
+max_voltage = "250V"
+min_temp = -25
+warnings = ["This is a safety device and must be used in a safety-rated circuit", "NC safety contact should open on actuation to remove hazard energy", "Do not bypass or defeat the emergency stop chain", "Use monitored dual-channel safety inputs where required by the application"]
+
+[connections]
+allowed_with = ["safety-relay", "plc-safety-input", "dc-source"]
+forbidden_with = ["ac-source"]
+requires = ["safety-relay"]
+typical_context = ["emergency-stop", "machine-safety", "safety-chain"]
+
+[canvas]
+animated = false
+height = 40
+label_position = "top"
+
+[canvas.port_COM]
+x = 0
+y = 20
+
+[canvas.port_NC]
+x = 70
+y = 15
+
+[canvas.port_NO]
+x = 70
+y = 25
+ports_layout = "custom"
+value_display = "E-Stop mushroom / {reset_type} / {contact_layout}"
+width = 70
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "cmd-estop-mushroom"
+palette_group = "Fundamental Electricals > Switches"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/cmd-estop-mushroom.svg"
+tags = ["e-stop", "mushroom", "safety", "switch", "operator", "control", "iec-60947-5-5"]
+svg_status = "missing"

@@ -1,0 +1,127 @@
+# component profile — ssr (migrated from legacy TOON)
+# Source: ssr.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "ssr-profile"
+
+[identification]
+category = "switching"
+family = "panel-infrastructure"
+id = "ssr"
+image = "ssr.svg"
+name = "Solid State Relay (SSR)"
+standard = "IEC 60947-4-3"
+subfamily = "aux-relays"
+symbol = "ssr-symbol.svg"
+symbol_standard = "IEC"
+
+[params.control_voltage]
+default = 24
+editable = true
+label = "Control Voltage Range"
+max = 32
+min = 3
+type = "float"
+unit = "V"
+
+[params.load_current_rated]
+default = 25
+editable = true
+label = "Rated Load Current"
+type = "float"
+unit = "A"
+
+[params.load_voltage_max]
+default = 480
+editable = true
+label = "Max Load Voltage"
+type = "float"
+unit = "V"
+
+[[ports]]
+current_max = "20mA"
+direction = "input"
+id = "IN_POS"
+notes = "Control input +"
+type = "digital"
+voltage_max = "{control_voltage}V"
+
+[[ports]]
+direction = "input"
+id = "IN_NEG"
+notes = "Control input -"
+type = "ground"
+
+[[ports]]
+current_max = "{load_current_rated}A"
+direction = "passive"
+id = "L1"
+notes = "Load terminal 1 (Line)"
+type = "power"
+voltage_max = "{load_voltage_max}V"
+
+[[ports]]
+current_max = "{load_current_rated}A"
+direction = "passive"
+id = "T1"
+notes = "Load terminal 2 (Load)"
+type = "power"
+voltage_max = "{load_voltage_max}V"
+
+[simulation]
+bidirectional = true
+dynamic = true
+model = "ideal"
+noise_model = false
+states = ["isolated", "conducting"]
+thermal_model = true
+
+[limits]
+max_current = "25A"
+max_temp = 80
+max_voltage = "480V"
+min_temp = -30
+warnings = ["Heatsink required for currents above 5A", "Strictly for AC loads (Zero-cross switching)"]
+
+[connections]
+allowed_with = ["mcu-gpio", "plc-do", "ac-motor", "heater-element"]
+forbidden_with = ["dc-load"]
+requires = []
+typical_context = ["industrial-heating", "lighting-control"]
+
+[canvas]
+animated = true
+height = 60
+label_position = "right"
+
+[canvas.port_IN_NEG]
+x = 30
+y = 60
+
+[canvas.port_IN_POS]
+x = 10
+y = 60
+
+[canvas.port_L1]
+x = 20
+y = 0
+
+[canvas.port_T1]
+x = 20
+y = 20
+ports_layout = "custom"
+value_display = "{load_current_rated}A SSR"
+width = 40
+
+[dendri]
+component_family_skill_id = "panel-infrastructure-family"
+component_profile_id = "ssr"
+palette_group = "Panel Infrastructure > aux-relays"
+simulation_engine = "digital-io"
+svg_path = "content/assets/svg/components/ssr.svg"
+tags = ["ssr", "opto-isolated", "ac-switch"]
+svg_status = "missing"

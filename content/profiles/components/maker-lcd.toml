@@ -1,0 +1,140 @@
+# component profile — maker-lcd (migrated from legacy TOON)
+# Source: maker-lcd.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "maker-lcd-profile"
+
+[identification]
+category = "signal"
+family = "electricals"
+id = "maker-lcd"
+image = "maker-lcd.svg"
+name = "LCD Alphanumeric Display"
+standard = "IEC 61747-1"
+subfamily = "displays"
+symbol = "maker-lcd-symbol.svg"
+symbol_standard = "IEC"
+
+[params.backlight]
+default = "LED-blue"
+editable = true
+label = "Backlight"
+options = ["none", "LED-blue", "LED-green", "LED-white", "LED-yellow"]
+type = "enum"
+
+[params.format]
+default = "16x2"
+editable = true
+label = "Display Format"
+options = ["8x1", "16x1", "16x2", "20x2", "20x4", "40x2"]
+type = "enum"
+
+[params.i2c_address]
+default = "0x27"
+editable = true
+label = "I2C Address"
+options = ["0x20", "0x27", "0x3F"]
+type = "enum"
+
+[params.interface]
+default = "I2C"
+editable = true
+label = "Interface"
+options = ["I2C", "parallel-4bit", "parallel-8bit", "SPI"]
+type = "enum"
+
+[params.supply_voltage]
+default = 5
+editable = true
+label = "Supply Voltage"
+options = [3, 5]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "VCC"
+notes = "DC supply positive"
+type = "power"
+voltage_max = "5V"
+
+[[ports]]
+direction = "input"
+id = "GND"
+notes = "DC supply negative"
+type = "ground"
+
+[[ports]]
+current_max = "5mA"
+direction = "input"
+id = "SCL"
+notes = "I2C clock (or D4-D7 in parallel mode)"
+type = "i2c"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "5mA"
+direction = "bidirectional"
+id = "SDA"
+notes = "I2C data (or RS/EN/RW in parallel mode)"
+type = "i2c"
+voltage_max = "5V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "script"
+noise_model = false
+states = ["off", "displaying"]
+thermal_model = false
+
+[limits]
+max_current = "100mA"
+max_temp = 70
+max_voltage = "5V"
+min_temp = -20
+warnings = ["3.3V-only MCUs require level shifter when using 5V LCD in I2C mode", "Contrast adjustment via potentiometer on I2C backpack (V0 pin)", "Backlight current must be limited — check backpack resistor value"]
+
+[connections]
+allowed_with = ["mcu-*", "comm-i2c-bus"]
+forbidden_with = ["ac-source"]
+requires = ["dc-source"]
+typical_context = ["status-display", "menu-ui", "debug-output"]
+
+[canvas]
+animated = true
+height = 40
+label_position = "top"
+
+[canvas.port_GND]
+x = 0
+y = 15
+
+[canvas.port_SCL]
+x = 0
+y = 27
+
+[canvas.port_SDA]
+x = 0
+y = 37
+
+[canvas.port_VCC]
+x = 0
+y = 5
+ports_layout = "custom"
+value_display = "{format} / {interface} / {backlight}"
+width = 80
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "maker-lcd"
+palette_group = "Fundamental Electricals > Displays"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/maker-lcd.svg"
+tags = ["lcd", "display", "semiconductors", "alphanumeric", "i2c", "backlight"]
+svg_status = "missing"

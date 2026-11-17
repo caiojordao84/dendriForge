@@ -1,0 +1,123 @@
+# component profile — comm-rfid-industrial (migrated from legacy TOON)
+# Source: comm-rfid-industrial.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "comm-rfid-industrial-profile"
+
+[identification]
+category = "node"
+family = "communication"
+id = "comm-rfid-industrial"
+image = "comm-rfid-industrial.svg"
+name = "Industrial RFID Reader (Leitor RFID Industrial)"
+standard = "ISO 15693"
+subfamily = "wireless"
+symbol = "comm-rfid-industrial-symbol.svg"
+symbol_standard = "IEC"
+
+[params.frequency_band]
+default = "HF (13.56 MHz)"
+editable = true
+label = "Frequency Band"
+options = ["LF (125 kHz)", "HF (13.56 MHz)", "UHF (860-960 MHz)"]
+type = "enum"
+
+[params.protocol]
+default = "IO-Link"
+editable = true
+label = "Interface Protocol"
+options = ["IO-Link", "Modbus-RTU", "PROFINET"]
+type = "enum"
+
+[params.reading_range]
+default = 50
+editable = true
+label = "Reading Range"
+max = 500
+min = 10
+type = "float"
+unit = "mm"
+
+[params.supply_voltage]
+default = 24
+editable = true
+label = "Supply Voltage"
+options = [12, 24]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "500mA"
+direction = "input"
+id = "VCC"
+notes = "supply +"
+type = "power"
+voltage_max = "{supply_voltage}"
+
+[[ports]]
+direction = "input"
+id = "GND"
+notes = "supply -"
+type = "ground"
+
+[[protocol_ports]]
+direction = "bidirectional"
+id = "NET"
+notes = "industrial network interface"
+protocol = "{protocol}"
+
+[simulation]
+bidirectional = true
+dynamic = true
+model = "script"
+noise_model = false
+protocol_emulation = true
+states = ["idle", "scanning", "processing", "fault"]
+thermal_model = false
+
+[limits]
+ip_rating = "IP67"
+max_current = "500mA"
+max_temp = 70
+max_voltage = "{supply_voltage}"
+min_temp = -25
+warnings = ["Metallic environments can significantly reduce the effective reading range", "Ensure protocol baud rates and addresses match the master controller"]
+
+[connections]
+allowed_with = ["comm-*", "plc-*", "mcu-*"]
+forbidden_with = ["ac-source"]
+requires = ["dc-source"]
+typical_context = ["traceability", "access-control", "material-handling", "logistics"]
+
+[canvas]
+animated = true
+height = 60
+label_position = "top"
+
+[canvas.port_GND]
+x = 45
+y = 0
+
+[canvas.port_NET]
+x = 30
+y = 60
+
+[canvas.port_VCC]
+x = 15
+y = 0
+ports_layout = "custom"
+value_display = "RFID / {protocol}"
+width = 60
+
+[dendri]
+component_family_skill_id = "communication-family"
+component_profile_id = "comm-rfid-industrial"
+palette_group = "Communication > Wireless"
+simulation_engine = "protocol-stub-engine"
+svg_path = "content/assets/svg/components/comm-rfid-industrial.svg"
+tags = ["rfid", "reader", "communication", "wireless", "tracking"]
+svg_status = "missing"

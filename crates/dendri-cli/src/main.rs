@@ -86,6 +86,17 @@ enum Cmd {
     Profiles {
         #[arg(long)]
         repo: Option<PathBuf>,
+        /// Validate every migrated profile under content/profiles/
+        #[arg(long)]
+        all: bool,
+    },
+    /// Migrate legacy core/**/*.toon profiles → content/profiles/**/*.toml (DEN-14)
+    MigrateProfiles {
+        #[arg(long)]
+        repo: Option<PathBuf>,
+        /// Only migrate one family: boards | components | screens
+        #[arg(long)]
+        family: Option<String>,
     },
     /// Headless SVG canvas sim: button sequence → visual-frame snapshot (CI)
     CanvasSim {
@@ -334,9 +345,39 @@ fn run(cli: Cli) -> Result<(), String> {
             }
             Ok(())
         }
-        Cmd::Profiles { repo } => {
+        Cmd::Profiles { repo, all } => {
             let root = repo.unwrap_or_else(|| discover_repo_root());
             let store = dendri_profiles::ProfileStore::from_repo_root(&root);
+            if all {
+                let report = store.validate_all().map_err(|e| e.to_string())?;
+                println!("profiles_loaded: {}", report.loaded);
+                println!("svg_present: {}", report.svg_present);
+                println!("svg_missing: {}", report.svg_missing);
+                if !report.errors.is_empty() {
+                    for e in &report.errors {
+                        eprintln!("error: {e}");
+                    }
+                    return Err(format!(
+                        "{} profile(s) failed to load",
+                        report.errors.len()
+                    ));
+                }
+                println!(
+                    "boards: {}",
+                    store.list_ids("boards").map_err(|e| e.to_string())?.len()
+                );
+                println!(
+                    "components: {}",
+                    store
+                        .list_ids("components")
+                        .map_err(|e| e.to_string())?
+                        .len()
+                );
+                println!(
+                    "screens: {}",
+                    store.list_ids("screens").map_err(|e| e.to_string())?.len()
+                );
+            }
             let mvp = store.load_visual_mvp().map_err(|e| e.to_string())?;
             println!("board: {}", mvp.board.identification.id);
             println!("led: {}", mvp.led.identification.id);
@@ -364,6 +405,50 @@ fn run(cli: Cli) -> Result<(), String> {
                 "content_assets_preferred: {}",
                 report.preferred_paths_present
             );
+            Ok(())
+        }
+        Cmd::MigrateProfiles { repo, family } => {
+            let root = repo.unwrap_or_else(|| discover_repo_root());
+            let families: Vec<dendri_profiles::ProfileFamily> = match family.as_deref() {
+                None => vec![
+                    dendri_profiles::ProfileFamily::Boards,
+                    dendri_profiles::ProfileFamily::Components,
+                    dendri_profiles::ProfileFamily::Screens,
+                ],
+                Some("boards") => vec![dendri_profiles::ProfileFamily::Boards],
+                Some("components") => vec![dendri_profiles::ProfileFamily::Components],
+                Some("screens") => vec![dendri_profiles::ProfileFamily::Screens],
+                Some(other) => {
+                    return Err(format!(
+                        "unknown family '{other}' (expected boards|components|screens)"
+                    ));
+                }
+            };
+            let mut total = 0usize;
+            let mut svg_ok = 0usize;
+            let mut svg_copied = 0usize;
+            for fam in families {
+                let reports =
+                    dendri_profiles::migrate_family(&root, fam).map_err(|e| e.to_string())?;
+                println!(
+                    "migrated_{}: {}",
+                    fam.as_str(),
+                    reports.len()
+                );
+                for r in &reports {
+                    total += 1;
+                    if r.svg_present {
+                        svg_ok += 1;
+                    }
+                    if r.svg_copied {
+                        svg_copied += 1;
+                    }
+                }
+            }
+            println!("migrated_total: {total}");
+            println!("svg_present: {svg_ok}");
+            println!("svg_copied: {svg_copied}");
+            println!("svg_missing: {}", total - svg_ok);
             Ok(())
         }
         Cmd::CanvasSim {

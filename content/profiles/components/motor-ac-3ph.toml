@@ -1,0 +1,217 @@
+# component profile — motor-ac-3ph (migrated from legacy TOON)
+# Source: motor-ac-3ph.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "motor-ac-3ph-profile"
+
+[identification]
+category = "actuator"
+family = "actuators"
+id = "motor-ac-3ph"
+image = "motor-ac-3ph.svg"
+name = "Three-Phase AC Induction Motor"
+standard = "IEC 60034-1 / IEC 60034-30-1"
+subfamily = "industrial-electrical"
+symbol = "motor-ac-3ph-symbol.svg"
+symbol_standard = "IEC"
+
+[params.current_rated]
+default = 6.8
+editable = false
+label = "Rated Current"
+max = 2000
+min = 0.1
+type = "float"
+unit = "A"
+
+[params.duty_cycle]
+default = "S1"
+editable = true
+label = "Duty Cycle"
+options = ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9"]
+type = "enum"
+
+[params.efficiency]
+default = 89.1
+editable = false
+label = "Rated Efficiency"
+max = 98
+min = 70
+type = "float"
+unit = "%"
+
+[params.efficiency_class]
+default = "IE3"
+editable = true
+label = "Efficiency Class"
+options = ["IE1", "IE2", "IE3", "IE4", "IE5"]
+type = "enum"
+
+[params.frequency]
+default = 50
+editable = true
+label = "Supply Frequency"
+options = [50, 60]
+type = "enum"
+unit = "V"
+
+[params.insulation_class]
+default = "F"
+editable = true
+label = "Insulation Class"
+options = ["B", "F", "H"]
+type = "enum"
+
+[params.mounting]
+default = "B3"
+editable = true
+label = "Mounting Form"
+options = ["B3", "B5", "B14", "B34", "B35", "V1"]
+type = "enum"
+
+[params.poles]
+default = 4
+editable = true
+label = "Number of Poles"
+options = [2, 4, 6, 8]
+type = "enum"
+
+[params.power_factor]
+default = 0.83
+editable = false
+label = "Power Factor (cos φ)"
+max = 0.95
+min = 0.6
+type = "float"
+unit = "%"
+
+[params.power_rated]
+default = 3000
+editable = true
+label = "Rated Power"
+max = 1000000
+min = 120
+type = "float"
+unit = "W"
+
+[params.protection_class]
+default = "IP55"
+editable = true
+label = "Protection Class (IP)"
+options = ["IP23", "IP44", "IP54", "IP55", "IP65", "IP66", "IP67"]
+type = "enum"
+
+[params.speed_rated]
+default = 1440
+editable = false
+label = "Rated Speed"
+max = 3600
+min = 600
+type = "float"
+unit = "V"
+
+[params.voltage_rated]
+default = 400
+editable = true
+label = "Rated Voltage (L-L)"
+options = [230, 400, 415, 690, 1000, 3300, 6000, 11000]
+type = "enum"
+unit = "V"
+
+[params.wiring]
+default = "delta"
+editable = true
+label = "Winding Connection"
+options = ["star", "delta", "star-delta"]
+type = "enum"
+
+[[ports]]
+current_max = "2000A"
+direction = "input"
+id = "U1"
+notes = "phase U / L1 supply terminal"
+type = "power"
+voltage_max = "11000V"
+
+[[ports]]
+current_max = "2000A"
+direction = "input"
+id = "V1"
+notes = "phase V / L2 supply terminal"
+type = "power"
+voltage_max = "11000V"
+
+[[ports]]
+current_max = "2000A"
+direction = "input"
+id = "W1"
+notes = "phase W / L3 supply terminal"
+type = "power"
+voltage_max = "11000V"
+
+[[ports]]
+direction = "input"
+id = "PE"
+notes = "protective earth / frame ground"
+type = "ground"
+
+[simulation]
+bidirectional = false
+dynamic = true
+equation = "T = (power_rated * efficiency/100) / (2 * pi * speed_rated / 60); I = power_rated / (sqrt(3) * voltage_rated * power_factor * efficiency/100)"
+model = "basic-analog"
+motion = "rotary"
+noise_model = false
+states = ["off", "starting", "running", "fault"]
+thermal_model = true
+
+[limits]
+ip_rating = "IP55"
+max_current = "2000A"
+max_temp = 40
+max_voltage = "11000V"
+min_temp = -20
+warnings = ["Always verify phase sequence before starting — incorrect sequence causes reverse rotation", "Provide overcurrent and thermal overload protection sized to rated current", "Star-delta starters must not switch under full load — use adequate timing relay", "Do not exceed insulation class temperature limit including ambient and self-heating"]
+
+[connections]
+allowed_with = ["ac-source-3phase", "contactor-*", "act-vfd", "act-starter-dol", "act-starter-sd"]
+forbidden_with = ["dc-source", "ac-source", "battery"]
+requires = ["ac-source-3phase"]
+typical_context = ["pump-drive", "fan-drive", "compressor", "conveyor", "industrial-machine"]
+
+[canvas]
+animated = true
+height = 70
+label_position = "right"
+
+[canvas.port_PE]
+x = 40
+y = 70
+
+[canvas.port_U1]
+x = 0
+y = 15
+
+[canvas.port_V1]
+x = 0
+y = 35
+
+[canvas.port_W1]
+x = 0
+y = 55
+ports_layout = "custom"
+value_display = "{power_rated}W / {voltage_rated}V / {speed_rated}rpm ({efficiency_class})"
+width = 80
+
+[dendri]
+component_family_skill_id = "actuators-family"
+component_profile_id = "motor-ac-3ph"
+palette_group = "Actuators > Industrial Electrical"
+simulation_engine = "digital-io"
+svg_path = "content/assets/svg/components/motor-ac-3ph.svg"
+tags = ["motor", "ac", "three-phase", "induction", "actuator", "industrial", "squirrel-cage", "iec-60034"]
+svg_status = "missing"

@@ -1,0 +1,246 @@
+# board profile — nrf7002-dk-pca10143 (migrated from legacy TOON)
+# Source: nrf7002-dk-pca10143.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "nrf7002-dk-pca10143-profile"
+
+[identification]
+category = "maker"
+id = "nrf7002-dk-pca10143"
+image = "nrf7002-dk-pca10143.svg"
+manufacturer = "Nordic Semiconductor"
+mcu = "Nordic nRF5340 (dual-core Cortex-M33) + nRF7002 Wi-Fi 6 companion IC"
+name = "Nordic Semiconductor nRF7002-DK (PCA10143)"
+url = "https://www.nordicsemi.com/Products/Development-hardware/nRF7002-DK"
+
+[specs]
+clock = 128000000
+eeprom = 0
+flash_available = 1245184
+flash_total = 1310720
+sram = 589824
+voltage = "1.8V"
+
+[dims]
+h = 102.0
+t = 1.6
+w = 63.0
+
+[[power_pins]]
+direction = "input"
+name = "VIN"
+
+[[power_pins]]
+direction = "output"
+name = "5V"
+voltage = "5V"
+
+[[power_pins]]
+direction = "output"
+name = "3V3"
+voltage = "3.3V"
+
+[[power_pins]]
+name = "GND"
+type = "ground"
+
+[[power_pins]]
+direction = "input"
+name = "RESET"
+
+[[power_pins]]
+direction = "input"
+name = "VIO_REF"
+
+[[gpio]]
+int = true
+label = "P0.20 / D1 / TX / CTS"
+pin = 20
+pwm = true
+roles = ["uart-tx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.22 / D0 / RX / RTS"
+pin = 22
+pwm = true
+roles = ["uart-rx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.15 / D2"
+pin = 15
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.23 / D3 / BTN1"
+pin = 23
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.21 / D4"
+pin = 21
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.03 / D5"
+pin = 3
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.04 / D6 / A0"
+pin = 4
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "P0.05 / D7 / A1"
+pin = 5
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "P0.06 / D8 / A2"
+pin = 6
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "P0.07 / A3"
+pin = 7
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "P0.27 / D9"
+pin = 27
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.28 / D10 / SS / LED1"
+pin = 28
+pwm = true
+roles = ["spi-ss", "status-led"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.29 / D11 / MOSI / LED2"
+pin = 29
+pwm = true
+roles = ["spi-mosi", "status-led"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.30 / D12 / MISO"
+pin = 30
+pwm = true
+roles = ["spi-miso"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.31 / D13 / SCK"
+pin = 31
+pwm = true
+roles = ["spi-sck"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.25 / D14 / A4 / SDA"
+pin = 25
+pwm = true
+roles = ["adc:t", "i2c-sda"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "P0.26 / D15 / A5 / SCL"
+pin = 26
+pwm = true
+roles = ["adc:t", "i2c-scl"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "P0.24 / BTN2"
+pin = 24
+pwm = true
+roles = []
+type = "digital"
+
+[[peripherals]]
+param = "uarts:3"
+peripheral = "serial"
+value = "pins:20,22"
+
+[[peripherals]]
+param = "channels:2"
+peripheral = "i2c"
+value = "sda:25;scl:26"
+
+[[peripherals]]
+param = "channels:4"
+peripheral = "spi"
+value = "miso:30;mosi:29;sck:31;ss:28"
+
+[[peripherals]]
+param = "resolution:12bit"
+peripheral = "adc"
+value = "pins:4;5;6;7;25;26"
+
+[usb]
+chip = "native"
+pid = "0x1055"
+type = "Micro-USB"
+vid = "0x1366"
+
+[restrictions]
+max_io_current = "4mA"
+total_current_limit = "50mA"
+warnings = ["All I/O pins operate at 1.8V; NOT compatible with 3.3V/5V Arduino shields without level shifting", "nRF7002 is a Wi-Fi companion IC only; connected to nRF5340 via QSPI — not exposed on headers", "P0.28/P0.29 serve as both LED1/LED2 and SPI SS/MOSI; do not use SPI and LEDs simultaneously", "P0.23/P0.24 serve as BTN1/BTN2; may conflict with D3 or general GPIO use", "P0.19/P0.21 are UART0 CTS/RTS; tri-stated when no terminal connected to VCOM", "nRF5340 dual-core: App core (128MHz/1MB) is user target; Net core (64MHz/256KB) runs protocol stack", "NFC antenna connector present; NFC pins (P0.09/P0.10) not broken out on Arduino headers", "Power supply 2.9-5.0V only; board has no 3.3V regulator output on VDD — use VIO_REF for reference"]
+
+[compatibility]
+arduino_core = "0.0.0"
+bootloader = "nrf5340-mcuboot"
+frameworks = "arduino"
+languages = "arduino-cpp"
+pio = "nordicnrf53"
+
+[dendri]
+board_family_skill_id = "nrf53-family"
+board_profile_id = "nrf7002-dk-pca10143"
+default_language_skills = ["zephyr-nrf53", "arduino-cpp-nrf53", "rust-embassy-nrf53"]
+svg_path = "content/assets/svg/boards/nrf7002-dk-pca10143.svg"
+svg_status = "missing"

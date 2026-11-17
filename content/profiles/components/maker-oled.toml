@@ -1,0 +1,140 @@
+# component profile — maker-oled (migrated from legacy TOON)
+# Source: maker-oled.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "maker-oled-profile"
+
+[identification]
+category = "signal"
+family = "electricals"
+id = "maker-oled"
+image = "maker-oled.svg"
+name = "OLED Display"
+standard = "IEC 61747-1"
+subfamily = "displays"
+symbol = "maker-oled-symbol.svg"
+symbol_standard = "IEC"
+
+[params.color]
+default = "white"
+editable = true
+label = "Display Color"
+options = ["white", "blue", "yellow-blue", "green"]
+type = "enum"
+
+[params.interface]
+default = "I2C"
+editable = true
+label = "Interface"
+options = ["I2C", "SPI"]
+type = "enum"
+
+[params.resolution]
+default = "128x64"
+editable = true
+label = "Resolution"
+options = ["128x32", "128x64", "96x16", "64x48"]
+type = "enum"
+
+[params.size]
+default = "0.96in"
+editable = true
+label = "Screen Size"
+options = ["0.49in", "0.91in", "0.96in", "1.3in"]
+type = "enum"
+
+[params.supply_voltage]
+default = 3
+editable = true
+label = "Supply Voltage"
+options = [3, 5]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "30mA"
+direction = "input"
+id = "VCC"
+notes = "DC supply positive"
+type = "power"
+voltage_max = "5V"
+
+[[ports]]
+direction = "input"
+id = "GND"
+notes = "DC supply negative"
+type = "ground"
+
+[[ports]]
+current_max = "5mA"
+direction = "input"
+id = "SCL"
+notes = "I2C clock / SPI clock"
+type = "i2c"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "5mA"
+direction = "bidirectional"
+id = "SDA"
+notes = "I2C data / SPI MOSI"
+type = "i2c"
+voltage_max = "5V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "script"
+noise_model = false
+states = ["off", "displaying"]
+thermal_model = false
+
+[limits]
+max_current = "30mA"
+max_temp = 70
+max_voltage = "5V"
+min_temp = -40
+warnings = ["OLED pixels degrade with prolonged static display — implement screen saver", "Current draw varies with number of lit pixels — up to 30mA at full brightness", "Use I2C pull-up resistors of 4.7k when operating at 3.3V"]
+
+[connections]
+allowed_with = ["mcu-*", "comm-i2c-bus"]
+forbidden_with = ["ac-source"]
+requires = ["dc-source"]
+typical_context = ["compact-ui", "sensor-dashboard", "wearable-display"]
+
+[canvas]
+animated = true
+height = 40
+label_position = "top"
+
+[canvas.port_GND]
+x = 0
+y = 15
+
+[canvas.port_SCL]
+x = 0
+y = 27
+
+[canvas.port_SDA]
+x = 0
+y = 37
+
+[canvas.port_VCC]
+x = 0
+y = 5
+ports_layout = "custom"
+value_display = "{resolution} / {size} / {color}"
+width = 60
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "maker-oled"
+palette_group = "Fundamental Electricals > Displays"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/maker-oled.svg"
+tags = ["oled", "display", "semiconductors", "i2c", "graphic", "maker"]
+svg_status = "missing"

@@ -1,0 +1,162 @@
+# component profile — signal-stack-light-3 (migrated from legacy TOON)
+# Source: signal-stack-light-3.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "signal-stack-light-3-profile"
+
+[identification]
+category = "passive"
+family = "electricals"
+id = "signal-stack-light-3"
+image = "signal-stack-light-3.svg"
+name = "Stack Light 3 Cores"
+standard = "IEC 60947-5-1"
+subfamily = "passives"
+symbol = "signal-stack-light-3-symbol.svg"
+symbol_standard = "IEC"
+
+[params.color_1]
+default = "red"
+editable = true
+label = "Core 1 Color"
+options = ["red", "amber", "green", "blue", "white"]
+type = "enum"
+
+[params.color_2]
+default = "amber"
+editable = true
+label = "Core 2 Color"
+options = ["red", "amber", "green", "blue", "white"]
+type = "enum"
+
+[params.color_3]
+default = "green"
+editable = true
+label = "Core 3 Color"
+options = ["red", "amber", "green", "blue", "white"]
+type = "enum"
+
+[params.cores]
+default = 3
+editable = false
+label = "Number of Cores"
+options = [3]
+type = "enum"
+
+[params.ip_rating]
+default = "IP65"
+editable = true
+label = "Ingress Protection"
+options = ["IP54", "IP65", "IP67"]
+type = "enum"
+
+[params.light_mode]
+default = "steady"
+editable = true
+label = "Light Mode"
+options = ["steady", "blinking", "rotating", "pulsed"]
+type = "enum"
+
+[params.mounting]
+default = "tower"
+editable = true
+label = "Mounting Type"
+options = ["tower", "panel", "wall"]
+type = "enum"
+
+[params.supply_voltage]
+default = 24
+editable = true
+label = "Supply Voltage"
+options = [12, 24, 48, 110, 230]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "200mA"
+direction = "input"
+id = "A1"
+notes = "core 1 positive"
+type = "power"
+voltage_max = "230V"
+
+[[ports]]
+current_max = "200mA"
+direction = "input"
+id = "A2"
+notes = "core 2 positive"
+type = "power"
+voltage_max = "230V"
+
+[[ports]]
+current_max = "200mA"
+direction = "input"
+id = "A3"
+notes = "core 3 positive"
+type = "power"
+voltage_max = "230V"
+
+[[ports]]
+direction = "input"
+id = "N"
+notes = "neutral / return"
+type = "ground"
+
+[simulation]
+bidirectional = false
+dynamic = false
+equation = "light_on = V_supply >= supply_voltage; pattern = f(light_mode)"
+model = "basic-analog"
+noise_model = false
+states = ["off", "active", "fault"]
+thermal_model = false
+
+[limits]
+max_current = "200mA"
+max_temp = 70
+max_voltage = "230V"
+min_temp = -20
+warnings = ["Each core should be current-limited according to the manufacturer specification", "Do not exceed the rated supply voltage or the lamp modules may fail", "Stack height and mounting affect visibility and ingress protection", "Use the correct color sequence for the intended alarm or status convention"]
+
+[connections]
+allowed_with = ["mcu-gpio", "relay-coil", "dc-source", "ac-source"]
+forbidden_with = []
+requires = []
+typical_context = ["machine-status", "alarm-tower", "industrial-indication", "signal-column"]
+
+[canvas]
+animated = true
+height = 90
+label_position = "top"
+
+[canvas.port_A1]
+x = 30
+y = 10
+
+[canvas.port_A2]
+x = 30
+y = 35
+
+[canvas.port_A3]
+x = 30
+y = 60
+
+[canvas.port_N]
+x = 30
+y = 90
+ports_layout = "custom"
+value_display = "Stack light / {cores} cores / {light_mode}"
+width = 60
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "signal-stack-light-3"
+palette_group = "Fundamental Electricals > Audible Signals"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/signal-stack-light-3.svg"
+tags = ["stack-light", "signal", "passive", "indicator", "industrial", "tower-light", "iec-60947-5-1"]
+svg_status = "missing"

@@ -1,0 +1,142 @@
+# component profile — pneu-rotary-rack (migrated from legacy TOON)
+# Source: pneu-rotary-rack.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "pneu-rotary-rack-profile"
+
+[identification]
+category = "actuator"
+family = "pneumatics"
+id = "pneu-rotary-rack"
+image = "pneu-rotary-rack.svg"
+name = "Pneumatic Rotary Actuator (Atuador rotativo de cremalheira)"
+standard = "custom"
+subfamily = "pneumatic-actuators"
+symbol = "pneu-rotary-rack-symbol.svg"
+symbol_standard = "ISO"
+
+[params.cushioning]
+default = "adjustable"
+editable = true
+label = "Cushioning"
+options = ["none", "fixed", "adjustable"]
+type = "enum"
+
+[params.initial_position]
+default = "0_deg"
+editable = true
+label = "Initial Position"
+options = ["0_deg", "max_angle"]
+type = "enum"
+
+[params.port_size]
+default = "G1/8"
+editable = true
+label = "Port Size"
+options = ["M5", "G1/8", "G1/4", "G3/8", "G1/2"]
+type = "enum"
+
+[params.rotation_angle]
+default = 180
+editable = true
+label = "Rotation Angle"
+options = [90, 180, 270, 360]
+type = "enum"
+unit = "°"
+
+[params.supply_pressure]
+default = 6
+editable = true
+label = "Supply Pressure"
+max = 10
+min = 2
+type = "float"
+unit = "bar"
+
+[params.torque]
+default = 5.0
+editable = true
+label = "Theoretical Torque at 6 bar"
+max = 150.0
+min = 0.5
+type = "float"
+unit = "N·m"
+ports = []
+
+[[pneumatic_ports]]
+direction = "bidirectional"
+id = "A"
+notes = "port A — rotate CW"
+pressure_max = "10bar"
+type = "pneumatic"
+
+[[pneumatic_ports]]
+direction = "bidirectional"
+id = "B"
+notes = "port B — rotate CCW"
+pressure_max = "10bar"
+type = "pneumatic"
+
+[[sensor_slots]]
+compatible_sensors = ["pneu-magnetic-cylinder-sensor", "pneu-reed-switch-cylinder"]
+id = "S1"
+position = "retracted-end"
+
+[[sensor_slots]]
+compatible_sensors = ["pneu-magnetic-cylinder-sensor", "pneu-reed-switch-cylinder"]
+id = "S2"
+position = "extended-end"
+
+[simulation]
+bidirectional = true
+dynamic = true
+model = "pneumatic-rotary-actuator"
+motion = "rotary"
+noise_model = false
+position_feedback = true
+states = ["zero-pos", "rotating-cw", "max-pos", "rotating-ccw"]
+thermal_model = false
+velocity_model = "simplified"
+
+[limits]
+ip_rating = "IP65"
+max_pressure = 10
+max_temp = 80
+min_pressure = 2
+min_temp = -10
+warnings = ["Avoid hard mechanical stops without proper cushioning adjustments to prevent pinion damage", "Operating torque is directly proportional to the applied air pressure"]
+
+[connections]
+allowed_with = ["pneu-valve-5-2-*", "pneu-valve-5-3-*", "pneu-flow-control-*"]
+forbidden_with = ["hyd-*", "act-motor-*"]
+requires = ["pneu-frl-unit"]
+typical_context = ["turning", "flipping", "indexing", "robot-wrist"]
+
+[canvas]
+animated = true
+height = 60
+label_position = "bottom"
+
+[canvas.port_A]
+x = 20
+y = 0
+
+[canvas.port_B]
+x = 60
+y = 0
+ports_layout = "custom"
+value_display = "{rotation_angle}° / {torque}Nm"
+width = 80
+
+[dendri]
+component_family_skill_id = "pneumatics-family"
+component_profile_id = "pneu-rotary-rack"
+palette_group = "Pneumatics > Pneumatic Actuators"
+simulation_engine = "pneumatic-motion"
+svg_path = "content/assets/svg/components/pneu-rotary-rack.svg"
+tags = ["rotary", "actuator", "rack-pinion", "double-acting", "pneumatic", "torque"]
+svg_status = "missing"

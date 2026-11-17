@@ -1,0 +1,128 @@
+# component profile — pulldown-resistor (migrated from legacy TOON)
+# Source: pulldown-resistor.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "pulldown-resistor-profile"
+
+[identification]
+category = "passive"
+family = "electricals"
+id = "pulldown-resistor"
+image = "pulldown-resistor.svg"
+name = "Pull-Down Resistor"
+standard = "IEC 60062"
+subfamily = "passives"
+symbol = "pulldown-resistor-symbol.svg"
+symbol_standard = "IEC"
+
+[params.package]
+default = "SMD-0402"
+editable = true
+label = "Package"
+options = ["SMD-0402", "SMD-0603", "SMD-0805", "SMD-1206", "THT"]
+type = "enum"
+
+[params.power_rating]
+default = 0.125
+editable = true
+label = "Power Rating"
+options = [0.063, 0.125, 0.25, 0.5]
+type = "enum"
+unit = "W"
+
+[params.resistance]
+default = 10000
+editable = true
+label = "Resistance"
+options = [1000, 2200, 4700, 10000, 47000, 100000]
+type = "enum"
+unit = "Ω"
+
+[params.tolerance]
+default = 1
+editable = true
+label = "Tolerance"
+options = [0.1, 0.5, 1, 5]
+type = "enum"
+unit = "%"
+
+[[ports]]
+current_max = "200mA"
+direction = "bidirectional"
+id = "SIG"
+notes = "signal line pulled low"
+type = "digital"
+voltage_max = "5V"
+
+[[ports]]
+direction = "input"
+id = "GND"
+notes = "ground rail connection (low side)"
+type = "ground"
+
+[[ports]]
+current_max = "200mA"
+direction = "input"
+id = "VCC"
+notes = "supply reference (unused for pure pull-down)"
+type = "power"
+voltage_max = "5V"
+
+[simulation]
+bidirectional = true
+dynamic = false
+equation = "V_SIG = I_source * resistance; I_static = V_SIG / resistance"
+model = "ohms-law"
+noise_model = false
+states = ["nominal"]
+thermal_model = false
+
+[limits]
+max_current = "200mA"
+
+[limits.max_power]
+unit = "W"
+value = "{power_rating}"
+max_temp = 125
+max_voltage = "5V"
+min_temp = -55
+warnings = ["Low resistance values increase static current draw — use 10k or higher for low-power designs", "Ensure pull-down is connected directly to GND with no series impedance", "Do not use pull-down alone on inputs that may float at high voltage — add ESD protection"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["gpio-input", "enable-pin", "button-debounce", "adc-input", "mosfet-gate"]
+
+[canvas]
+animated = false
+height = 60
+label_position = "right"
+
+[canvas.port_GND]
+x = 25
+y = 60
+
+[canvas.port_SIG]
+x = 50
+y = 30
+
+[canvas.port_VCC]
+x = 25
+y = 0
+ports_layout = "custom"
+value_display = "{resistance}Ω to GND"
+width = 50
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "pulldown-resistor"
+palette_group = "Fundamental Electricals > Passives"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/pulldown-resistor.svg"
+tags = ["pull-down", "resistor", "passive", "digital", "logic", "gpio"]
+svg_status = "missing"

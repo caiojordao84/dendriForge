@@ -1,0 +1,199 @@
+# component profile — cmd-cam-switch (migrated from legacy TOON)
+# Source: cmd-cam-switch.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "cmd-cam-switch-profile"
+
+[identification]
+category = "command"
+family = "command-elements"
+id = "cmd-cam-switch"
+image = "cmd-cam-switch.svg"
+name = "Cam Switch (Comutador Cam)"
+standard = "IEC 60947-5-1"
+subfamily = "selectors"
+symbol = "cmd-cam-switch-symbol.svg"
+symbol_standard = "IEC"
+
+[params.color]
+default = "black"
+editable = true
+label = "Handle Color"
+options = ["black", "grey", "red", "yellow", "blue"]
+type = "enum"
+
+[params.contact_config]
+default = "2NO+2NC"
+editable = true
+label = "Contact Configuration"
+options = ["1NO", "1NC", "1NO+1NC", "2NO", "2NC", "2NO+2NC"]
+type = "enum"
+
+[params.current_rating]
+default = 20
+editable = false
+label = "Current Rating"
+type = "float"
+unit = "A"
+
+[params.illuminated]
+default = false
+editable = false
+label = "Illuminated"
+type = "bool"
+
+[params.positions]
+default = 3
+editable = true
+label = "Number of Positions"
+options = [2, 3, 4, 6, 8, 12]
+type = "enum"
+
+[params.voltage_rating]
+default = 400
+editable = false
+label = "Voltage Rating"
+options = [24, 110, 240, 400, 690]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "20A"
+direction = "input"
+id = "NO1_IN"
+notes = "NO contact 1 in"
+type = "digital"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "20A"
+direction = "output"
+id = "NO1_OUT"
+notes = "NO contact 1 out"
+type = "digital"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "20A"
+direction = "input"
+id = "NC1_IN"
+notes = "NC contact 1 in"
+type = "digital"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "20A"
+direction = "output"
+id = "NC1_OUT"
+notes = "NC contact 1 out"
+type = "digital"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "20A"
+direction = "input"
+id = "NO2_IN"
+notes = "NO contact 2 in"
+type = "digital"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "20A"
+direction = "output"
+id = "NO2_OUT"
+notes = "NO contact 2 out"
+type = "digital"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "20A"
+direction = "input"
+id = "NC2_IN"
+notes = "NC contact 2 in"
+type = "digital"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "20A"
+direction = "output"
+id = "NC2_OUT"
+notes = "NC contact 2 out"
+type = "digital"
+voltage_max = "400V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+latching = true
+model = "contact-block"
+noise_model = false
+states = ["normal", "actuated", "fault"]
+thermal_model = false
+trigger = "user-interaction"
+
+[limits]
+ip_rating = "IP65"
+max_current = "20A"
+max_temp = 60
+max_voltage = "400V"
+min_temp = -25
+warnings = ["Do not exceed rated voltage or current on any contact terminal", "Ensure switching positions match the configured physical stops"]
+
+[connections]
+allowed_with = ["ind-contact-no", "ind-contact-nc", "ind-coil", "ind-di-bank", "plc-*", "act-motor-*"]
+forbidden_with = []
+requires = []
+typical_context = ["motor-control", "phase-selection", "manual-override", "mode-selector"]
+
+[canvas]
+animated = true
+height = 80
+label_position = "bottom"
+
+[canvas.port_NC1_IN]
+x = 0
+y = 30
+
+[canvas.port_NC1_OUT]
+x = 60
+y = 30
+
+[canvas.port_NC2_IN]
+x = 0
+y = 70
+
+[canvas.port_NC2_OUT]
+x = 60
+y = 70
+
+[canvas.port_NO1_IN]
+x = 0
+y = 10
+
+[canvas.port_NO1_OUT]
+x = 60
+y = 10
+
+[canvas.port_NO2_IN]
+x = 0
+y = 50
+
+[canvas.port_NO2_OUT]
+x = 60
+y = 50
+ports_layout = "custom"
+value_display = "{contact_config} / {positions}pos"
+width = 60
+
+[dendri]
+component_family_skill_id = "command-elements-family"
+component_profile_id = "cmd-cam-switch"
+palette_group = "Command Elements > Selectors"
+simulation_engine = "digital-io"
+svg_path = "content/assets/svg/components/cmd-cam-switch.svg"
+tags = ["cam-switch", "selector", "command", "rotary", "multi-position", "comutador"]
+svg_status = "missing"

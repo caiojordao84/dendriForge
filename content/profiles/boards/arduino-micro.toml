@@ -1,0 +1,262 @@
+# board profile — arduino-micro (migrated from legacy TOON)
+# Source: arduino-micro.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "arduino-micro-profile"
+
+[identification]
+category = "maker"
+id = "arduino-micro"
+image = "arduino-micro.svg"
+manufacturer = "Arduino"
+mcu = "ATmega32U4"
+name = "Arduino Micro"
+url = "https://docs.arduino.cc/hardware/micro"
+
+[specs]
+clock = 16000000
+eeprom = 1024
+flash_available = 28672
+flash_total = 32768
+sram = 2560
+voltage = "5V"
+
+[dims]
+h = 18.0
+t = 1.6
+w = 48.0
+
+[[power_pins]]
+direction = "input"
+name = "VIN"
+
+[[power_pins]]
+direction = "output"
+name = "5V"
+voltage = "5V"
+
+[[power_pins]]
+direction = "output"
+name = "3V3"
+voltage = "3.3V"
+
+[[power_pins]]
+name = "GND"
+type = "ground"
+
+[[power_pins]]
+direction = "input"
+name = "RESET"
+
+[[power_pins]]
+direction = "input"
+name = "AREF"
+
+[[gpio]]
+int = true
+label = "D0 / RX"
+pin = 0
+pwm = false
+roles = ["uart-rx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D1 / TX"
+pin = 1
+pwm = false
+roles = ["uart-tx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D2 / SDA"
+pin = 2
+pwm = false
+roles = ["int0", "i2c-sda"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D3 / SCL"
+pin = 3
+pwm = true
+roles = ["int1", "i2c-scl"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D4"
+pin = 4
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D5 PWM"
+pin = 5
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D6 PWM"
+pin = 6
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D7"
+pin = 7
+pwm = false
+roles = ["int4"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D8"
+pin = 8
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D9 PWM"
+pin = 9
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D10 PWM / SS"
+pin = 10
+pwm = true
+roles = ["spi-ss"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D11 PWM / MOSI"
+pin = 11
+pwm = true
+roles = ["spi-mosi"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D12 / MISO"
+pin = 12
+pwm = false
+roles = ["spi-miso"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D13 / LED / SCK"
+pin = 13
+pwm = true
+roles = ["spi-sck", "status-led"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "A0"
+pin = 14
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A1"
+pin = 15
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A2"
+pin = 16
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A3"
+pin = 17
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A4"
+pin = 18
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A5"
+pin = 19
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[peripherals]]
+param = "uarts:1"
+peripheral = "serial"
+value = "pins:0,1"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "i2c"
+value = "sda:2;scl:3"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "spi"
+value = "miso:12;mosi:11;sck:13;ss:10"
+
+[[peripherals]]
+param = "channels:7"
+peripheral = "pwm"
+value = "pins:3;5;6;9;10;11;13"
+
+[usb]
+chip = "ATmega32U4"
+pid = "0x0037"
+type = "Micro-USB"
+vid = "0x2341"
+
+[restrictions]
+max_io_current = "40mA"
+total_current_limit = "200mA"
+warnings = ["Pins 0/1 shared with USB Serial (CDC)", "Pin 13 has onboard LED interference", "USB is native via ATmega32U4, no separate USB chip", "3.3V pin limited to 50mA from onboard regulator"]
+
+[compatibility]
+arduino_core = "1.8.19"
+bootloader = "caterina"
+frameworks = "arduino"
+languages = "arduino-cpp"
+pio = "atmelavr"
+
+[dendri]
+board_family_skill_id = "avr-family"
+board_profile_id = "arduino-micro"
+default_language_skills = ["arduino-cpp-avr", "rust-embassy-avr"]
+svg_path = "content/assets/svg/boards/arduino-micro.svg"
+svg_status = "missing"

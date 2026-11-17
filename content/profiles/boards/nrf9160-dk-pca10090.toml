@@ -1,0 +1,246 @@
+# board profile — nrf9160-dk-pca10090 (migrated from legacy TOON)
+# Source: nrf9160-dk-pca10090.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "nrf9160-dk-pca10090-profile"
+
+[identification]
+category = "maker"
+id = "nrf9160-dk-pca10090"
+image = "nrf9160-dk-pca10090.svg"
+manufacturer = "Nordic Semiconductor"
+mcu = "Nordic nRF9160 SiP (ARM Cortex-M33 + LTE-M/NB-IoT modem)"
+name = "Nordic Semiconductor nRF9160-DK (PCA10090)"
+url = "https://www.nordicsemi.com/Products/Development-hardware/nRF9160-DK"
+
+[specs]
+clock = 64000000
+eeprom = 0
+flash_available = 983040
+flash_total = 1048576
+sram = 262144
+voltage = "1.8V"
+
+[dims]
+h = 102.0
+t = 1.6
+w = 63.0
+
+[[power_pins]]
+direction = "input"
+name = "VIN"
+
+[[power_pins]]
+direction = "output"
+name = "5V"
+voltage = "5V"
+
+[[power_pins]]
+direction = "output"
+name = "3V3"
+voltage = "3.3V"
+
+[[power_pins]]
+name = "GND"
+type = "ground"
+
+[[power_pins]]
+direction = "input"
+name = "RESET"
+
+[[power_pins]]
+direction = "input"
+name = "VIO_REF"
+
+[[gpio]]
+int = true
+label = "P0.28 / D0 / RX"
+pin = 28
+pwm = true
+roles = ["uart-rx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.29 / D1 / TX"
+pin = 29
+pwm = true
+roles = ["uart-tx"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.30 / D2 / SDA"
+pin = 30
+pwm = true
+roles = ["i2c-sda"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.31 / D3 / SCL"
+pin = 31
+pwm = true
+roles = ["i2c-scl"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.10 / D4"
+pin = 10
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.11 / D5"
+pin = 11
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.12 / D6"
+pin = 12
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.13 / D7 / A0"
+pin = 13
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "P0.16 / D8 / A3 / MISO"
+pin = 16
+pwm = true
+roles = ["adc:t", "spi-miso"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "P0.17 / D9 / A4 / MOSI"
+pin = 17
+pwm = true
+roles = ["adc:t", "spi-mosi"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "P0.18 / D10 / A5 / SCK"
+pin = 18
+pwm = true
+roles = ["adc:t", "spi-sck"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "P0.19 / D11 / MOSI-ALT"
+pin = 19
+pwm = true
+roles = ["spi-mosi"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.20 / D12 / MISO-ALT"
+pin = 20
+pwm = true
+roles = ["spi-miso"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.21 / D13 / TRACECLK"
+pin = 21
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.14 / A1"
+pin = 14
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "P0.15 / A2"
+pin = 15
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "P0.02 / LED1"
+pin = 2
+pwm = true
+roles = ["status-led"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "P0.06 / BTN1"
+pin = 6
+pwm = true
+roles = []
+type = "digital"
+
+[[peripherals]]
+param = "uarts:4"
+peripheral = "serial"
+value = "pins:29,28"
+
+[[peripherals]]
+param = "channels:2"
+peripheral = "i2c"
+value = "sda:30;scl:31"
+
+[[peripherals]]
+param = "channels:3"
+peripheral = "spi"
+value = "miso:20;mosi:19;sck:18;ss:null"
+
+[[peripherals]]
+param = "resolution:12bit"
+peripheral = "adc"
+value = "pins:13;14;15;16;17;18"
+
+[usb]
+chip = "native"
+pid = "0x1015"
+type = "Micro-USB"
+vid = "0x1366"
+
+[restrictions]
+max_io_current = "4mA"
+total_current_limit = "50mA"
+warnings = ["I/O voltage is 1.8V by default (SW11); switchable to 3.0V — NOT 3.3V or 5V tolerant", "P0.28/P0.29/P0.26/P0.27 used by VCOM0 to interface MCU by default; reroute via nRF52840", "P0.00/P0.01/P0.14/P0.15 reserved for VCOM2 (APP2) UART to interface MCU", "P0.02-P0.09 connected to LEDs, buttons, and switches via nRF52840 analog routing", "P0.17/P0.18/P0.19/P0.21-P0.25 shared with nRF52840 board control routing", "External QSPI flash (8MB MX25R6435F) on separate bus; not accessible on headers", "nRF52840 onboard as board controller and BT5 coprocessor; not the primary target", "Running 3.0V GPIO (SW11) under heavy load may degrade LTE RF performance"]
+
+[compatibility]
+arduino_core = "2.7.0"
+bootloader = "nrf9160-mcuboot"
+frameworks = "arduino"
+languages = "arduino-cpp"
+pio = "nordicnrf91"
+
+[dendri]
+board_family_skill_id = "nrf91-family"
+board_profile_id = "nrf9160-dk-pca10090"
+default_language_skills = ["zephyr-nrf91", "arduino-cpp-nrf91", "rust-embassy-nrf91"]
+svg_path = "content/assets/svg/boards/nrf9160-dk-pca10090.svg"
+svg_status = "missing"

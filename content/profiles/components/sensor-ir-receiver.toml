@@ -1,0 +1,119 @@
+# component profile — sensor-ir-receiver (migrated from legacy TOON)
+# Source: sensor-ir-receiver.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "sensor-ir-receiver-profile"
+
+[identification]
+category = "sensor"
+family = "sensors"
+id = "sensor-ir-receiver"
+image = "sensor-ir-receiver.svg"
+name = "IR Receiver (Receptor IR)"
+standard = "IEC 60947-5-2"
+subfamily = "electrical"
+symbol = "sensor-ir-receiver-symbol.svg"
+symbol_standard = "IEC"
+
+[params.carrier_frequency]
+default = 38
+editable = true
+label = "Carrier Frequency"
+options = [36, 38, 40, 56]
+type = "enum"
+unit = "kHz"
+
+[params.output_logic]
+default = "active-low"
+editable = true
+label = "Output Logic"
+options = ["active-low", "active-high"]
+type = "enum"
+
+[params.supply_voltage]
+default = 5
+editable = true
+label = "Supply Voltage"
+options = [3.3, 5]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "5mA"
+direction = "input"
+id = "VCC"
+notes = "supply +"
+type = "power"
+voltage_max = "5V"
+
+[[ports]]
+direction = "input"
+id = "GND"
+notes = "supply -"
+type = "ground"
+
+[[ports]]
+current_max = "5mA"
+direction = "output"
+id = "OUT"
+notes = "demodulated signal output"
+type = "digital"
+voltage_max = "5V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "threshold"
+noise_model = true
+output_logic = "{output_logic}"
+states = ["idle", "receiving", "fault"]
+thermal_model = false
+trigger = "optical"
+trigger_source = "external"
+
+[limits]
+ip_rating = "IP54"
+max_current = "5mA"
+max_temp = 85
+max_voltage = "{supply_voltage}"
+min_temp = -25
+warnings = ["Standard IR receivers typically use active-low output logic", "Ensure transmitter and receiver carrier frequencies match (e.g. 38kHz)"]
+
+[connections]
+allowed_with = ["mcu-*", "plc-*", "maker-ir-remote"]
+forbidden_with = ["ac-source"]
+requires = ["dc-source"]
+typical_context = ["remote-control", "optical-communication", "presence-detection"]
+
+[canvas]
+animated = true
+height = 40
+label_position = "top"
+
+[canvas.port_GND]
+x = 15
+y = 40
+
+[canvas.port_OUT]
+x = 30
+y = 40
+
+[canvas.port_VCC]
+x = 0
+y = 40
+ports_layout = "vertical"
+value_display = "{carrier_frequency}kHz IR"
+width = 30
+
+[dendri]
+component_family_skill_id = "sensors-family"
+component_profile_id = "sensor-ir-receiver"
+palette_group = "Sensors > Electrical"
+simulation_engine = "digital-io"
+svg_path = "content/assets/svg/components/sensor-ir-receiver.svg"
+tags = ["sensor", "infrared", "receiver", "optical"]
+svg_status = "missing"

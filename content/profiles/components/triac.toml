@@ -1,0 +1,125 @@
+# component profile — triac (migrated from legacy TOON)
+# Source: triac.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "triac-profile"
+
+[identification]
+category = "semiconductor"
+family = "electricals"
+id = "triac"
+image = "triac.svg"
+name = "Triac (Triode for Alternating Current)"
+standard = "IEC 60747-6"
+subfamily = "semiconductors"
+symbol = "triac-symbol.svg"
+symbol_standard = "IEC"
+
+[params.i_gt]
+default = 50.0
+editable = true
+label = "Gate Trigger Current"
+type = "float"
+unit = "mA"
+
+[params.i_t_rms]
+default = 12.0
+editable = true
+label = "RMS On-State Current"
+type = "float"
+unit = "A"
+
+[params.v_drm]
+default = 600.0
+editable = true
+label = "Repetitive Peak Off-State Voltage"
+type = "float"
+unit = "V"
+
+[params.v_gt]
+default = 1.5
+editable = false
+label = "Gate Trigger Voltage"
+type = "float"
+unit = "V"
+
+[[ports]]
+current_max = "{i_t_rms}"
+direction = "passive"
+id = "MT1"
+notes = "Main Terminal 1 (Reference)"
+type = "analog"
+
+[[ports]]
+current_max = "{i_t_rms}"
+direction = "passive"
+id = "MT2"
+notes = "Main Terminal 2"
+type = "analog"
+voltage_max = "{v_drm}"
+
+[[ports]]
+current_max = "{i_gt}"
+direction = "input"
+id = "G"
+notes = "Gate Terminal"
+type = "analog"
+voltage_max = "10V"
+
+[simulation]
+bidirectional = true
+dynamic = true
+model = "ideal"
+noise_model = false
+states = ["off", "quadrant-i-iii", "quadrant-ii-iv"]
+thermal_model = true
+
+[limits]
+max_current = "{i_t_rms}"
+
+[limits.max_power]
+unit = "W"
+value = 50
+max_temp = 125
+max_voltage = "{v_drm}"
+min_temp = -40
+warnings = ["High dv/dt can cause false triggering; snubber circuit recommended", "Heatsink required for currents above 1A RMS"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = ["resistor"]
+typical_context = ["ac-dimmer", "motor-speed-control", "static-switching"]
+
+[canvas]
+animated = true
+height = 60
+label_position = "top"
+
+[canvas.port_G]
+x = 0
+y = 45
+
+[canvas.port_MT1]
+x = 20
+y = 60
+
+[canvas.port_MT2]
+x = 20
+y = 0
+ports_layout = "custom"
+value_display = "{name} {v_drm}V"
+width = 40
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "triac"
+palette_group = "Fundamental Electricals > Semiconductors"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/triac.svg"
+tags = ["triac", "semiconductor", "thyristor", "ac-control"]
+svg_status = "missing"

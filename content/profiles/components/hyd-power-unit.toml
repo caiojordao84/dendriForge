@@ -1,0 +1,179 @@
+# component profile — hyd-power-unit (migrated from legacy TOON)
+# Source: hyd-power-unit.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "hyd-power-unit-profile"
+
+[identification]
+category = "pump"
+family = "hydraulics"
+id = "hyd-power-unit"
+image = "hyd-power-unit.svg"
+name = "Compact Hydraulic Power Unit (Grupo hidráulico compacto)"
+standard = "ISO 1219-1"
+subfamily = "pumps"
+symbol = "hyd-power-unit-symbol.svg"
+symbol_standard = "ISO"
+
+[params.motor_power]
+default = 1500
+editable = true
+label = "Motor Rated Power"
+max = 10000
+min = 500
+type = "float"
+unit = "W"
+
+[params.motor_voltage]
+default = 400
+editable = true
+label = "Motor Voltage"
+options = [230, 400]
+type = "enum"
+unit = "V"
+
+[params.operating_pressure]
+default = 150
+editable = true
+label = "System Pressure (Relief Setting)"
+max = 300
+min = 20
+type = "float"
+unit = "bar"
+
+[params.pump_displacement]
+default = 2.5
+editable = true
+label = "Pump Displacement"
+type = "float"
+unit = "cm³/rev"
+
+[params.tank_capacity]
+default = 10
+editable = true
+label = "Tank Capacity"
+max = 100
+min = 2
+type = "float"
+unit = "L"
+
+[[ports]]
+current_max = "20A"
+direction = "input"
+id = "U"
+notes = "motor phase U"
+type = "power"
+voltage_max = "{motor_voltage}"
+
+[[ports]]
+current_max = "20A"
+direction = "input"
+id = "V"
+notes = "motor phase V"
+type = "power"
+voltage_max = "{motor_voltage}"
+
+[[ports]]
+current_max = "20A"
+direction = "input"
+id = "W"
+notes = "motor phase W"
+type = "power"
+voltage_max = "{motor_voltage}"
+
+[[ports]]
+direction = "input"
+id = "PE"
+notes = "protective earth"
+type = "ground"
+
+[[hydraulic_ports]]
+direction = "output"
+flow_max = "10"
+id = "P"
+notes = "pressure supply line"
+pressure_max = "{operating_pressure}bar"
+type = "hydraulic"
+
+[[hydraulic_ports]]
+direction = "input"
+flow_max = "10"
+id = "T"
+notes = "tank return line"
+pressure_max = "5bar"
+type = "hydraulic"
+
+[simulation]
+bidirectional = false
+dynamic = true
+leakage_model = false
+model = "fluid-pressure-source"
+motion = "rotary"
+noise_model = false
+states = ["off", "running", "fault"]
+thermal_model = true
+
+[limits]
+ip_rating = "IP54"
+max_current = "20A"
+
+[limits.max_power]
+unit = "W"
+value = "{motor_power}"
+max_pressure = "{operating_pressure}"
+max_temp = 70
+max_voltage = "{motor_voltage}"
+min_pressure = 0
+min_temp = -10
+warnings = ["Never run pump without hydraulic fluid in the tank (dry run will destroy pump)", "Ensure correct motor rotation direction before continuous operation", "Integrated relief valve sets the maximum system P port pressure"]
+
+[connections]
+allowed_with = ["hyd-valve-*", "hyd-manifold-block", "hyd-check-valve", "ac-source-3phase"]
+forbidden_with = ["pneu-*"]
+requires = ["ac-source-3phase"]
+typical_context = ["hydraulic-supply", "machine-press", "lift-table"]
+
+[canvas]
+animated = true
+height = 80
+label_position = "bottom"
+
+[canvas.port_P]
+x = 80
+y = 30
+
+[canvas.port_PE]
+x = 40
+y = 0
+
+[canvas.port_T]
+x = 80
+y = 60
+
+[canvas.port_U]
+x = 10
+y = 0
+
+[canvas.port_V]
+x = 20
+y = 0
+
+[canvas.port_W]
+x = 30
+y = 0
+ports_layout = "custom"
+value_display = "{operating_pressure}bar / {tank_capacity}L"
+width = 80
+
+[dendri]
+component_family_skill_id = "hydraulics-family"
+component_profile_id = "hyd-power-unit"
+palette_group = "Hydraulics > Power Units"
+simulation_engine = "hydraulic-motion"
+svg_path = "content/assets/svg/components/hyd-power-unit.svg"
+tags = ["pump", "hpu", "power-unit", "motor", "tank"]
+svg_status = "missing"

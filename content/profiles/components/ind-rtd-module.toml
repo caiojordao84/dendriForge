@@ -1,0 +1,167 @@
+# component profile — ind-rtd-module (migrated from legacy TOON)
+# Source: ind-rtd-module.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "ind-rtd-module-profile"
+
+[identification]
+category = "signal"
+family = "industrial"
+id = "ind-rtd-module"
+image = "ind-rtd-module.svg"
+name = "RTD Signal Conditioner Module (Módulo RTD)"
+standard = "IEC 60751"
+subfamily = "process-modules"
+symbol = "ind-rtd-module-symbol.svg"
+symbol_standard = "IEC"
+
+[params.output_type]
+default = "4-20mA"
+editable = true
+label = "Output Signal"
+options = ["0-10V", "4-20mA"]
+type = "enum"
+
+[params.range_max]
+default = 100
+editable = true
+label = "Range Max"
+max = 850
+min = 50
+type = "float"
+unit = "°C"
+
+[params.range_min]
+default = 0
+editable = true
+label = "Range Min"
+max = 0
+min = -200
+type = "float"
+unit = "°C"
+
+[params.sensor_type]
+default = "PT100"
+editable = true
+label = "Sensor Type"
+options = ["PT100", "PT1000"]
+type = "enum"
+
+[params.wire_config]
+default = "3-wire"
+editable = true
+label = "Wire Configuration"
+options = ["2-wire", "3-wire", "4-wire"]
+type = "enum"
+
+[[ports]]
+current_max = "50mA"
+direction = "input"
+id = "VCC"
+notes = "module power supply +"
+type = "power"
+voltage_max = "24V"
+
+[[ports]]
+direction = "input"
+id = "GND"
+notes = "module power supply -"
+type = "ground"
+
+[[ports]]
+current_max = "5mA"
+direction = "input"
+id = "RTD_IN1"
+notes = "RTD terminal 1"
+type = "analog"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "5mA"
+direction = "input"
+id = "RTD_IN2"
+notes = "RTD terminal 2"
+type = "analog"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "5mA"
+direction = "input"
+id = "RTD_IN3"
+notes = "RTD terminal 3 (sense)"
+type = "analog"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "20mA"
+direction = "output"
+id = "OUT_SIG"
+notes = "analog output signal"
+type = "analog"
+voltage_max = "24V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "function-block-engine"
+noise_model = false
+states = ["active", "fault-open-circuit", "fault-short-circuit"]
+thermal_model = false
+
+[limits]
+max_current = "50mA"
+max_temp = 60
+max_voltage = "24V"
+min_temp = -20
+warnings = ["Use shielded cables for RTD connections to minimize EMI", "Ensure wire resistance is balanced for 3-wire configurations to avoid offsets"]
+
+[connections]
+allowed_with = ["sensor-rtd-*", "plc-*", "ind-ai-bank", "dc-source"]
+forbidden_with = ["ac-source"]
+requires = ["dc-source"]
+typical_context = ["temperature-measurement", "signal-conditioning", "plc-cabinet"]
+
+[canvas]
+animated = false
+height = 80
+label_position = "top"
+
+[canvas.port_GND]
+x = 0
+y = 70
+
+[canvas.port_OUT_SIG]
+x = 0
+y = 40
+
+[canvas.port_RTD_IN1]
+x = 40
+y = 20
+
+[canvas.port_RTD_IN2]
+x = 40
+y = 35
+
+[canvas.port_RTD_IN3]
+x = 40
+y = 50
+
+[canvas.port_VCC]
+x = 0
+y = 10
+ports_layout = "custom"
+value_display = "{sensor_type} -> {output_type}"
+width = 40
+
+[dendri]
+component_family_skill_id = "industrial-family"
+component_profile_id = "ind-rtd-module"
+palette_group = "Industrial > Process Modules"
+simulation_engine = "function-block-engine"
+svg_path = "content/assets/svg/components/ind-rtd-module.svg"
+tags = ["rtd", "signal-conditioner", "temperature", "pt100"]
+svg_status = "missing"

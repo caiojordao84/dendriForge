@@ -1,0 +1,138 @@
+# component profile — sensor-temp-humidity (migrated from legacy TOON)
+# Source: sensor-temp-humidity.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "sensor-temp-humidity-profile"
+
+[identification]
+category = "sensor"
+family = "sensors"
+id = "sensor-temp-humidity"
+image = "sensor-temp-humidity.svg"
+name = "Universal Temp/Humidity Sensor (Temperatura e humidade)"
+standard = "Hybrid (Maker/Industrial)"
+subfamily = "environment"
+symbol = "sensor-temp-humidity-symbol.svg"
+symbol_standard = "IEC"
+
+[params.output_type]
+default = "digital-1Wire"
+editable = true
+label = "Output Interface"
+options = ["digital-1Wire", "I2C", "analog-0-10V", "analog-4-20mA"]
+type = "enum"
+
+[params.supply_voltage]
+default = 5
+editable = true
+label = "Supply Voltage"
+options = [3.3, 5, 12, 24]
+type = "enum"
+unit = "V"
+
+[params.temp_range_max]
+default = 80
+editable = true
+label = "Temp Max"
+max = 120
+min = 50
+type = "float"
+unit = "°C"
+
+[params.temp_range_min]
+default = -20
+editable = true
+label = "Temp Min"
+max = 0
+min = -40
+type = "float"
+unit = "°C"
+
+[[ports]]
+current_max = "100mA"
+direction = "input"
+id = "VCC"
+notes = "supply +"
+type = "power"
+voltage_max = "{supply_voltage}"
+
+[[ports]]
+direction = "input"
+id = "GND"
+notes = "supply -"
+type = "ground"
+
+[[ports]]
+current_max = "20mA"
+direction = "bidirectional"
+id = "SIG1"
+notes = "Temp analog / 1-Wire Data / I2C SDA"
+type = "i2c"
+voltage_max = "{supply_voltage}"
+
+[[ports]]
+current_max = "20mA"
+direction = "bidirectional"
+id = "SIG2"
+notes = "Humidity analog / I2C SCL (leave open for 1-Wire)"
+type = "i2c"
+voltage_max = "{supply_voltage}"
+
+[simulation]
+bidirectional = true
+dynamic = true
+model = "script"
+noise_model = false
+states = ["idle", "measuring", "fault"]
+thermal_model = false
+
+[limits]
+ip_rating = "IP54"
+max_current = "100mA"
+max_temp = 85
+max_voltage = "{supply_voltage}"
+min_temp = -25
+warnings = ["If using digital-1Wire (like DHT modules), only SIG1 is used for data.", "If using I2C, SIG1 acts as SDA and SIG2 acts as SCL. External pull-ups may be required.", "Ensure analog ground is properly referenced if used with PLCs."]
+
+[connections]
+allowed_with = ["ind-ai-bank", "plc-*", "mcu-*", "maker-*", "arduino-*"]
+forbidden_with = ["ac-source"]
+requires = ["dc-source"]
+typical_context = ["hvac", "greenhouse", "maker-weather-station", "industrial-climate"]
+
+[canvas]
+animated = true
+height = 50
+label_position = "top"
+
+[canvas.port_GND]
+x = 0
+y = 40
+
+[canvas.port_SIG1]
+x = 50
+y = 15
+
+[canvas.port_SIG2]
+x = 50
+y = 35
+
+[canvas.port_VCC]
+x = 0
+y = 10
+ports_layout = "custom"
+value_display = "T/H ({output_type})"
+width = 50
+
+[dendri]
+component_family_skill_id = "sensors-family"
+component_profile_id = "sensor-temp-humidity"
+palette_group = "Sensors > Environment"
+simulation_engine = "digital-io"
+svg_path = "content/assets/svg/components/sensor-temp-humidity.svg"
+tags = ["sensor", "temperature", "humidity", "environment", "maker", "industrial"]
+svg_status = "missing"

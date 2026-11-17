@@ -1,0 +1,125 @@
+# component profile — panel-potentiometer (migrated from legacy TOON)
+# Source: panel-potentiometer.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "panel-potentiometer-profile"
+
+[identification]
+category = "passive"
+family = "electricals"
+id = "panel-potentiometer"
+image = "panel-potentiometer.svg"
+name = "Panel Potentiometer (Potenciómetro de Painel)"
+standard = "IEC 60393-1"
+subfamily = "passives"
+symbol = "panel-potentiometer-symbol.svg"
+symbol_standard = "IEC"
+
+[params.power_rating]
+default = 0.5
+editable = false
+label = "Power Rating"
+max = 5.0
+min = 0.1
+type = "float"
+unit = "W"
+
+[params.resistance]
+default = 10000
+editable = true
+label = "Total Resistance"
+max = 1000000
+min = 100
+type = "float"
+unit = "Ω"
+
+[params.taper]
+default = "linear"
+editable = true
+label = "Taper (Curve)"
+options = ["linear", "logarithmic", "anti-logarithmic"]
+type = "enum"
+
+[params.tolerance]
+default = 10
+editable = true
+label = "Tolerance"
+options = [5, 10, 20]
+type = "enum"
+
+[[ports]]
+direction = "passive"
+id = "CCW"
+notes = "counter-clockwise end terminal"
+type = "analog"
+
+[[ports]]
+direction = "passive"
+id = "WIPER"
+notes = "variable wiper terminal"
+type = "analog"
+
+[[ports]]
+direction = "passive"
+id = "CW"
+notes = "clockwise end terminal"
+type = "analog"
+
+[simulation]
+bidirectional = true
+dynamic = true
+model = "basic-analog"
+noise_model = false
+states = ["nominal"]
+thermal_model = false
+
+[limits]
+ip_rating = "IP54"
+max_current = "100mA"
+
+[limits.max_power]
+unit = "W"
+value = 0.5
+max_temp = 85
+max_voltage = "50V"
+min_temp = -10
+warnings = ["Do not exceed maximum power dissipation across the resistive element", "Wiper current should be kept minimal to avoid damaging the conductive track"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["voltage-divider", "variable-resistor", "hmi-panel-control"]
+
+[canvas]
+animated = true
+height = 50
+label_position = "bottom"
+
+[canvas.port_CCW]
+x = 0
+y = 40
+
+[canvas.port_CW]
+x = 50
+y = 40
+
+[canvas.port_WIPER]
+x = 25
+y = 10
+ports_layout = "custom"
+value_display = "{resistance}Ω {taper}"
+width = 50
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "panel-potentiometer"
+palette_group = "Electricals > Passives"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/panel-potentiometer.svg"
+tags = ["potentiometer", "resistor", "passive", "panel-mount"]
+svg_status = "missing"

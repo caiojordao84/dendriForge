@@ -1,0 +1,160 @@
+# component profile — bjt-pnp (migrated from legacy TOON)
+# Source: bjt-pnp.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "bjt-pnp-profile"
+
+[identification]
+category = "passive"
+family = "electricals"
+id = "bjt-pnp"
+image = "bjt-pnp.svg"
+name = "BJT PNP"
+standard = "IEC 60747-6"
+subfamily = "passives"
+symbol = "bjt-pnp-symbol.svg"
+symbol_standard = "IEC"
+
+[params.ft]
+default = 100
+editable = false
+label = "Transition Frequency (fT)"
+max = 1000
+min = 1
+type = "float"
+unit = "V"
+
+[params.hfe]
+default = 100
+editable = true
+label = "DC Current Gain (hFE)"
+options = [20, 50, 100, 150, 200, 300, 500]
+type = "enum"
+unit = "V"
+
+[params.ic_max]
+default = 0.1
+editable = true
+label = "Max Collector Current"
+options = [0.01, 0.05, 0.1, 0.5, 1, 3, 5, 10, 15, 20]
+type = "enum"
+unit = "A"
+
+[params.package]
+default = "TO-92"
+editable = true
+label = "Package"
+options = ["TO-92", "SOT-23", "SOT-89", "TO-220", "TO-126", "TO-3", "SMD-SOT-223", "SMD-DFN"]
+type = "enum"
+
+[params.pd_max]
+default = 0.625
+editable = true
+label = "Max Power Dissipation"
+options = [0.125, 0.25, 0.5, 0.625, 1, 2, 5, 10, 20, 50]
+type = "enum"
+unit = "W"
+
+[params.vbe_on]
+default = 0.7
+editable = false
+label = "Base-Emitter Turn-On Voltage"
+max = 1.0
+min = 0.5
+type = "float"
+unit = "V"
+
+[params.vcbo]
+default = 40
+editable = true
+label = "Collector-Base Voltage"
+options = [20, 40, 60, 80, 100, 150, 200, 300, 400, 600]
+type = "enum"
+unit = "V"
+
+[params.vce_sat]
+default = 0.2
+editable = false
+label = "Collector-Emitter Saturation Voltage"
+max = 1.0
+min = 0.02
+type = "float"
+unit = "V"
+
+[[ports]]
+current_max = "20A"
+direction = "input"
+id = "C"
+notes = "collector"
+type = "power"
+voltage_max = "600V"
+
+[[ports]]
+current_max = "1A"
+direction = "input"
+id = "B"
+notes = "base"
+type = "analog"
+voltage_max = "5V"
+
+[[ports]]
+direction = "output"
+id = "E"
+notes = "emitter"
+type = "ground"
+
+[simulation]
+bidirectional = false
+dynamic = true
+equation = "I_C = hfe * I_B; V_BE ≈ vbe_on; V_CE(sat) ≈ vce_sat"
+model = "basic-analog"
+noise_model = false
+states = ["cutoff", "active", "saturation"]
+thermal_model = true
+
+[limits]
+max_current = "20A"
+max_power = "{pd_max}W"
+max_temp = 150
+max_voltage = "600V"
+min_temp = -55
+warnings = ["Do not drive the base directly from a high-voltage source — use a base resistor", "Exceeding collector current or power dissipation causes junction overheating", "Switching operation is limited by storage time — avoid saturation when speed matters", "Thermal runaway can occur without proper heat sinking and bias stabilization"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["switching", "amplifier", "driver", "logic-interface", "current-amplification"]
+
+[canvas]
+animated = false
+height = 50
+label_position = "right"
+
+[canvas.port_B]
+x = 0
+y = 25
+
+[canvas.port_C]
+x = 0
+y = 10
+
+[canvas.port_E]
+x = 0
+y = 40
+ports_layout = "custom"
+value_display = "PNP hFE={hfe} / {package}"
+width = 60
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "bjt-pnp"
+palette_group = "Fundamental Electricals > Semiconductors"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/bjt-pnp.svg"
+tags = ["transistor", "bjt", "pnp", "passive", "semiconductor", "switching", "iec-60747-6"]
+svg_status = "missing"

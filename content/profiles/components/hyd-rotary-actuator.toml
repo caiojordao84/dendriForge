@@ -1,0 +1,135 @@
+# component profile — hyd-rotary-actuator (migrated from legacy TOON)
+# Source: hyd-rotary-actuator.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "hyd-rotary-actuator-profile"
+
+[identification]
+category = "actuator"
+family = "hydraulics"
+id = "hyd-rotary-actuator"
+image = "hyd-rotary-actuator.svg"
+name = "Hydraulic Rotary Actuator (Atuador rotativo hidráulico)"
+standard = "custom"
+subfamily = "hydraulic-actuators"
+symbol = "hyd-rotary-actuator-symbol.svg"
+symbol_standard = "ISO"
+
+[params.initial_position]
+default = "0_deg"
+editable = true
+label = "Initial Position"
+options = ["0_deg", "max_angle", "mid_pos"]
+type = "enum"
+
+[params.operating_pressure]
+default = 150
+editable = true
+label = "Operating Pressure"
+max = 250
+min = 20
+type = "float"
+unit = "bar"
+
+[params.port_size]
+default = "G1/2"
+editable = true
+label = "Port Size"
+options = ["G1/4", "G3/8", "G1/2", "G3/4", "G1"]
+type = "enum"
+
+[params.rotation_angle]
+default = 90
+editable = true
+label = "Rotation Angle"
+options = [90, 180, 270, 360]
+type = "enum"
+unit = "°"
+
+[params.torque]
+default = 500
+editable = true
+label = "Theoretical Torque at 100 bar"
+max = 50000
+min = 10
+type = "float"
+unit = "N·m"
+ports = []
+
+[[hydraulic_ports]]
+direction = "bidirectional"
+id = "A"
+notes = "port A — rotate CW"
+pressure_max = "{operating_pressure}bar"
+type = "hydraulic"
+
+[[hydraulic_ports]]
+direction = "bidirectional"
+id = "B"
+notes = "port B — rotate CCW"
+pressure_max = "{operating_pressure}bar"
+type = "hydraulic"
+
+[[sensor_slots]]
+compatible_sensors = ["sensor-limit-switch", "hyd-pressure-switch-no"]
+id = "S1"
+position = "retracted-end"
+
+[[sensor_slots]]
+compatible_sensors = ["sensor-limit-switch", "hyd-pressure-switch-no"]
+id = "S2"
+position = "extended-end"
+
+[simulation]
+bidirectional = true
+dynamic = true
+leakage_model = true
+model = "hydraulic-rotary-actuator"
+motion = "rotary"
+noise_model = false
+position_feedback = true
+states = ["zero-pos", "rotating-cw", "max-pos", "rotating-ccw"]
+thermal_model = false
+velocity_model = "simplified"
+
+[limits]
+max_pressure = "{operating_pressure}"
+max_temp = 80
+min_pressure = 10
+min_temp = -20
+warnings = ["Hydraulic fluid trapped between blocked ports can cause extreme pressure spikes due to thermal expansion", "Ensure adequate load holding valves are used for vertical rotary loads", "Internal leakage across rotary vanes may cause slow load drift over time"]
+
+[connections]
+allowed_with = ["hyd-valve-4-2-*", "hyd-valve-4-3-*", "hyd-flow-control-*"]
+forbidden_with = ["pneu-*", "act-motor-*"]
+requires = ["hyd-power-unit"]
+typical_context = ["heavy-turning", "valve-actuation", "boom-rotation", "clamping"]
+
+[canvas]
+animated = true
+height = 60
+label_position = "bottom"
+
+[canvas.port_A]
+x = 20
+y = 0
+
+[canvas.port_B]
+x = 60
+y = 0
+ports_layout = "custom"
+value_display = "{rotation_angle}° / {torque}Nm"
+width = 80
+
+[dendri]
+component_family_skill_id = "hydraulics-family"
+component_profile_id = "hyd-rotary-actuator"
+palette_group = "Hydraulics > Hydraulic Actuators"
+simulation_engine = "hydraulic-motion"
+svg_path = "content/assets/svg/components/hyd-rotary-actuator.svg"
+tags = ["rotary", "actuator", "hydraulic", "double-acting", "high-torque", "vane"]
+svg_status = "missing"

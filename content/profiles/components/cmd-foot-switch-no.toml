@@ -1,0 +1,142 @@
+# component profile — cmd-foot-switch-no (migrated from legacy TOON)
+# Source: cmd-foot-switch-no.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "cmd-foot-switch-no-profile"
+
+[identification]
+category = "passive"
+family = "electricals"
+id = "cmd-foot-switch-no"
+image = "cmd-foot-switch-no.svg"
+name = "Foot Switch NO"
+standard = "IEC 60947-5-1"
+subfamily = "passives"
+symbol = "cmd-foot-switch-no-symbol.svg"
+symbol_standard = "IEC"
+
+[params.actuation_force]
+default = 15
+editable = true
+label = "Actuation Force"
+options = [10, 15, 20, 30]
+type = "enum"
+unit = "N"
+
+[params.contact_rating_ac]
+default = 10
+editable = true
+label = "AC Contact Rating"
+options = [3, 5, 10, 16]
+type = "enum"
+unit = "A"
+
+[params.contact_rating_dc]
+default = 6
+editable = true
+label = "DC Contact Rating"
+options = [1, 3, 6, 8, 10]
+type = "enum"
+unit = "A"
+
+[params.contact_state]
+default = "normally-open"
+editable = true
+label = "Contact State"
+options = ["normally-open", "momentary", "spring-return"]
+type = "enum"
+
+[params.ip_rating]
+default = "IP65"
+editable = true
+label = "Ingress Protection"
+options = ["IP54", "IP65", "IP67"]
+type = "enum"
+
+[params.mechanical_life]
+default = 1000000
+editable = false
+label = "Mechanical Life"
+max = 10000000
+min = 100000
+type = "float"
+unit = "cycles"
+
+[params.package]
+default = "industrial floor"
+editable = true
+label = "Package"
+options = ["industrial floor", "IP65 housing", "IP67 housing"]
+type = "enum"
+
+[params.pedal_area]
+default = 100
+editable = true
+label = "Pedal Area"
+options = [60, 80, 100, 120, 150]
+type = "enum"
+unit = "cm2"
+
+[[ports]]
+direction = "input"
+id = "COM"
+notes = "common terminal"
+type = "ground"
+
+[[ports]]
+current_max = "10A"
+direction = "output"
+id = "NO"
+notes = "normally-open contact"
+type = "digital"
+voltage_max = "250V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "ideal"
+noise_model = false
+states = ["open", "closed"]
+thermal_model = false
+
+[limits]
+max_current = "10A"
+max_temp = 70
+max_voltage = "250V"
+min_temp = -25
+warnings = ["Use a guard to prevent accidental continuous activation", "Respect AC/DC contact ratings separately; DC switching is more demanding", "Use an arc suppression network for inductive loads"]
+
+[connections]
+allowed_with = ["mcu-gpio", "relay-coil", "ind-load", "dc-source"]
+forbidden_with = ["ac-source"]
+requires = []
+typical_context = ["foot-control", "manual-control", "operator-panel", "industrial-machinery"]
+
+[canvas]
+animated = false
+height = 40
+label_position = "top"
+
+[canvas.port_COM]
+x = 0
+y = 20
+
+[canvas.port_NO]
+x = 60
+y = 20
+ports_layout = "horizontal"
+value_display = "Foot NO / {contact_state} / {ip_rating}"
+width = 60
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "cmd-foot-switch-no"
+palette_group = "Fundamental Electricals > Switches"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/cmd-foot-switch-no.svg"
+tags = ["foot-switch", "no", "momentary", "switch", "operator", "control", "iec-60947-5-1"]
+svg_status = "missing"

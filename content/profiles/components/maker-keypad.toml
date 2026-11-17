@@ -1,0 +1,192 @@
+# component profile — maker-keypad (migrated from legacy TOON)
+# Source: maker-keypad.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "maker-keypad-profile"
+
+[identification]
+category = "command"
+family = "command-elements"
+id = "maker-keypad"
+image = "maker-keypad.svg"
+name = "Matrix Keypad 4x4"
+standard = "IEC 60947-5-1"
+subfamily = "special-interfaces"
+symbol = "maker-keypad-symbol.svg"
+symbol_standard = "IEC"
+
+[params.key_count]
+default = 16
+editable = false
+label = "Total Keys"
+max = 16
+min = 4
+type = "int"
+
+[params.key_type]
+default = "tactile"
+editable = true
+label = "Key Type"
+options = ["tactile", "membrane", "rubber-dome"]
+type = "enum"
+
+[params.matrix]
+default = "4x4"
+editable = true
+label = "Key Matrix"
+options = ["1x4", "3x4", "4x4"]
+type = "enum"
+
+[params.pull_resistor]
+default = "pull-up"
+editable = true
+label = "Pull Resistor"
+options = ["pull-up", "pull-down", "external"]
+type = "enum"
+
+[params.supply_voltage]
+default = 5
+editable = true
+label = "Logic Voltage"
+options = [3, 5]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "5mA"
+direction = "output"
+id = "R1"
+notes = "Row 1 scan line"
+type = "digital"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "5mA"
+direction = "output"
+id = "R2"
+notes = "Row 2 scan line"
+type = "digital"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "5mA"
+direction = "output"
+id = "R3"
+notes = "Row 3 scan line"
+type = "digital"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "5mA"
+direction = "output"
+id = "R4"
+notes = "Row 4 scan line"
+type = "digital"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "5mA"
+direction = "input"
+id = "C1"
+notes = "Column 1 read line"
+type = "digital"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "5mA"
+direction = "input"
+id = "C2"
+notes = "Column 2 read line"
+type = "digital"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "5mA"
+direction = "input"
+id = "C3"
+notes = "Column 3 read line"
+type = "digital"
+voltage_max = "5V"
+
+[[ports]]
+current_max = "5mA"
+direction = "input"
+id = "C4"
+notes = "Column 4 read line"
+type = "digital"
+voltage_max = "5V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "contact-block"
+noise_model = false
+states = ["idle", "key-pressed", "fault"]
+thermal_model = false
+trigger = "user-interaction"
+
+[limits]
+max_current = "5mA"
+max_temp = 70
+max_voltage = "5V"
+min_temp = -20
+warnings = ["Requires matrix scanning firmware — do not wire columns directly to power", "Enable internal pull-up resistors on column pins in MCU firmware", "Simultaneous key presses may cause ghosting — use diodes for full N-key rollover"]
+
+[connections]
+allowed_with = ["mcu-*"]
+forbidden_with = ["ac-source", "plc-*"]
+requires = ["dc-source"]
+typical_context = ["password-entry", "menu-navigation", "numeric-input"]
+
+[canvas]
+animated = true
+height = 80
+label_position = "top"
+
+[canvas.port_C1]
+x = 60
+y = 10
+
+[canvas.port_C2]
+x = 60
+y = 25
+
+[canvas.port_C3]
+x = 60
+y = 40
+
+[canvas.port_C4]
+x = 60
+y = 55
+
+[canvas.port_R1]
+x = 0
+y = 10
+
+[canvas.port_R2]
+x = 0
+y = 25
+
+[canvas.port_R3]
+x = 0
+y = 40
+
+[canvas.port_R4]
+x = 0
+y = 55
+ports_layout = "custom"
+value_display = "{matrix} / {key_count}keys / {key_type}"
+width = 60
+
+[dendri]
+component_family_skill_id = "command-elements-family"
+component_profile_id = "maker-keypad"
+palette_group = "Command Elements > Special Interfaces"
+simulation_engine = "digital-io"
+svg_path = "content/assets/svg/components/maker-keypad.svg"
+tags = ["keypad", "command", "special-interfaces", "matrix", "matrix-4x4", "maker"]
+svg_status = "missing"

@@ -1,0 +1,150 @@
+# component profile — bb-400 (migrated from legacy TOON)
+# Source: bb-400.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "bb-400-profile"
+
+[identification]
+category = "accessory"
+family = "electricals"
+id = "bb-400"
+image = "bb-400.svg"
+name = "Breadboard 400 Points"
+standard = "IEC 60068-2-21"
+subfamily = "passives"
+symbol = "bb-400-symbol.svg"
+symbol_standard = "IEC"
+
+[params.columns]
+default = 10
+editable = false
+label = "Columns per Row"
+max = 10
+min = 10
+type = "int"
+
+[params.contact_rating]
+default = 1
+editable = false
+label = "Contact Current Rating"
+max = 2
+min = 0.5
+type = "float"
+unit = "A"
+
+[params.rail_holes]
+default = 25
+editable = false
+label = "Power Rail Holes per Side"
+max = 25
+min = 25
+type = "int"
+
+[params.tie_strip_rows]
+default = 30
+editable = false
+label = "Tie Strip Rows"
+max = 30
+min = 30
+type = "int"
+
+[params.total_points]
+default = 400
+editable = false
+label = "Total Tie Points"
+max = 400
+min = 400
+type = "int"
+
+[params.wire_gauge]
+default = "22-26AWG"
+editable = false
+label = "Compatible Wire Gauge"
+options = ["22-26AWG", "24-28AWG"]
+type = "enum"
+
+[[ports]]
+current_max = "2A"
+direction = "passive"
+id = "VRAIL_A_POS"
+notes = "Power rail A positive bus"
+type = "power"
+voltage_max = "50V"
+
+[[ports]]
+direction = "passive"
+id = "VRAIL_A_NEG"
+notes = "Power rail A negative bus"
+type = "ground"
+
+[[ports]]
+current_max = "2A"
+direction = "passive"
+id = "VRAIL_B_POS"
+notes = "Power rail B positive bus"
+type = "power"
+voltage_max = "50V"
+
+[[ports]]
+direction = "passive"
+id = "VRAIL_B_NEG"
+notes = "Power rail B negative bus"
+type = "ground"
+
+[simulation]
+bidirectional = true
+dynamic = false
+model = "ideal"
+noise_model = false
+states = ["nominal"]
+thermal_model = false
+
+[limits]
+max_current = "2A"
+max_temp = 70
+max_voltage = "50V"
+min_temp = -10
+warnings = ["Do not exceed 1A per tie-point contact — use PCB for higher current circuits", "Breadboard contacts degrade with repeated use — replace if intermittent contact occurs", "Not suitable for high-frequency signals above 1MHz due to stray capacitance"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["prototyping", "lab-testing", "circuit-development"]
+
+[canvas]
+animated = false
+height = 80
+label_position = "top"
+
+[canvas.port_VRAIL_A_NEG]
+x = 0
+y = 25
+
+[canvas.port_VRAIL_A_POS]
+x = 0
+y = 10
+
+[canvas.port_VRAIL_B_NEG]
+x = 0
+y = 70
+
+[canvas.port_VRAIL_B_POS]
+x = 0
+y = 55
+ports_layout = "custom"
+value_display = "400pts / {tie_strip_rows}rows x {columns}cols"
+width = 120
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "bb-400"
+palette_group = "Fundamental Electricals > Passives"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/bb-400.svg"
+tags = ["breadboard", "prototyping", "passive", "solderless", "accessory"]
+svg_status = "missing"

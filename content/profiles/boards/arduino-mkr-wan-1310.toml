@@ -1,0 +1,282 @@
+# board profile — arduino-mkr-wan-1310 (migrated from legacy TOON)
+# Source: arduino-mkr-wan-1310.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "arduino-mkr-wan-1310-profile"
+
+[identification]
+category = "maker"
+id = "arduino-mkr-wan-1310"
+image = "arduino-mkr-wan-1310.svg"
+manufacturer = "Arduino"
+mcu = "SAMD21 (ARM Cortex-M0+)"
+name = "Arduino MKR WAN 1310"
+url = "https://store.arduino.cc/products/arduino-mkr-wan-1310"
+
+[specs]
+clock = 48000000
+eeprom = 0
+flash_available = 253952
+flash_total = 262144
+sram = 32768
+voltage = "3.3V"
+
+[dims]
+h = 67.64
+t = 1.6
+w = 25.0
+
+[[power_pins]]
+direction = "input"
+name = "VIN"
+
+[[power_pins]]
+direction = "output"
+name = "5V"
+voltage = "5V"
+
+[[power_pins]]
+direction = "output"
+name = "VCC"
+voltage = "3.3V"
+
+[[power_pins]]
+name = "GND"
+type = "ground"
+
+[[power_pins]]
+direction = "input"
+name = "RESET"
+
+[[power_pins]]
+direction = "input"
+name = "AREF"
+
+[[power_pins]]
+direction = "input"
+name = "VBAT"
+
+[[gpio]]
+int = true
+label = "D0"
+pin = 0
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D1"
+pin = 1
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D2"
+pin = 2
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D3"
+pin = 3
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D4"
+pin = 4
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D5"
+pin = 5
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D6"
+pin = 6
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D7"
+pin = 7
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D8 / MISO"
+pin = 8
+pwm = false
+roles = ["spi-miso"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D9 / SCK"
+pin = 9
+pwm = false
+roles = ["spi-sck"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D10 / MOSI"
+pin = 10
+pwm = true
+roles = ["spi-mosi"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D11 / SDA"
+pin = 11
+pwm = false
+roles = ["i2c-sda"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D12 / SCL"
+pin = 12
+pwm = false
+roles = ["i2c-scl"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D13 / RX"
+pin = 13
+pwm = false
+roles = ["uart-rx"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D14 / TX / LED"
+pin = 14
+pwm = false
+roles = ["uart-tx", "status-led"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "A0 / DAC"
+pin = 15
+pwm = false
+roles = ["adc:t", "dac"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "A1"
+pin = 16
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "A2"
+pin = 17
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A3"
+pin = 18
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A4"
+pin = 19
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A5"
+pin = 20
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A6"
+pin = 21
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[peripherals]]
+param = "uarts:1"
+peripheral = "serial"
+value = "pins:13,14"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "i2c"
+value = "sda:11;scl:12"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "spi"
+value = "miso:8;mosi:10;sck:9"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "dac"
+value = "pin:15"
+
+[usb]
+chip = "native"
+pid = "0x8057"
+type = "Micro-USB"
+vid = "0x2341"
+
+[restrictions]
+max_io_current = "7mA"
+total_current_limit = "200mA"
+warnings = ["Operating voltage is 3.3V; do NOT connect 5V signals directly", "Pin 14 (TX) shares the onboard yellow LED", "LoRa module (Murata CMWX1ZZABZ) uses internal SPI; not user-accessible on header", "ECC508 crypto chip shares I2C bus", "QSPI 2MB external flash is not mapped to program space"]
+
+[compatibility]
+arduino_core = "1.8.14"
+bootloader = "arduino-samd-bootloader"
+frameworks = "arduino"
+languages = "arduino-cpp"
+pio = "atmelsam"
+
+[dendri]
+board_family_skill_id = "samd-family"
+board_profile_id = "arduino-mkr-wan-1310"
+default_language_skills = ["arduino-cpp-samd", "rust-embassy-samd"]
+svg_path = "content/assets/svg/boards/arduino-mkr-wan-1310.svg"
+svg_status = "missing"

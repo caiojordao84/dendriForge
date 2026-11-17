@@ -1,0 +1,186 @@
+# board profile — seeed-studio-xiao-esp32s3 (migrated from legacy TOON)
+# Source: seeed-studio-xiao-esp32s3.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "seeed-studio-xiao-esp32s3-profile"
+
+[identification]
+category = "maker"
+id = "seeed-studio-xiao-esp32s3"
+image = "seeed-studio-xiao-esp32s3.svg"
+manufacturer = "Seeed Studio"
+mcu = "Espressif ESP32-S3R8 (Xtensa LX7 dual-core 32-bit)"
+name = "Seeed Studio XIAO ESP32S3"
+url = "https://www.seeedstudio.com/XIAO-ESP32S3-p-5627.html"
+
+[specs]
+clock = 240000000
+eeprom = 0
+flash_available = 7864320
+flash_total = 8388608
+sram = 8781824
+voltage = "3.3V"
+
+[dims]
+h = 21.0
+t = 3.5
+w = 17.5
+
+[[power_pins]]
+direction = "input"
+name = "VIN"
+
+[[power_pins]]
+direction = "output"
+name = "5V"
+voltage = "5V"
+
+[[power_pins]]
+direction = "output"
+name = "3V3"
+voltage = "3.3V"
+
+[[power_pins]]
+name = "GND"
+type = "ground"
+
+[[power_pins]]
+direction = "input"
+name = "RESET"
+
+[[gpio]]
+int = true
+label = "D0 / A0 / IO2"
+pin = 0
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "D1 / A1 / IO3"
+pin = 1
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "D2 / A2 / IO4"
+pin = 2
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "D3 / A3 / IO5"
+pin = 3
+pwm = true
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "D4 / A4 / SDA / IO6"
+pin = 4
+pwm = true
+roles = ["adc:t", "i2c-sda"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "D5 / A5 / SCL / IO7"
+pin = 5
+pwm = true
+roles = ["adc:t", "i2c-scl"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "D6 / A6 / SCK / IO8"
+pin = 6
+pwm = true
+roles = ["adc:t", "spi-sck"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "D7 / A7 / MISO / IO9"
+pin = 7
+pwm = true
+roles = ["adc:t", "spi-miso"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "D8 / A8 / MOSI / IO10"
+pin = 8
+pwm = true
+roles = ["adc:t", "spi-mosi"]
+type = "analog"
+
+[[gpio]]
+int = true
+label = "D9 / RX / IO20 / SS"
+pin = 9
+pwm = true
+roles = ["uart-rx", "spi-ss"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D10 / TX / IO21 / LED"
+pin = 10
+pwm = true
+roles = ["uart-tx", "status-led"]
+type = "digital"
+
+[[peripherals]]
+param = "uarts:1"
+peripheral = "serial"
+value = "pins:9,10"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "i2c"
+value = "sda:4;scl:5"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "spi"
+value = "miso:7;mosi:8;sck:6;ss:9"
+
+[[peripherals]]
+param = "resolution:12bit"
+peripheral = "adc"
+value = "pins:0;1;2;3;4;5;6;7;8"
+
+[usb]
+chip = "native"
+pid = "0x1001"
+type = "USB-C"
+vid = "0x303A"
+
+[restrictions]
+max_io_current = "40mA"
+total_current_limit = "200mA"
+warnings = ["All I/O pins operate at 3.3V; not 5V tolerant", "ADC2 (IO11-IO20) unavailable when Wi-Fi is active", "GPIO0 used for boot mode; avoid pulling LOW at power-on", "IO35-IO37 connected to internal flash; not available on headers", "8MB PSRAM shares SPI bus; avoid conflicts on IO35-IO37", "USB OTG capable; shares IO19/IO20 with UART0 RX"]
+
+[compatibility]
+arduino_core = "2.0.11"
+bootloader = "esp32s3-boot"
+frameworks = "arduino"
+languages = "arduino-cpp"
+pio = "espressif32"
+
+[dendri]
+board_family_skill_id = "esp32-family"
+board_profile_id = "seeed-studio-xiao-esp32s3"
+default_language_skills = ["arduino-cpp-esp32", "micropython-esp32", "rust-embassy-esp32"]
+svg_path = "content/assets/svg/boards/seeed-studio-xiao-esp32s3.svg"
+svg_status = "missing"

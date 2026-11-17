@@ -1,73 +1,134 @@
-# Component profile — LED (visual MVP indicator)
-# Ported from core/components/led.toon
+# component profile — led (migrated from legacy TOON)
+# Source: led.toon
+# DEN-14: do not assign ASL 0.0.1
+
 
 [metadata]
-project_name = "led-profile"
-editor = "dendriForge"
 author = "schemasmith"
+editor = "dendriForge"
+project_name = "led-profile"
 
 [identification]
-id = "led"
-name = "LED (Light Emitting Diode)"
-family = "electricals"
-subfamily = "passives"
 category = "passive"
-standard = "IEC 60810"
+family = "electricals"
+id = "led"
 image = "led.svg"
+name = "LED (Light Emitting Diode)"
+standard = "IEC 60810"
+subfamily = "passives"
 symbol = "led-symbol.svg"
 symbol_standard = "IEC"
 
 [params.color]
-label = "Color"
 default = "red"
+editable = true
+label = "Color"
 options = ["red", "green", "blue", "yellow", "orange", "white", "warm-white", "cool-white", "uv", "ir", "custom"]
 type = "enum"
-editable = true
 
-[params.vf]
-label = "Forward Voltage (Vf)"
-unit = "V"
-default = 2.1
-min = 1.5
-max = 4.5
-type = "float"
+[params.if_max]
+default = 0.03
 editable = false
+label = "Absolute Max Forward Current"
+max = 5
+min = 0.003
+type = "float"
+unit = "A"
 
 [params.if_rated]
-label = "Rated Forward Current (If)"
-unit = "A"
 default = 0.02
-type = "enum"
-options = [0.002, 0.005, 0.01, 0.02, 0.03, 0.05, 0.1, 0.35, 0.7, 1, 3]
 editable = true
+label = "Rated Forward Current (If)"
+options = [0.002, 0.005, 0.01, 0.02, 0.03, 0.05, 0.1, 0.35, 0.7, 1, 3]
+type = "enum"
+unit = "A"
+
+[params.luminous_intensity]
+default = 20
+editable = false
+label = "Luminous Intensity (Iv)"
+max = 100000
+min = 0.5
+type = "float"
+unit = "V"
+
+[params.power_rated]
+default = 0.065
+editable = false
+label = "Power Rating"
+max = 10
+min = 0.001
+type = "float"
+unit = "W"
+
+[params.vf]
+default = 2.1
+editable = false
+label = "Forward Voltage (Vf)"
+max = 4.5
+min = 1.5
+type = "float"
+unit = "V"
+
+[params.vr_max]
+default = 5
+editable = false
+label = "Max Reverse Voltage (Vr)"
+max = 50
+min = 3
+type = "float"
+unit = "V"
+
+[params.wavelength_peak]
+default = 660
+editable = false
+label = "Peak Wavelength (λp)"
+max = 940
+min = 280
+type = "float"
+unit = "V"
 
 [[ports]]
-id = "A"
+current_max = "5A"
 direction = "input"
+id = "A"
+notes = "anode (positive terminal)"
 type = "power"
 voltage_max = "50V"
-current_max = "5A"
-notes = "anode (positive terminal)"
 
 [[ports]]
-id = "K"
 direction = "input"
-type = "ground"
+id = "K"
 notes = "cathode (negative terminal)"
+type = "ground"
 
 [simulation]
-model = "basic-analog"
-equation = "V_f = vf; I_f = (V_supply - vf) / R_series"
 bidirectional = false
 dynamic = false
+equation = "V_f = vf; I_f = (V_supply - vf) / R_series; lux = luminous_intensity * (if_rated / if_rated)"
+model = "basic-analog"
+noise_model = false
 states = ["off", "on", "fault"]
+thermal_model = false
+
+[limits]
+max_current = "5A"
+max_power = "{power_rated}W"
+max_temp = 85
+max_voltage = "50V"
+min_temp = -40
+warnings = ["Always use a current-limiting resistor or constant-current driver — never connect LED directly to voltage source", "Do not exceed absolute max forward current — LED degrades irreversibly above thermal limit", "Reverse voltage above Vr_max causes breakdown — add protection diode in AC circuits", "RGB and addressable LEDs (WS2812) require specific drive logic — verify timing and voltage levels"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["indicator", "backlight", "lighting", "optocoupler-input", "status-display"]
 
 [canvas]
-width = 50
-height = 40
-ports_layout = "custom"
-label_position = "top"
 animated = true
+height = 40
+label_position = "top"
 
 [canvas.port_A]
 x = 0
@@ -76,12 +137,17 @@ y = 20
 [canvas.port_K]
 x = 50
 y = 20
+ports_layout = "custom"
+value_display = "{color} / Vf={vf}V / If={if_rated}A ({led_type})"
+width = 50
 
 [dendri]
 component_family_skill_id = "electricals-family"
 component_profile_id = "led"
+palette_group = "Fundamental Electricals > Passives"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/led.svg"
+tags = ["led", "diode", "light", "indicator", "passive", "optical", "iec-60810"]
+svg_status = "authored"
 visual_mvp = true
-svg_path = "core/components/led.svg"
-svg_preferred_path = "content/assets/svg/components/led.svg"
 svg_required_ids = ["led-body"]
-svg_note = "Canvas binds #led-body on/off; prefers content/assets/svg/ (DEN-14 migrate)"

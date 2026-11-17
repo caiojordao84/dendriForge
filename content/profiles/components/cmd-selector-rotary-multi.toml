@@ -1,0 +1,264 @@
+# component profile — cmd-selector-rotary-multi (migrated from legacy TOON)
+# Source: cmd-selector-rotary-multi.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "cmd-selector-rotary-multi-profile"
+
+[identification]
+category = "command"
+family = "command-elements"
+id = "cmd-selector-rotary-multi"
+image = "cmd-selector-rotary-multi.svg"
+name = "Rotary Selector Switch Multi-Position"
+standard = "IEC 60947-5-1"
+subfamily = "selectors"
+symbol = "cmd-selector-rotary-multi-symbol.svg"
+symbol_standard = "IEC"
+
+[params.color]
+default = "black"
+editable = true
+label = "Knob Color"
+options = ["black", "grey", "red", "yellow"]
+type = "enum"
+
+[params.contact_config]
+default = "1NO"
+editable = true
+label = "Contact Configuration per Position"
+options = ["1NO", "1NO+1NC"]
+type = "enum"
+
+[params.current_rating]
+default = 10
+editable = false
+label = "Current Rating"
+type = "float"
+unit = "A"
+
+[params.illuminated]
+default = false
+editable = true
+label = "Illuminated"
+type = "bool"
+
+[params.is_maintained]
+default = true
+editable = false
+label = "Maintained Action"
+type = "bool"
+
+[params.positions]
+default = 4
+editable = true
+label = "Number of Positions"
+options = [2, 3, 4, 6, 8, 12]
+type = "enum"
+
+[params.voltage_rating]
+default = 240
+editable = false
+label = "Voltage Rating"
+options = [24, 110, 240, 400]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "10A"
+direction = "input"
+id = "COM_IN"
+notes = "Common input terminal shared across all positions"
+type = "digital"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "10A"
+direction = "output"
+id = "OUT1"
+notes = "Output active at position 1"
+type = "digital"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "10A"
+direction = "output"
+id = "OUT2"
+notes = "Output active at position 2"
+type = "digital"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "10A"
+direction = "output"
+id = "OUT3"
+notes = "Output active at position 3"
+type = "digital"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "10A"
+direction = "output"
+id = "OUT4"
+notes = "Output active at position 4"
+type = "digital"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "10A"
+direction = "output"
+id = "OUT5"
+notes = "Output active at position 5"
+type = "digital"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "10A"
+direction = "output"
+id = "OUT6"
+notes = "Output active at position 6"
+type = "digital"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "10A"
+direction = "output"
+id = "OUT7"
+notes = "Output active at position 7"
+type = "digital"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "10A"
+direction = "output"
+id = "OUT8"
+notes = "Output active at position 8"
+type = "digital"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "10A"
+direction = "output"
+id = "OUT9"
+notes = "Output active at position 9"
+type = "digital"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "10A"
+direction = "output"
+id = "OUT10"
+notes = "Output active at position 10"
+type = "digital"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "10A"
+direction = "output"
+id = "OUT11"
+notes = "Output active at position 11"
+type = "digital"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "10A"
+direction = "output"
+id = "OUT12"
+notes = "Output active at position 12"
+type = "digital"
+voltage_max = "400V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "contact-block"
+noise_model = false
+states = ["position-0", "position-n", "transition", "fault"]
+thermal_model = false
+trigger = "user-interaction"
+
+[limits]
+ip_rating = "IP65"
+max_current = "10A"
+max_temp = 55
+max_voltage = "400V"
+min_temp = -25
+warnings = ["Do not exceed rated voltage or current on any contact terminal", "Only one output (OUT1..OUT12) is active at a time — cam-switch logic", "Verify panel cutout dimensions before mounting (IEC 60947-5-1)"]
+
+[connections]
+allowed_with = ["ind-contact-no", "ind-contact-nc", "ind-coil", "ind-di-bank", "plc-*"]
+forbidden_with = []
+requires = []
+typical_context = ["speed-step-selection", "program-selection", "multi-circuit-switching"]
+
+[canvas]
+animated = true
+height = 140
+label_position = "bottom"
+
+[canvas.port_COM_IN]
+x = 0
+y = 70
+
+[canvas.port_OUT1]
+x = 80
+y = 10
+
+[canvas.port_OUT10]
+x = 80
+y = 100
+
+[canvas.port_OUT11]
+x = 80
+y = 110
+
+[canvas.port_OUT12]
+x = 80
+y = 120
+
+[canvas.port_OUT2]
+x = 80
+y = 20
+
+[canvas.port_OUT3]
+x = 80
+y = 30
+
+[canvas.port_OUT4]
+x = 80
+y = 40
+
+[canvas.port_OUT5]
+x = 80
+y = 50
+
+[canvas.port_OUT6]
+x = 80
+y = 60
+
+[canvas.port_OUT7]
+x = 80
+y = 70
+
+[canvas.port_OUT8]
+x = 80
+y = 80
+
+[canvas.port_OUT9]
+x = 80
+y = 90
+ports_layout = "custom"
+value_display = "{positions}pos / {contact_config} / {color}"
+width = 80
+
+[dendri]
+component_family_skill_id = "command-elements-family"
+component_profile_id = "cmd-selector-rotary-multi"
+palette_group = "Command Elements > Selectors"
+simulation_engine = "digital-io"
+svg_path = "content/assets/svg/components/cmd-selector-rotary-multi.svg"
+tags = ["selector", "command", "selectors", "rotary", "multi-position", "maintained"]
+svg_status = "missing"

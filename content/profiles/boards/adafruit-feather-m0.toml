@@ -1,0 +1,232 @@
+# board profile — adafruit-feather-m0 (migrated from legacy TOON)
+# Source: adafruit-feather-m0.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "adafruit-feather-m0-profile"
+
+[identification]
+category = "maker"
+id = "adafruit-feather-m0"
+image = "adafruit-feather-m0.svg"
+manufacturer = "Adafruit"
+mcu = "ATSAMD21G18A"
+name = "Adafruit Feather M0"
+url = "https://www.adafruit.com/product/3405"
+
+[specs]
+clock = 48000000
+eeprom = 0
+flash_available = 253952
+flash_total = 262144
+sram = 32768
+voltage = "3.3V"
+
+[dims]
+h = 22.8
+t = 3.2
+w = 51.0
+
+[[power_pins]]
+direction = "input"
+name = "VBAT"
+
+[[power_pins]]
+direction = "output"
+name = "3V3"
+voltage = "3.3V"
+
+[[power_pins]]
+name = "GND"
+type = "ground"
+
+[[power_pins]]
+direction = "input"
+name = "EN"
+
+[[gpio]]
+int = false
+label = "D0 / RX"
+pin = 0
+pwm = false
+roles = ["uart-rx"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D1 / TX"
+pin = 1
+pwm = false
+roles = ["uart-tx"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D2"
+pin = 2
+pwm = false
+roles = []
+type = "digital"
+
+[[gpio]]
+int = true
+label = "D3"
+pin = 3
+pwm = true
+roles = ["int0"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D4"
+pin = 4
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D5"
+pin = 5
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D6"
+pin = 6
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D9"
+pin = 9
+pwm = true
+roles = []
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D10 / SS"
+pin = 10
+pwm = true
+roles = ["spi-ss"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D11 / MOSI"
+pin = 11
+pwm = true
+roles = ["spi-mosi"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D12 / MISO"
+pin = 12
+pwm = false
+roles = ["spi-miso"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "D13 / LED / SCK"
+pin = 13
+pwm = false
+roles = ["spi-sck", "status-led"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "A0"
+pin = 14
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A1"
+pin = 15
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A2"
+pin = 16
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A3"
+pin = 17
+pwm = false
+roles = ["adc:t"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A4 / SDA"
+pin = 18
+pwm = false
+roles = ["adc:t", "i2c-sda"]
+type = "analog"
+
+[[gpio]]
+int = false
+label = "A5 / SCL"
+pin = 19
+pwm = false
+roles = ["adc:t", "i2c-scl"]
+type = "analog"
+
+[[peripherals]]
+param = "uarts:1"
+peripheral = "serial"
+value = "pins:0,1"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "i2c"
+value = "sda:18;scl:19"
+
+[[peripherals]]
+param = "channels:1"
+peripheral = "spi"
+value = "miso:12;mosi:11;sck:13;ss:10"
+
+[usb]
+chip = "ATSAMD21G18A native"
+pid = "0x800B"
+type = "Micro-USB"
+vid = "0x239A"
+
+[restrictions]
+max_io_current = "7mA"
+total_current_limit = "500mA"
+warnings = ["D7 and D8 not available on standard Feather header", "Max I/O current per pin is 7mA — use level shifters for 5V peripherals", "No EEPROM; emulated in flash with limited write cycles", "Onboard LiPo charger activates when USB or VIN is connected"]
+
+[compatibility]
+arduino_core = "1.8.19"
+bootloader = "uf2"
+frameworks = "arduino"
+languages = "arduino-cpp"
+pio = "adafruit"
+
+[dendri]
+board_family_skill_id = "samd21-family"
+board_profile_id = "adafruit-feather-m0"
+default_language_skills = ["arduino-cpp-samd21", "rust-embassy-samd21"]
+svg_path = "content/assets/svg/boards/adafruit-feather-m0.svg"
+svg_status = "missing"

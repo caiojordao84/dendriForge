@@ -1,0 +1,286 @@
+# board profile — allen-bradley-micro850-24qbb (migrated from legacy TOON)
+# Source: allen-bradley-micro850-24qbb.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "allen-bradley-micro850-24qbb-profile"
+
+[identification]
+category = "plc"
+cpu = "Micro850 2080-L50E"
+form_factor = "compact"
+id = "allen-bradley-micro850-24qbb"
+image = "allen-bradley-micro850-24qbb.svg"
+manufacturer = "Rockwell Automation"
+name = "Allen-Bradley Micro850 24-Point Ethernet PLC (2080-L50E-24QBB)"
+standard = "IEC 61131-3"
+url = "https://www.rockwellautomation.com/en-us/products/hardware/allen-bradley/programmable-controllers/micro-controllers/micro800-family/micro850-controllers.html"
+
+[specs]
+clock = 0
+eeprom = 0
+flash_available = 262144
+flash_total = 262144
+sram = 131072
+voltage = "24V"
+
+[dims]
+h = 92.0
+t = 80.0
+w = 153.18
+
+[[power_pins]]
+direction = "input"
+name = "24V_DC_PLUS"
+voltage = "24V"
+
+[[power_pins]]
+name = "24V_DC_MINUS"
+type = "ground"
+
+[[power_pins]]
+name = "PE"
+type = "ground"
+
+[[gpio]]
+int = true
+label = "I00 / HSC0"
+pin = 0
+pwm = false
+roles = ["di", "hsc", "interrupt"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "I01 / HSC1"
+pin = 1
+pwm = false
+roles = ["di", "hsc", "interrupt"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "I02 / HSC2"
+pin = 2
+pwm = false
+roles = ["di", "hsc", "interrupt"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "I03 / HSC3"
+pin = 3
+pwm = false
+roles = ["di", "hsc", "interrupt"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "I04 / HSC4"
+pin = 4
+pwm = false
+roles = ["di", "hsc", "interrupt"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "I05 / HSC5"
+pin = 5
+pwm = false
+roles = ["di", "hsc", "interrupt"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "I06"
+pin = 6
+pwm = false
+roles = ["di"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "I07"
+pin = 7
+pwm = false
+roles = ["di"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "I08"
+pin = 8
+pwm = false
+roles = ["di"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "I09"
+pin = 9
+pwm = false
+roles = ["di"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "I10"
+pin = 10
+pwm = false
+roles = ["di"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "I11"
+pin = 11
+pwm = false
+roles = ["di"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "I12"
+pin = 12
+pwm = false
+roles = ["di"]
+type = "digital"
+
+[[gpio]]
+int = true
+label = "I13"
+pin = 13
+pwm = false
+roles = ["di"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "O00 / PTO0 / PWM0"
+pin = 14
+pwm = true
+roles = ["do", "pwm"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "O01 / PTO1 / PWM1"
+pin = 15
+pwm = true
+roles = ["do", "pwm"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "O02 / PTO2 / PWM2"
+pin = 16
+pwm = true
+roles = ["do", "pwm"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "O03"
+pin = 17
+pwm = false
+roles = ["do"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "O04"
+pin = 18
+pwm = false
+roles = ["do"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "O05"
+pin = 19
+pwm = false
+roles = ["do"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "O06"
+pin = 20
+pwm = false
+roles = ["do"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "O07"
+pin = 21
+pwm = false
+roles = ["do"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "O08"
+pin = 22
+pwm = false
+roles = ["do"]
+type = "digital"
+
+[[gpio]]
+int = false
+label = "O09"
+pin = 23
+pwm = false
+roles = ["do"]
+type = "digital"
+
+[[peripherals]]
+param = "speed:100Mbit"
+peripheral = "ethernet"
+value = "1x-RJ45-10-100Mbps-EtherNet-IP-CIP-Modbus-TCP"
+
+[[peripherals]]
+param = "type:RS232-RS485"
+peripheral = "serial"
+value = "non-isolated-combo-port-CIP-Modbus-RTU-ASCII"
+
+[[peripherals]]
+param = "count:6"
+peripheral = "hsc"
+value = "100kHz-high-speed-counters"
+
+[[peripherals]]
+param = "axes:3"
+peripheral = "pto"
+value = "100kHz-pulse-train-outputs-for-motion-control"
+
+[[peripherals]]
+param = "slots:8"
+peripheral = "expansion"
+value = "4-plug-in-modules-slots;4-expansion-io-modules-max"
+
+[usb]
+pid = "0x0000"
+type = "USB-B"
+vid = "0x0000"
+
+[restrictions]
+max_io_current = "500mA"
+total_current_limit = "1500mA"
+warnings = ["Outputs are 24V DC Source (QBB model) — they switch positive voltage. Verify load wiring.", "Pulse Train Outputs (PTO) and PWM are only available on outputs O00, O01, and O02.", "The serial port is non-isolated. Use 2080-ISO-xxx plug-ins for isolated communications."]
+
+[compatibility]
+certifications = "CE;cULus;EAC;RCM;KC"
+frameworks = "IEC61131-3;EtherNet/IP;Modbus-RTU;Modbus-TCP;CIP"
+languages = "LD;FBD;ST"
+sw = "Connected Components Workbench (CCW) V20+"
+
+[dendri]
+board_family_skill_id = "allen-bradley-micro800-plc-family"
+board_profile_id = "allen-bradley-micro850-24qbb"
+default_language_skills = ["ladder-ccw-micro800", "st-ccw-micro800", "fbd-ccw-micro800"]
+svg_path = "content/assets/svg/boards/allen-bradley-micro850-24qbb.svg"
+svg_status = "missing"

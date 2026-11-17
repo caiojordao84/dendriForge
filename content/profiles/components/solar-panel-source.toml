@@ -1,0 +1,186 @@
+# component profile — solar-panel-source (migrated from legacy TOON)
+# Source: solar-panel-source.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "solar-panel-source-profile"
+
+[identification]
+category = "source"
+family = "electricals"
+id = "solar-panel-source"
+image = "solar-panel-source.svg"
+name = "Photovoltaic Solar Panel"
+standard = "IEC 61215-1 / IEC 61730"
+subfamily = "sources"
+symbol = "solar-panel-source-symbol.svg"
+symbol_standard = "IEC"
+
+[params.cell_temp]
+default = 25
+editable = true
+label = "Cell Temperature"
+max = 85
+min = -40
+type = "float"
+unit = "V"
+
+[params.cell_type]
+default = "Mono-PERC"
+editable = true
+label = "Cell Technology"
+options = ["Mono-PERC", "Mono-TOPCon", "Poly", "HJT", "Thin-Film"]
+type = "enum"
+
+[params.fill_factor]
+default = 80
+editable = false
+label = "Fill Factor"
+max = 90
+min = 60
+type = "float"
+unit = "%"
+
+[params.impp]
+default = 9.75
+editable = true
+label = "Current at MPP (Impp)"
+max = 25
+min = 0.1
+type = "float"
+unit = "A"
+
+[params.irradiance]
+default = 1000
+editable = true
+label = "Irradiance (STC = 1000 W/m2)"
+max = 1500
+min = 0
+type = "float"
+unit = "V"
+
+[params.isc]
+default = 10.5
+editable = true
+label = "Short-Circuit Current (Isc)"
+max = 30
+min = 0.1
+type = "float"
+unit = "A"
+
+[params.num_cells]
+default = 144
+editable = true
+label = "Number of Cells"
+options = [60, 72, 96, 108, 120, 132, 144, 156, 166]
+type = "enum"
+
+[params.pmax_stc]
+default = 400
+editable = true
+label = "Max Power at STC (Wp)"
+max = 800
+min = 1
+type = "float"
+unit = "V"
+
+[params.temp_coeff_pmax]
+default = -0.35
+editable = false
+label = "Temp. Coefficient Pmax (%/°C)"
+max = -0.2
+min = -0.6
+type = "float"
+unit = "%"
+
+[params.temp_coeff_voc]
+default = -0.27
+editable = false
+label = "Temp. Coefficient Voc (%/°C)"
+max = -0.2
+min = -0.4
+type = "float"
+unit = "%"
+
+[params.vmpp]
+default = 41
+editable = true
+label = "Voltage at MPP (Vmpp)"
+max = 550
+min = 5
+type = "float"
+unit = "V"
+
+[params.voc]
+default = 49.8
+editable = true
+label = "Open-Circuit Voltage (Voc)"
+max = 600
+min = 5
+type = "float"
+unit = "V"
+
+[[ports]]
+current_max = "30A"
+direction = "output"
+id = "POS"
+notes = "positive DC output / string +"
+type = "power"
+voltage_max = "600V"
+
+[[ports]]
+direction = "output"
+id = "NEG"
+notes = "negative DC output / string -"
+type = "ground"
+
+[simulation]
+bidirectional = false
+dynamic = true
+equation = "P_out = pmax_stc * (irradiance/1000) * (1 + temp_coeff_pmax/100 * (cell_temp - 25))"
+model = "basic-analog"
+noise_model = false
+states = ["off", "generating", "partial-shading", "fault"]
+thermal_model = true
+waveform = "DC"
+
+[limits]
+max_current = "30A"
+max_temp = 85
+max_voltage = "600V"
+min_temp = -40
+warnings = ["Never connect panel output in reverse polarity to inverter or charge controller", "String Voc must not exceed inverter maximum DC input voltage at lowest expected temperature", "Bypass diodes must be used to mitigate partial-shading hot-spot effect", "Disconnect panel before connecting or disconnecting to avoid DC arc faults"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["mppt-controller", "grid-tie-inverter", "battery-charging", "off-grid-system"]
+
+[canvas]
+animated = true
+height = 60
+label_position = "top"
+
+[canvas.port_NEG]
+x = 80
+y = 45
+
+[canvas.port_POS]
+x = 80
+y = 20
+ports_layout = "custom"
+value_display = "{pmax_stc}Wp / {voc}Voc / {isc}Aisc ({cell_type})"
+width = 80
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "solar-panel-source"
+palette_group = "Fundamental Electricals > Sources"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/solar-panel-source.svg"
+tags = ["solar-panel", "photovoltaic", "source", "dc", "renewable", "mppt", "pv"]
+svg_status = "missing"

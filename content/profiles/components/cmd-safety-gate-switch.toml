@@ -1,0 +1,143 @@
+# component profile — cmd-safety-gate-switch (migrated from legacy TOON)
+# Source: cmd-safety-gate-switch.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "cmd-safety-gate-switch-profile"
+
+[identification]
+category = "passive"
+family = "electricals"
+id = "cmd-safety-gate-switch"
+image = "cmd-safety-gate-switch.svg"
+name = "Safety Gate Switch"
+standard = "IEC 60947-5-3"
+subfamily = "passives"
+symbol = "cmd-safety-gate-switch-symbol.svg"
+symbol_standard = "IEC"
+
+[params.actuator_type]
+default = "tongue"
+editable = true
+label = "Actuator Type"
+options = ["tongue", "hinge", "guard-lock"]
+type = "enum"
+
+[params.contact_layout]
+default = "2NC+1NO"
+editable = true
+label = "Contact Layout"
+options = ["1NC", "2NC", "2NC+1NO"]
+type = "enum"
+
+[params.ip_rating]
+default = "IP67"
+editable = true
+label = "Ingress Protection"
+options = ["IP65", "IP67"]
+type = "enum"
+
+[params.locking_type]
+default = "guard-lock"
+editable = true
+label = "Locking Type"
+options = ["none", "solenoid-lock", "guard-lock"]
+type = "enum"
+
+[params.mechanical_life]
+default = 1000000
+editable = false
+label = "Mechanical Life"
+max = 10000000
+min = 100000
+type = "float"
+unit = "cycles"
+
+[params.package]
+default = "safety gate"
+editable = true
+label = "Package"
+options = ["safety gate", "hinged gate", "guard-lock module"]
+type = "enum"
+
+[params.safety_rating]
+default = "SIL3"
+editable = true
+label = "Safety Category"
+options = ["PL d", "PL e", "SIL2", "SIL3"]
+type = "enum"
+
+[[ports]]
+direction = "input"
+id = "COM"
+notes = "common terminal"
+type = "ground"
+
+[[ports]]
+current_max = "10A"
+direction = "output"
+id = "NC"
+notes = "normally-closed safety contact"
+type = "digital"
+voltage_max = "250V"
+
+[[ports]]
+current_max = "10A"
+direction = "output"
+id = "NO"
+notes = "auxiliary contact"
+type = "digital"
+voltage_max = "250V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "ideal"
+noise_model = false
+states = ["gate-open", "gate-closed", "fault"]
+thermal_model = false
+
+[limits]
+max_current = "10A"
+max_temp = 70
+max_voltage = "250V"
+min_temp = -25
+warnings = ["This switch is part of a safety function and must be integrated with a safety relay or safety PLC", "NC safety contact should open when the guard is opened or a fault occurs", "Do not bypass guard interlocks or defeat locking mechanisms", "Verify alignment, actuator wear and safety timing during maintenance"]
+
+[connections]
+allowed_with = ["safety-relay", "plc-safety-input", "dc-source"]
+forbidden_with = ["ac-source"]
+requires = ["safety-relay"]
+typical_context = ["guard-interlock", "machine-safety", "safety-chain"]
+
+[canvas]
+animated = false
+height = 40
+label_position = "top"
+
+[canvas.port_COM]
+x = 0
+y = 20
+
+[canvas.port_NC]
+x = 70
+y = 15
+
+[canvas.port_NO]
+x = 70
+y = 25
+ports_layout = "custom"
+value_display = "Safety gate / {actuator_type} / {locking_type}"
+width = 70
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "cmd-safety-gate-switch"
+palette_group = "Fundamental Electricals > Switches"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/cmd-safety-gate-switch.svg"
+tags = ["safety-gate", "interlock", "safety", "switch", "operator", "control", "iec-60947-5-3"]
+svg_status = "missing"

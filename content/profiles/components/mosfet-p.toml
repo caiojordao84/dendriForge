@@ -1,0 +1,119 @@
+# component profile — mosfet-p (migrated from legacy TOON)
+# Source: mosfet-p.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "mosfet-p-profile"
+
+[identification]
+category = "semiconductor"
+family = "electricals"
+id = "mosfet-p"
+image = "mosfet-p.svg"
+name = "P-Channel MOSFET"
+standard = "IEC 60617"
+subfamily = "semiconductors"
+symbol = "mosfet-p-symbol.svg"
+symbol_standard = "IEC"
+
+[params.rds_on]
+default = 0.08
+editable = true
+label = "Static Drain-Source On-Resistance"
+max = 10.0
+min = 0.001
+type = "float"
+unit = "Ω"
+
+[params.vds_max]
+default = -60
+editable = false
+label = "Max Drain-Source Voltage"
+type = "float"
+unit = "V"
+
+[params.vgs_th]
+default = -2.0
+editable = true
+label = "Gate-Source Threshold Voltage"
+max = -0.5
+min = -5.0
+type = "float"
+unit = "V"
+
+[[ports]]
+direction = "input"
+id = "G"
+notes = "Gate terminal"
+type = "analog"
+voltage_max = "20V"
+
+[[ports]]
+direction = "passive"
+id = "D"
+notes = "Drain terminal"
+type = "analog"
+voltage_max = "{vds_max}"
+
+[[ports]]
+direction = "passive"
+id = "S"
+notes = "Source terminal"
+type = "analog"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "ideal"
+noise_model = false
+states = ["off", "conducting"]
+thermal_model = false
+
+[limits]
+max_current = "25A"
+
+[limits.max_power]
+unit = "W"
+value = 120
+max_temp = 175
+max_voltage = "{vds_max}"
+min_temp = -55
+warnings = ["Vgs must be negative relative to Source to conduct", "High-side switching applications require correct Gate drive levels"]
+
+[connections]
+allowed_with = ["*"]
+forbidden_with = []
+requires = []
+typical_context = ["high-side-switching", "load-switch", "reverse-polarity-protection"]
+
+[canvas]
+animated = true
+height = 40
+label_position = "right"
+
+[canvas.port_D]
+x = 20
+y = 40
+
+[canvas.port_G]
+x = 0
+y = 20
+
+[canvas.port_S]
+x = 20
+y = 0
+ports_layout = "custom"
+value_display = "{vgs_th}V Th"
+width = 40
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "mosfet-p"
+palette_group = "Fundamental Electricals > Semiconductors"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/mosfet-p.svg"
+tags = ["mosfet", "p-channel", "semiconductor"]
+svg_status = "missing"

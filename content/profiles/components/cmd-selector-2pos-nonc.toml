@@ -1,0 +1,156 @@
+# component profile — cmd-selector-2pos-nonc (migrated from legacy TOON)
+# Source: cmd-selector-2pos-nonc.toon
+# DEN-14: do not assign ASL 0.0.1
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "cmd-selector-2pos-nonc-profile"
+
+[identification]
+category = "command"
+family = "command-elements"
+id = "cmd-selector-2pos-nonc"
+image = "cmd-selector-2pos-nonc.svg"
+name = "Selector Switch 2-Position NO/NC"
+standard = "IEC 60947-5-1"
+subfamily = "selectors"
+symbol = "cmd-selector-2pos-nonc-symbol.svg"
+symbol_standard = "IEC"
+
+[params.color]
+default = "black"
+editable = true
+label = "Knob Color"
+options = ["black", "grey", "red"]
+type = "enum"
+
+[params.contact_config]
+default = "1NO+1NC"
+editable = true
+label = "Contact Configuration"
+options = ["1NO", "1NC", "1NO+1NC"]
+type = "enum"
+
+[params.current_rating]
+default = 10
+editable = false
+label = "Current Rating"
+type = "float"
+unit = "A"
+
+[params.illuminated]
+default = false
+editable = true
+label = "Illuminated"
+type = "bool"
+
+[params.is_maintained]
+default = true
+editable = false
+label = "Maintained Action"
+type = "bool"
+
+[params.positions]
+default = 2
+editable = false
+label = "Number of Positions"
+options = [2]
+type = "enum"
+
+[params.voltage_rating]
+default = 240
+editable = false
+label = "Voltage Rating"
+options = [24, 110, 240, 400]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "10A"
+direction = "input"
+id = "NO_IN"
+notes = "NO contact input terminal"
+type = "digital"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "10A"
+direction = "output"
+id = "NO_OUT"
+notes = "NO contact output terminal"
+type = "digital"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "10A"
+direction = "input"
+id = "NC_IN"
+notes = "NC contact input terminal"
+type = "digital"
+voltage_max = "400V"
+
+[[ports]]
+current_max = "10A"
+direction = "output"
+id = "NC_OUT"
+notes = "NC contact output terminal"
+type = "digital"
+voltage_max = "400V"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "contact-block"
+noise_model = false
+states = ["position-0", "position-1", "fault"]
+thermal_model = false
+trigger = "user-interaction"
+
+[limits]
+ip_rating = "IP65"
+max_current = "10A"
+max_temp = 55
+max_voltage = "400V"
+min_temp = -25
+warnings = ["Do not exceed rated voltage or current on contact terminals", "This is a maintained selector — position holds after actuation", "Verify panel cutout dimensions before mounting (IEC 60947-5-1)"]
+
+[connections]
+allowed_with = ["ind-contact-no", "ind-contact-nc", "ind-coil", "ind-di-bank", "plc-*"]
+forbidden_with = []
+requires = []
+typical_context = ["manual-mode-selection", "local-remote-control", "on-off-control"]
+
+[canvas]
+animated = true
+height = 50
+label_position = "bottom"
+
+[canvas.port_NC_IN]
+x = 0
+y = 35
+
+[canvas.port_NC_OUT]
+x = 50
+y = 35
+
+[canvas.port_NO_IN]
+x = 0
+y = 15
+
+[canvas.port_NO_OUT]
+x = 50
+y = 15
+ports_layout = "custom"
+value_display = "{contact_config} / {positions}pos / {color}"
+width = 50
+
+[dendri]
+component_family_skill_id = "command-elements-family"
+component_profile_id = "cmd-selector-2pos-nonc"
+palette_group = "Command Elements > Selectors"
+simulation_engine = "digital-io"
+svg_path = "content/assets/svg/components/cmd-selector-2pos-nonc.svg"
+tags = ["selector", "command", "selectors", "two-position", "no-nc", "maintained"]
+svg_status = "missing"
