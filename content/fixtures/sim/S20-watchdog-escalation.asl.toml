@@ -1,0 +1,179 @@
+# Sim S20 — software watchdog escalation (scenario 9)
+# No heartbeat → WARN after WDT_TIMEOUT, CRIT after WDT_CRITICAL via WAIT_TIME.
+
+[metadata]
+project_name = "S20-watchdog-escalation"
+editor = "dendriForge"
+author = "dendriForge DEN-21"
+notes = "Watchdog Normal→Warn→Critical; PLAY_TONE for crit (5-lang RT honest)"
+
+[[hardware]]
+pin = 3
+hw_type = "digital"
+io_mode = "DO"
+label = "ledHealthy"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 4
+hw_type = "digital"
+io_mode = "DO"
+label = "ledAlarm"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 5
+hw_type = "digital"
+io_mode = "DO"
+label = "buzzerPin"
+target_role = "pwm-out"
+
+[[data]]
+name = "WDT_TIMEOUT"
+type = "TIME"
+scope = "CONST"
+init = "T#2000ms"
+unit = "ms"
+
+[[data]]
+name = "WDT_CRITICAL"
+type = "TIME"
+scope = "CONST"
+init = "T#5000ms"
+unit = "ms"
+
+[[data]]
+name = "STEP"
+type = "TIME"
+scope = "CONST"
+init = "T#1000ms"
+unit = "ms"
+
+[[data]]
+name = "TONE_MS"
+type = "TIME"
+scope = "CONST"
+init = "T#50ms"
+unit = "ms"
+
+[[data]]
+name = "ALARM_NONE"
+type = "UINT"
+scope = "CONST"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "ALARM_WARN"
+type = "UINT"
+scope = "CONST"
+init = "1"
+unit = "-"
+
+[[data]]
+name = "ALARM_CRIT"
+type = "UINT"
+scope = "CONST"
+init = "2"
+unit = "-"
+
+[[data]]
+name = "lastHeartbeat"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "nowMs"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "wdtElapsed"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "alarmState"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 3 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 4 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 5 }]
+
+[[setup]]
+kind = "assign"
+target = "lastHeartbeat"
+value = { kind = "call", name = "GET_SYS_TIME", args = [] }
+
+[[setup]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "uint", value = 3 }, { kind = "bool", value = true }]
+
+[[setup]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "uint", value = 4 }, { kind = "bool", value = false }]
+
+[[setup]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "uint", value = 5 }, { kind = "bool", value = false }]
+
+[[loop]]
+kind = "assign"
+target = "nowMs"
+value = { kind = "call", name = "GET_SYS_TIME", args = [] }
+
+[[loop]]
+kind = "assign"
+target = "wdtElapsed"
+value = { kind = "call", name = "TIME_DIFF", args = [
+  { kind = "var", name = "nowMs" },
+  { kind = "var", name = "lastHeartbeat" },
+] }
+
+[[loop]]
+kind = "if"
+condition = { kind = "binop", op = "ge", left = { kind = "var", name = "wdtElapsed" }, right = { kind = "var", name = "WDT_CRITICAL" } }
+then = [
+  { kind = "assign", target = "alarmState", value = { kind = "var", name = "ALARM_CRIT" } },
+]
+elif = [{ condition = { kind = "binop", op = "ge", left = { kind = "var", name = "wdtElapsed" }, right = { kind = "var", name = "WDT_TIMEOUT" } }, then = [{ kind = "assign", target = "alarmState", value = { kind = "var", name = "ALARM_WARN" } }] }]
+else = [
+  { kind = "assign", target = "alarmState", value = { kind = "var", name = "ALARM_NONE" } },
+]
+
+[[loop]]
+kind = "if"
+condition = { kind = "binop", op = "eq", left = { kind = "var", name = "alarmState" }, right = { kind = "var", name = "ALARM_NONE" } }
+then = [
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 3 }, { kind = "bool", value = true }] },
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 4 }, { kind = "bool", value = false }] },
+]
+elif = [{ condition = { kind = "binop", op = "eq", left = { kind = "var", name = "alarmState" }, right = { kind = "var", name = "ALARM_WARN" } }, then = [{ kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 3 }, { kind = "bool", value = false }] }, { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 4 }, { kind = "bool", value = true }] }] }, { condition = { kind = "binop", op = "eq", left = { kind = "var", name = "alarmState" }, right = { kind = "var", name = "ALARM_CRIT" } }, then = [{ kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 3 }, { kind = "bool", value = false }] }, { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 4 }, { kind = "bool", value = true }] }, { kind = "call", name = "PLAY_TONE", args = [{ kind = "uint", value = 5 }, { kind = "uint", value = 1000 }, { kind = "var", name = "TONE_MS" }] }] }]
+
+[[loop]]
+kind = "call"
+name = "WAIT_TIME"
+args = [{ kind = "var", name = "STEP" }]

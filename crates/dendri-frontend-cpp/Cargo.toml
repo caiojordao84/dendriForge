@@ -7,8 +7,8 @@ description = "Arduino-style C++ ↔ ASL AST frontend (MVP subset)"
 
 [dependencies]
 dendri-ast = { workspace = true }
+dendri-parse = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
-dendri-parse = { workspace = true }
 dendri-sim = { workspace = true }

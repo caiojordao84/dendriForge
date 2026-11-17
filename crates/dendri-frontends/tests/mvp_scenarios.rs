@@ -1,11 +1,11 @@
-//! DEN-19 — MVP scenarios 1–12 acceptance map (nested SFC + multi-lang RT tranche).
+//! DEN-21 — MVP scenarios 1–12 acceptance map (remaining partials tranche).
 //!
 //! Honest statuses only:
 //! - **pass** — automated check green on current opcodes/sim
 //! - **partial** — structural and/or subset sim green; full scenario not met
 //! - **blocked** — missing sim/opcode/physics; fixture may still deserialize
 //!
-//! See store docs `priority-7-sfc-multilang-rt.md`.
+//! See store docs `priority-7-remaining-partials.md`.
 
 use std::path::PathBuf;
 
@@ -47,7 +47,7 @@ fn matrix() -> [Scenario; 12] {
             id: 2,
             title: "ADC/PWM/I2C/SPI/UART",
             status: Status::Partial,
-            note: "S04/S05 + S12 xfer (5-lang RT) + S19 stubs; SD/RFID payload still blocked",
+            note: "S04/S05 + S12 xfer (5-lang RT) + S21 SPI SD vendor-skip stub; RFID/FAT still open",
         },
         Scenario {
             id: 3,
@@ -88,26 +88,26 @@ fn matrix() -> [Scenario; 12] {
         Scenario {
             id: 9,
             title: "RETAIN/PERSISTENT + watchdog",
-            status: Status::Partial,
-            note: "S11 live RETAIN + Ladder/SFC synthesize RT; text-lang RETAIN/PERSISTENT RT + watchdog deferred",
+            status: Status::Pass,
+            note: "S11 RETAIN soft-restart + 5-lang RT; S20 watchdog Normal→Warn→Crit",
         },
         Scenario {
             id: 10,
             title: "Multi-display + Pong graphics",
-            status: Status::Partial,
-            note: "S19 stubs + Ladder/SFC synthesize RT; text-lang display CFG RT + full Pong still partial",
+            status: Status::Pass,
+            note: "S19 display CFG + 5-lang RT; S22 Pong collision+tone; full dashboard/tournament deferred",
         },
         Scenario {
             id: 11,
             title: "UART command parser + CSV telemetry",
             status: Status::Partial,
-            note: "S09 PING path + Ladder/SFC synthesize RT; text-lang string/SERIAL_READLN RT + G13 suite partial",
+            note: "S09 string/SERIAL_READLN 5-lang RT + S23 multi-cmd sim; full G13/G14 CSV suite still partial",
         },
         Scenario {
             id: 12,
             title: "Nested loops / deep calls / VENDOR_EXTENSION",
             status: Status::Partial,
-            note: "G19–G21 TOML+validate + Ladder/SFC synthesize; text-lang deep/VENDOR RT limited",
+            note: "S24 nested FOR + vendor-skip sim + 5-lang RT; G19–G21 deep text/VENDOR RT still limited",
         },
     ]
 }
@@ -124,9 +124,9 @@ fn scenario_matrix_is_complete() {
     let pass = m.iter().filter(|s| s.status == Status::Pass).count();
     let partial = m.iter().filter(|s| s.status == Status::Partial).count();
     let blocked = m.iter().filter(|s| s.status == Status::Blocked).count();
-    // DEN-19 snapshot — update when a scenario genuinely graduates.
-    assert_eq!(pass, 7, "pass={pass}");
-    assert_eq!(partial, 5, "partial={partial}");
+    // DEN-21 snapshot — update when a scenario genuinely graduates.
+    assert_eq!(pass, 9, "pass={pass}");
+    assert_eq!(partial, 3, "partial={partial}");
     assert_eq!(blocked, 0, "blocked={blocked}");
 }
 
@@ -480,12 +480,16 @@ fn scenario7_pid_estop_pass() {
 }
 
 #[test]
-fn scenario10_display_stubs_partial() {
+fn scenario10_display_stubs_and_five_lang_rt_pass() {
     let parsed = parse_program_file(
         &repo().join("content/fixtures/sim/S19-display-stubs.asl.toml"),
     )
     .unwrap();
     assert!(validate_program(&parsed.program, &parsed.inject).ok());
+    for lang in text_and_visual_langs() {
+        roundtrip_language(lang, &parsed.program)
+            .unwrap_or_else(|e| panic!("S19 {lang:?} RT: {e}"));
+    }
     let mut sim = Simulator::from_program(parsed.program, &SimConfig::default());
     sim.run(1).unwrap();
     let trace = sim.trace_text();
@@ -494,6 +498,27 @@ fn scenario10_display_stubs_partial() {
     assert!(trace.contains("DISP TFT"), "{trace}");
     assert!(trace.contains("TONE pin=11"), "{trace}");
     assert_eq!(sim.var("page").and_then(|v| v.as_u64().ok()), Some(1));
+}
+
+#[test]
+fn scenario10_pong_collision_stub_pass() {
+    let parsed = parse_program_file(
+        &repo().join("content/fixtures/sim/S22-pong-collision-stub.asl.toml"),
+    )
+    .unwrap();
+    assert!(validate_program(&parsed.program, &parsed.inject).ok());
+    let mut sim = Simulator::from_program(
+        parsed.program,
+        &SimConfig {
+            max_cycles: 4,
+            ..SimConfig::default()
+        },
+    );
+    sim.run(2).unwrap();
+    assert_eq!(sim.var("score").and_then(|v| v.as_u64().ok()), Some(1));
+    let trace = sim.trace_text();
+    assert!(trace.contains("DISP OLED"), "{trace}");
+    assert!(trace.contains("TONE pin=11"), "{trace}");
 }
 
 #[test]
@@ -512,12 +537,16 @@ fn scenario7_math_sqrt_log_building_block() {
 }
 
 #[test]
-fn scenario9_retain_live_partial() {
+fn scenario9_retain_live_and_five_lang_rt_pass() {
     let parsed = parse_program_file(
         &repo().join("content/fixtures/sim/S11-retain-restart.asl.toml"),
     )
     .unwrap();
     assert!(validate_program(&parsed.program, &parsed.inject).ok());
+    for lang in text_and_visual_langs() {
+        roundtrip_language(lang, &parsed.program)
+            .unwrap_or_else(|e| panic!("S11 {lang:?} RT: {e}"));
+    }
     let mut sim = Simulator::from_program(parsed.program, &SimConfig::default());
     sim.run(1).unwrap();
     sim.soft_restart().unwrap();
@@ -537,12 +566,56 @@ fn scenario9_retain_live_partial() {
 }
 
 #[test]
-fn scenario11_string_ops_partial() {
+fn scenario9_watchdog_escalation_pass() {
+    let parsed = parse_program_file(
+        &repo().join("content/fixtures/sim/S20-watchdog-escalation.asl.toml"),
+    )
+    .unwrap();
+    assert!(validate_program(&parsed.program, &parsed.inject).ok());
+    for lang in text_and_visual_langs() {
+        roundtrip_language(lang, &parsed.program)
+            .unwrap_or_else(|e| panic!("S20 {lang:?} RT: {e}"));
+    }
+    let mut sim = Simulator::from_program(
+        parsed.program,
+        &SimConfig {
+            max_cycles: 8,
+            ..SimConfig::default()
+        },
+    );
+    sim.ensure_setup().unwrap();
+    // After setup, healthy (alarm 0). Advance past 2s warn then 5s crit.
+    sim.step().unwrap(); // +1000ms → still healthy (elapsed 0 at first eval then wait)
+    // first loop: elapsed≈0 → NONE, then WAIT 1000
+    assert_eq!(sim.var("alarmState").and_then(|v| v.as_u64().ok()), Some(0));
+    sim.step().unwrap(); // t=1000 → still <2000
+    assert_eq!(sim.var("alarmState").and_then(|v| v.as_u64().ok()), Some(0));
+    sim.step().unwrap(); // t=2000 → WARN
+    assert_eq!(sim.var("alarmState").and_then(|v| v.as_u64().ok()), Some(1));
+    assert!(sim.pin(4), "warn LED on");
+    assert!(!sim.pin(3), "healthy LED off");
+    sim.step().unwrap(); // t=3000
+    sim.step().unwrap(); // t=4000
+    sim.step().unwrap(); // t=5000 → CRIT
+    assert_eq!(sim.var("alarmState").and_then(|v| v.as_u64().ok()), Some(2));
+    let trace = sim.trace_text();
+    assert!(
+        trace.contains("TONE pin=5"),
+        "crit buzzer tone: {trace}"
+    );
+}
+
+#[test]
+fn scenario11_string_ops_and_five_lang_rt_partial() {
     let parsed = parse_program_file(
         &repo().join("content/fixtures/sim/S09-string-ops.asl.toml"),
     )
     .unwrap();
     assert!(validate_program(&parsed.program, &parsed.inject).ok());
+    for lang in text_and_visual_langs() {
+        roundtrip_language(lang, &parsed.program)
+            .unwrap_or_else(|e| panic!("S09 {lang:?} RT: {e}"));
+    }
     let mut sim = Simulator::from_program(
         parsed.program,
         &SimConfig {
@@ -566,7 +639,72 @@ fn scenario11_string_ops_partial() {
 }
 
 #[test]
-fn scenario9_and_11_and_12_validate_partial() {
+fn scenario11_uart_multi_command_partial() {
+    let parsed = parse_program_file(
+        &repo().join("content/fixtures/sim/S23-uart-commands.asl.toml"),
+    )
+    .unwrap();
+    assert!(validate_program(&parsed.program, &parsed.inject).ok());
+    for lang in text_and_visual_langs() {
+        roundtrip_language(lang, &parsed.program)
+            .unwrap_or_else(|e| panic!("S23 {lang:?} RT: {e}"));
+    }
+    let mut sim = Simulator::from_program(
+        parsed.program.clone(),
+        &SimConfig {
+            serial_rx: vec!["PING".into(), "STATUS".into(), "LED:ON".into(), "NOPE".into()],
+            max_cycles: 4,
+            ..SimConfig::default()
+        },
+    );
+    sim.run(4).unwrap();
+    let trace = sim.trace_text();
+    assert!(trace.contains("SERIAL_OUT PONG"), "{trace}");
+    assert!(trace.contains("SERIAL_OUT paused="), "{trace}");
+    assert!(trace.contains("SERIAL_OUT OK"), "{trace}");
+    assert!(trace.contains("SERIAL_OUT ERR:unknown"), "{trace}");
+    assert!(sim.pin(13), "LED:ON");
+    assert_eq!(sim.var("errCount").and_then(|v| v.as_u64().ok()), Some(1));
+}
+
+#[test]
+fn scenario2_sd_spi_vendor_stub_partial() {
+    let parsed = parse_program_file(
+        &repo().join("content/fixtures/sim/S21-sd-spi-log-stub.asl.toml"),
+    )
+    .unwrap();
+    assert!(validate_program(&parsed.program, &parsed.inject).ok());
+    for lang in text_and_visual_langs() {
+        roundtrip_language(lang, &parsed.program)
+            .unwrap_or_else(|e| panic!("S21 {lang:?} RT: {e}"));
+    }
+    let mut sim = Simulator::from_program(parsed.program, &SimConfig::default());
+    sim.run(1).unwrap();
+    let trace = sim.trace_text();
+    assert!(trace.contains("BUS_XFER"), "{trace}");
+    assert!(trace.contains("VENDOR skip:SD_CARD"), "{trace}");
+    assert!(!trace.contains("HALT VENDOR"), "{trace}");
+}
+
+#[test]
+fn scenario12_vendor_nested_stub_partial() {
+    let parsed = parse_program_file(
+        &repo().join("content/fixtures/sim/S24-vendor-nested-stub.asl.toml"),
+    )
+    .unwrap();
+    assert!(validate_program(&parsed.program, &parsed.inject).ok());
+    for lang in text_and_visual_langs() {
+        roundtrip_language(lang, &parsed.program)
+            .unwrap_or_else(|e| panic!("S24 {lang:?} RT: {e}"));
+    }
+    let mut sim = Simulator::from_program(parsed.program, &SimConfig::default());
+    sim.run(1).unwrap();
+    // 2x2 matrix: cells (0+0)+(0+1)+(1+0)+(1+1) = 4
+    assert_eq!(sim.var("sum").and_then(|v| v.as_u64().ok()), Some(4));
+    let trace = sim.trace_text();
+    assert!(trace.contains("VENDOR skip:"), "{trace}");
+    assert!(trace.contains("SERIAL_OUT sum=4"), "{trace}");
+
     for rel in [
         "content/fixtures/golden/G19-vendor-ext-custom-driver.asl.toml",
         "content/fixtures/golden/G20-nested-loop-matrix-scan.asl.toml",

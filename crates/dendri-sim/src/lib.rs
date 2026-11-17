@@ -983,8 +983,11 @@ impl Simulator {
             }
             Stmt::Continue => Ok(None),
             Stmt::VendorExtension { reason } => {
-                self.push(TraceKind::Halt {
-                    reason: format!("VENDOR_EXTENSION:{reason}"),
+                // Vendor hooks are skipped (not abortive) so SD/RFID/DMA stubs
+                // can leave a graceful alternate path in the scan.
+                self.push(TraceKind::BusCfg {
+                    bus: "VENDOR".into(),
+                    detail: format!("skip:{reason}"),
                 });
                 Ok(None)
             }

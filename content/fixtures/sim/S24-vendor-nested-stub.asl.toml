@@ -1,0 +1,87 @@
+# Sim S24 — nested FOR + VENDOR_EXTENSION skip (scenario 12 subset)
+# 2-level nested loops + graceful vendor skip (no MAX/SEL dependency).
+
+[metadata]
+project_name = "S24-vendor-nested-stub"
+editor = "dendriForge"
+author = "dendriForge DEN-21"
+notes = "Deep/VENDOR evidence; full G19–G21 deep text/VENDOR RT still limited"
+
+[[data]]
+name = "ROWS"
+type = "UINT"
+scope = "CONST"
+init = "2"
+unit = "-"
+
+[[data]]
+name = "COLS"
+type = "UINT"
+scope = "CONST"
+init = "2"
+unit = "-"
+
+[[data]]
+name = "row"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "col"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "sum"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "cell"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_SERIAL"
+args = [{ kind = "uint", value = 115200 }]
+
+[[setup]]
+kind = "vendor_extension"
+reason = "PERIPHERAL_INIT:DMA_ENGINE,channel=2"
+
+[[loop]]
+kind = "assign"
+target = "sum"
+value = { kind = "uint", value = 0 }
+
+[[loop]]
+kind = "for"
+counter = "row"
+to = { kind = "var", name = "ROWS" }
+body = [
+  { kind = "for", counter = "col", to = { kind = "var", name = "COLS" }, body = [
+    { kind = "assign", target = "cell", value = { kind = "binop", op = "add", left = { kind = "var", name = "row" }, right = { kind = "var", name = "col" } } },
+    { kind = "assign", target = "sum", value = { kind = "binop", op = "add", left = { kind = "var", name = "sum" }, right = { kind = "var", name = "cell" } } },
+  ] },
+]
+
+[[loop]]
+kind = "vendor_extension"
+reason = "SD_CARD_WRITE:matrix_sum"
+
+[[loop]]
+kind = "call"
+name = "SERIAL_PRINTLN"
+args = [{ kind = "call", name = "CONCAT", args = [
+  { kind = "string", value = "sum=" },
+  { kind = "call", name = "TO_STRING", args = [{ kind = "var", name = "sum" }] },
+] }]

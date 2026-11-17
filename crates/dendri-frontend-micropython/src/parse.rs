@@ -714,6 +714,14 @@ impl Parser {
                         args,
                     });
                 }
+                "VENDOR_EXTENSION" => {
+                    let reason = match args.first() {
+                        Some(Expr::String { value }) => value.clone(),
+                        Some(other) => format!("{other:?}"),
+                        None => String::new(),
+                    };
+                    return Ok(Stmt::VendorExtension { reason });
+                }
                 other => {
                     return Ok(Stmt::Call {
                         name: other.into(),
@@ -1267,9 +1275,16 @@ impl<'a> ExprParser<'a> {
         self.skip_ws();
         if self.rest().starts_with('-') {
             self.i += 1;
-            return Ok(Expr::Unary {
-                op: UnaryOp::Neg,
-                expr: Box::new(self.parse_unary()?),
+            let inner = self.parse_unary()?;
+            return Ok(match inner {
+                Expr::Uint { value } if value <= i64::MAX as u64 => Expr::Int {
+                    value: -(value as i64),
+                },
+                Expr::Int { value } => Expr::Int { value: -value },
+                other => Expr::Unary {
+                    op: UnaryOp::Neg,
+                    expr: Box::new(other),
+                },
             });
         }
         if self.rest().starts_with('~') {
@@ -1484,6 +1499,19 @@ fn rewrite_expr(
                 .into_iter()
                 .map(|a| rewrite_expr(a, pin_consts, obj_to_pin))
                 .collect();
+            // Emit uses ticks_ms()/ticks_us() for GET_SYS_TIME*; rehydrate.
+            if name == "ticks_ms" {
+                return Expr::Call {
+                    name: "GET_SYS_TIME".into(),
+                    args: vec![],
+                };
+            }
+            if name == "ticks_us" {
+                return Expr::Call {
+                    name: "GET_SYS_TIME_US".into(),
+                    args: vec![],
+                };
+            }
             if name == "GET_BOOL" || name == "READ_ADC" || name == "GET_PWM_DUTY" {
                 let pin = match args.first() {
                     Some(Expr::Uint { value }) => *value,

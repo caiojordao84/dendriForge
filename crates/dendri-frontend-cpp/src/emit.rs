@@ -3,6 +3,7 @@
 use dendri_ast::expr::{BinaryOp, Expr, UnaryOp};
 use dendri_ast::stmt::Stmt;
 use dendri_ast::{DataType, Program, Scope};
+use dendri_parse::parse_expr_text;
 use std::collections::HashMap;
 
 /// Emit Arduino-style C++ from an ASL program AST.
@@ -124,7 +125,11 @@ fn cpp_var(ty: DataType, init: &str) -> (&'static str, String) {
             ("unsigned long", format!("{ms}UL"))
         }
         DataType::Real | DataType::Lreal => ("float", init.to_string()),
-        DataType::String => ("String", format!("String(\"{}\")", init.trim_matches('"'))),
+        // Plain quoted init — `String("…")` ctor does not reparse as Expr::String.
+        DataType::String => {
+            let inner = init.trim().trim_matches('"');
+            ("String", format!("\"{inner}\""))
+        }
         DataType::Int | DataType::Dint => ("int", init.to_string()),
         _ => ("unsigned int", init.to_string()),
     }
@@ -234,7 +239,8 @@ fn emit_stmt(stmt: &Stmt, out: &mut String, indent: usize, labels: &HashMap<u32,
         Stmt::Exit => out.push_str(&format!("{pad}break;\n")),
         Stmt::Continue => out.push_str(&format!("{pad}continue;\n")),
         Stmt::VendorExtension { reason } => {
-            out.push_str(&format!("{pad}// VENDOR_EXTENSION: {reason}\n"));
+            // Callable form so parse rehydrates Stmt::VendorExtension (not a dropped comment).
+            out.push_str(&format!("{pad}VENDOR_EXTENSION(\"{reason}\");\n"));
         }
     }
 }
@@ -368,7 +374,7 @@ fn emit_expr(expr: &Expr, labels: &HashMap<u32, String>) -> String {
         }
         Expr::Uint { value } => value.to_string(),
         Expr::Int { value } => value.to_string(),
-        Expr::Real { value } => format!("{value}"),
+        Expr::Real { value } => format_real_literal(*value),
         Expr::String { value } => format!("\"{value}\""),
         Expr::Time { value } => parse_time_ms(value)
             .map(|ms| format!("{ms}UL"))
@@ -411,6 +417,18 @@ fn emit_expr(expr: &Expr, labels: &HashMap<u32, String>) -> String {
             };
             format!("({l} {o} {r})")
         }
-        Expr::ExprText { text } => text.clone(),
+        Expr::ExprText { text } => match parse_expr_text(text) {
+            Ok(e) => emit_expr(&e, labels),
+            Err(_) => text.clone(),
+        },
+    }
+}
+
+fn format_real_literal(value: f64) -> String {
+    let s = format!("{value}");
+    if s.contains('.') || s.contains('e') || s.contains('E') {
+        s
+    } else {
+        format!("{value:.1}")
     }
 }
