@@ -1,0 +1,9 @@
+t=     0 BOOT
+t=     0 BUS_CFG UART baud=115200
+t=     0 SETUP_DONE
+t=     0 SCAN_START cycle=1
+t=     0 ASSIGN dist=5
+t=     0 ASSIGN logVal=3
+t=     0 ASSIGN msg="dist=5.0,log10=3.000"
+t=     0 SERIAL_OUT dist=5.0,log10=3.000\n
+t=     0 SCAN_END cycle=1

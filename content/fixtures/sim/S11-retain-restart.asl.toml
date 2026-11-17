@@ -1,0 +1,86 @@
+# Sim snapshot S11 — RETAIN / SYS_*_RETAIN across soft restart (scenario 9)
+
+[metadata]
+project_name = "S11-retain-restart"
+editor = "dendriForge"
+author = "dendriForge DEN-16"
+notes = "Live RETAIN + SYS_WRITE/READ_RETAIN — DEN-16"
+
+[[data]]
+name = "rebootCount"
+type = "UINT"
+scope = "RETAIN"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "calGain"
+type = "REAL"
+scope = "PERSISTENT"
+init = "1.0"
+unit = "-"
+
+[[data]]
+name = "scratch"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "msg"
+type = "STRING"
+scope = "VAR"
+init = "\"\""
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "SYS_LOAD_MEMORY_SECTOR"
+args = [{ kind = "string", value = "RETAIN_SECTOR" }]
+
+[[setup]]
+kind = "call"
+name = "SYS_LOAD_MEMORY_SECTOR"
+args = [{ kind = "string", value = "PERSISTENT_SECTOR" }]
+
+[[setup]]
+kind = "assign"
+target = "rebootCount"
+value = { kind = "expr_text", text = "rebootCount + 1" }
+
+[[setup]]
+kind = "call"
+name = "SYS_WRITE_RETAIN"
+args = [
+  { kind = "string", value = "rebootCount" },
+  { kind = "var", name = "rebootCount" },
+]
+
+[[setup]]
+kind = "call"
+name = "CFG_SERIAL"
+args = [{ kind = "uint", value = 115200 }]
+
+[[loop]]
+kind = "assign"
+target = "scratch"
+value = { kind = "call", name = "SYS_READ_RETAIN", args = [{ kind = "string", value = "rebootCount" }] }
+
+[[loop]]
+kind = "assign"
+target = "msg"
+value = { kind = "expr_text", text = "CONCAT(\"boot=\", TO_STRING(scratch), \",gain=\", TO_STRING_FMT(calGain, 1))" }
+
+[[loop]]
+kind = "call"
+name = "SERIAL_PRINTLN"
+args = [{ kind = "var", name = "msg" }]
+
+[[loop]]
+kind = "call"
+name = "SYS_WRITE_RETAIN"
+args = [
+  { kind = "string", value = "calGain" },
+  { kind = "real", value = 1.5 },
+]

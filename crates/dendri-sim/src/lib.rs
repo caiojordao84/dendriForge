@@ -1,7 +1,9 @@
 //! Deterministic scan-cycle simulator for ASL.
 //!
-//! Priority-2 opcode set: GPIO, PWM, ADC, UART/serial, I2C/SPI config,
-//! MAP_RANGE, and IEC FBs (TON deepened, TOF, TP, CTU/CTD/CTUD, R_TRIG/F_TRIG).
+//! Opcode set: GPIO, PWM, ADC, UART/serial, I2C/SPI config **and** transfers,
+//! string ops (`CONCAT` / `TO_STRING*`), math (`SQRT` / `LOG` / `IN_RANGE`),
+//! `SYS_*_RETAIN` + soft-restart persistence, MAP_RANGE, and IEC FBs
+//! (TON/TOF/TP, CTU/CTD/CTUD, R_TRIG/F_TRIG).
 //! Interactive `step` / pin APIs feed the live SVG canvas (`dendri-canvas`);
 //! this crate still emits logical traces for CI snapshots.
 
@@ -11,7 +13,7 @@ use std::fmt::Write as _;
 use dendri_ast::expr::{BinaryOp, Expr, UnaryOp};
 use dendri_ast::lit::Literal;
 use dendri_ast::stmt::Stmt;
-use dendri_ast::{Program, SimulationProject};
+use dendri_ast::{Program, Scope, SimulationProject};
 use dendri_parse::parse_expr_text;
 
 mod value;
@@ -37,6 +39,8 @@ pub enum TraceKind {
     AdcRead { pin: u32, value: u32 },
     SerialOut { line: String },
     BusCfg { bus: String, detail: String },
+    BusXfer { bus: String, detail: String },
+    RetainWrite { name: String, value: String },
     Wait { duration_ms: u64 },
     TonUpdate {
         instance: String,
@@ -100,6 +104,12 @@ impl TraceEvent {
             }
             TraceKind::BusCfg { bus, detail } => {
                 format!("t={:>6} BUS_CFG {bus} {detail}", self.time_ms)
+            }
+            TraceKind::BusXfer { bus, detail } => {
+                format!("t={:>6} BUS_XFER {bus} {detail}", self.time_ms)
+            }
+            TraceKind::RetainWrite { name, value } => {
+                format!("t={:>6} RETAIN_WRITE {name}={value}", self.time_ms)
             }
             TraceKind::Wait { duration_ms } => {
                 format!("t={:>6} WAIT ms={duration_ms}", self.time_ms)
@@ -193,10 +203,18 @@ struct PwmState {
 pub struct Simulator {
     program: Program,
     vars: HashMap<String, Value>,
+    /// Data-var scope index (name → scope) for RETAIN/PERSISTENT persistence.
+    scopes: HashMap<String, Scope>,
     pins: HashMap<u32, bool>,
     adc: HashMap<u32, u32>,
     pwm: HashMap<u32, PwmState>,
     serial_rx: VecDeque<String>,
+    /// Non-volatile image for RETAIN / PERSISTENT (`SYS_*_RETAIN` + soft restart).
+    nv_store: HashMap<String, Value>,
+    /// Virtual I2C device registers: (bus, addr) → byte.
+    i2c_mem: HashMap<(u64, u64), u64>,
+    /// Virtual SPI per-bus last/device byte.
+    spi_mem: HashMap<u64, u64>,
     time_ms: u64,
     cycle: u64,
     setup_done: bool,
@@ -207,6 +225,10 @@ pub struct Simulator {
     pub trace: Vec<TraceEvent>,
     /// Max statements per scan to avoid runaway while/for.
     stmt_budget: usize,
+    initial_pins: HashMap<u32, bool>,
+    initial_adc: HashMap<u32, u32>,
+    initial_serial_rx: Vec<String>,
+    initial_stmt_budget: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -219,6 +241,12 @@ pub struct SimConfig {
     pub initial_adc: HashMap<u32, u32>,
     /// Lines available to SERIAL_READLN / SERIAL_READ (FIFO).
     pub serial_rx: Vec<String>,
+    /// Seed non-volatile RETAIN/PERSISTENT image (simulates prior power cycle).
+    pub retain_seed: HashMap<String, Value>,
+    /// Seed I2C device registers as `(bus, addr) → byte`.
+    pub i2c_seed: HashMap<(u64, u64), u64>,
+    /// Seed SPI device bytes as `bus → byte`.
+    pub spi_seed: HashMap<u64, u64>,
 }
 
 impl Default for SimConfig {
@@ -229,6 +257,9 @@ impl Default for SimConfig {
             initial_pins: HashMap::new(),
             initial_adc: HashMap::new(),
             serial_rx: Vec::new(),
+            retain_seed: HashMap::new(),
+            i2c_seed: HashMap::new(),
+            spi_seed: HashMap::new(),
         }
     }
 }
@@ -236,9 +267,11 @@ impl Default for SimConfig {
 impl Simulator {
     pub fn from_program(program: Program, config: &SimConfig) -> Self {
         let mut vars = HashMap::new();
+        let mut scopes = HashMap::new();
         for d in &program.data {
             let v = Value::parse_init(&d.init, d.data_type);
             vars.insert(d.name.clone(), v);
+            scopes.insert(d.name.clone(), d.scope);
         }
         let mut functions = HashMap::new();
         for f in &program.functions {
@@ -248,13 +281,32 @@ impl Simulator {
         for hw in &program.hardware {
             pins.entry(hw.pin).or_insert(false);
         }
+        // Apply retain seed over init values (prior power-cycle image).
+        let mut nv_store = config.retain_seed.clone();
+        for (k, v) in &nv_store {
+            if matches!(scopes.get(k), Some(Scope::Retain | Scope::Persistent)) {
+                vars.insert(k.clone(), v.clone());
+            }
+        }
+        // Also snapshot current retain/persistent into nv (init or seeded).
+        for (name, scope) in &scopes {
+            if matches!(scope, Scope::Retain | Scope::Persistent) {
+                if let Some(v) = vars.get(name) {
+                    nv_store.entry(name.clone()).or_insert_with(|| v.clone());
+                }
+            }
+        }
         Self {
             program,
             vars,
+            scopes,
             pins,
             adc: config.initial_adc.clone(),
             pwm: HashMap::new(),
             serial_rx: VecDeque::from(config.serial_rx.clone()),
+            nv_store,
+            i2c_mem: config.i2c_seed.clone(),
+            spi_mem: config.spi_seed.clone(),
             time_ms: 0,
             cycle: 0,
             setup_done: false,
@@ -264,11 +316,119 @@ impl Simulator {
             functions,
             trace: Vec::new(),
             stmt_budget: config.stmt_budget,
+            initial_pins: config.initial_pins.clone(),
+            initial_adc: config.initial_adc.clone(),
+            initial_serial_rx: config.serial_rx.clone(),
+            initial_stmt_budget: config.stmt_budget,
         }
     }
 
     pub fn from_project(project: &SimulationProject, config: &SimConfig) -> Self {
         Self::from_program(project.asl.clone(), config)
+    }
+
+    /// Snapshot of non-volatile RETAIN/PERSISTENT image.
+    pub fn retain_image(&self) -> HashMap<String, Value> {
+        self.nv_store.clone()
+    }
+
+    /// Load a non-volatile image (does not re-run setup).
+    pub fn load_retain_image(&mut self, image: HashMap<String, Value>) {
+        for (k, v) in image {
+            if matches!(self.scopes.get(&k), Some(Scope::Retain | Scope::Persistent)) {
+                self.vars.insert(k.clone(), v.clone());
+            }
+            self.nv_store.insert(k, v);
+        }
+    }
+
+    pub fn var(&self, name: &str) -> Option<&Value> {
+        self.vars.get(name)
+    }
+
+    /// Soft power-cycle: keep RETAIN/PERSISTENT (and bus device memory), reset
+    /// volatile state, clear trace, and re-run `setup`.
+    pub fn soft_restart(&mut self) -> Result<(), String> {
+        self.sync_nv_from_vars();
+        let nv = self.nv_store.clone();
+        let i2c = self.i2c_mem.clone();
+        let spi = self.spi_mem.clone();
+        let program = self.program.clone();
+        let functions = self.functions.clone();
+        let scopes = self.scopes.clone();
+        let initial_pins = self.initial_pins.clone();
+        let initial_adc = self.initial_adc.clone();
+        let initial_serial_rx = self.initial_serial_rx.clone();
+        let budget = self.initial_stmt_budget;
+
+        let mut vars = HashMap::new();
+        for d in &program.data {
+            let v = Value::parse_init(&d.init, d.data_type);
+            vars.insert(d.name.clone(), v);
+        }
+        for (k, v) in &nv {
+            if matches!(scopes.get(k), Some(Scope::Retain | Scope::Persistent)) {
+                vars.insert(k.clone(), v.clone());
+            }
+        }
+        let mut pins = initial_pins.clone();
+        for hw in &program.hardware {
+            pins.entry(hw.pin).or_insert(false);
+        }
+
+        self.vars = vars;
+        self.pins = pins;
+        self.adc = initial_adc;
+        self.pwm.clear();
+        self.serial_rx = VecDeque::from(initial_serial_rx);
+        self.nv_store = nv;
+        self.i2c_mem = i2c;
+        self.spi_mem = spi;
+        self.time_ms = 0;
+        self.cycle = 0;
+        self.setup_done = false;
+        self.timers.clear();
+        self.edges.clear();
+        self.counters.clear();
+        self.functions = functions;
+        self.scopes = scopes;
+        self.trace.clear();
+        self.stmt_budget = budget;
+        self.ensure_setup()
+    }
+
+    fn sync_nv_from_vars(&mut self) {
+        for (name, scope) in &self.scopes {
+            if matches!(scope, Scope::Retain | Scope::Persistent) {
+                if let Some(v) = self.vars.get(name) {
+                    self.nv_store.insert(name.clone(), v.clone());
+                }
+            }
+        }
+    }
+
+    fn is_nv_scope(&self, name: &str) -> bool {
+        matches!(
+            self.scopes.get(name),
+            Some(Scope::Retain | Scope::Persistent)
+        )
+    }
+
+    fn resolve_var_ref(&mut self, expr: &Expr) -> Result<String, String> {
+        match expr {
+            Expr::String { value } => Ok(value.clone()),
+            Expr::Var { name } => Ok(name.clone()),
+            Expr::Lit {
+                value: Literal::String { value },
+            } => Ok(value.clone()),
+            other => {
+                // Allow expr_text / calls that evaluate to a string name.
+                match self.eval(other)? {
+                    Value::String(s) => Ok(s),
+                    v => Err(format!("VAR_REF expected string/name, got {v:?}")),
+                }
+            }
+        }
     }
 
     fn push(&mut self, kind: TraceKind) {
@@ -360,6 +520,9 @@ impl Simulator {
                     name: target.clone(),
                     value: v.to_trace(),
                 });
+                if self.is_nv_scope(target) {
+                    self.nv_store.insert(target.clone(), v.clone());
+                }
                 self.vars.insert(target.clone(), v);
             }
             Stmt::Call { name, args } => {
@@ -657,6 +820,47 @@ impl Simulator {
                 });
                 Ok(Value::Void)
             }
+            "I2C_WRITE" => {
+                if args.len() != 3 {
+                    return Err(format!("I2C_WRITE expects 3 args, got {}", args.len()));
+                }
+                let bus = self.eval(&args[0])?.as_u64()?;
+                let addr = self.eval(&args[1])?.as_u64()? & 0xff;
+                let data = self.eval(&args[2])?.as_u64()? & 0xff;
+                self.i2c_mem.insert((bus, addr), data);
+                self.push(TraceKind::BusXfer {
+                    bus: "I2C".into(),
+                    detail: format!("WRITE bus={bus} addr=0x{addr:02X} data=0x{data:02X}"),
+                });
+                Ok(Value::Void)
+            }
+            "I2C_READ" => {
+                if args.len() != 2 {
+                    return Err(format!("I2C_READ expects 2 args, got {}", args.len()));
+                }
+                let bus = self.eval(&args[0])?.as_u64()?;
+                let addr = self.eval(&args[1])?.as_u64()? & 0xff;
+                let data = *self.i2c_mem.get(&(bus, addr)).unwrap_or(&0);
+                self.push(TraceKind::BusXfer {
+                    bus: "I2C".into(),
+                    detail: format!("READ bus={bus} addr=0x{addr:02X} data=0x{data:02X}"),
+                });
+                Ok(Value::Uint(data))
+            }
+            "SPI_TRANSFER" => {
+                if args.len() != 2 {
+                    return Err(format!("SPI_TRANSFER expects 2 args, got {}", args.len()));
+                }
+                let bus = self.eval(&args[0])?.as_u64()?;
+                let data = self.eval(&args[1])?.as_u64()? & 0xff;
+                let prev = *self.spi_mem.get(&bus).unwrap_or(&0);
+                self.spi_mem.insert(bus, data);
+                self.push(TraceKind::BusXfer {
+                    bus: "SPI".into(),
+                    detail: format!("XFER bus={bus} tx=0x{data:02X} rx=0x{prev:02X}"),
+                });
+                Ok(Value::Uint(prev))
+            }
             "WAIT_TIME" => {
                 let ms = match self.eval(&args[0])? {
                     Value::TimeMs(ms) => ms,
@@ -714,6 +918,121 @@ impl Simulator {
                 let lo = self.eval(&args[1])?.as_i64()?;
                 let hi = self.eval(&args[2])?.as_i64()?;
                 Ok(Value::Int(x.clamp(lo, hi)))
+            }
+            "IN_RANGE" => {
+                // IEC 61131-3: IN_RANGE(MN, IN, MX) → BOOL
+                if args.len() != 3 {
+                    return Err(format!("IN_RANGE expects 3 args, got {}", args.len()));
+                }
+                let mn = self.eval(&args[0])?.as_f64()?;
+                let inn = self.eval(&args[1])?.as_f64()?;
+                let mx = self.eval(&args[2])?.as_f64()?;
+                Ok(Value::Bool(mn <= inn && inn <= mx))
+            }
+            "SQRT" => {
+                let x = self.eval(&args[0])?.as_f64()?;
+                if x < 0.0 {
+                    return Err("SQRT of negative".into());
+                }
+                Ok(Value::Real(x.sqrt()))
+            }
+            "LOG" => {
+                let x = self.eval(&args[0])?.as_f64()?;
+                if x <= 0.0 {
+                    return Err("LOG domain error".into());
+                }
+                Ok(Value::Real(x.log10()))
+            }
+            "LN" => {
+                let x = self.eval(&args[0])?.as_f64()?;
+                if x <= 0.0 {
+                    return Err("LN domain error".into());
+                }
+                Ok(Value::Real(x.ln()))
+            }
+            "ABS" => {
+                let v = self.eval(&args[0])?;
+                match v {
+                    Value::Real(r) => Ok(Value::Real(r.abs())),
+                    Value::Int(i) => Ok(Value::Int(i.abs())),
+                    Value::Uint(u) => Ok(Value::Uint(u)),
+                    other => Err(format!("ABS expects numeric, got {other:?}")),
+                }
+            }
+            "TO_STRING" | "ANY_TO_STRING" => {
+                let v = self.eval(&args[0])?;
+                Ok(Value::String(v.as_string()?))
+            }
+            "TO_STRING_FMT" => {
+                if args.len() != 2 {
+                    return Err(format!("TO_STRING_FMT expects 2 args, got {}", args.len()));
+                }
+                let x = self.eval(&args[0])?.as_f64()?;
+                let d = self.eval(&args[1])?.as_u64()? as usize;
+                Ok(Value::String(format!("{x:.d$}")))
+            }
+            "CONCAT" => {
+                if args.is_empty() {
+                    return Ok(Value::String(String::new()));
+                }
+                let mut out = String::new();
+                for a in args {
+                    out.push_str(&self.eval(a)?.as_string()?);
+                }
+                Ok(Value::String(out))
+            }
+            "SYS_LOAD_MEMORY_SECTOR" => {
+                if args.is_empty() {
+                    return Err("SYS_LOAD_MEMORY_SECTOR expects sector arg".into());
+                }
+                let sector = self.eval(&args[0])?.as_string()?;
+                let want = match sector.as_str() {
+                    "RETAIN_SECTOR" | "RETAIN" => Scope::Retain,
+                    "PERSISTENT_SECTOR" | "PERSISTENT" => Scope::Persistent,
+                    other => {
+                        return Err(format!("unknown memory sector {other}"));
+                    }
+                };
+                for (name, scope) in self.scopes.clone() {
+                    if scope == want {
+                        if let Some(v) = self.nv_store.get(&name).cloned() {
+                            self.vars.insert(name, v);
+                        }
+                    }
+                }
+                self.push(TraceKind::BusCfg {
+                    bus: "NV".into(),
+                    detail: format!("LOAD {sector}"),
+                });
+                Ok(Value::Void)
+            }
+            "SYS_WRITE_RETAIN" => {
+                if args.len() != 2 {
+                    return Err(format!("SYS_WRITE_RETAIN expects 2 args, got {}", args.len()));
+                }
+                let name = self.resolve_var_ref(&args[0])?;
+                let v = self.eval(&args[1])?;
+                self.nv_store.insert(name.clone(), v.clone());
+                self.vars.insert(name.clone(), v.clone());
+                self.push(TraceKind::RetainWrite {
+                    name,
+                    value: v.to_trace(),
+                });
+                Ok(Value::Void)
+            }
+            "SYS_READ_RETAIN" => {
+                if args.len() != 1 {
+                    return Err(format!("SYS_READ_RETAIN expects 1 arg, got {}", args.len()));
+                }
+                let name = self.resolve_var_ref(&args[0])?;
+                if let Some(v) = self.nv_store.get(&name).cloned() {
+                    self.vars.insert(name, v.clone());
+                    return Ok(v);
+                }
+                self.vars
+                    .get(&name)
+                    .cloned()
+                    .ok_or_else(|| format!("SYS_READ_RETAIN unknown var {name}"))
             }
             "REAL_TO_INT" | "TRUNC" => {
                 Ok(Value::Int(self.eval(&args[0])?.as_f64()? as i64))

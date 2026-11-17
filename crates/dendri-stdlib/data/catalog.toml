@@ -262,6 +262,15 @@ returns = "REAL"
 aliases = ["map_range"]
 
 [[ops]]
+canonical = "IN_RANGE"
+category = "math"
+signature = "MN: T, IN: T, MX: T"
+returns = "BOOL"
+aliases = ["in_range"]
+notes = "IEC 61131-3: true when MN <= IN <= MX"
+iec_norm = "IEC 61131-3"
+
+[[ops]]
 canonical = "MOD"
 category = "math"
 signature = "a: ANY_INT, b: ANY_INT"
@@ -516,6 +525,30 @@ category = "spi"
 signature = "bus: UINT, mosi: UINT, miso: INT, sck: UINT, cs: UINT"
 returns = "VOID"
 aliases = ["initSPI"]
+
+[[ops]]
+canonical = "I2C_WRITE"
+category = "i2c"
+signature = "bus: UINT, addr: BYTE, data: BYTE"
+returns = "VOID"
+aliases = ["i2cWrite"]
+notes = "Sim: write one byte into virtual device register at addr on bus"
+
+[[ops]]
+canonical = "I2C_READ"
+category = "i2c"
+signature = "bus: UINT, addr: BYTE"
+returns = "BYTE"
+aliases = ["i2cRead"]
+notes = "Sim: read one byte from virtual device register; missing → 0"
+
+[[ops]]
+canonical = "SPI_TRANSFER"
+category = "spi"
+signature = "bus: UINT, data: BYTE"
+returns = "BYTE"
+aliases = ["spiTransfer"]
+notes = "Sim: full-duplex byte transfer against per-bus device memory (returns previous byte)"
 
 # ---------------------------------------------------------------------------
 # Display

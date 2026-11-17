@@ -80,6 +80,102 @@ fn s07_iec_counters_trace() {
 }
 
 #[test]
+fn s09_string_ops_trace() {
+    assert_trace_with(
+        "S09-string-ops.asl.toml",
+        1,
+        SimConfig {
+            max_cycles: 1,
+            serial_rx: vec!["PING".into()],
+            ..SimConfig::default()
+        },
+    );
+}
+
+#[test]
+fn s12_i2c_spi_xfer_trace() {
+    assert_trace("S12-i2c-spi-xfer.asl.toml", 1);
+}
+
+#[test]
+fn s13_math_sqrt_log_trace() {
+    assert_trace("S13-math-sqrt-log.asl.toml", 1);
+}
+
+#[test]
+fn s10_conveyor_in_range_runs() {
+    let path = repo().join("content/fixtures/sim/S10-conveyor-in-range.asl.toml");
+    let parsed = parse_program_file(&path).unwrap();
+    let mut sim = Simulator::from_program(
+        parsed.program,
+        &SimConfig {
+            max_cycles: 6,
+            ..SimConfig::default()
+        },
+    );
+    sim.ensure_setup().unwrap();
+    // Five optic rising edges → CTU reaches PV=5 → divert on.
+    for _ in 0..5 {
+        sim.set_pin(2, true);
+        sim.step().unwrap();
+        sim.set_pin(2, false);
+        sim.step().unwrap();
+    }
+    assert!(sim.pin(11), "divert should be on at full count");
+    assert!(!sim.pin(10), "motor should stop when QU");
+    let text = sim.trace_text();
+    assert!(text.contains("CTU"), "{text}");
+}
+
+#[test]
+fn s11_retain_survives_soft_restart() {
+    let path = repo().join("content/fixtures/sim/S11-retain-restart.asl.toml");
+    let parsed = parse_program_file(&path).unwrap();
+    let mut sim = Simulator::from_program(
+        parsed.program.clone(),
+        &SimConfig {
+            max_cycles: 1,
+            ..SimConfig::default()
+        },
+    );
+    sim.run(1).unwrap();
+    assert_eq!(
+        sim.var("rebootCount").and_then(|v| v.as_u64().ok()),
+        Some(1)
+    );
+    let gain = sim.var("calGain").and_then(|v| v.as_f64().ok()).unwrap();
+    assert!((gain - 1.5).abs() < 1e-9);
+    let image = sim.retain_image();
+    assert!(image.contains_key("rebootCount"));
+
+    sim.soft_restart().unwrap();
+    sim.run(1).unwrap();
+    assert_eq!(
+        sim.var("rebootCount").and_then(|v| v.as_u64().ok()),
+        Some(2),
+        "rebootCount must accumulate across soft restart"
+    );
+    // calGain was written to NV as 1.5; setup does not reset PERSISTENT.
+    let gain2 = sim.var("calGain").and_then(|v| v.as_f64().ok()).unwrap();
+    assert!((gain2 - 1.5).abs() < 1e-9);
+
+    // Fresh instance seeded from exported image behaves the same.
+    let mut sim2 = Simulator::from_program(
+        parsed.program,
+        &SimConfig {
+            retain_seed: image,
+            max_cycles: 1,
+            ..SimConfig::default()
+        },
+    );
+    sim2.ensure_setup().unwrap();
+    assert_eq!(
+        sim2.var("rebootCount").and_then(|v| v.as_u64().ok()),
+        Some(2)
+    );
+}
+
+#[test]
 fn project_sim_runs() {
     let path = repo().join("content/fixtures/projects/P01-uno-led-blink.dendri.toml");
     let parsed = parse_project_file(&path).unwrap();
