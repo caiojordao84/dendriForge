@@ -10,8 +10,10 @@ use dendri_ast::{ErrorCode, Program, SimulationProject};
 use serde::Deserialize;
 use thiserror::Error;
 
+mod canonicalize;
 mod expr_text;
 
+pub use canonicalize::{canonicalize_expr, canonicalize_program};
 pub use expr_text::parse_expr_text;
 
 /// Optional harness metadata on error-corpus fixtures (not part of ASL IR).

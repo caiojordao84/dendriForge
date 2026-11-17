@@ -776,6 +776,15 @@ impl Parser {
                     Expr::Real { value } => format_real_init(value),
                     Expr::Uint { value } => format_real_init(value as f64),
                     Expr::Int { value } => format_real_init(value as f64),
+                    Expr::Unary {
+                        op: UnaryOp::Neg,
+                        expr,
+                    } => match *expr {
+                        Expr::Real { value } => format_real_init(-value),
+                        Expr::Uint { value } => format_real_init(-(value as f64)),
+                        Expr::Int { value } => format_real_init(-(value as f64)),
+                        _ => "0.0".into(),
+                    },
                     _ => "0.0".into(),
                 };
                 unit = "-".into();
@@ -1206,12 +1215,14 @@ impl Parser {
             Tok::Minus => {
                 self.bump();
                 let inner = self.parse_unary()?;
-                // Fold numeric literals so `CFG_TFT(..., -1, ...)` round-trips as Int.
+                // Fold numeric literals so `CFG_TFT(..., -1, ...)` and
+                // `const float TEMP_OFFSET = -40.0` round-trip cleanly.
                 match inner {
                     Expr::Uint { value } if value <= i64::MAX as u64 => Ok(Expr::Int {
                         value: -(value as i64),
                     }),
                     Expr::Int { value } => Ok(Expr::Int { value: -value }),
+                    Expr::Real { value } => Ok(Expr::Real { value: -value }),
                     other => Ok(Expr::Unary {
                         op: UnaryOp::Neg,
                         expr: Box::new(other),

@@ -926,6 +926,7 @@ impl Parser {
                     value: -(value as i64),
                 },
                 Expr::Int { value } => Expr::Int { value: -value },
+                Expr::Real { value } => Expr::Real { value: -value },
                 other => Expr::Unary {
                     op: UnaryOp::Neg,
                     expr: Box::new(other),

@@ -364,6 +364,8 @@ pub struct Simulator {
     i2c_mem: HashMap<(u64, u64), u64>,
     /// Virtual SPI per-bus last/device byte.
     spi_mem: HashMap<u64, u64>,
+    /// In-memory FAT stub (path → file contents). Not a real filesystem.
+    fat_files: HashMap<String, String>,
     time_ms: u64,
     cycle: u64,
     setup_done: bool,
@@ -469,6 +471,7 @@ impl Simulator {
             nv_store,
             i2c_mem: config.i2c_seed.clone(),
             spi_mem: config.spi_seed.clone(),
+            fat_files: HashMap::new(),
             time_ms: 0,
             cycle: 0,
             setup_done: false,
@@ -524,6 +527,7 @@ impl Simulator {
         let nv = self.nv_store.clone();
         let i2c = self.i2c_mem.clone();
         let spi = self.spi_mem.clone();
+        let fat_files = self.fat_files.clone();
         let program = self.program.clone();
         let functions = self.functions.clone();
         let scopes = self.scopes.clone();
@@ -555,6 +559,7 @@ impl Simulator {
         self.nv_store = nv;
         self.i2c_mem = i2c;
         self.spi_mem = spi;
+        self.fat_files = fat_files;
         self.time_ms = 0;
         self.cycle = 0;
         self.setup_done = false;
@@ -575,6 +580,11 @@ impl Simulator {
         self.trace.clear();
         self.stmt_budget = budget;
         self.ensure_setup()
+    }
+
+    /// Read virtual FAT stub contents (path → text), if any.
+    pub fn fat_file(&self, path: &str) -> Option<&str> {
+        self.fat_files.get(path).map(|s| s.as_str())
     }
 
     fn sync_nv_from_vars(&mut self) {
@@ -983,12 +993,41 @@ impl Simulator {
             }
             Stmt::Continue => Ok(None),
             Stmt::VendorExtension { reason } => {
-                // Vendor hooks are skipped (not abortive) so SD/RFID/DMA stubs
-                // can leave a graceful alternate path in the scan.
-                self.push(TraceKind::BusCfg {
-                    bus: "VENDOR".into(),
-                    detail: format!("skip:{reason}"),
-                });
+                // FAT stub: SD_FAT_OPEN / SD_FAT_APPEND / SD_FAT_FLUSH — virtual
+                // file store (not a real filesystem). RFID_INIT stays skip-only;
+                // UID bytes come from SPI_TRANSFER + spi_seed.
+                if let Some(path) = reason.strip_prefix("SD_FAT_OPEN:") {
+                    self.fat_files.entry(path.to_string()).or_default();
+                    self.push(TraceKind::BusCfg {
+                        bus: "FAT".into(),
+                        detail: format!("open:{path}"),
+                    });
+                } else if let Some(rest) = reason.strip_prefix("SD_FAT_APPEND:") {
+                    let (path, content) = match rest.split_once('|') {
+                        Some((p, c)) => (p, c),
+                        None => (rest, ""),
+                    };
+                    let entry = self.fat_files.entry(path.to_string()).or_default();
+                    entry.push_str(content);
+                    let nbytes = content.len();
+                    self.push(TraceKind::BusCfg {
+                        bus: "FAT".into(),
+                        detail: format!("append:{path} bytes={nbytes}"),
+                    });
+                } else if let Some(path) = reason.strip_prefix("SD_FAT_FLUSH:") {
+                    let size = self.fat_files.get(path).map(|s| s.len()).unwrap_or(0);
+                    self.push(TraceKind::BusCfg {
+                        bus: "FAT".into(),
+                        detail: format!("flush:{path} size={size}"),
+                    });
+                } else {
+                    // Generic vendor hooks are skipped (not abortive) so
+                    // SD/RFID/DMA stubs can leave a graceful alternate path.
+                    self.push(TraceKind::BusCfg {
+                        bus: "VENDOR".into(),
+                        detail: format!("skip:{reason}"),
+                    });
+                }
                 Ok(None)
             }
         }
@@ -1346,6 +1385,51 @@ impl Simulator {
                 let lo = self.eval(&args[1])?.as_i64()?;
                 let hi = self.eval(&args[2])?.as_i64()?;
                 Ok(Value::Int(x.clamp(lo, hi)))
+            }
+            "MAX" => {
+                if args.len() != 2 {
+                    return Err(format!("MAX expects 2 args, got {}", args.len()));
+                }
+                let a = self.eval(&args[0])?;
+                let b = self.eval(&args[1])?;
+                // Prefer REAL compare when either side is REAL; else INT.
+                if matches!((&a, &b), (Value::Real(_), _) | (_, Value::Real(_))) {
+                    let af = a.as_f64()?;
+                    let bf = b.as_f64()?;
+                    Ok(Value::Real(af.max(bf)))
+                } else {
+                    let ai = a.as_i64()?;
+                    let bi = b.as_i64()?;
+                    Ok(Value::Int(ai.max(bi)))
+                }
+            }
+            "MIN" => {
+                if args.len() != 2 {
+                    return Err(format!("MIN expects 2 args, got {}", args.len()));
+                }
+                let a = self.eval(&args[0])?;
+                let b = self.eval(&args[1])?;
+                if matches!((&a, &b), (Value::Real(_), _) | (_, Value::Real(_))) {
+                    let af = a.as_f64()?;
+                    let bf = b.as_f64()?;
+                    Ok(Value::Real(af.min(bf)))
+                } else {
+                    let ai = a.as_i64()?;
+                    let bi = b.as_i64()?;
+                    Ok(Value::Int(ai.min(bi)))
+                }
+            }
+            "SEL" => {
+                // IEC SEL(G, IN0, IN1): G=FALSE → IN0, G=TRUE → IN1.
+                if args.len() != 3 {
+                    return Err(format!("SEL expects 3 args, got {}", args.len()));
+                }
+                let g = self.eval(&args[0])?.as_bool()?;
+                if g {
+                    self.eval(&args[2])
+                } else {
+                    self.eval(&args[1])
+                }
             }
             "IN_RANGE" => {
                 // IEC 61131-3: IN_RANGE(MN, IN, MX) → BOOL
