@@ -282,5 +282,6 @@ sw = "Connected Components Workbench (CCW) V20+"
 board_family_skill_id = "allen-bradley-micro800-plc-family"
 board_profile_id = "allen-bradley-micro850-24qbb"
 default_language_skills = ["ladder-ccw-micro800", "st-ccw-micro800", "fbd-ccw-micro800"]
+sim_protocols = ["modbus-tcp"]
 svg_path = "content/assets/svg/boards/allen-bradley-micro850-24qbb.svg"
 svg_status = "missing"

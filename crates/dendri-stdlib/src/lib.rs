@@ -93,4 +93,17 @@ mod tests {
         assert_eq!(resolve_name("TON"), Some("TON"));
         assert!(lookup("CLAMP").is_some());
     }
+
+    #[test]
+    fn modbus_tcp_ops_resolve() {
+        assert_eq!(resolve_name("CFG_MODBUS_TCP"), Some("CFG_MODBUS_TCP"));
+        assert_eq!(resolve_name("modbusTcpBegin"), Some("CFG_MODBUS_TCP"));
+        assert_eq!(resolve_name("MB_FC3"), Some("MB_READ_HOLDING"));
+        assert_eq!(resolve_name("MB_FC6"), Some("MB_WRITE_HOLDING"));
+        assert_eq!(resolve_name("MB_FC1"), Some("MB_READ_COIL"));
+        assert_eq!(resolve_name("MB_FC5"), Some("MB_WRITE_COIL"));
+        assert_eq!(resolve_name("MB_FC4"), Some("MB_READ_INPUT"));
+        assert_eq!(resolve_name("MB_FC2"), Some("MB_READ_DISCRETE"));
+        assert_eq!(lookup("CFG_MODBUS_TCP").unwrap().category, "modbus");
+    }
 }

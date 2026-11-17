@@ -63,15 +63,16 @@ examples_in_repo = 5
 
 [[tier_c]]
 norm = "Modbus TCP"
-note = "Phase 7-class connector — after sim bus exists"
+note = "P2 first industrial slice (DEN-25): CFG_MODBUS_TCP + FC1–6 singles via virtual register map in dendri-sim; profile comm-modbus-tcp; not a wire MBAP/TCP stack yet"
+test_ids = ["S29"]
 
 [[tier_c]]
 norm = "MQTT"
-note = "Phase 7-class connector"
+note = "Phase 7-class connector — deferred after Modbus TCP sim map"
 
 [[tier_c]]
 norm = "OPC UA"
-note = "Phase 7-class connector"
+note = "Phase 7-class connector — deferred (certs / address space)"
 
 [[tier_c]]
 norm = "Codesys"
