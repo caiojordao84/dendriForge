@@ -22,6 +22,8 @@ pub enum CppParseError {
 enum Tok {
     Ident(String),
     Uint(u64),
+    /// Preserves ASL `Expr::Hex` spelling (`0x3C`) through C++ round-trip.
+    Hex(String),
     #[allow(dead_code)]
     Int(i64),
     Real(f64),
@@ -274,6 +276,36 @@ impl<'a> Lexer<'a> {
                 Ok((Tok::String(s), line, col))
             }
             c if c.is_ascii_digit() => {
+                // Hex literals: 0xA5 / 0X3C — keep spelling for Expr::Hex RT.
+                if c == b'0' && matches!(self.peek2(), Some(b'x' | b'X')) {
+                    self.bump(); // 0
+                    let x = self.bump(); // x/X
+                    let mut hex = String::from("0");
+                    hex.push(x.unwrap() as char);
+                    while let Some(ch) = self.peek() {
+                        if ch.is_ascii_hexdigit() {
+                            hex.push(ch as char);
+                            self.bump();
+                        } else {
+                            break;
+                        }
+                    }
+                    if hex.len() <= 2 {
+                        return Err(CppParseError::At {
+                            line,
+                            col,
+                            message: "expected hex digits after 0x".into(),
+                        });
+                    }
+                    // optional UL/ul/L suffix
+                    if matches!(self.peek(), Some(b'U' | b'u' | b'L' | b'l')) {
+                        self.bump();
+                        if matches!(self.peek(), Some(b'L' | b'l' | b'U' | b'u')) {
+                            self.bump();
+                        }
+                    }
+                    return Ok((Tok::Hex(hex), line, col));
+                }
                 let mut num = String::new();
                 let mut is_real = false;
                 while let Some(ch) = self.peek() {
@@ -310,6 +342,45 @@ impl<'a> Lexer<'a> {
                     })?;
                     Ok((Tok::Uint(v), line, col))
                 }
+            }
+            b'\'' => {
+                // Char literal → single-char string (SERIAL_READLN sugar uses '\n').
+                self.bump();
+                let ch = match self.bump() {
+                    Some(b'\\') => match self.bump() {
+                        Some(b'n') => '\n',
+                        Some(b't') => '\t',
+                        Some(b'r') => '\r',
+                        Some(b'0') => '\0',
+                        Some(b'\\') => '\\',
+                        Some(b'\'') => '\'',
+                        Some(other) => other as char,
+                        None => {
+                            return Err(CppParseError::At {
+                                line,
+                                col,
+                                message: "unterminated char escape".into(),
+                            });
+                        }
+                    },
+                    Some(c) => c as char,
+                    None => {
+                        return Err(CppParseError::At {
+                            line,
+                            col,
+                            message: "unterminated char literal".into(),
+                        });
+                    }
+                };
+                if self.peek() != Some(b'\'') {
+                    return Err(CppParseError::At {
+                        line,
+                        col,
+                        message: "expected closing ' in char literal".into(),
+                    });
+                }
+                self.bump();
+                Ok((Tok::String(ch.to_string()), line, col))
             }
             c if c.is_ascii_alphabetic() || c == b'_' => {
                 let mut id = String::new();
@@ -1166,6 +1237,7 @@ impl Parser {
                 name: "INPUT_PULLDOWN".into(),
             }),
             Tok::Uint(v) => Ok(Expr::Uint { value: v }),
+            Tok::Hex(v) => Ok(Expr::Hex { value: v }),
             Tok::Int(v) => Ok(Expr::Int { value: v }),
             Tok::Real(v) => Ok(Expr::Real { value: v }),
             Tok::String(v) => Ok(Expr::String { value: v }),
@@ -1463,16 +1535,15 @@ fn refine_hardware_from_setup(hardware: &mut [HardwareEntry], setup: &[Stmt]) {
                 _ => continue,
             };
             if let Some(h) = hardware.iter_mut().find(|h| h.pin == pin) {
+                // Preserve ASL_HW `role=` when present; only refine io_mode from CFG_*.
                 match name.as_str() {
                     "CFG_DIGITAL_INPUT"
                     | "CFG_DIGITAL_INPUT_PULLUP"
                     | "CFG_DIGITAL_INPUT_PULLDOWN" => {
                         h.io_mode = IoMode::Di;
-                        h.target_role = "digital-in".into();
                     }
                     "CFG_DIGITAL_OUTPUT" => {
                         h.io_mode = IoMode::Do;
-                        h.target_role = "digital-out".into();
                     }
                     _ => {}
                 }

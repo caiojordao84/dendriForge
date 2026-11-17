@@ -2,8 +2,8 @@
 //!
 //! Steps hold ASL actions; transitions carry receptivity expressions.
 //! Layout positions are editor hints and round-trip through TOML.
-//! Honest MVP: linear charts + AND divergence/convergence via multi `from`/`to`.
-//! Nested / macro-steps remain deferred (DEN-13+ canvas).
+//! Honest MVP: linear charts + AND divergence/convergence via multi `from`/`to`,
+//! plus **one-level nested / macro-steps** via [`GrafcetStep::enclosed`] (DEN-19).
 
 use serde::{Deserialize, Serialize};
 
@@ -48,6 +48,12 @@ pub struct GrafcetStep {
     pub x: f32,
     #[serde(default)]
     pub y: f32,
+    /// Enclosed nested chart (macro-step). While this step is active the
+    /// enclosed chart runs; on entry its `initial_steps` activate, on exit
+    /// all enclosed tokens clear. Deeper nesting is accepted in the IR but
+    /// the DEN-19 elevator fixture uses one level.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enclosed: Option<Box<GrafcetBlock>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

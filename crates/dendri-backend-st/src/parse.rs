@@ -23,6 +23,8 @@ pub enum StParseError {
 enum Tok {
     Ident(String),
     Uint(u64),
+    /// ASL `Expr::Hex` spelling (`16#3C` or `0x3C` surface).
+    Hex(String),
     #[allow(dead_code)]
     Int(i64),
     Real(f64),
@@ -68,6 +70,10 @@ impl<'a> Lexer<'a> {
 
     fn peek(&self) -> Option<u8> {
         self.src.get(self.i).copied()
+    }
+
+    fn peek2(&self) -> Option<u8> {
+        self.src.get(self.i + 1).copied()
     }
 
     fn bump(&mut self) -> Option<u8> {
@@ -219,6 +225,29 @@ impl<'a> Lexer<'a> {
                 Ok((Tok::Time(s), line, col))
             }
             c if c.is_ascii_digit() => {
+                // Accept C-style 0xNN so ASL Hex exprs round-trip through ST emit.
+                if c == b'0' && matches!(self.peek2(), Some(b'x' | b'X')) {
+                    self.bump();
+                    let x = self.bump();
+                    let mut hex = String::from("0");
+                    hex.push(x.unwrap() as char);
+                    while let Some(ch) = self.peek() {
+                        if ch.is_ascii_hexdigit() {
+                            hex.push(ch as char);
+                            self.bump();
+                        } else {
+                            break;
+                        }
+                    }
+                    if hex.len() <= 2 {
+                        return Err(StParseError::At {
+                            line,
+                            col,
+                            message: "expected hex digits after 0x".into(),
+                        });
+                    }
+                    return Ok((Tok::Hex(hex), line, col));
+                }
                 let mut num = String::new();
                 let mut is_real = false;
                 while let Some(ch) = self.peek() {
@@ -457,6 +486,9 @@ impl Parser {
         if self.check_ident_kw("CONSTANT") {
             self.bump();
             scope = Scope::Const;
+        } else if self.check_ident_kw("TEMP") {
+            self.bump();
+            scope = Scope::Temp;
         }
         let name = match self.bump() {
             Tok::Ident(s) => s,
@@ -868,6 +900,7 @@ impl Parser {
             Tok::True => Ok(Expr::Bool { value: true }),
             Tok::False => Ok(Expr::Bool { value: false }),
             Tok::Uint(v) => Ok(Expr::Uint { value: v }),
+            Tok::Hex(v) => Ok(Expr::Hex { value: v }),
             Tok::Int(v) => Ok(Expr::Int { value: v }),
             Tok::Real(v) => Ok(Expr::Real { value: v }),
             Tok::String(v) => Ok(Expr::String { value: v }),

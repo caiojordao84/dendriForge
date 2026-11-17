@@ -38,6 +38,12 @@ pub fn emit_st(program: &Program) -> String {
                 "    CONSTANT {name} : {st_ty} := {init};\n",
                 name = d.name
             ));
+        } else if d.scope == Scope::Temp {
+            // TEMP preserves SFC fire-flag / scratch scope through ST round-trip.
+            out.push_str(&format!(
+                "    TEMP {name} : {st_ty} := {init};\n",
+                name = d.name
+            ));
         } else {
             out.push_str(&format!(
                 "    {name}{retain} : {st_ty} := {init};\n",

@@ -291,6 +291,7 @@ impl Editor {
                         comment: Some("new step".into()),
                         x: 0.0,
                         y,
+                        enclosed: None,
                     });
                     if n == 0 {
                         doc.initial_steps = vec![id];

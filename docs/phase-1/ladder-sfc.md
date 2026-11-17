@@ -35,7 +35,7 @@ DiagramModel  ←→  [[sources]].text (diagram TOML)  ←→  [asl] Program
 | `dendri-sync` | Bidirectional real-time `SyncSession` |
 | `dendri-editor` | iced GUI (palette + TOML pane) |
 
-## Honest subset (DEN-12)
+## Honest subset (DEN-12 → DEN-19)
 
 **In**
 
@@ -44,13 +44,13 @@ DiagramModel  ←→  [[sources]].text (diagram TOML)  ←→  [asl] Program
 - Ladder: IEC FBs lowered to sim opcodes — `TON` / `TOF` / `TP`, `CTU` / `CTD` / `CTUD`, `R_TRIG` / `F_TRIG` (`FbEdge`)
 - SFC: steps with ASL actions, transitions with receptivity expr, layout `x`/`y`
 - SFC: **AND divergence / convergence** via multi `from` / `to`; two-phase fire then apply
-- Fixtures `L01`–`L04` / `G01`–`G03`; P01 visual sources; visual acceptance + sync edit-sequence tests
+- SFC: **nested / macro-steps** via `GrafcetStep.enclosed` (namespaced `__sfc_<parent>__<child>` tokens; rising-edge init / clear on exit) — DEN-19
+- Fixtures `L01`–`L05` / `G01`–`G04`; P01 visual sources; visual acceptance + sync edit-sequence tests
 
 **Out / deferred**
 
-- Nested GRAFCET / macro-steps
 - Deep OR networks / vertical wire matrix / multi-level parallel nesting
-- Drag-canvas polish, live SVG sim binding classes (DEN-13+)
+- Drag-canvas polish for nested charts, live SVG sim binding classes
 - Claiming ASL `0.0.1`
 - Rust user-language frontend (P2)
 
