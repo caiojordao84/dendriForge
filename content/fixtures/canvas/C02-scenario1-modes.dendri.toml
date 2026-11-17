@@ -1,0 +1,194 @@
+# Scenario 1 hardware trio + 3-mode blink ASL (canvas + sim).
+# Same Uno + LED + button profiles as C01; logic from S08.
+
+[metadata]
+project_name = "C02-scenario1-modes"
+editor = "dendriForge"
+author = "dendriForge Priority 6"
+notes = "Scenario 1 canvas project — DEN-15"
+
+[board]
+profile = "arduino-uno-r3"
+instance_id = "board"
+
+[[components]]
+instance_id = "led1"
+profile = "led"
+
+[components.params]
+color = "red"
+
+[[components]]
+instance_id = "btn_start"
+profile = "cmd-pushbutton-no-start"
+
+[components.params]
+
+[[wiring]]
+from = "board.D13"
+to = "led1.A"
+signal = "digital"
+
+[[wiring]]
+from = "board.GND"
+to = "led1.K"
+signal = "gnd"
+
+[[wiring]]
+from = "board.D2"
+to = "btn_start.NO1"
+signal = "digital"
+
+[[sources]]
+language = "asl"
+name = "main"
+text = ""
+
+[asl]
+functions = []
+
+[asl.metadata]
+project_name = "C02-scenario1-modes-asl"
+editor = "dendriForge"
+author = "dendriForge Priority 6"
+notes = "Embedded S08 3-mode blink"
+
+[[asl.hardware]]
+pin = 2
+hw_type = "digital"
+io_mode = "DI"
+label = "btnPin"
+target_role = "digital-in"
+
+[[asl.hardware]]
+pin = 13
+hw_type = "digital"
+io_mode = "DO"
+label = "ledPin"
+target_role = "digital-out"
+
+[[asl.data]]
+name = "MODE_OFF"
+type = "UINT"
+scope = "CONST"
+init = "0"
+unit = "-"
+
+[[asl.data]]
+name = "MODE_SLOW"
+type = "UINT"
+scope = "CONST"
+init = "1"
+unit = "-"
+
+[[asl.data]]
+name = "MODE_FAST"
+type = "UINT"
+scope = "CONST"
+init = "2"
+unit = "-"
+
+[[asl.data]]
+name = "SLOW_TIME"
+type = "TIME"
+scope = "CONST"
+init = "T#200ms"
+unit = "ms"
+
+[[asl.data]]
+name = "FAST_TIME"
+type = "TIME"
+scope = "CONST"
+init = "T#50ms"
+unit = "ms"
+
+[[asl.data]]
+name = "IDLE_TIME"
+type = "TIME"
+scope = "CONST"
+init = "T#50ms"
+unit = "ms"
+
+[[asl.data]]
+name = "btn"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[asl.data]]
+name = "rise"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[asl.data]]
+name = "mode"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[asl.data]]
+name = "ledState"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[asl.setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT"
+args = [{ kind = "uint", value = 2 }]
+
+[[asl.setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 13 }]
+
+[[asl.setup]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "uint", value = 13 }, { kind = "bool", value = false }]
+
+[[asl.loop]]
+kind = "assign"
+target = "btn"
+value = { kind = "call", name = "GET_BOOL", args = [{ kind = "uint", value = 2 }] }
+
+[[asl.loop]]
+kind = "assign"
+target = "rise"
+value = { kind = "call", name = "R_TRIG", args = [
+  { kind = "string", value = "rt_btn" },
+  { kind = "var", name = "btn" },
+]}
+
+[[asl.loop]]
+kind = "if"
+condition = { kind = "var", name = "rise" }
+then = [
+  { kind = "assign", target = "mode", value = { kind = "expr_text", text = "MOD(mode + 1, 3)" } },
+  { kind = "assign", target = "ledState", value = { kind = "bool", value = false } },
+]
+
+[[asl.loop]]
+kind = "if"
+condition = { kind = "binop", op = "eq", left = { kind = "var", name = "mode" }, right = { kind = "var", name = "MODE_OFF" } }
+then = [
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 13 }, { kind = "bool", value = false }] },
+  { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "IDLE_TIME" }] },
+]
+elif = [
+  { condition = { kind = "binop", op = "eq", left = { kind = "var", name = "mode" }, right = { kind = "var", name = "MODE_SLOW" } }, then = [
+    { kind = "assign", target = "ledState", value = { kind = "unary", op = "not", expr = { kind = "var", name = "ledState" } } },
+    { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 13 }, { kind = "var", name = "ledState" }] },
+    { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "SLOW_TIME" }] },
+  ]},
+  { condition = { kind = "binop", op = "eq", left = { kind = "var", name = "mode" }, right = { kind = "var", name = "MODE_FAST" } }, then = [
+    { kind = "assign", target = "ledState", value = { kind = "unary", op = "not", expr = { kind = "var", name = "ledState" } } },
+    { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 13 }, { kind = "var", name = "ledState" }] },
+    { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "FAST_TIME" }] },
+  ]},
+]

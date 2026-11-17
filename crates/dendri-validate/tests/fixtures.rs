@@ -1,4 +1,4 @@
-//! Phase 1: validate Phase 0 goldens + error corpus.
+//! Phase 1 / DEN-15: validate goldens + error corpus + scenario fixtures.
 
 use std::fs;
 use std::path::PathBuf;
@@ -11,16 +11,18 @@ fn repo() -> PathBuf {
 }
 
 #[test]
-fn golden_programs_validate() {
+fn all_golden_programs_validate() {
     let root = repo().join("content/fixtures/golden");
-    for name in [
-        "G01-gpio-all-modes-probe.asl.toml",
-        "G03-traffic-light-sequencer.asl.toml",
-        "G05-pwm-fade-breathing-led.asl.toml",
-        "G08-stopwatch-lap-timer.asl.toml",
-        "G17-retain-power-cycle-counter.asl.toml",
-    ] {
-        let path = root.join(name);
+    let mut files: Vec<_> = fs::read_dir(&root)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.extension().and_then(|e| e.to_str()) == Some("toml"))
+        .collect();
+    files.sort();
+    assert!(files.len() >= 21, "expected G01–G21, got {}", files.len());
+    for path in files {
+        let name = path.file_name().unwrap().to_string_lossy().into_owned();
         let parsed = parse_program_file(&path).unwrap_or_else(|e| panic!("{name}: {e}"));
         let result = validate_program(&parsed.program, &parsed.inject);
         assert!(
@@ -32,19 +34,58 @@ fn golden_programs_validate() {
 }
 
 #[test]
-fn example_blink_validates() {
-    let path = repo().join("content/fixtures/examples/basic-blink-logic.asl.toml");
+fn migrated_examples_validate_structurally() {
+    // Examples may reference opcodes that are catalogued but not all sim-runnable.
+    // Validate still requires resolved catalog names + declared vars.
+    let root = repo().join("content/fixtures/examples");
+    let mut files: Vec<_> = fs::read_dir(&root)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.extension().and_then(|e| e.to_str()) == Some("toml"))
+        .collect();
+    files.sort();
+    let mut ok = 0usize;
+    let mut soft_fail = Vec::new();
+    for path in &files {
+        let name = path.file_name().unwrap().to_string_lossy().into_owned();
+        let parsed = parse_program_file(path).unwrap_or_else(|e| panic!("{name}: {e}"));
+        let result = validate_program(&parsed.program, &parsed.inject);
+        if result.ok() {
+            ok += 1;
+        } else {
+            soft_fail.push((name, result.diagnostics));
+        }
+    }
+    // basic-blink + dual-button at minimum must validate; others documented in Priority 6.
+    assert!(
+        ok >= 2,
+        "expected ≥2 examples to validate, ok={ok} soft_fail={soft_fail:?}"
+    );
+    let blink = repo().join("content/fixtures/examples/basic-blink-logic.asl.toml");
+    let parsed = parse_program_file(&blink).unwrap();
+    assert!(validate_program(&parsed.program, &parsed.inject).ok());
+}
+
+#[test]
+fn scenario1_s08_validates() {
+    let path = repo().join("content/fixtures/sim/S08-scenario1-three-mode-blink.asl.toml");
     let parsed = parse_program_file(&path).unwrap();
     let result = validate_program(&parsed.program, &parsed.inject);
     assert!(result.ok(), "{:?}", result.diagnostics);
 }
 
 #[test]
-fn project_p01_validates() {
-    let path = repo().join("content/fixtures/projects/P01-uno-led-blink.dendri.toml");
-    let parsed = parse_project_file(&path).unwrap();
-    let result = validate_project(&parsed.project);
-    assert!(result.ok(), "{:?}", result.diagnostics);
+fn project_p01_and_c02_validate() {
+    for rel in [
+        "content/fixtures/projects/P01-uno-led-blink.dendri.toml",
+        "content/fixtures/canvas/C02-scenario1-modes.dendri.toml",
+    ] {
+        let path = repo().join(rel);
+        let parsed = parse_project_file(&path).unwrap_or_else(|e| panic!("{rel}: {e}"));
+        let result = validate_project(&parsed.project);
+        assert!(result.ok(), "{rel}: {:?}", result.diagnostics);
+    }
 }
 
 #[test]

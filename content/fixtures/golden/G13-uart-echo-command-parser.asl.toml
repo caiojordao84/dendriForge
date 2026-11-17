@@ -1,0 +1,189 @@
+# Migrated from core/asl/v010/golden/G13-uart-echo-command-parser.toon
+# Legacy TOON retained under core/asl/v010/ (read-only).
+
+[metadata]
+project_name = "G13-uart-echo-command-parser"
+editor = "dendriForge"
+author = "dendriForge Golden Suite"
+notes = "Migrated from legacy v010 TOON — ASL unversioned"
+
+[[hardware]]
+pin = 0
+hw_type = "digital"
+io_mode = "BI"
+label = "uartTxPin"
+target_role = "uart-tx"
+
+[[hardware]]
+pin = 1
+hw_type = "digital"
+io_mode = "BI"
+label = "uartRxPin"
+target_role = "uart-rx"
+
+[[hardware]]
+pin = 2
+hw_type = "digital"
+io_mode = "DO"
+label = "ledStatus"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 3
+hw_type = "digital"
+io_mode = "DO"
+label = "ledError"
+target_role = "digital-out"
+
+[[data]]
+name = "BAUD_RATE"
+type = "DINT"
+scope = "CONST"
+init = "115200"
+unit = "-"
+
+[[data]]
+name = "LOOP_DELAY"
+type = "TIME"
+scope = "CONST"
+init = "T#10ms"
+unit = "ms"
+
+[[data]]
+name = "CMD_ON"
+type = "STRING"
+scope = "CONST"
+init = "LED:ON"
+unit = "-"
+
+[[data]]
+name = "CMD_OFF"
+type = "STRING"
+scope = "CONST"
+init = "LED:OFF"
+unit = "-"
+
+[[data]]
+name = "CMD_STATUS"
+type = "STRING"
+scope = "CONST"
+init = "STATUS"
+unit = "-"
+
+[[data]]
+name = "CMD_RESET"
+type = "STRING"
+scope = "CONST"
+init = "RESET"
+unit = "-"
+
+[[data]]
+name = "CMD_PING"
+type = "STRING"
+scope = "CONST"
+init = "PING"
+unit = "-"
+
+[[data]]
+name = "ledState"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "errorCount"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "cmdCount"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "uptime"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "rxLine"
+type = "STRING"
+scope = "VAR"
+init = ""
+unit = "-"
+
+[[data]]
+name = "response"
+type = "STRING"
+scope = "VAR"
+init = ""
+unit = "-"
+
+[[data]]
+name = "lastCmd"
+type = "STRING"
+scope = "VAR"
+init = ""
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_SERIAL"
+args = [{ kind = "uint", value = 115200 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 2 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 3 }]
+
+[[setup]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "uint", value = 2 }, { kind = "bool", value = false }]
+
+[[setup]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "uint", value = 3 }, { kind = "bool", value = false }]
+
+[[setup]]
+kind = "call"
+name = "SERIAL_PRINTLN"
+args = [{ kind = "string", value = "dendriForge UART parser ready" }]
+
+[[setup]]
+kind = "call"
+name = "SERIAL_PRINTLN"
+args = [{ kind = "string", value = "Commands: LED:ON LED:OFF STATUS RESET PING" }]
+
+[[loop]]
+kind = "assign"
+target = "uptime"
+value = { kind = "expr_text", text = "GET_SYS_TIME()" }
+
+[[loop]]
+kind = "if"
+condition = { kind = "expr_text", text = "SERIAL_AVAILABLE() > 0" }
+then = [{ kind = "assign", target = "rxLine", value = { kind = "expr_text", text = "SERIAL_READLN()" } }, { kind = "call", name = "SERIAL_FLUSH", args = [] }, { kind = "call", name = "process_command", args = [{ kind = "var", name = "rxLine" }] }, { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "LOOP_DELAY" }] }]
+
+[[functions]]
+name = "process_command"
+params = ["cmd"]
+body = [{ kind = "if", condition = { kind = "expr_text", text = "cmd = CMD_PING" }, then = [{ kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "string", value = "PONG" }] }], elif = [{ condition = { kind = "expr_text", text = "cmd = CMD_ON" }, then = [{ kind = "assign", target = "ledState", value = { kind = "bool", value = true } }, { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 2 }, { kind = "bool", value = true }] }, { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 3 }, { kind = "bool", value = false }] }, { kind = "assign", target = "response", value = { kind = "expr_text", text = "CONCAT(\"OK LED ON t=\", TO_STRING(uptime), \"ms\")" } }, { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "var", name = "response" }] }] }, { condition = { kind = "expr_text", text = "cmd = CMD_OFF" }, then = [{ kind = "assign", target = "ledState", value = { kind = "bool", value = false } }, { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 2 }, { kind = "bool", value = false }] }, { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 3 }, { kind = "bool", value = false }] }, { kind = "assign", target = "response", value = { kind = "expr_text", text = "CONCAT(\"OK LED OFF t=\", TO_STRING(uptime), \"ms\")" } }, { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "var", name = "response" }] }] }, { condition = { kind = "expr_text", text = "cmd = CMD_STATUS" }, then = [{ kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "expr_text", text = "CONCAT(\"uptime=\", TO_STRING(uptime), \"ms cmds=\", TO_STRING(cmdCount), \" errs=\", TO_STRING(errorCount), \" led=\", SEL(ledState, \"OFF\", \"ON\"))" }] }] }, { condition = { kind = "expr_text", text = "cmd = CMD_RESET" }, then = [{ kind = "assign", target = "ledState", value = { kind = "bool", value = false } }, { kind = "assign", target = "errorCount", value = { kind = "uint", value = 0 } }, { kind = "assign", target = "cmdCount", value = { kind = "uint", value = 0 } }, { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 2 }, { kind = "bool", value = false }] }, { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 3 }, { kind = "bool", value = false }] }, { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "string", value = "RESET OK" }] }] }], else = [{ kind = "assign", target = "errorCount", value = { kind = "expr_text", text = "errorCount + 1" } }, { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 3 }, { kind = "bool", value = true }] }, { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "expr_text", text = "CONCAT(\"ERR unknown cmd: \", cmd)" }] }, { kind = "assign", target = "lastCmd", value = { kind = "var", name = "cmd" } }, { kind = "assign", target = "cmdCount", value = { kind = "expr_text", text = "cmdCount + 1" } }] }]
+
+[[functions]]
+name = "echo_status"
+params = []
+body = [{ kind = "call", name = "SERIAL_PRINT", args = [{ kind = "string", value = "last_cmd: " }] }, { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "var", name = "lastCmd" }] }, { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "expr_text", text = "CONCAT(\"err_rate=\", TO_STRING_FMT(MAP_RANGE(INT_TO_REAL(errorCount), 0.0, INT_TO_REAL(MAX(cmdCount, 1)), 0.0, 100.0), 1), \"%\")" }] }]

@@ -1,0 +1,414 @@
+# Migrated from core/asl/v010/examples/multi-display-dashboard.toon
+# Legacy TOON retained under core/asl/v010/ (read-only).
+
+[metadata]
+project_name = "multi-display-dashboard"
+editor = "dendriForge"
+author = "GEMINI"
+notes = "Migrated from legacy v010 TOON — ASL unversioned"
+
+[[hardware]]
+pin = 21
+hw_type = "digital"
+io_mode = "BI"
+label = "sdaPin"
+target_role = "i2c-sda"
+
+[[hardware]]
+pin = 22
+hw_type = "digital"
+io_mode = "BI"
+label = "sclPin"
+target_role = "i2c-scl"
+
+[[hardware]]
+pin = 23
+hw_type = "digital"
+io_mode = "DO"
+label = "tftMosiPin"
+target_role = "spi-mosi"
+
+[[hardware]]
+pin = 18
+hw_type = "digital"
+io_mode = "DO"
+label = "tftClkPin"
+target_role = "spi-sck"
+
+[[hardware]]
+pin = 5
+hw_type = "digital"
+io_mode = "DO"
+label = "tftCsPin"
+target_role = "spi-cs"
+
+[[hardware]]
+pin = 2
+hw_type = "digital"
+io_mode = "DO"
+label = "tftDcPin"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 4
+hw_type = "digital"
+io_mode = "DO"
+label = "tftRstPin"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 34
+hw_type = "analog"
+io_mode = "DI"
+label = "ntcPin"
+target_role = "adc:t"
+
+[[hardware]]
+pin = 35
+hw_type = "analog"
+io_mode = "DI"
+label = "ldrPin"
+target_role = "adc:t"
+
+[[hardware]]
+pin = 32
+hw_type = "digital"
+io_mode = "DI"
+label = "pageBtn"
+target_role = "btn-no"
+
+[[hardware]]
+pin = 33
+hw_type = "digital"
+io_mode = "DO"
+label = "statusLed"
+target_role = "status-led"
+
+[[data]]
+name = "NTC_NOMINAL"
+type = "REAL"
+scope = "CONST"
+init = "10000.0"
+unit = "ohm"
+
+[[data]]
+name = "NTC_BCOEFF"
+type = "REAL"
+scope = "CONST"
+init = "3950.0"
+unit = "-"
+
+[[data]]
+name = "NTC_SERIES_R"
+type = "REAL"
+scope = "CONST"
+init = "10000.0"
+unit = "ohm"
+
+[[data]]
+name = "LDR_MAX"
+type = "REAL"
+scope = "CONST"
+init = "65535.0"
+unit = "-"
+
+[[data]]
+name = "COLOR_BG"
+type = "UINT"
+scope = "CONST"
+init = "0x0000"
+unit = "-"
+
+[[data]]
+name = "COLOR_FG"
+type = "UINT"
+scope = "CONST"
+init = "0xFFFF"
+unit = "-"
+
+[[data]]
+name = "COLOR_ACCENT"
+type = "UINT"
+scope = "CONST"
+init = "0x07FF"
+unit = "-"
+
+[[data]]
+name = "COLOR_WARN"
+type = "UINT"
+scope = "CONST"
+init = "0xFBE0"
+unit = "-"
+
+[[data]]
+name = "COLOR_ALERT"
+type = "UINT"
+scope = "CONST"
+init = "0xF800"
+unit = "-"
+
+[[data]]
+name = "TEMP_WARN_C"
+type = "REAL"
+scope = "CONST"
+init = "40.0"
+unit = "°C"
+
+[[data]]
+name = "TEMP_ALERT_C"
+type = "REAL"
+scope = "CONST"
+init = "60.0"
+unit = "°C"
+
+[[data]]
+name = "PAGE_COUNT"
+type = "UINT"
+scope = "CONST"
+init = "3"
+unit = "-"
+
+[[data]]
+name = "DEBOUNCE_TIME"
+type = "TIME"
+scope = "CONST"
+init = "T#200ms"
+unit = "ms"
+
+[[data]]
+name = "currentPage"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "lastBtnTime"
+type = "TIME"
+scope = "VAR"
+init = "T#0ms"
+unit = "ms"
+
+[[data]]
+name = "tempC"
+type = "REAL"
+scope = "VAR"
+init = "0.0"
+unit = "°C"
+
+[[data]]
+name = "ldrRaw"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "ldrPct"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "%"
+
+[[data]]
+name = "lightLabel"
+type = "STRING"
+scope = "VAR"
+init = "---"
+unit = "-"
+
+[[data]]
+name = "lastPageDrawn"
+type = "UINT"
+scope = "VAR"
+init = "99"
+unit = "-"
+
+[[data]]
+name = "rawAdc"
+type = "UINT"
+scope = "TEMP"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "rNtc"
+type = "REAL"
+scope = "TEMP"
+init = "0.0"
+unit = "ohm"
+
+[[data]]
+name = "logR"
+type = "REAL"
+scope = "TEMP"
+init = "0.0"
+unit = "-"
+
+[[data]]
+name = "invT"
+type = "REAL"
+scope = "TEMP"
+init = "0.0"
+unit = "-"
+
+[[data]]
+name = "calculatedTemp"
+type = "REAL"
+scope = "TEMP"
+init = "0.0"
+unit = "°C"
+
+[[data]]
+name = "barWidth"
+type = "UINT"
+scope = "TEMP"
+init = "0"
+unit = "px"
+
+[[data]]
+name = "tftColor"
+type = "UINT"
+scope = "TEMP"
+init = "0"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_I2C_BUS"
+args = [{ kind = "uint", value = 0 }, { kind = "uint", value = 21 }, { kind = "uint", value = 22 }, { kind = "uint", value = 400000 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_LCD_I2C"
+args = [{ kind = "hex", value = "0x27" }, { kind = "uint", value = 16 }, { kind = "uint", value = 2 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_OLED_I2C"
+args = [{ kind = "hex", value = "0x3C" }, { kind = "uint", value = 128 }, { kind = "uint", value = 64 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_SPI_BUS"
+args = [{ kind = "uint", value = 1 }, { kind = "uint", value = 23 }, { kind = "int", value = -1 }, { kind = "uint", value = 18 }, { kind = "uint", value = 5 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_TFT_DISPLAY"
+args = [{ kind = "uint", value = 2 }, { kind = "uint", value = 4 }, { kind = "uint", value = 1 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT_PULLUP"
+args = [{ kind = "uint", value = 32 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 33 }]
+
+[[setup]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "uint", value = 33 }, { kind = "bool", value = false }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ISR"
+args = [{ kind = "uint", value = 32 }, { kind = "var", name = "isr_page_button" }, { kind = "string", value = "FALLING" }]
+
+[[setup]]
+kind = "call"
+name = "TFT_FILL_SCREEN"
+args = [{ kind = "var", name = "COLOR_BG" }]
+
+[[setup]]
+kind = "call"
+name = "OLED_CLEAR"
+args = []
+
+[[setup]]
+kind = "call"
+name = "OLED_DISPLAY"
+args = []
+
+[[setup]]
+kind = "call"
+name = "LCD_PRINT"
+args = [{ kind = "uint", value = 0 }, { kind = "uint", value = 0 }, { kind = "string", value = "DendriForge" }]
+
+[[setup]]
+kind = "call"
+name = "LCD_PRINT"
+args = [{ kind = "uint", value = 0 }, { kind = "uint", value = 1 }, { kind = "string", value = "Dashboard v1" }]
+
+[[loop]]
+kind = "assign"
+target = "tempC"
+value = { kind = "expr_text", text = "read_ntc_celsius()" }
+
+[[loop]]
+kind = "assign"
+target = "ldrRaw"
+value = { kind = "expr_text", text = "READ_ADC(35)" }
+
+[[loop]]
+kind = "assign"
+target = "ldrPct"
+value = { kind = "expr_text", text = "TO_INT((ldrRaw / LDR_MAX) * 100)" }
+
+[[loop]]
+kind = "assign"
+target = "lightLabel"
+value = { kind = "expr_text", text = "update_light_label(ldrPct)" }
+
+[[loop]]
+kind = "call"
+name = "update_status_led"
+args = [{ kind = "var", name = "tempC" }]
+
+[[loop]]
+kind = "if"
+condition = { kind = "expr_text", text = "currentPage != lastPageDrawn" }
+then = [{ kind = "call", name = "draw_page", args = [{ kind = "var", name = "currentPage" }] }, { kind = "assign", target = "lastPageDrawn", value = { kind = "var", name = "currentPage" } }]
+
+[[functions]]
+name = "read_ntc_celsius"
+params = []
+body = [{ kind = "assign", target = "rawAdc", value = { kind = "expr_text", text = "READ_ADC(34)" } }, { kind = "assign", target = "rNtc", value = { kind = "expr_text", text = "NTC_SERIES_R * (65535.0 / rawAdc - 1.0)" } }, { kind = "assign", target = "logR", value = { kind = "expr_text", text = "LOG(rNtc / NTC_NOMINAL)" } }, { kind = "assign", target = "invT", value = { kind = "expr_text", text = "(1.0 / 298.15) + (logR / NTC_BCOEFF)" } }, { kind = "assign", target = "calculatedTemp", value = { kind = "expr_text", text = "(1.0 / invT) - 273.15" } }, { kind = "return", value = { kind = "var", name = "calculatedTemp" } }]
+
+[[functions]]
+name = "update_light_label"
+params = ["pct"]
+body = [{ kind = "if", condition = { kind = "expr_text", text = "pct >= 75" }, then = [{ kind = "return", value = { kind = "string", value = "Bright" } }] }, { kind = "if", condition = { kind = "expr_text", text = "pct >= 40 AND pct < 75" }, then = [{ kind = "return", value = { kind = "string", value = "Normal" } }, { kind = "return", value = { kind = "string", value = "Dark" } }] }]
+
+[[functions]]
+name = "update_status_led"
+params = ["t"]
+body = [{ kind = "if", condition = { kind = "expr_text", text = "t >= TEMP_ALERT_C" }, then = [{ kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 33 }, { kind = "bool", value = true }] }], else = [{ kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 33 }, { kind = "bool", value = false }] }] }]
+
+[[functions]]
+name = "draw_page"
+params = ["page"]
+body = [{ kind = "call", name = "OLED_CLEAR", args = [] }, { kind = "call", name = "LCD_CLEAR", args = [] }, { kind = "if", condition = { kind = "expr_text", text = "page == 0" }, then = [{ kind = "call", name = "draw_page_temperature", args = [] }] }, { kind = "if", condition = { kind = "expr_text", text = "page == 1" }, then = [{ kind = "call", name = "draw_page_light", args = [] }] }, { kind = "if", condition = { kind = "expr_text", text = "page == 2" }, then = [{ kind = "call", name = "draw_page_system", args = [] }] }, { kind = "call", name = "OLED_DISPLAY", args = [] }]
+
+[[functions]]
+name = "draw_page_temperature"
+params = []
+body = [{ kind = "assign", target = "tftColor", value = { kind = "var", name = "COLOR_FG" } }, { kind = "if", condition = { kind = "expr_text", text = "tempC >= TEMP_ALERT_C" }, then = [{ kind = "assign", target = "tftColor", value = { kind = "var", name = "COLOR_ALERT" } }] }, { kind = "if", condition = { kind = "expr_text", text = "tempC >= TEMP_WARN_C AND tempC < TEMP_ALERT_C" }, then = [{ kind = "assign", target = "tftColor", value = { kind = "var", name = "COLOR_WARN" } }, { kind = "call", name = "TFT_FILL_SCREEN", args = [{ kind = "var", name = "COLOR_BG" }] }, { kind = "call", name = "TFT_SET_TEXT_COLOR", args = [{ kind = "var", name = "tftColor" }, { kind = "var", name = "COLOR_BG" }] }, { kind = "call", name = "TFT_SET_TEXT_SIZE", args = [{ kind = "uint", value = 3 }] }, { kind = "call", name = "TFT_PRINT_TEXT", args = [{ kind = "uint", value = 10 }, { kind = "uint", value = 20 }, { kind = "expr_text", text = "TO_STRING(tempC, 1)" }] }, { kind = "call", name = "TFT_SET_TEXT_SIZE", args = [{ kind = "uint", value = 1 }] }, { kind = "call", name = "TFT_PRINT_TEXT", args = [{ kind = "uint", value = 10 }, { kind = "uint", value = 70 }, { kind = "string", value = "Celsius" }] }, { kind = "call", name = "TFT_DRAW_LINE", args = [{ kind = "uint", value = 0 }, { kind = "uint", value = 80 }, { kind = "uint", value = 160 }, { kind = "uint", value = 80 }, { kind = "var", name = "COLOR_ACCENT" }] }, { kind = "call", name = "TFT_PRINT_TEXT", args = [{ kind = "uint", value = 10 }, { kind = "uint", value = 90 }, { kind = "string", value = "Threshold:" }] }, { kind = "call", name = "TFT_PRINT_TEXT", args = [{ kind = "uint", value = 80 }, { kind = "uint", value = 90 }, { kind = "expr_text", text = "TO_STRING(TEMP_WARN_C, 0)" }] }, { kind = "call", name = "LCD_PRINT", args = [{ kind = "uint", value = 0 }, { kind = "uint", value = 0 }, { kind = "expr_text", text = "STR_CONCAT(\"Temp: \", TO_STRING(tempC, 1), \" C\")" }] }, { kind = "call", name = "LCD_PRINT", args = [{ kind = "uint", value = 0 }, { kind = "uint", value = 1 }, { kind = "string", value = "Page 1/3 [TEMP]" }] }, { kind = "call", name = "OLED_SET_TEXT_COLOR", args = [{ kind = "uint", value = 1 }, { kind = "uint", value = 0 }] }, { kind = "call", name = "OLED_SET_CURSOR", args = [{ kind = "uint", value = 0 }, { kind = "uint", value = 0 }] }, { kind = "call", name = "OLED_PRINT", args = [{ kind = "string", value = "TEMPERATURE" }] }, { kind = "call", name = "OLED_SET_CURSOR", args = [{ kind = "uint", value = 0 }, { kind = "uint", value = 16 }] }, { kind = "call", name = "OLED_PRINT", args = [{ kind = "expr_text", text = "STR_CONCAT(TO_STRING(tempC, 2), \" C\")" }] }] }]
+
+[[functions]]
+name = "draw_page_light"
+params = []
+body = [{ kind = "assign", target = "barWidth", value = { kind = "expr_text", text = "TO_INT((ldrPct / 100.0) * 100)" } }, { kind = "call", name = "OLED_SET_TEXT_COLOR", args = [{ kind = "uint", value = 1 }, { kind = "uint", value = 0 }] }, { kind = "call", name = "OLED_SET_CURSOR", args = [{ kind = "uint", value = 0 }, { kind = "uint", value = 0 }] }, { kind = "call", name = "OLED_PRINT", args = [{ kind = "string", value = "LIGHT LEVEL" }] }, { kind = "call", name = "OLED_SET_CURSOR", args = [{ kind = "uint", value = 0 }, { kind = "uint", value = 12 }] }, { kind = "call", name = "OLED_PRINT", args = [{ kind = "expr_text", text = "STR_CONCAT(TO_STRING(ldrPct), \"% \", lightLabel)" }] }, { kind = "call", name = "OLED_DRAW_RECT", args = [{ kind = "uint", value = 0 }, { kind = "uint", value = 28 }, { kind = "uint", value = 102 }, { kind = "uint", value = 10 }, { kind = "uint", value = 1 }] }, { kind = "call", name = "OLED_FILL_RECT", args = [{ kind = "uint", value = 1 }, { kind = "uint", value = 29 }, { kind = "var", name = "barWidth" }, { kind = "uint", value = 8 }, { kind = "uint", value = 1 }] }, { kind = "call", name = "OLED_SET_CURSOR", args = [{ kind = "uint", value = 0 }, { kind = "uint", value = 44 }] }, { kind = "call", name = "OLED_PRINT", args = [{ kind = "expr_text", text = "STR_CONCAT(\"LDR raw: \", TO_STRING(ldrRaw))" }] }, { kind = "call", name = "LCD_PRINT", args = [{ kind = "uint", value = 0 }, { kind = "uint", value = 0 }, { kind = "expr_text", text = "STR_CONCAT(\"Light: \", TO_STRING(ldrPct), \"% \")" }] }, { kind = "call", name = "LCD_PRINT", args = [{ kind = "uint", value = 0 }, { kind = "uint", value = 1 }, { kind = "var", name = "lightLabel" }] }, { kind = "call", name = "TFT_FILL_SCREEN", args = [{ kind = "var", name = "COLOR_BG" }] }, { kind = "call", name = "TFT_SET_TEXT_COLOR", args = [{ kind = "var", name = "COLOR_ACCENT" }, { kind = "var", name = "COLOR_BG" }] }, { kind = "call", name = "TFT_SET_TEXT_SIZE", args = [{ kind = "uint", value = 2 }] }, { kind = "call", name = "TFT_PRINT_TEXT", args = [{ kind = "uint", value = 10 }, { kind = "uint", value = 20 }, { kind = "expr_text", text = "STR_CONCAT(TO_STRING(ldrPct), \"%\")" }] }]
+
+[[functions]]
+name = "draw_page_system"
+params = []
+body = [{ kind = "call", name = "LCD_PRINT", args = [{ kind = "uint", value = 0 }, { kind = "uint", value = 0 }, { kind = "string", value = "DendriForge v1" }] }, { kind = "call", name = "LCD_PRINT", args = [{ kind = "uint", value = 0 }, { kind = "uint", value = 1 }, { kind = "string", value = "ASL 0.1.0 Ready" }] }, { kind = "call", name = "OLED_SET_TEXT_COLOR", args = [{ kind = "uint", value = 1 }, { kind = "uint", value = 0 }] }, { kind = "call", name = "OLED_SET_CURSOR", args = [{ kind = "uint", value = 0 }, { kind = "uint", value = 0 }] }, { kind = "call", name = "OLED_PRINT", args = [{ kind = "string", value = "SYSTEM" }] }, { kind = "call", name = "OLED_SET_CURSOR", args = [{ kind = "uint", value = 0 }, { kind = "uint", value = 16 }] }, { kind = "call", name = "OLED_PRINT", args = [{ kind = "string", value = "ASL 0.1.0" }] }, { kind = "call", name = "OLED_SET_CURSOR", args = [{ kind = "uint", value = 0 }, { kind = "uint", value = 32 }] }, { kind = "call", name = "OLED_PRINT", args = [{ kind = "expr_text", text = "STR_CONCAT(\"t=\", TO_STRING(GET_TIMESTAMP()), \"ms\")" }] }]
+
+[[functions]]
+name = "isr_page_button"
+params = []
+body = [{ kind = "assign", target = "currentTime", value = { kind = "expr_text", text = "GET_TIMESTAMP()" } }, { kind = "if", condition = { kind = "expr_text", text = "(currentTime - lastBtnTime) > DEBOUNCE_TIME" }, then = [{ kind = "assign", target = "currentPage", value = { kind = "expr_text", text = "(currentPage + 1) % PAGE_COUNT" } }, { kind = "assign", target = "lastBtnTime", value = { kind = "var", name = "currentTime" } }] }]
