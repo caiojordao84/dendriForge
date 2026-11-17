@@ -1,6 +1,6 @@
 # board profile — allen-bradley-micro850-24qbb (migrated from legacy TOON)
 # Source: allen-bradley-micro850-24qbb.toon
-# DEN-14: do not assign ASL 0.0.1
+# ASL 0.0.1 lives on program IR (metadata.asl_version), not profiles.
 
 
 [metadata]

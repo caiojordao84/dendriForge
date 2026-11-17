@@ -8,6 +8,16 @@ use crate::types::{DataType, HwType, IoMode};
 /// File extension for program IR: `.asl.toml`.
 pub const PROGRAM_EXTENSION: &str = "asl.toml";
 
+/// First ASL language version tag (assigned after MVP acceptance).
+///
+/// Sole scheme: `metadata.asl_version` in `.asl.toml` / embedded `[asl.metadata]`.
+/// Not Cargo crate version; not legacy TOON `ASLversion` / `v010`.
+pub const ASL_VERSION: &str = "0.0.1";
+
+fn default_asl_version() -> Option<String> {
+    Some(ASL_VERSION.to_string())
+}
+
 /// ASL program — Abstract Syntax Language IR root.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Program {
@@ -33,6 +43,9 @@ pub struct Program {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Metadata {
+    /// ASL language version. Current tag: [`ASL_VERSION`] (`0.0.1`).
+    #[serde(default = "default_asl_version")]
+    pub asl_version: Option<String>,
     /// Required by validate (may be absent in negative fixtures).
     #[serde(default)]
     pub project_name: Option<String>,
@@ -47,9 +60,29 @@ pub struct Metadata {
     pub expect_error: Option<String>,
 }
 
-// ASL language versioning is intentionally absent until MVP.
-// Do not reintroduce `asl_version` / document `version` here before then;
-// first released ASL tag will be `0.0.1` once parsers + MVP exist.
+impl Default for Metadata {
+    fn default() -> Self {
+        Self {
+            asl_version: default_asl_version(),
+            project_name: None,
+            editor: None,
+            author: None,
+            notes: None,
+            expect_error: None,
+        }
+    }
+}
+
+impl Metadata {
+    /// Build metadata stamped with the current [`ASL_VERSION`].
+    pub fn with_project(project_name: impl Into<String>) -> Self {
+        Self {
+            project_name: Some(project_name.into()),
+            editor: Some("dendriForge".into()),
+            ..Self::default()
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HardwareEntry {

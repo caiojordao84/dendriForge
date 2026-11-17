@@ -1,6 +1,7 @@
 # Sim snapshot S09 — CONCAT / TO_STRING / TO_STRING_FMT (scenario 11 strings)
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "S09-string-ops"
 editor = "dendriForge"
 author = "dendriForge DEN-16"

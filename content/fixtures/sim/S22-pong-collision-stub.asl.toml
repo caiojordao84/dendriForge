@@ -2,6 +2,7 @@
 # Forced ball update each scan; OLED pixel + PLAY_TONE on bounce.
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "S22-pong-collision-stub"
 editor = "dendriForge"
 author = "dendriForge DEN-21"

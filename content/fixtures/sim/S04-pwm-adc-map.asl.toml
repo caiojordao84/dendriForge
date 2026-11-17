@@ -2,6 +2,7 @@
 # Duty is Arduino-style 0–255 UINT for honest C++ analogWrite round-trip.
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "S04-pwm-adc-map"
 editor = "dendriForge"
 author = "dendriForge Priority 2"

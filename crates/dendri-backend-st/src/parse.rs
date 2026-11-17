@@ -481,6 +481,7 @@ impl Parser {
 
         Ok(Program {
             metadata: Metadata {
+                asl_version: Some(dendri_ast::ASL_VERSION.into()),
                 project_name: self.project_name.clone().or_else(|| Some("st-program".into())),
                 editor: Some("dendriForge".into()),
                 author: None,

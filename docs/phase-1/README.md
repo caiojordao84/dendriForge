@@ -1,6 +1,6 @@
 # Phase 1 — Core + text frontends + Ladder/SFC
 
-**Status:** in progress toward MVP (ASL still **unversioned**; do **not** assign `0.0.1` yet)
+**Status:** MVP accepted; ASL language tag **`0.0.1`**
 
 ## Crates
 

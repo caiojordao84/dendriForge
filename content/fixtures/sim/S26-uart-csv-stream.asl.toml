@@ -2,6 +2,7 @@
 # Structured exprs only; multi-ADC CSV line + control commands.
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "S26-uart-csv-stream"
 editor = "dendriForge"
 author = "dendriForge DEN-22"

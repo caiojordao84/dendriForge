@@ -1,6 +1,6 @@
 # board profile — nucleo-g0b1re (migrated from legacy TOON)
 # Source: nucleo-g0b1re.toon
-# DEN-14: do not assign ASL 0.0.1
+# ASL 0.0.1 lives on program IR (metadata.asl_version), not profiles.
 
 
 [metadata]

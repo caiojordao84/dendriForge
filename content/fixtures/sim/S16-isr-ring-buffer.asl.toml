@@ -1,6 +1,7 @@
 # Sim S16 — ISR ring-buffer capture + main-loop drain (scenario 8 / G12 core)
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "S16-isr-ring-buffer"
 editor = "dendriForge"
 author = "dendriForge DEN-17"

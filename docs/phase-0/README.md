@@ -1,8 +1,8 @@
 # Phase 0 — ASL contract freeze
 
-**Status:** landed (merged). **MVP:** in progress.  
+**Status:** landed (merged). **MVP:** accepted (12/12).  
 **ASL = Abstract Syntax Language** (frozen; do not rename), structured in **TOML**.  
-**ASL version:** none until MVP acceptance → then `0.0.1`.
+**ASL version:** **`0.0.1`** (`metadata.asl_version` / `dendri_ast::ASL_VERSION`).
 
 This folder documents the TOML-based IR contract that Phase 1 / MVP implement
 (`dendri-parse` / `dendri-validate` / `dendri-emit` / `dendri-sim`).
@@ -10,7 +10,7 @@ This folder documents the TOML-based IR contract that Phase 1 / MVP implement
 | Document | Purpose |
 |---|---|
 | [`ir-schema.md`](./ir-schema.md) | Program + profile TOML IR |
-| [`versioning.md`](./versioning.md) | ASL unversioned until MVP; then `0.0.1` |
+| [`versioning.md`](./versioning.md) | ASL language tag `0.0.1` |
 | [`error-codes.md`](./error-codes.md) | Unified `ERR_*` enum (+ legacy map) |
 | [`layout.md`](./layout.md) | Repo layout: `content/` vs `legacy` `core/` |
 | [`svg-readiness.md`](./svg-readiness.md) | SVG conventions, gap inventory, visual MVP |

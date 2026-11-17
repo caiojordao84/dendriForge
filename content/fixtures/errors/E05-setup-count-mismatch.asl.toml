@@ -3,6 +3,7 @@
 # TOML IR has no header count; fixture_inject declares the legacy mismatch intent.
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "E05-setup-count-mismatch"
 editor = "dendriForge"
 author = "dendriForge Error Corpus"

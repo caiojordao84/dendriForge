@@ -1,6 +1,6 @@
 # board profile — adafruit-feather-rp2040 (migrated from legacy TOON)
 # Source: adafruit-feather-rp2040.toon
-# DEN-14: do not assign ASL 0.0.1
+# ASL 0.0.1 lives on program IR (metadata.asl_version), not profiles.
 
 
 [metadata]

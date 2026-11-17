@@ -3,6 +3,7 @@
 # if/elif/else, for, BOOL/UINT/INT/TIME. No PWM/ADC/UART (priority 2).
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "S03-control-flow-get-bool"
 editor = "dendriForge"
 author = "dendriForge Phase 1"

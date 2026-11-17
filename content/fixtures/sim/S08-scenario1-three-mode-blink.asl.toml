@@ -3,6 +3,7 @@
 # Drive pin 2 from the test harness / canvas between scans for mode changes.
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "S08-scenario1-three-mode-blink"
 editor = "dendriForge"
 author = "dendriForge Priority 6"

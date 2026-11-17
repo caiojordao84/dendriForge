@@ -10,7 +10,7 @@ validators must emit the `ERR_*` id.
 
 | Code | Meaning |
 |---|---|
-| `ERR_METADATA_MISSING_FIELD` | Required `[metadata]` key missing (e.g. `project_name`; not ASL version — ASL is unversioned until MVP) |
+| `ERR_METADATA_MISSING_FIELD` | Required `[metadata]` key missing (e.g. `project_name`; `asl_version` defaults to `0.0.1` when omitted) |
 | `ERR_BLOCK_COUNT_MISMATCH` | Declared vs actual entry/step count |
 | `ERR_HARDWARE_PIN_CONFLICT` | Duplicate pin in `[[hardware]]` |
 | `ERR_DATA_UNKNOWN_TYPE` | Unknown `[[data]]` type token |

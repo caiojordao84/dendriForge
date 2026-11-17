@@ -2,6 +2,7 @@
 # Uses only the Phase 1 sim MVP opcode subset.
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "S01-blink-set-bool-wait"
 editor = "dendriForge"
 author = "dendriForge Phase 1"

@@ -2,7 +2,7 @@
 
 > **Superseded surface format.** This EBNF describes the obsolete **TOON** document surface.
 > Live IR is **ASL in TOML** (`.asl.toml`). See [`phase-0/ir-schema.md`](./phase-0/ir-schema.md)
-> and `crates/dendri-ast`. ASL is **unversioned until MVP**, then `0.0.1` —
+> and `crates/dendri-ast`. ASL language tag is **`0.0.1`** —
 > ignore any `ASLversion` / `0.1.0` terminals below as current policy.
 > Kept only as a semantic reference for blocks, types, and parse-error intent.
 

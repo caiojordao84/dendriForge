@@ -2,10 +2,11 @@
 # Legacy TOON retained under core/asl/v010/ (read-only).
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "G12-isr-ring-buffer-capture"
 editor = "dendriForge"
 author = "dendriForge Golden Suite"
-notes = "Migrated from legacy v010 TOON — ASL unversioned"
+notes = "Migrated from legacy v010 TOON — ASL 0.0.1"
 
 [[hardware]]
 pin = 14

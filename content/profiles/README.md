@@ -13,7 +13,7 @@ content/profiles/
 
 | Table | Role |
 |---|---|
-| `[metadata]` | `project_name`, `editor`, `author` (no ASL version) |
+| `[metadata]` | `project_name`, `editor`, `author` (ASL version is on program IR, not profiles) |
 | `[identification]` | `id`, `name`, category/family, `image` / `symbol` |
 | `[specs]` / `[dims]` | Boards — flash/SRAM/clock and physical size |
 | `[params.*]` | Components/screens — editable parameters |
@@ -39,4 +39,4 @@ cargo run -p dendri-cli -- migrate-profiles
 cargo run -p dendri-cli -- profiles --all
 ```
 
-Do **not** assign ASL `0.0.1` here — ASL stays unversioned until MVP acceptance.
+ASL language tag **`0.0.1`** lives on program IR (`metadata.asl_version`), not on profiles.

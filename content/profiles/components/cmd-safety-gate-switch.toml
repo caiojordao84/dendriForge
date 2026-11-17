@@ -1,6 +1,6 @@
 # component profile — cmd-safety-gate-switch (migrated from legacy TOON)
 # Source: cmd-safety-gate-switch.toon
-# DEN-14: do not assign ASL 0.0.1
+# ASL 0.0.1 lives on program IR (metadata.asl_version), not profiles.
 
 
 [metadata]

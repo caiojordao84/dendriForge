@@ -1,7 +1,7 @@
 # ASL Standard Library — historical semantic draft
 
 > **Superseded as authority.** Live catalog: `crates/dendri-stdlib/data/catalog.toml`.
-> Live IR: ASL in **TOML** ([`phase-0/`](./phase-0/)). ASL is **unversioned until MVP**, then `0.0.1`.
+> Live IR: ASL in **TOML** ([`phase-0/`](./phase-0/)). ASL language tag is **`0.0.1`**.
 > Column headers below historically said “TOON”; they mean **ASL** function identifiers.
 > Do not treat this file’s old `v0.1.0` label as the current ASL version.
 

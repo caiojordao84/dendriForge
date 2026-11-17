@@ -2,6 +2,7 @@
 # Structured exprs; proves nested scan + MAX/SEL opcodes + vendor skip.
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "S27-nested-max-vendor"
 editor = "dendriForge"
 author = "dendriForge DEN-22"

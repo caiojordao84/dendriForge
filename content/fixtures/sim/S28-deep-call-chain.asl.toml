@@ -2,6 +2,7 @@
 # L0→L1→L2→L3→L4 accumulate; early return on fault flag.
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "S28-deep-call-chain"
 editor = "dendriForge"
 author = "dendriForge DEN-22"

@@ -756,6 +756,7 @@ fn load_session(path: &std::path::Path) -> Result<SyncSession, String> {
 fn empty_project() -> dendri_ast::SimulationProject {
     dendri_ast::SimulationProject {
         metadata: dendri_ast::Metadata {
+            asl_version: Some(dendri_ast::ASL_VERSION.into()),
             project_name: Some("untitled".into()),
             editor: Some("dendriForge".into()),
             author: None,
@@ -771,6 +772,7 @@ fn empty_project() -> dendri_ast::SimulationProject {
         sources: vec![],
         asl: dendri_ast::Program {
             metadata: dendri_ast::Metadata {
+                asl_version: Some(dendri_ast::ASL_VERSION.into()),
                 project_name: Some("untitled-asl".into()),
                 editor: Some("dendriForge".into()),
                 author: None,

@@ -1,6 +1,6 @@
 # board profile — arduino-pro-mini (migrated from legacy TOON)
 # Source: arduino-pro-mini.toon
-# DEN-14: do not assign ASL 0.0.1
+# ASL 0.0.1 lives on program IR (metadata.asl_version), not profiles.
 
 
 [metadata]

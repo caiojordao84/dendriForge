@@ -2,6 +2,7 @@
 # Migrated from core/asl/v010/errors/E04-hardware-pin-conflict.toon
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "E04-hardware-pin-conflict"
 editor = "dendriForge"
 author = "dendriForge Error Corpus"

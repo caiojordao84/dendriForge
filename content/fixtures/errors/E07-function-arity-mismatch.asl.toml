@@ -2,6 +2,7 @@
 # Migrated from core/asl/v010/errors/E07-function-arity-mismatch.toon
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "E07-function-arity-mismatch"
 editor = "dendriForge"
 author = "dendriForge Error Corpus"

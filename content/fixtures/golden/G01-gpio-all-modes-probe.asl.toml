@@ -2,6 +2,7 @@
 # Migrated from core/asl/v010/golden/G01-gpio-all-modes-probe.toon
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "G01-gpio-all-modes-probe"
 editor = "dendriForge"
 author = "dendriForge Golden Suite"

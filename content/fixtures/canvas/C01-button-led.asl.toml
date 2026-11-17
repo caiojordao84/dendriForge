@@ -2,6 +2,7 @@
 # Pins: D2 = cmd-pushbutton-no-start, D13 = led (matches P01 wiring).
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "C01-button-led"
 editor = "dendriForge"
 author = "dendriForge Priority 4"

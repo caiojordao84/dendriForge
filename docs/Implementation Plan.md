@@ -2,7 +2,7 @@
 
 > Status: **Living document** — updated as phases are completed.  
 > **ASL:** Abstract Syntax Language, structured in **TOML** (`.asl.toml`).  
-> **ASL version:** **unversioned until MVP acceptance**, then **`0.0.1`**. Do not treat `0.1.0` / `0.1.1` / `v010` as current.  
+> **ASL version:** **`0.0.1`** (`metadata.asl_version`). Do not treat `0.1.0` / `0.1.1` / `v010` as current.  
 > **Stack:** pure Rust. **IR:** TOML only (TOON is obsolete / legacy under `core/`).
 
 ---
@@ -12,8 +12,8 @@
 | Milestone | Status |
 |---|---|
 | Phase 0 — ASL TOML contract freeze | **Landed** — see [`phase-0/`](./phase-0/) |
-| MVP — functional MCU + PLC + peripheral sim | **In progress** |
-| ASL version tag `0.0.1` | **Not assigned** until MVP acceptance tests pass |
+| MVP — functional MCU + PLC + peripheral sim | **Accepted** (12/12) |
+| ASL version tag `0.0.1` | **Assigned** — `dendri_ast::ASL_VERSION` / `metadata.asl_version` |
 
 | Artifact | Role |
 |---|---|
@@ -76,7 +76,7 @@ ASL documents in TOML are the single source of truth for the platform. All parse
 ### Completed
 - [x] ASL naming frozen as **Abstract Syntax Language**
 - [x] TOML IR schema (`docs/phase-0/ir-schema.md` + `crates/dendri-ast`)
-- [x] ASL **unversioned** until MVP (`docs/phase-0/versioning.md`)
+- [x] ASL **`0.0.1`** assigned after MVP (`docs/phase-0/versioning.md`)
 - [x] Unified `ERR_*` error catalogue
 - [x] Stdlib ported to `catalog.toml`
 - [x] Ladder + GRAFCET AST stubs reserved
@@ -91,7 +91,7 @@ ASL documents in TOML are the single source of truth for the platform. All parse
 
 ## MVP — Functional simulation (current)
 
-**Goal:** Functional simulator of MCU + PLC + peripherals on ASL/TOML. Assign **`0.0.1` only after** automated acceptance (fixture round-trip + deterministic simulation).
+**Goal:** Functional simulator of MCU + PLC + peripherals on ASL/TOML. ASL tag **`0.0.1`** assigned after automated acceptance (fixture round-trip + deterministic simulation) — now live.
 
 ### Hard requirements
 1. **Full TOML transition** — no TOON as supported IR
@@ -104,7 +104,7 @@ ASL documents in TOML are the single source of truth for the platform. All parse
 ### Explicit non-goals for MVP / `0.0.1`
 - Rust-as-scripting-language frontends
 - Full industrial protocol stacks beyond what sim needs
-- Claiming an ASL version before the acceptance gate
+- Parallel version schemes beyond `metadata.asl_version`
 
 ### Phase 1 core library (under MVP)
 
@@ -193,7 +193,7 @@ User-supplied keys / local CLI; always validate AI output through `dendri-valida
 2. Expand golden round-trips and deterministic sim acceptance tests
 3. Wire P1 frontends: C++, MicroPython, ST
 4. Build Ladder and SFC/GRAFCET editors with bidirectional TOML sync
-5. Keep docs TOML-only; do **not** assign ASL `0.0.1` until the MVP gate passes
+5. Keep docs TOML-only; ASL `0.0.1` is the live language tag after MVP acceptance
 
 ---
 

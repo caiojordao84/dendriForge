@@ -24,6 +24,7 @@ pub fn lower_ladder_to_program(
     }
     Program {
         metadata: Metadata {
+            asl_version: Some(dendri_ast::ASL_VERSION.into()),
             project_name: Some(format!("{}-asl", block.name)),
             editor: Some("dendriForge".into()),
             author: None,

@@ -296,6 +296,7 @@ mod tests {
     fn bare_project() -> SimulationProject {
         SimulationProject {
             metadata: Metadata {
+                asl_version: Some(dendri_ast::ASL_VERSION.into()),
                 project_name: Some("sync-test".into()),
                 editor: Some("dendriForge".into()),
                 author: None,
@@ -324,6 +325,7 @@ mod tests {
             ],
             asl: Program {
                 metadata: Metadata {
+                    asl_version: Some(dendri_ast::ASL_VERSION.into()),
                     project_name: Some("sync-test-asl".into()),
                     editor: Some("dendriForge".into()),
                     author: None,

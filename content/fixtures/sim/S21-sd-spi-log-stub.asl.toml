@@ -2,6 +2,7 @@
 # CFG_SPI + SPI_TRANSFER payload + VENDOR_EXTENSION skip (no fake FAT filesystem).
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "S21-sd-spi-log-stub"
 editor = "dendriForge"
 author = "dendriForge DEN-21"

@@ -73,11 +73,12 @@ pub fn convert_toon_str(
         message,
     })?;
 
-    // Drop legacy ASL version markers — ASL is unversioned until MVP → 0.0.1.
+    // Drop legacy TOON ASL version markers from profiles (language tag is on program IR).
     if let Some(Value::Map(meta)) = root.get_mut("metadata") {
         meta.remove("ASLversion");
         meta.remove("aslversion");
         meta.remove("version");
+        meta.remove("asl_version");
     }
 
     restructure_identification(&mut root);

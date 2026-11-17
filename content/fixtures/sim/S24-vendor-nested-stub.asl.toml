@@ -2,6 +2,7 @@
 # 2-level nested loops + graceful vendor skip (no MAX/SEL dependency).
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "S24-vendor-nested-stub"
 editor = "dendriForge"
 author = "dendriForge DEN-21"

@@ -1,6 +1,6 @@
 # component profile — pneu-valve-5-3 (migrated from legacy TOON)
 # Source: pneu-valve-5-3.toon
-# DEN-14: do not assign ASL 0.0.1
+# ASL 0.0.1 lives on program IR (metadata.asl_version), not profiles.
 
 
 [metadata]

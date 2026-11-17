@@ -2,6 +2,7 @@
 # Migrated from core/asl/v010/errors/E03-undeclared-variable.toon
 
 [metadata]
+asl_version = "0.0.1"
 project_name = "E03-undeclared-variable"
 editor = "dendriForge"
 author = "dendriForge Error Corpus"
