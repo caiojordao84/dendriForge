@@ -1,11 +1,11 @@
-//! DEN-16 — MVP scenarios 1–12 acceptance map (sim opcode tranche).
+//! DEN-17 — MVP scenarios 1–12 acceptance map (ISR / encoder tranche).
 //!
 //! Honest statuses only:
 //! - **pass** — automated check green on current opcodes/sim
 //! - **partial** — structural and/or subset sim green; full scenario not met
 //! - **blocked** — missing sim/opcode/physics; fixture may still deserialize
 //!
-//! See store docs `priority-6-v010-scenarios.md` and `priority-7-sim-opcodes-acceptance.md`.
+//! See store docs `priority-7-isr-encoder.md` and `priority-7-sim-opcodes-acceptance.md`.
 
 use std::path::PathBuf;
 
@@ -76,14 +76,14 @@ fn matrix() -> [Scenario; 12] {
         Scenario {
             id: 7,
             title: "SCARA PID + E-Stop",
-            status: Status::Blocked,
-            note: "S13 SQRT/LOG in sim; ISR/PID/LCD plant still blocked",
+            status: Status::Partial,
+            note: "S13 SQRT/LOG + S14 ISR attach; PID/LCD plant still blocked",
         },
         Scenario {
             id: 8,
             title: "ISR / encoder / ring buffer",
-            status: Status::Blocked,
-            note: "G04/G09/G11/G12 TOML+validate; CFG_ATTACH_INTERRUPT unsupported in sim",
+            status: Status::Pass,
+            note: "S14 edges/detach + S15 encoder + S16 ring buffer; G04 LCD still out",
         },
         Scenario {
             id: 9,
@@ -124,10 +124,10 @@ fn scenario_matrix_is_complete() {
     let pass = m.iter().filter(|s| s.status == Status::Pass).count();
     let partial = m.iter().filter(|s| s.status == Status::Partial).count();
     let blocked = m.iter().filter(|s| s.status == Status::Blocked).count();
-    // DEN-16 snapshot — update when a scenario genuinely graduates.
-    assert_eq!(pass, 2, "pass={pass}");
-    assert_eq!(partial, 5, "partial={partial}");
-    assert_eq!(blocked, 5, "blocked={blocked}");
+    // DEN-17 snapshot — update when a scenario genuinely graduates.
+    assert_eq!(pass, 3, "pass={pass}");
+    assert_eq!(partial, 6, "partial={partial}");
+    assert_eq!(blocked, 3, "blocked={blocked}");
 }
 
 #[test]
@@ -145,14 +145,14 @@ fn scenario1_three_mode_blink_sim_and_canvas_project() {
     );
     sim.ensure_setup().unwrap();
     // Mode 0 — LED off
-    sim.set_pin(2, false);
+    sim.set_pin(2, false).unwrap();
     sim.step().unwrap();
     assert!(!sim.pin(13), "mode0 led off");
 
     // Rising edge → mode 1 (slow blink)
-    sim.set_pin(2, true);
+    sim.set_pin(2, true).unwrap();
     sim.step().unwrap();
-    sim.set_pin(2, false);
+    sim.set_pin(2, false).unwrap();
     sim.step().unwrap();
     // After mode change + slow toggle, pin should have been written
     let trace = sim.trace_text();
@@ -252,9 +252,9 @@ fn scenario3_conveyor_in_range_pass() {
     );
     sim.ensure_setup().unwrap();
     for _ in 0..5 {
-        sim.set_pin(2, true);
+        sim.set_pin(2, true).unwrap();
         sim.step().unwrap();
-        sim.set_pin(2, false);
+        sim.set_pin(2, false).unwrap();
         sim.step().unwrap();
     }
     assert!(sim.pin(11), "divert on at PV");
@@ -305,13 +305,10 @@ fn scenario6_sfc_and_ladder_twins_partial() {
 
 #[test]
 fn scenario_blocked_examples_deserialize_only() {
-    // Structural presence for blocked scenarios 4/5/7/8/10 — do not claim sim.
+    // Structural presence for blocked scenarios 4/5/10 — do not claim sim.
     for rel in [
         "content/fixtures/examples/reservatorio-controle-logic.asl.toml",
         "content/fixtures/examples/plc-elevator-advanced.asl.toml",
-        "content/fixtures/examples/advanced-robotic-scara-pid.asl.toml",
-        "content/fixtures/golden/G11-multi-isr-priority-test.asl.toml",
-        "content/fixtures/golden/G12-isr-ring-buffer-capture.asl.toml",
         "content/fixtures/examples/pong-game-logic.asl.toml",
         "content/fixtures/examples/multi-display-dashboard.asl.toml",
     ] {
@@ -406,22 +403,142 @@ fn scenario9_and_11_and_12_validate_partial() {
 }
 
 #[test]
-fn scenario8_isr_sim_is_blocked() {
+fn scenario8_isr_edge_modes_and_detach() {
     let parsed = parse_program_file(
-        &repo().join("content/fixtures/golden/G04-rotary-encoder-counter.asl.toml"),
+        &repo().join("content/fixtures/sim/S14-isr-edge-modes.asl.toml"),
     )
     .unwrap();
     assert!(validate_program(&parsed.program, &parsed.inject).ok());
-    let mut sim = Simulator::from_program(
-        parsed.program,
-        &SimConfig {
-            max_cycles: 1,
-            ..SimConfig::default()
-        },
+    let mut sim = Simulator::from_program(parsed.program, &SimConfig::default());
+    sim.ensure_setup().unwrap();
+    assert_eq!(sim.interrupts().len(), 3);
+    assert!(sim.volatile_vars().contains("flagRising"));
+
+    // One edge per scan so main-loop flag consume stays honest.
+    sim.set_pin(10, true).unwrap();
+    sim.step().unwrap();
+    sim.set_pin(11, true).unwrap();
+    sim.set_pin(11, false).unwrap();
+    sim.step().unwrap();
+    sim.set_pin(12, true).unwrap();
+    sim.step().unwrap();
+    sim.set_pin(12, false).unwrap();
+    sim.step().unwrap();
+
+    assert_eq!(sim.var("countRising").and_then(|v| v.as_u64().ok()), Some(1));
+    assert_eq!(sim.var("countFalling").and_then(|v| v.as_u64().ok()), Some(1));
+    assert_eq!(sim.var("countChange").and_then(|v| v.as_u64().ok()), Some(2));
+
+    // Two more rising edges → detach at threshold 3
+    sim.set_pin(10, false).unwrap();
+    sim.set_pin(10, true).unwrap();
+    sim.step().unwrap();
+    sim.set_pin(10, false).unwrap();
+    sim.set_pin(10, true).unwrap();
+    sim.step().unwrap();
+    assert_eq!(sim.var("countRising").and_then(|v| v.as_u64().ok()), Some(3));
+    assert_eq!(
+        sim.var("risingDetached").and_then(|v| v.as_bool().ok()),
+        Some(true)
     );
-    let err = sim.run(1).unwrap_err();
     assert!(
-        err.contains("unsupported") || err.contains("CFG_ATTACH") || err.contains("INTERRUPT"),
-        "expected ISR sim block, got: {err}"
+        sim.interrupts().iter().all(|(p, _, _)| *p != 10),
+        "pin 10 detached"
     );
+    // Further rising must not count
+    sim.set_pin(10, false).unwrap();
+    sim.set_pin(10, true).unwrap();
+    sim.step().unwrap();
+    assert_eq!(sim.var("countRising").and_then(|v| v.as_u64().ok()), Some(3));
+    let trace = sim.trace_text();
+    assert!(trace.contains("ISR_ATTACH"), "{trace}");
+    assert!(trace.contains("ISR_FIRE"), "{trace}");
+    assert!(trace.contains("rising_detached"), "{trace}");
+}
+
+#[test]
+fn scenario8_encoder_quadrature() {
+    let parsed = parse_program_file(
+        &repo().join("content/fixtures/sim/S15-encoder-quadrature.asl.toml"),
+    )
+    .unwrap();
+    assert!(validate_program(&parsed.program, &parsed.inject).ok());
+    let mut sim = Simulator::from_program(parsed.program, &SimConfig::default());
+    sim.ensure_setup().unwrap();
+
+    // CW: B low while A toggles → count++
+    sim.set_pin(21, false).unwrap();
+    sim.set_pin(20, true).unwrap();
+    sim.step().unwrap();
+    assert_eq!(sim.var("encoderCount").and_then(|v| v.as_i64().ok()), Some(1));
+    sim.set_pin(20, false).unwrap();
+    sim.step().unwrap();
+    assert_eq!(sim.var("encoderCount").and_then(|v| v.as_i64().ok()), Some(2));
+
+    // CCW: B high while A toggles → count--
+    sim.set_pin(21, true).unwrap();
+    sim.set_pin(20, true).unwrap();
+    sim.step().unwrap();
+    assert_eq!(sim.var("encoderCount").and_then(|v| v.as_i64().ok()), Some(1));
+
+    // Button FALLING resets
+    sim.set_pin(22, true).unwrap();
+    sim.set_pin(22, false).unwrap();
+    sim.step().unwrap();
+    assert_eq!(sim.var("encoderCount").and_then(|v| v.as_i64().ok()), Some(0));
+    let trace = sim.trace_text();
+    assert!(trace.contains("count="), "{trace}");
+    assert!(trace.contains("count_reset"), "{trace}");
+    assert!(sim.volatile_vars().contains("encoderCount"));
+}
+
+#[test]
+fn scenario8_isr_ring_buffer() {
+    let parsed = parse_program_file(
+        &repo().join("content/fixtures/sim/S16-isr-ring-buffer.asl.toml"),
+    )
+    .unwrap();
+    assert!(validate_program(&parsed.program, &parsed.inject).ok());
+    let mut sim = Simulator::from_program(parsed.program, &SimConfig::default());
+    sim.ensure_setup().unwrap();
+
+    // Three captures then drain
+    for _ in 0..3 {
+        sim.set_pin(14, false).unwrap();
+        sim.set_pin(14, true).unwrap();
+    }
+    assert_eq!(sim.var("captureCount").and_then(|v| v.as_u64().ok()), Some(3));
+    sim.step().unwrap();
+    assert_eq!(sim.var("drainCount").and_then(|v| v.as_u64().ok()), Some(3));
+    assert_eq!(
+        sim.var("bufHead").and_then(|v| v.as_u64().ok()),
+        sim.var("bufTail").and_then(|v| v.as_u64().ok())
+    );
+
+    // Fill until overflow (BUF_SIZE=4 → 3 free slots before head wraps onto tail)
+    for _ in 0..4 {
+        sim.set_pin(14, false).unwrap();
+        sim.set_pin(14, true).unwrap();
+    }
+    assert_eq!(
+        sim.var("bufOverflow").and_then(|v| v.as_bool().ok()),
+        Some(true)
+    );
+    sim.step().unwrap();
+    let trace = sim.trace_text();
+    assert!(trace.contains("OVERFLOW"), "{trace}");
+}
+
+#[test]
+fn scenario8_goldens_validate_structural() {
+    for rel in [
+        "content/fixtures/golden/G04-rotary-encoder-counter.asl.toml",
+        "content/fixtures/golden/G09-frequency-counter-pwm-in.asl.toml",
+        "content/fixtures/golden/G11-multi-isr-priority-test.asl.toml",
+        "content/fixtures/golden/G12-isr-ring-buffer-capture.asl.toml",
+    ] {
+        let parsed = parse_program_file(&repo().join(rel)).unwrap();
+        let r = validate_program(&parsed.program, &parsed.inject);
+        assert!(r.ok(), "{rel}: {:?}", r.diagnostics);
+    }
 }

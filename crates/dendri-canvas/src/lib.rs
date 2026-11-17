@@ -385,12 +385,12 @@ impl SimCanvas {
 
     pub fn press_button(&mut self) {
         self.button_pressed = true;
-        self.sim.set_pin(self.binding.button_pin, true);
+        let _ = self.sim.set_pin(self.binding.button_pin, true);
     }
 
     pub fn release_button(&mut self) {
         self.button_pressed = false;
-        self.sim.set_pin(self.binding.button_pin, false);
+        let _ = self.sim.set_pin(self.binding.button_pin, false);
     }
 
     pub fn set_button(&mut self, pressed: bool) {

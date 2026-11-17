@@ -116,9 +116,9 @@ fn s10_conveyor_in_range_runs() {
     sim.ensure_setup().unwrap();
     // Five optic rising edges → CTU reaches PV=5 → divert on.
     for _ in 0..5 {
-        sim.set_pin(2, true);
+        sim.set_pin(2, true).unwrap();
         sim.step().unwrap();
-        sim.set_pin(2, false);
+        sim.set_pin(2, false).unwrap();
         sim.step().unwrap();
     }
     assert!(sim.pin(11), "divert should be on at full count");
@@ -173,6 +173,52 @@ fn s11_retain_survives_soft_restart() {
         sim2.var("rebootCount").and_then(|v| v.as_u64().ok()),
         Some(2)
     );
+}
+
+#[test]
+fn s14_isr_edges_fire_on_set_pin() {
+    let path = repo().join("content/fixtures/sim/S14-isr-edge-modes.asl.toml");
+    let parsed = parse_program_file(&path).unwrap();
+    let mut sim = Simulator::from_program(parsed.program, &SimConfig::default());
+    sim.ensure_setup().unwrap();
+    sim.set_pin(10, true).unwrap();
+    assert!(sim.trace_text().contains("ISR_FIRE pin=10 mode=RISING"));
+    sim.set_pin(11, true).unwrap();
+    sim.set_pin(11, false).unwrap();
+    assert!(sim.trace_text().contains("ISR_FIRE pin=11 mode=FALLING"));
+    sim.set_pin(12, true).unwrap();
+    assert!(sim.trace_text().contains("ISR_FIRE pin=12 mode=CHANGE"));
+}
+
+#[test]
+fn s15_encoder_counts_on_change() {
+    let path = repo().join("content/fixtures/sim/S15-encoder-quadrature.asl.toml");
+    let parsed = parse_program_file(&path).unwrap();
+    let mut sim = Simulator::from_program(parsed.program, &SimConfig::default());
+    sim.ensure_setup().unwrap();
+    sim.set_pin(21, false).unwrap();
+    sim.set_pin(20, true).unwrap();
+    assert_eq!(sim.var("encoderCount").and_then(|v| v.as_i64().ok()), Some(1));
+    sim.step().unwrap();
+    assert!(sim.trace_text().contains("count=1"));
+}
+
+#[test]
+fn s16_ring_buffer_overflow_path() {
+    let path = repo().join("content/fixtures/sim/S16-isr-ring-buffer.asl.toml");
+    let parsed = parse_program_file(&path).unwrap();
+    let mut sim = Simulator::from_program(parsed.program, &SimConfig::default());
+    sim.ensure_setup().unwrap();
+    for _ in 0..4 {
+        sim.set_pin(14, false).unwrap();
+        sim.set_pin(14, true).unwrap();
+    }
+    assert_eq!(
+        sim.var("bufOverflow").and_then(|v| v.as_bool().ok()),
+        Some(true)
+    );
+    sim.step().unwrap();
+    assert!(sim.trace_text().contains("OVERFLOW"));
 }
 
 #[test]
