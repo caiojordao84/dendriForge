@@ -32,6 +32,7 @@ repository = "https://github.com/caiojordao84/dendriForge"
 serde = { version = "1", features = ["derive"] }
 toml = "0.8"
 thiserror = "2"
+regex = "1"
 clap = { version = "4", features = ["derive"] }
 dendri-ast = { path = "crates/dendri-ast" }
 dendri-stdlib = { path = "crates/dendri-stdlib" }

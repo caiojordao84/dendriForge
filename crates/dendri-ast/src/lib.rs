@@ -11,6 +11,7 @@ pub mod lit;
 pub mod program;
 pub mod project;
 pub mod stmt;
+pub mod toon;
 pub mod types;
 
 pub use error::{ErrorCode, ErrorSeverity};
@@ -31,4 +32,8 @@ pub use project::{
     PROJECT_EXTENSION,
 };
 pub use stmt::{ElifArm, Stmt};
+pub use toon::{
+    convert_program, is_protected, migrate_v010, AslToonError, MigrateOptions, MigrateReport,
+    PROTECTED,
+};
 pub use types::{DataType, HwType, IoMode};
