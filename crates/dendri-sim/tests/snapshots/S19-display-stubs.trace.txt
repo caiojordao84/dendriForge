@@ -1,0 +1,29 @@
+t=     0 BOOT
+t=     0 BUS_CFG I2C bus=0 sda=21 scl=22 freq=400000
+t=     0 DISP LCD CFG addr=0x27 cols=16 rows=2
+t=     0 DISP OLED CFG addr=0x3C
+t=     0 DISP TFT CFG dc=2 rst=-1 cs=5
+t=     0 DISP LCD PRINT col=0 row=0 "Multi-disp"
+t=     0 SETUP_DONE
+t=     0 SCAN_START cycle=1
+t=     0 DISP OLED CLEAR
+t=     0 DISP LCD CLEAR
+t=     0 DISP TFT FILL color=0x0000
+t=     0 DISP TFT TEXT_COLOR fg=0xFFFF bg=0x0000
+t=     0 DISP TFT TEXT_SIZE n=2
+t=     0 ASSIGN msg="T=28.5"
+t=     0 DISP TFT PRINT x=10 y=20 "T=28.5"
+t=     0 DISP TFT ROUND_RECT x=4 y=4 w=120 h=60 r=4 c=0xFFFF
+t=     0 DISP OLED TEXT_COLOR fg=1 bg=0
+t=     0 DISP OLED CURSOR x=0 y=0
+t=     0 DISP OLED PRINT x=0 y=0 "LIGHT"
+t=     0 DISP OLED RECT x=0 y=28 w=102 h=10 c=1
+t=     0 DISP OLED FILL_RECT x=1 y=29 w=72 h=8 c=1
+t=     0 DISP OLED VLINE x=12 y=8 h=16 c=1
+t=     0 DISP OLED PIXEL x=64 y=32 c=1
+t=     0 DISP OLED FLUSH
+t=     0 DISP LCD PRINT col=0 row=0 "page0 env"
+t=     0 DISP LCD PRINT col=0 row=1 "T=28.5"
+t=     0 TONE pin=11 freq=440 ms=50
+t=    50 ASSIGN page=1
+t=    50 SCAN_END cycle=1

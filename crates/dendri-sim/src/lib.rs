@@ -3,6 +3,8 @@
 //! Opcode set: GPIO, PWM, ADC, UART/serial, I2C/SPI config **and** transfers,
 //! string ops (`CONCAT` / `TO_STRING*`), math (`SQRT` / `LOG` / `IN_RANGE`),
 //! interrupts (`CFG_ATTACH_INTERRUPT` / `CFG_DETACH_INTERRUPT`, RISING/FALLING/CHANGE),
+//! plant physics (`CFG_PLANT_TANK` / `CFG_PLANT_THERMAL` synced to scan),
+//! display stubs (`LCD_*` / `OLED_*` / `TFT_*` / `PLAY_TONE`),
 //! `SYS_*_RETAIN` + soft-restart persistence, MAP_RANGE, and IEC FBs
 //! (TON/TOF/TP, CTU/CTD/CTUD, R_TRIG/F_TRIG).
 //! Interactive `step` / pin APIs feed the live SVG canvas (`dendri-canvas`);
@@ -81,6 +83,19 @@ pub enum TraceKind {
         mode: String,
         handler: String,
         level: bool,
+    },
+    Display {
+        device: String,
+        detail: String,
+    },
+    Plant {
+        kind: String,
+        detail: String,
+    },
+    Tone {
+        pin: u32,
+        freq: u32,
+        duration_ms: u64,
     },
     Halt { reason: String },
 }
@@ -231,6 +246,20 @@ impl TraceEvent {
                 "t={:>6} ISR_FIRE pin={pin} mode={mode} handler={handler} level={level}",
                 self.time_ms
             ),
+            TraceKind::Display { device, detail } => {
+                format!("t={:>6} DISP {device} {detail}", self.time_ms)
+            }
+            TraceKind::Plant { kind, detail } => {
+                format!("t={:>6} PLANT {kind} {detail}", self.time_ms)
+            }
+            TraceKind::Tone {
+                pin,
+                freq,
+                duration_ms,
+            } => format!(
+                "t={:>6} TONE pin={pin} freq={freq} ms={duration_ms}",
+                self.time_ms
+            ),
             TraceKind::Halt { reason } => {
                 format!("t={:>6} HALT {reason}", self.time_ms)
             }
@@ -274,6 +303,51 @@ struct PwmState {
     duty: u32,
 }
 
+/// External reservoir: level (cm) advances each scan from pump PWM + valve DO.
+#[derive(Debug, Clone)]
+struct PlantTank {
+    height_cm: f64,
+    pump_pin: u32,
+    valve_pin: u32,
+    fill_cm_per_s: f64,
+    drain_cm_per_s: f64,
+    level_cm: f64,
+}
+
+/// First-order thermal plant driven by heater PWM duty.
+#[derive(Debug, Clone)]
+struct PlantThermal {
+    ambient_c: f64,
+    heater_pin: u32,
+    heat_c_per_s: f64,
+    cool_c_per_s: f64,
+    temp_c: f64,
+}
+
+#[derive(Debug, Clone, Default)]
+struct LcdState {
+    #[allow(dead_code)]
+    cols: u32,
+    #[allow(dead_code)]
+    rows: u32,
+    cells: HashMap<(u32, u32), String>,
+}
+
+#[derive(Debug, Clone, Default)]
+struct OledState {
+    cursor_x: u32,
+    cursor_y: u32,
+    fg: u32,
+    bg: u32,
+}
+
+#[derive(Debug, Clone, Default)]
+struct TftState {
+    text_size: u32,
+    fg: u32,
+    bg: u32,
+}
+
 #[derive(Debug, Clone)]
 pub struct Simulator {
     program: Program,
@@ -303,6 +377,13 @@ pub struct Simulator {
     volatile_vars: HashSet<String>,
     /// True while an ISR body is executing (shared-state writes are volatile).
     in_isr: bool,
+    plant_tank: Option<PlantTank>,
+    plant_thermal: Option<PlantThermal>,
+    /// Accumulated WAIT_TIME during current scan (drives plant dt).
+    scan_dt_ms: u64,
+    lcd: Option<LcdState>,
+    oled: Option<OledState>,
+    tft: Option<TftState>,
     pub trace: Vec<TraceEvent>,
     /// Max statements per scan to avoid runaway while/for.
     stmt_budget: usize,
@@ -398,6 +479,12 @@ impl Simulator {
             interrupts: HashMap::new(),
             volatile_vars: HashSet::new(),
             in_isr: false,
+            plant_tank: None,
+            plant_thermal: None,
+            scan_dt_ms: 0,
+            lcd: None,
+            oled: None,
+            tft: None,
             trace: Vec::new(),
             stmt_budget: config.stmt_budget,
             initial_pins: config.initial_pins.clone(),
@@ -477,6 +564,12 @@ impl Simulator {
         self.interrupts.clear();
         self.volatile_vars.clear();
         self.in_isr = false;
+        self.plant_tank = None;
+        self.plant_thermal = None;
+        self.scan_dt_ms = 0;
+        self.lcd = None;
+        self.oled = None;
+        self.tft = None;
         self.functions = functions;
         self.scopes = scopes;
         self.trace.clear();
@@ -549,9 +642,81 @@ impl Simulator {
     pub fn step(&mut self) -> Result<(), String> {
         self.ensure_setup()?;
         self.cycle += 1;
+        self.scan_dt_ms = 0;
         self.push(TraceKind::ScanStart { cycle: self.cycle });
         self.exec_block_top(&self.program.loop_body.clone())?;
+        self.advance_plants()?;
         self.push(TraceKind::ScanEnd { cycle: self.cycle });
+        Ok(())
+    }
+
+    /// Current tank level (cm) when `CFG_PLANT_TANK` is active.
+    pub fn plant_level(&self) -> Option<f64> {
+        self.plant_tank.as_ref().map(|t| t.level_cm)
+    }
+
+    /// Current thermal plant temperature (°C) when configured.
+    pub fn plant_temp(&self) -> Option<f64> {
+        self.plant_thermal.as_ref().map(|t| t.temp_c)
+    }
+
+    /// Integrate external plant models using scan elapsed time (WAIT_TIME sum).
+    /// Default dt = 100 ms when the loop did not call WAIT_TIME.
+    fn advance_plants(&mut self) -> Result<(), String> {
+        let dt_ms = if self.scan_dt_ms == 0 {
+            100
+        } else {
+            self.scan_dt_ms
+        };
+        let dt_s = dt_ms as f64 / 1000.0;
+
+        let tank_trace = if let Some(tank) = self.plant_tank.as_mut() {
+            let duty = self
+                .pwm
+                .get(&tank.pump_pin)
+                .map(|p| p.duty)
+                .unwrap_or(0) as f64;
+            let valve_open = *self.pins.get(&tank.valve_pin).unwrap_or(&false);
+            let inflow = tank.fill_cm_per_s * (duty / 65535.0) * dt_s;
+            let outflow = if valve_open {
+                tank.drain_cm_per_s * dt_s
+            } else {
+                0.0
+            };
+            tank.level_cm = (tank.level_cm + inflow - outflow).clamp(0.0, tank.height_cm);
+            Some(format!(
+                "level={:.2} height={:.2} dt_ms={dt_ms}",
+                tank.level_cm, tank.height_cm
+            ))
+        } else {
+            None
+        };
+        if let Some(detail) = tank_trace {
+            self.push(TraceKind::Plant {
+                kind: "TANK".into(),
+                detail,
+            });
+        }
+
+        let thermal_trace = if let Some(th) = self.plant_thermal.as_mut() {
+            let duty = self
+                .pwm
+                .get(&th.heater_pin)
+                .map(|p| p.duty)
+                .unwrap_or(0) as f64;
+            let heat = th.heat_c_per_s * (duty / 65535.0) * dt_s;
+            let cool = th.cool_c_per_s * (th.temp_c - th.ambient_c) * dt_s;
+            th.temp_c += heat - cool;
+            Some(format!("temp={:.3} dt_ms={dt_ms}", th.temp_c))
+        } else {
+            None
+        };
+        if let Some(detail) = thermal_trace {
+            self.push(TraceKind::Plant {
+                kind: "THERMAL".into(),
+                detail,
+            });
+        }
         Ok(())
     }
 
@@ -860,7 +1025,10 @@ impl Simulator {
                 let v = self.eval(expr)?;
                 match op {
                     UnaryOp::Not => Ok(Value::Bool(!v.as_bool()?)),
-                    UnaryOp::Neg => Ok(Value::Int(-v.as_i64()?)),
+                    UnaryOp::Neg => match v {
+                        Value::Real(r) => Ok(Value::Real(-r)),
+                        other => Ok(Value::Int(-other.as_i64()?)),
+                    },
                     UnaryOp::BitNot => Ok(Value::Uint(!v.as_u64()?)),
                 }
             }
@@ -1125,6 +1293,7 @@ impl Simulator {
                 };
                 self.push(TraceKind::Wait { duration_ms: ms });
                 self.time_ms = self.time_ms.saturating_add(ms);
+                self.scan_dt_ms = self.scan_dt_ms.saturating_add(ms);
                 self.advance_timers(ms);
                 Ok(Value::Void)
             }
@@ -1140,6 +1309,7 @@ impl Simulator {
                 if ms > 0 {
                     self.push(TraceKind::Wait { duration_ms: ms });
                     self.time_ms = self.time_ms.saturating_add(ms);
+                    self.scan_dt_ms = self.scan_dt_ms.saturating_add(ms);
                     self.advance_timers(ms);
                 }
                 Ok(Value::Void)
@@ -1317,6 +1487,390 @@ impl Simulator {
             }
             "GET_SYS_TIME" => Ok(Value::Uint(self.time_ms)),
             "GET_SYS_TIME_US" => Ok(Value::Uint(self.time_ms.saturating_mul(1000))),
+            "CFG_PLANT_TANK" => {
+                if args.len() != 5 {
+                    return Err(format!("CFG_PLANT_TANK expects 5 args, got {}", args.len()));
+                }
+                let height_cm = self.eval(&args[0])?.as_f64()?;
+                let pump_pin = self.eval(&args[1])?.as_u64()? as u32;
+                let valve_pin = self.eval(&args[2])?.as_u64()? as u32;
+                let fill_cm_per_s = self.eval(&args[3])?.as_f64()?;
+                let drain_cm_per_s = self.eval(&args[4])?.as_f64()?;
+                self.plant_tank = Some(PlantTank {
+                    height_cm,
+                    pump_pin,
+                    valve_pin,
+                    fill_cm_per_s,
+                    drain_cm_per_s,
+                    level_cm: 0.0,
+                });
+                self.push(TraceKind::Plant {
+                    kind: "CFG_TANK".into(),
+                    detail: format!(
+                        "height={height_cm} pump={pump_pin} valve={valve_pin} fill={fill_cm_per_s}/s drain={drain_cm_per_s}/s"
+                    ),
+                });
+                Ok(Value::Void)
+            }
+            "PLANT_LEVEL" => {
+                let level = self
+                    .plant_tank
+                    .as_ref()
+                    .map(|t| t.level_cm)
+                    .ok_or_else(|| "PLANT_LEVEL: tank not configured".to_string())?;
+                Ok(Value::Real(level))
+            }
+            "READ_DISTANCE_CM" => {
+                if args.len() != 2 {
+                    return Err(format!("READ_DISTANCE_CM expects 2 args, got {}", args.len()));
+                }
+                let _trig = self.eval(&args[0])?.as_u64()?;
+                let _echo = self.eval(&args[1])?.as_u64()?;
+                let Some(tank) = self.plant_tank.as_ref() else {
+                    return Ok(Value::Real(0.0));
+                };
+                Ok(Value::Real((tank.height_cm - tank.level_cm).max(0.0)))
+            }
+            "CFG_PLANT_THERMAL" => {
+                if args.len() != 4 {
+                    return Err(format!(
+                        "CFG_PLANT_THERMAL expects 4 args, got {}",
+                        args.len()
+                    ));
+                }
+                let ambient_c = self.eval(&args[0])?.as_f64()?;
+                let heater_pin = self.eval(&args[1])?.as_u64()? as u32;
+                let heat_c_per_s = self.eval(&args[2])?.as_f64()?;
+                let cool_c_per_s = self.eval(&args[3])?.as_f64()?;
+                self.plant_thermal = Some(PlantThermal {
+                    ambient_c,
+                    heater_pin,
+                    heat_c_per_s,
+                    cool_c_per_s,
+                    temp_c: ambient_c,
+                });
+                self.push(TraceKind::Plant {
+                    kind: "CFG_THERMAL".into(),
+                    detail: format!(
+                        "ambient={ambient_c} heater={heater_pin} heat={heat_c_per_s}/s cool={cool_c_per_s}/s"
+                    ),
+                });
+                Ok(Value::Void)
+            }
+            "PLANT_TEMP" | "READ_TEMPERATURE" => {
+                if let Some(th) = self.plant_thermal.as_ref() {
+                    Ok(Value::Real(th.temp_c))
+                } else if canon == "READ_TEMPERATURE" {
+                    Ok(Value::Real(25.0))
+                } else {
+                    Err("PLANT_TEMP: thermal plant not configured".into())
+                }
+            }
+            "READ_HUMIDITY" => Ok(Value::Real(50.0)),
+            "READ_PRESSURE" => Ok(Value::Real(1013.25)),
+            "CFG_LCD" => {
+                if args.len() != 3 {
+                    return Err(format!("CFG_LCD expects 3 args, got {}", args.len()));
+                }
+                let addr = self.eval(&args[0])?.as_u64()?;
+                let cols = self.eval(&args[1])?.as_u64()? as u32;
+                let rows = self.eval(&args[2])?.as_u64()? as u32;
+                self.lcd = Some(LcdState {
+                    cols,
+                    rows,
+                    cells: HashMap::new(),
+                });
+                self.push(TraceKind::Display {
+                    device: "LCD".into(),
+                    detail: format!("CFG addr=0x{addr:02X} cols={cols} rows={rows}"),
+                });
+                Ok(Value::Void)
+            }
+            "LCD_CLEAR" => {
+                if let Some(lcd) = self.lcd.as_mut() {
+                    lcd.cells.clear();
+                }
+                self.push(TraceKind::Display {
+                    device: "LCD".into(),
+                    detail: "CLEAR".into(),
+                });
+                Ok(Value::Void)
+            }
+            "LCD_PRINT" => {
+                if args.len() != 3 {
+                    return Err(format!("LCD_PRINT expects 3 args, got {}", args.len()));
+                }
+                let col = self.eval(&args[0])?.as_u64()? as u32;
+                let row = self.eval(&args[1])?.as_u64()? as u32;
+                let msg = self.eval(&args[2])?.as_string()?;
+                if let Some(lcd) = self.lcd.as_mut() {
+                    lcd.cells.insert((col, row), msg.clone());
+                }
+                self.push(TraceKind::Display {
+                    device: "LCD".into(),
+                    detail: format!("PRINT col={col} row={row} \"{msg}\""),
+                });
+                Ok(Value::Void)
+            }
+            "CFG_OLED" => {
+                let addr = if args.is_empty() {
+                    0x3C
+                } else {
+                    self.eval(&args[0])?.as_u64()?
+                };
+                self.oled = Some(OledState::default());
+                self.push(TraceKind::Display {
+                    device: "OLED".into(),
+                    detail: format!("CFG addr=0x{addr:02X}"),
+                });
+                Ok(Value::Void)
+            }
+            "OLED_CLEAR" => {
+                if let Some(o) = self.oled.as_mut() {
+                    o.cursor_x = 0;
+                    o.cursor_y = 0;
+                }
+                self.push(TraceKind::Display {
+                    device: "OLED".into(),
+                    detail: "CLEAR".into(),
+                });
+                Ok(Value::Void)
+            }
+            "OLED_DISPLAY" => {
+                self.push(TraceKind::Display {
+                    device: "OLED".into(),
+                    detail: "FLUSH".into(),
+                });
+                Ok(Value::Void)
+            }
+            "OLED_SET_CURSOR" => {
+                if args.len() != 2 {
+                    return Err(format!("OLED_SET_CURSOR expects 2 args, got {}", args.len()));
+                }
+                let x = self.eval(&args[0])?.as_u64()? as u32;
+                let y = self.eval(&args[1])?.as_u64()? as u32;
+                if let Some(o) = self.oled.as_mut() {
+                    o.cursor_x = x;
+                    o.cursor_y = y;
+                }
+                self.push(TraceKind::Display {
+                    device: "OLED".into(),
+                    detail: format!("CURSOR x={x} y={y}"),
+                });
+                Ok(Value::Void)
+            }
+            "OLED_SET_TEXT_COLOR" => {
+                if args.len() != 2 {
+                    return Err(format!(
+                        "OLED_SET_TEXT_COLOR expects 2 args, got {}",
+                        args.len()
+                    ));
+                }
+                let fg = self.eval(&args[0])?.as_u64()? as u32;
+                let bg = self.eval(&args[1])?.as_u64()? as u32;
+                if let Some(o) = self.oled.as_mut() {
+                    o.fg = fg;
+                    o.bg = bg;
+                }
+                self.push(TraceKind::Display {
+                    device: "OLED".into(),
+                    detail: format!("TEXT_COLOR fg={fg} bg={bg}"),
+                });
+                Ok(Value::Void)
+            }
+            "OLED_PRINT" => {
+                if args.len() != 1 {
+                    return Err(format!("OLED_PRINT expects 1 arg, got {}", args.len()));
+                }
+                let msg = self.eval(&args[0])?.as_string()?;
+                let (x, y) = self
+                    .oled
+                    .as_ref()
+                    .map(|o| (o.cursor_x, o.cursor_y))
+                    .unwrap_or((0, 0));
+                self.push(TraceKind::Display {
+                    device: "OLED".into(),
+                    detail: format!("PRINT x={x} y={y} \"{msg}\""),
+                });
+                Ok(Value::Void)
+            }
+            "OLED_DRAW_PIXEL" => {
+                if args.len() != 3 {
+                    return Err(format!("OLED_DRAW_PIXEL expects 3 args, got {}", args.len()));
+                }
+                let x = self.eval(&args[0])?.as_u64()?;
+                let y = self.eval(&args[1])?.as_u64()?;
+                let color = self.eval(&args[2])?.as_u64()?;
+                self.push(TraceKind::Display {
+                    device: "OLED".into(),
+                    detail: format!("PIXEL x={x} y={y} c={color}"),
+                });
+                Ok(Value::Void)
+            }
+            "OLED_DRAW_RECT" => {
+                if args.len() != 5 {
+                    return Err(format!("OLED_DRAW_RECT expects 5 args, got {}", args.len()));
+                }
+                let x = self.eval(&args[0])?.as_u64()?;
+                let y = self.eval(&args[1])?.as_u64()?;
+                let w = self.eval(&args[2])?.as_u64()?;
+                let h = self.eval(&args[3])?.as_u64()?;
+                let color = self.eval(&args[4])?.as_u64()?;
+                self.push(TraceKind::Display {
+                    device: "OLED".into(),
+                    detail: format!("RECT x={x} y={y} w={w} h={h} c={color}"),
+                });
+                Ok(Value::Void)
+            }
+            "OLED_FILL_RECT" => {
+                if args.len() != 5 {
+                    return Err(format!("OLED_FILL_RECT expects 5 args, got {}", args.len()));
+                }
+                let x = self.eval(&args[0])?.as_u64()?;
+                let y = self.eval(&args[1])?.as_u64()?;
+                let w = self.eval(&args[2])?.as_u64()?;
+                let h = self.eval(&args[3])?.as_u64()?;
+                let color = self.eval(&args[4])?.as_u64()?;
+                self.push(TraceKind::Display {
+                    device: "OLED".into(),
+                    detail: format!("FILL_RECT x={x} y={y} w={w} h={h} c={color}"),
+                });
+                Ok(Value::Void)
+            }
+            "OLED_DRAW_VLINE" => {
+                if args.len() != 4 {
+                    return Err(format!("OLED_DRAW_VLINE expects 4 args, got {}", args.len()));
+                }
+                let x = self.eval(&args[0])?.as_u64()?;
+                let y = self.eval(&args[1])?.as_u64()?;
+                let h = self.eval(&args[2])?.as_u64()?;
+                let color = self.eval(&args[3])?.as_u64()?;
+                self.push(TraceKind::Display {
+                    device: "OLED".into(),
+                    detail: format!("VLINE x={x} y={y} h={h} c={color}"),
+                });
+                Ok(Value::Void)
+            }
+            "CFG_TFT" => {
+                if args.len() != 3 {
+                    return Err(format!("CFG_TFT expects 3 args, got {}", args.len()));
+                }
+                let dc = self.eval(&args[0])?.as_u64()?;
+                let rst = self.eval(&args[1])?.as_i64()?;
+                let cs = self.eval(&args[2])?.as_i64()?;
+                self.tft = Some(TftState {
+                    text_size: 1,
+                    fg: 0xFFFF,
+                    bg: 0,
+                });
+                self.push(TraceKind::Display {
+                    device: "TFT".into(),
+                    detail: format!("CFG dc={dc} rst={rst} cs={cs}"),
+                });
+                Ok(Value::Void)
+            }
+            "TFT_FILL" => {
+                if args.len() != 1 {
+                    return Err(format!("TFT_FILL expects 1 arg, got {}", args.len()));
+                }
+                let color = self.eval(&args[0])?.as_u64()?;
+                self.push(TraceKind::Display {
+                    device: "TFT".into(),
+                    detail: format!("FILL color=0x{color:04X}"),
+                });
+                Ok(Value::Void)
+            }
+            "TFT_SET_TEXT_COLOR" => {
+                if args.len() != 2 {
+                    return Err(format!(
+                        "TFT_SET_TEXT_COLOR expects 2 args, got {}",
+                        args.len()
+                    ));
+                }
+                let fg = self.eval(&args[0])?.as_u64()? as u32;
+                let bg = self.eval(&args[1])?.as_u64()? as u32;
+                if let Some(t) = self.tft.as_mut() {
+                    t.fg = fg;
+                    t.bg = bg;
+                }
+                self.push(TraceKind::Display {
+                    device: "TFT".into(),
+                    detail: format!("TEXT_COLOR fg=0x{fg:04X} bg=0x{bg:04X}"),
+                });
+                Ok(Value::Void)
+            }
+            "TFT_SET_TEXT_SIZE" => {
+                if args.len() != 1 {
+                    return Err(format!("TFT_SET_TEXT_SIZE expects 1 arg, got {}", args.len()));
+                }
+                let n = self.eval(&args[0])?.as_u64()? as u32;
+                if let Some(t) = self.tft.as_mut() {
+                    t.text_size = n;
+                }
+                self.push(TraceKind::Display {
+                    device: "TFT".into(),
+                    detail: format!("TEXT_SIZE n={n}"),
+                });
+                Ok(Value::Void)
+            }
+            "TFT_PRINT" => {
+                if args.len() != 3 {
+                    return Err(format!("TFT_PRINT expects 3 args, got {}", args.len()));
+                }
+                let x = self.eval(&args[0])?.as_u64()?;
+                let y = self.eval(&args[1])?.as_u64()?;
+                let msg = self.eval(&args[2])?.as_string()?;
+                self.push(TraceKind::Display {
+                    device: "TFT".into(),
+                    detail: format!("PRINT x={x} y={y} \"{msg}\""),
+                });
+                Ok(Value::Void)
+            }
+            "TFT_DRAW_ROUND_RECT" => {
+                if args.len() != 6 {
+                    return Err(format!(
+                        "TFT_DRAW_ROUND_RECT expects 6 args, got {}",
+                        args.len()
+                    ));
+                }
+                let x = self.eval(&args[0])?.as_u64()?;
+                let y = self.eval(&args[1])?.as_u64()?;
+                let w = self.eval(&args[2])?.as_u64()?;
+                let h = self.eval(&args[3])?.as_u64()?;
+                let r = self.eval(&args[4])?.as_u64()?;
+                let color = self.eval(&args[5])?.as_u64()?;
+                self.push(TraceKind::Display {
+                    device: "TFT".into(),
+                    detail: format!("ROUND_RECT x={x} y={y} w={w} h={h} r={r} c=0x{color:04X}"),
+                });
+                Ok(Value::Void)
+            }
+            "PLAY_TONE" => {
+                if args.len() != 3 {
+                    return Err(format!("PLAY_TONE expects 3 args, got {}", args.len()));
+                }
+                let pin = self.eval(&args[0])?.as_u64()? as u32;
+                let freq = self.eval(&args[1])?.as_u64()? as u32;
+                let duration_ms = match self.eval(&args[2])? {
+                    Value::TimeMs(ms) => ms,
+                    Value::Uint(u) => u,
+                    Value::Int(i) => i.max(0) as u64,
+                    other => {
+                        return Err(format!("PLAY_TONE duration expects TIME, got {other:?}"))
+                    }
+                };
+                self.push(TraceKind::Tone {
+                    pin,
+                    freq,
+                    duration_ms,
+                });
+                if duration_ms > 0 {
+                    self.time_ms = self.time_ms.saturating_add(duration_ms);
+                    self.scan_dt_ms = self.scan_dt_ms.saturating_add(duration_ms);
+                    self.advance_timers(duration_ms);
+                }
+                Ok(Value::Void)
+            }
             other => Err(format!("unsupported call in sim MVP: {other}")),
         }
     }
@@ -1665,12 +2219,21 @@ fn eval_binop(op: BinaryOp, l: Value, r: Value) -> Result<Value, String> {
             }
             Ok(Value::Uint(l.as_u64()? % d))
         }
-        BinaryOp::Eq => Ok(Value::Bool(l == r)),
-        BinaryOp::Ne => Ok(Value::Bool(l != r)),
-        BinaryOp::Lt => Ok(Value::Bool(l.as_i64()? < r.as_i64()?)),
-        BinaryOp::Le => Ok(Value::Bool(l.as_i64()? <= r.as_i64()?)),
-        BinaryOp::Gt => Ok(Value::Bool(l.as_i64()? > r.as_i64()?)),
-        BinaryOp::Ge => Ok(Value::Bool(l.as_i64()? >= r.as_i64()?)),
+        BinaryOp::Eq => Ok(Value::Bool(values_equal(&l, &r)?)),
+        BinaryOp::Ne => Ok(Value::Bool(!values_equal(&l, &r)?)),
+        BinaryOp::Lt | BinaryOp::Le | BinaryOp::Gt | BinaryOp::Ge => {
+            // REAL-aware ordering (plant/PID paths); integers stay exact via f64 for MVP range.
+            let a = l.as_f64()?;
+            let b = r.as_f64()?;
+            let q = match op {
+                BinaryOp::Lt => a < b,
+                BinaryOp::Le => a <= b,
+                BinaryOp::Gt => a > b,
+                BinaryOp::Ge => a >= b,
+                _ => unreachable!(),
+            };
+            Ok(Value::Bool(q))
+        }
         BinaryOp::And => Ok(Value::Bool(l.as_bool()? && r.as_bool()?)),
         BinaryOp::Or => Ok(Value::Bool(l.as_bool()? || r.as_bool()?)),
         BinaryOp::Xor => Ok(Value::Bool(l.as_bool()? ^ r.as_bool()?)),
@@ -1679,6 +2242,14 @@ fn eval_binop(op: BinaryOp, l: Value, r: Value) -> Result<Value, String> {
         BinaryOp::BitXor => Ok(Value::Uint(l.as_u64()? ^ r.as_u64()?)),
         BinaryOp::Shl => Ok(Value::Uint(l.as_u64()? << r.as_u64()?)),
         BinaryOp::Shr => Ok(Value::Uint(l.as_u64()? >> r.as_u64()?)),
+    }
+}
+
+fn values_equal(l: &Value, r: &Value) -> Result<bool, String> {
+    if matches!((l, r), (Value::Real(_), _) | (_, Value::Real(_))) {
+        Ok((l.as_f64()? - r.as_f64()?).abs() < 1e-12)
+    } else {
+        Ok(l == r)
     }
 }
 

@@ -120,7 +120,7 @@ canonical = "GET_SYS_TIME"
 category = "time"
 signature = ""
 returns = "DWORD"
-aliases = ["currentTime"]
+aliases = ["currentTime", "GET_TIMESTAMP"]
 
 [[ops]]
 canonical = "GET_SYS_TIME_US"
@@ -252,7 +252,7 @@ canonical = "CONCAT"
 category = "math"
 signature = "STRING, ..."
 returns = "STRING"
-aliases = []
+aliases = ["STR_CONCAT"]
 
 [[ops]]
 canonical = "MAP_RANGE"
@@ -351,7 +351,7 @@ canonical = "REAL_TO_INT"
 category = "cast"
 signature = "x: REAL"
 returns = "INT"
-aliases = []
+aliases = ["TO_INT"]
 
 [[ops]]
 canonical = "INT_TO_REAL"
@@ -441,7 +441,7 @@ canonical = "CFG_ATTACH_INTERRUPT"
 category = "interrupt"
 signature = "pin: UINT, fn: ISR_REF, mode: EDGE"
 returns = "VOID"
-aliases = ["attachInterrupt"]
+aliases = ["attachInterrupt", "CFG_ISR"]
 
 [[ops]]
 canonical = "CFG_DETACH_INTERRUPT"
@@ -510,7 +510,7 @@ canonical = "CFG_I2C"
 category = "i2c"
 signature = "bus: UINT, sda: UINT, scl: UINT, freq: DINT"
 returns = "VOID"
-aliases = ["initI2C"]
+aliases = ["initI2C", "CFG_I2C_BUS"]
 
 [[ops]]
 canonical = "CFG_SENSOR_I2C"
@@ -558,14 +558,14 @@ canonical = "CFG_TFT"
 category = "display"
 signature = "dc: UINT, rst: INT, cs: INT"
 returns = "VOID"
-aliases = ["initTFT"]
+aliases = ["initTFT", "CFG_TFT_DISPLAY"]
 
 [[ops]]
 canonical = "TFT_FILL"
 category = "display"
 signature = "color: WORD"
 returns = "VOID"
-aliases = ["tftFillScreen"]
+aliases = ["tftFillScreen", "TFT_FILL_SCREEN"]
 
 [[ops]]
 canonical = "TFT_SET_TEXT_COLOR"
@@ -586,7 +586,7 @@ canonical = "TFT_PRINT"
 category = "display"
 signature = "x: UINT, y: UINT, msg: STRING"
 returns = "VOID"
-aliases = ["tftPrintText"]
+aliases = ["tftPrintText", "TFT_PRINT_TEXT"]
 
 [[ops]]
 canonical = "TFT_DRAW_ROUND_RECT"
@@ -600,7 +600,7 @@ canonical = "CFG_LCD"
 category = "display"
 signature = "addr: BYTE, cols: UINT, rows: UINT"
 returns = "VOID"
-aliases = ["initLCD"]
+aliases = ["initLCD", "CFG_LCD_I2C"]
 
 [[ops]]
 canonical = "LCD_CLEAR"
@@ -616,6 +616,128 @@ signature = "col: UINT, row: UINT, msg: STRING"
 returns = "VOID"
 aliases = ["lcdPrint"]
 
+[[ops]]
+canonical = "CFG_OLED"
+category = "display"
+signature = "addr: BYTE"
+returns = "VOID"
+aliases = ["initOLED", "CFG_OLED_I2C"]
+notes = "Sim stub: I2C OLED (SSD1306-class) — framebuffer logical only"
+
+[[ops]]
+canonical = "OLED_CLEAR"
+category = "display"
+signature = ""
+returns = "VOID"
+aliases = ["oledClear"]
+
+[[ops]]
+canonical = "OLED_DISPLAY"
+category = "display"
+signature = ""
+returns = "VOID"
+aliases = ["oledDisplay"]
+
+[[ops]]
+canonical = "OLED_SET_CURSOR"
+category = "display"
+signature = "x: UINT, y: UINT"
+returns = "VOID"
+aliases = ["oledSetCursor"]
+
+[[ops]]
+canonical = "OLED_SET_TEXT_COLOR"
+category = "display"
+signature = "fg: UINT, bg: UINT"
+returns = "VOID"
+aliases = ["oledSetTextColor"]
+
+[[ops]]
+canonical = "OLED_PRINT"
+category = "display"
+signature = "msg: STRING"
+returns = "VOID"
+aliases = ["oledPrint"]
+
+[[ops]]
+canonical = "OLED_DRAW_PIXEL"
+category = "display"
+signature = "x: UINT, y: UINT, color: UINT"
+returns = "VOID"
+aliases = ["oledDrawPixel"]
+
+[[ops]]
+canonical = "OLED_DRAW_RECT"
+category = "display"
+signature = "x,y,w,h: UINT, color: UINT"
+returns = "VOID"
+aliases = ["oledDrawRect"]
+
+[[ops]]
+canonical = "OLED_FILL_RECT"
+category = "display"
+signature = "x,y,w,h: UINT, color: UINT"
+returns = "VOID"
+aliases = ["oledFillRect"]
+
+[[ops]]
+canonical = "OLED_DRAW_VLINE"
+category = "display"
+signature = "x: UINT, y: UINT, h: UINT, color: UINT"
+returns = "VOID"
+aliases = ["oledDrawVLine"]
+
+[[ops]]
+canonical = "PLAY_TONE"
+category = "display"
+signature = "pin: UINT, freq: UINT, duration: TIME"
+returns = "VOID"
+aliases = ["playTone"]
+notes = "Sim: PWM tone stub — advances sim time by duration; traces TONE"
+
+# ---------------------------------------------------------------------------
+# Plant physics (sim-side external process models)
+# ---------------------------------------------------------------------------
+[[ops]]
+canonical = "CFG_PLANT_TANK"
+category = "plant"
+signature = "height_cm: REAL, pump_pin: UINT, valve_pin: UINT, fill_cm_per_s: REAL, drain_cm_per_s: REAL"
+returns = "VOID"
+aliases = []
+notes = "Sim: reservoir volume synced to scan — level advances from pump PWM duty + valve digital"
+
+[[ops]]
+canonical = "PLANT_LEVEL"
+category = "plant"
+signature = ""
+returns = "REAL"
+aliases = []
+notes = "Sim: current tank level in cm"
+
+[[ops]]
+canonical = "READ_DISTANCE_CM"
+category = "plant"
+signature = "trig: UINT, echo: UINT"
+returns = "REAL"
+aliases = ["readDistanceCm"]
+notes = "Sim: ultrasonic air-gap = height - level when tank configured; else 0"
+
+[[ops]]
+canonical = "CFG_PLANT_THERMAL"
+category = "plant"
+signature = "ambient_c: REAL, heater_pin: UINT, heat_c_per_s: REAL, cool_c_per_s: REAL"
+returns = "VOID"
+aliases = []
+notes = "Sim: first-order thermal plant driven by heater PWM — synced to scan"
+
+[[ops]]
+canonical = "PLANT_TEMP"
+category = "plant"
+signature = ""
+returns = "REAL"
+aliases = []
+notes = "Sim: current plant temperature °C"
+
 # ---------------------------------------------------------------------------
 # Sensors
 # ---------------------------------------------------------------------------
@@ -625,6 +747,7 @@ category = "sensor"
 signature = ""
 returns = "REAL"
 aliases = ["readTemperature"]
+notes = "Sim: returns PLANT_TEMP when thermal plant configured; else ambient stub 25.0"
 
 [[ops]]
 canonical = "READ_HUMIDITY"

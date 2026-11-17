@@ -1,11 +1,11 @@
-//! DEN-17 — MVP scenarios 1–12 acceptance map (ISR / encoder tranche).
+//! DEN-18 — MVP scenarios 1–12 acceptance map (plant / PID / displays tranche).
 //!
 //! Honest statuses only:
 //! - **pass** — automated check green on current opcodes/sim
 //! - **partial** — structural and/or subset sim green; full scenario not met
 //! - **blocked** — missing sim/opcode/physics; fixture may still deserialize
 //!
-//! See store docs `priority-7-isr-encoder.md` and `priority-7-sim-opcodes-acceptance.md`.
+//! See store docs `priority-7-plant-pid-displays.md`.
 
 use std::path::PathBuf;
 
@@ -47,7 +47,7 @@ fn matrix() -> [Scenario; 12] {
             id: 2,
             title: "ADC/PWM/I2C/SPI/UART",
             status: Status::Partial,
-            note: "S04/S05 + S12 I2C/SPI xfer pass; displays/SD drivers still blocked",
+            note: "S04/S05 + S12 xfer + S19 display stubs; SD/RFID payload still blocked",
         },
         Scenario {
             id: 3,
@@ -58,8 +58,8 @@ fn matrix() -> [Scenario; 12] {
         Scenario {
             id: 4,
             title: "Reservoir level control",
-            status: Status::Blocked,
-            note: "example TOML migrated; no tank physics / PID opcode in sim",
+            status: Status::Pass,
+            note: "S17 CFG_PLANT_TANK + hysteresis + LCD; level synced to scan",
         },
         Scenario {
             id: 5,
@@ -76,26 +76,26 @@ fn matrix() -> [Scenario; 12] {
         Scenario {
             id: 7,
             title: "SCARA PID + E-Stop",
-            status: Status::Partial,
-            note: "S13 SQRT/LOG + S14 ISR attach; PID/LCD plant still blocked",
+            status: Status::Pass,
+            note: "S18 thermal PID + anti-windup + E-Stop ISR + LCD; S13 math",
         },
         Scenario {
             id: 8,
             title: "ISR / encoder / ring buffer",
             status: Status::Pass,
-            note: "S14 edges/detach + S15 encoder + S16 ring buffer; G04 LCD still out",
+            note: "S14 edges/detach + S15 encoder + S16 ring buffer; G04 LCD now stubbed",
         },
         Scenario {
             id: 9,
             title: "RETAIN/PERSISTENT + watchdog",
             status: Status::Partial,
-            note: "S11 live RETAIN/PERSISTENT soft-restart + SYS_*; watchdog/LCD deferred",
+            note: "S11 live RETAIN/PERSISTENT soft-restart + SYS_*; watchdog still deferred",
         },
         Scenario {
             id: 10,
             title: "Multi-display + Pong graphics",
-            status: Status::Blocked,
-            note: "examples migrated; LCD/OLED/TFT/PLAY_TONE unsupported in sim",
+            status: Status::Partial,
+            note: "S19 LCD/OLED/TFT/PLAY_TONE stubs green; full Pong collision/graphics partial",
         },
         Scenario {
             id: 11,
@@ -124,10 +124,10 @@ fn scenario_matrix_is_complete() {
     let pass = m.iter().filter(|s| s.status == Status::Pass).count();
     let partial = m.iter().filter(|s| s.status == Status::Partial).count();
     let blocked = m.iter().filter(|s| s.status == Status::Blocked).count();
-    // DEN-17 snapshot — update when a scenario genuinely graduates.
-    assert_eq!(pass, 3, "pass={pass}");
+    // DEN-18 snapshot — update when a scenario genuinely graduates.
+    assert_eq!(pass, 5, "pass={pass}");
     assert_eq!(partial, 6, "partial={partial}");
-    assert_eq!(blocked, 3, "blocked={blocked}");
+    assert_eq!(blocked, 1, "blocked={blocked}");
 }
 
 #[test]
@@ -304,13 +304,14 @@ fn scenario6_sfc_and_ladder_twins_partial() {
 }
 
 #[test]
-fn scenario_blocked_examples_deserialize_only() {
-    // Structural presence for blocked scenarios 4/5/10 — do not claim sim.
+fn scenario_remaining_blocked_and_partial_examples_deserialize() {
+    // Elevator still blocked (DEN-19); pong/dashboard structural for scenario 10 partial.
     for rel in [
-        "content/fixtures/examples/reservatorio-controle-logic.asl.toml",
         "content/fixtures/examples/plc-elevator-advanced.asl.toml",
         "content/fixtures/examples/pong-game-logic.asl.toml",
         "content/fixtures/examples/multi-display-dashboard.asl.toml",
+        "content/fixtures/examples/reservatorio-controle-logic.asl.toml",
+        "content/fixtures/examples/advanced-robotic-scara-pid.asl.toml",
     ] {
         let parsed = parse_program_file(&repo().join(rel)).unwrap_or_else(|e| panic!("{rel}: {e}"));
         assert!(
@@ -318,6 +319,104 @@ fn scenario_blocked_examples_deserialize_only() {
             "{rel}"
         );
     }
+}
+
+#[test]
+fn scenario4_reservoir_plant_pass() {
+    let parsed = parse_program_file(
+        &repo().join("content/fixtures/sim/S17-reservoir-plant.asl.toml"),
+    )
+    .unwrap();
+    assert!(validate_program(&parsed.program, &parsed.inject).ok());
+    let mut sim = Simulator::from_program(
+        parsed.program,
+        &SimConfig {
+            max_cycles: 12,
+            ..SimConfig::default()
+        },
+    );
+    sim.ensure_setup().unwrap();
+    let mut saw_fill = false;
+    let mut saw_hysteresis_off = false;
+    for _ in 0..12 {
+        sim.step().unwrap();
+        let level = sim.plant_level().unwrap();
+        if level > 15.0 {
+            saw_fill = true;
+        }
+        if !sim.var("pumpOn").and_then(|v| v.as_bool().ok()).unwrap_or(true) {
+            saw_hysteresis_off = true;
+        }
+    }
+    assert!(saw_fill, "tank should fill under pump PWM");
+    assert!(saw_hysteresis_off, "pump should stop near setpoint-hysteresis");
+    let level = sim.plant_level().unwrap();
+    assert!(level > 0.0 && level <= 100.0, "level={level}");
+    let trace = sim.trace_text();
+    assert!(trace.contains("PLANT TANK"), "{trace}");
+    assert!(trace.contains("DISP LCD"), "{trace}");
+}
+
+#[test]
+fn scenario7_pid_estop_pass() {
+    let parsed = parse_program_file(
+        &repo().join("content/fixtures/sim/S18-pid-estop.asl.toml"),
+    )
+    .unwrap();
+    assert!(validate_program(&parsed.program, &parsed.inject).ok());
+    let mut sim = Simulator::from_program(
+        parsed.program,
+        &SimConfig {
+            max_cycles: 40,
+            ..SimConfig::default()
+        },
+    );
+    sim.ensure_setup().unwrap();
+    for _ in 0..25 {
+        sim.step().unwrap();
+    }
+    let temp = sim.plant_temp().unwrap();
+    assert!(
+        temp > 30.0,
+        "PID should heat plant above ambient, temp={temp}"
+    );
+    let dist = sim.var("dist").and_then(|v| v.as_f64().ok()).unwrap();
+    assert!((dist - 5.0).abs() < 1e-9, "SQRT path dist={dist}");
+
+    // E-Stop FALLING on pin 2
+    sim.set_pin(2, true).unwrap();
+    sim.set_pin(2, false).unwrap();
+    assert_eq!(
+        sim.var("sysSafetyHalt").and_then(|v| v.as_bool().ok()),
+        Some(true)
+    );
+    assert!(sim.volatile_vars().contains("sysSafetyHalt"));
+    sim.step().unwrap();
+    let trace = sim.trace_text();
+    assert!(trace.contains("## E-STOP ##"), "{trace}");
+    assert!(trace.contains("ISR_FIRE"), "{trace}");
+    assert!(trace.contains("PLANT THERMAL"), "{trace}");
+    assert!(
+        trace.contains("PWM_DUTY pin=14 duty=0"),
+        "E-Stop must zero heater PWM: {trace}"
+    );
+}
+
+#[test]
+fn scenario10_display_stubs_partial() {
+    let parsed = parse_program_file(
+        &repo().join("content/fixtures/sim/S19-display-stubs.asl.toml"),
+    )
+    .unwrap();
+    assert!(validate_program(&parsed.program, &parsed.inject).ok());
+    let mut sim = Simulator::from_program(parsed.program, &SimConfig::default());
+    sim.run(1).unwrap();
+    let trace = sim.trace_text();
+    assert!(trace.contains("DISP LCD"), "{trace}");
+    assert!(trace.contains("DISP OLED"), "{trace}");
+    assert!(trace.contains("DISP TFT"), "{trace}");
+    assert!(trace.contains("TONE pin=11"), "{trace}");
+    assert_eq!(sim.var("page").and_then(|v| v.as_u64().ok()), Some(1));
 }
 
 #[test]
