@@ -35,6 +35,8 @@
         --df-state:              off;
         --df-state-opacity:      0.35;
       }
+      #led-body.off { opacity: 0.35; }
+      #led-body.on { opacity: 1.0; filter: url(#df-glow); }
     </style>
 
     <filter id="df-glow" x="-50%" y="-50%" width="200%" height="200%">
@@ -101,8 +103,8 @@
 
     <circle
        cx="59.055" cy="59.055" r="27.756001"
-       id="die"
-       class="df-component-die"
+       id="led-body"
+       class="df-component-die off"
        style="fill:var(--df-led-fill);
               opacity:var(--df-state-opacity);
               transition:fill 0.3s ease, opacity 0.3s ease;"

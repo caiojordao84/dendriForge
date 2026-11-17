@@ -82,4 +82,6 @@ component_family_skill_id = "electricals-family"
 component_profile_id = "led"
 visual_mvp = true
 svg_path = "core/components/led.svg"
+svg_preferred_path = "content/assets/svg/components/led.svg"
 svg_required_ids = ["led-body"]
+svg_note = "Canvas binds #led-body on/off; prefers content/assets/svg/ (DEN-14 migrate)"

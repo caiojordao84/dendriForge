@@ -1,0 +1,123 @@
+[metadata]
+project_name = "C01-button-led"
+editor = "dendriForge"
+author = "dendriForge Priority 4"
+notes = "Scenario-1 hardware trio for live SVG canvas: Uno + LED + pushbutton"
+
+[board]
+profile = "arduino-uno-r3"
+instance_id = "board"
+
+[[components]]
+instance_id = "led1"
+profile = "led"
+
+[components.params]
+color = "red"
+
+[[components]]
+instance_id = "btn_start"
+profile = "cmd-pushbutton-no-start"
+
+[components.params]
+
+[[wiring]]
+from = "board.D13"
+to = "led1.A"
+signal = "digital"
+
+[[wiring]]
+from = "board.GND"
+to = "led1.K"
+signal = "gnd"
+
+[[wiring]]
+from = "board.D2"
+to = "btn_start.NO1"
+signal = "digital"
+
+[[sources]]
+language = "asl"
+name = "main"
+text = ""
+
+[asl]
+functions = []
+
+[asl.metadata]
+project_name = "C01-button-led-asl"
+editor = "dendriForge"
+author = "dendriForge Priority 4"
+
+[[asl.hardware]]
+pin = 2
+hw_type = "digital"
+io_mode = "DI"
+label = "btnPin"
+target_role = "digital-in"
+
+[[asl.hardware]]
+pin = 13
+hw_type = "digital"
+io_mode = "DO"
+label = "ledPin"
+target_role = "digital-out"
+
+[[asl.data]]
+name = "pressed"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[asl.setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT"
+
+[[asl.setup.args]]
+kind = "uint"
+value = 2
+
+[[asl.setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+
+[[asl.setup.args]]
+kind = "uint"
+value = 13
+
+[[asl.setup]]
+kind = "call"
+name = "SET_BOOL"
+
+[[asl.setup.args]]
+kind = "uint"
+value = 13
+
+[[asl.setup.args]]
+kind = "bool"
+value = false
+
+[[asl.loop]]
+kind = "assign"
+target = "pressed"
+
+[asl.loop.value]
+kind = "call"
+name = "GET_BOOL"
+
+[[asl.loop.value.args]]
+kind = "uint"
+value = 2
+
+[[asl.loop]]
+kind = "call"
+name = "SET_BOOL"
+
+[[asl.loop.args]]
+kind = "uint"
+value = 13
+
+[[asl.loop.args]]
+kind = "var"
+name = "pressed"

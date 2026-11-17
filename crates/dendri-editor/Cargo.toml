@@ -12,10 +12,12 @@ path = "src/main.rs"
 
 [dependencies]
 dendri-ast = { workspace = true }
+dendri-canvas = { workspace = true }
 dendri-emit = { workspace = true }
 dendri-frontend-ladder = { workspace = true }
 dendri-frontend-sfc = { workspace = true }
 dendri-parse = { workspace = true }
+dendri-sim = { workspace = true }
 dendri-sync = { workspace = true }
 iced = { workspace = true }
 toml = { workspace = true }

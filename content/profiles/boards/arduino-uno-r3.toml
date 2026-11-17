@@ -102,3 +102,6 @@ board_family_skill_id = "avr-family"
 board_profile_id = "arduino-uno-r3"
 visual_mvp = true
 svg_path = "core/boards/arduino-uno-r3.svg"
+svg_preferred_path = "content/assets/svg/boards/arduino-uno-r3.svg"
+svg_required_ids = ["led-pin13"]
+svg_note = "Canvas binds #led-pin13 + D13 pad; prefers content/assets/svg/ (DEN-14 migrate)"

@@ -21,8 +21,9 @@ Phase 1 / `dendri-sim` do not invent asset paths later.
 | Asset | Required element ids / classes |
 |---|---|
 | Board (`arduino-uno-r3.svg`) | Pin pads groupable by digital pin label; status LED near D13 optional |
-| LED (`led.svg`) | `#led-body` (fill changes with on/off), `#anode`, `#cathode` optional |
-| Pushbutton (`cmd-pushbutton-no-start.svg`) | `#actuator` (press transform), `#contact` (NO state class) |
+| LED (`led.svg`) | `#led-body` (fill/opacity + `on`/`off` class), `#anode`, `#cathode` optional |
+| Pushbutton (`cmd-pushbutton-no-start.svg`) | `#actuator` (press transform / `pressed` class), `#contact` (NO `open`/`closed`) |
+| Board status | `#led-pin13` `data-state` + class follows digital pin 13 |
 
 ## Gap inventory (re-verified from state map / checkout)
 

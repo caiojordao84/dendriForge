@@ -13,3 +13,5 @@ content/assets/svg/
 ```
 
 MVP trio staged here; seeds also under `core/boards/*.svg` and `core/components/{led,cmd-pushbutton-no-start}.svg`.
+
+`dendri-canvas` (DEN-13) prefers these `content/assets/svg/` paths and falls back to `core/`. Profile `svg_path` still names `core/` until DEN-14 migration.
