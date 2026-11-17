@@ -1,0 +1,74 @@
+# Sim snapshot S13 — SQRT / LOG (scenario 7 math building blocks; no PID plant)
+
+[metadata]
+project_name = "S13-math-sqrt-log"
+editor = "dendriForge"
+author = "dendriForge DEN-16"
+notes = "SQRT + LOG for thermal/kinematic path — DEN-16"
+
+[[data]]
+name = "dx"
+type = "REAL"
+scope = "CONST"
+init = "3.0"
+unit = "mm"
+
+[[data]]
+name = "dy"
+type = "REAL"
+scope = "CONST"
+init = "4.0"
+unit = "mm"
+
+[[data]]
+name = "dist"
+type = "REAL"
+scope = "VAR"
+init = "0.0"
+unit = "mm"
+
+[[data]]
+name = "rawAdc"
+type = "REAL"
+scope = "CONST"
+init = "1000.0"
+unit = "-"
+
+[[data]]
+name = "logVal"
+type = "REAL"
+scope = "VAR"
+init = "0.0"
+unit = "-"
+
+[[data]]
+name = "msg"
+type = "STRING"
+scope = "VAR"
+init = "\"\""
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_SERIAL"
+args = [{ kind = "uint", value = 115200 }]
+
+[[loop]]
+kind = "assign"
+target = "dist"
+value = { kind = "expr_text", text = "SQRT(dx * dx + dy * dy)" }
+
+[[loop]]
+kind = "assign"
+target = "logVal"
+value = { kind = "call", name = "LOG", args = [{ kind = "var", name = "rawAdc" }] }
+
+[[loop]]
+kind = "assign"
+target = "msg"
+value = { kind = "expr_text", text = "CONCAT(\"dist=\", TO_STRING_FMT(dist, 1), \",log10=\", TO_STRING_FMT(logVal, 3))" }
+
+[[loop]]
+kind = "call"
+name = "SERIAL_PRINTLN"
+args = [{ kind = "var", name = "msg" }]

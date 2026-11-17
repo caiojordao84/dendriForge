@@ -1,0 +1,139 @@
+# Sim snapshot S12 — I2C_WRITE/READ + SPI_TRANSFER (scenario 2 bus payload)
+
+[metadata]
+project_name = "S12-i2c-spi-xfer"
+editor = "dendriForge"
+author = "dendriForge DEN-16"
+notes = "I2C/SPI byte transfer beyond CFG — DEN-16"
+
+[[hardware]]
+pin = 21
+hw_type = "digital"
+io_mode = "BI"
+label = "sdaPin"
+target_role = "i2c-sda"
+
+[[hardware]]
+pin = 22
+hw_type = "digital"
+io_mode = "BI"
+label = "sclPin"
+target_role = "i2c-scl"
+
+[[hardware]]
+pin = 23
+hw_type = "digital"
+io_mode = "DO"
+label = "mosiPin"
+target_role = "spi-mosi"
+
+[[hardware]]
+pin = 19
+hw_type = "digital"
+io_mode = "DI"
+label = "misoPin"
+target_role = "spi-miso"
+
+[[hardware]]
+pin = 18
+hw_type = "digital"
+io_mode = "DO"
+label = "sckPin"
+target_role = "spi-sck"
+
+[[hardware]]
+pin = 5
+hw_type = "digital"
+io_mode = "DO"
+label = "csPin"
+target_role = "spi-cs"
+
+[[data]]
+name = "i2cVal"
+type = "BYTE"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "spiRx"
+type = "BYTE"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "msg"
+type = "STRING"
+scope = "VAR"
+init = "\"\""
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_I2C"
+args = [
+  { kind = "uint", value = 0 },
+  { kind = "uint", value = 21 },
+  { kind = "uint", value = 22 },
+  { kind = "uint", value = 400000 },
+]
+
+[[setup]]
+kind = "call"
+name = "CFG_SPI"
+args = [
+  { kind = "uint", value = 1 },
+  { kind = "uint", value = 23 },
+  { kind = "uint", value = 19 },
+  { kind = "uint", value = 18 },
+  { kind = "uint", value = 5 },
+]
+
+[[setup]]
+kind = "call"
+name = "CFG_SERIAL"
+args = [{ kind = "uint", value = 115200 }]
+
+[[loop]]
+kind = "call"
+name = "I2C_WRITE"
+args = [
+  { kind = "uint", value = 0 },
+  { kind = "hex", value = "0x3C" },
+  { kind = "hex", value = "0xA5" },
+]
+
+[[loop]]
+kind = "assign"
+target = "i2cVal"
+value = { kind = "call", name = "I2C_READ", args = [
+  { kind = "uint", value = 0 },
+  { kind = "hex", value = "0x3C" },
+]}
+
+[[loop]]
+kind = "assign"
+target = "spiRx"
+value = { kind = "call", name = "SPI_TRANSFER", args = [
+  { kind = "uint", value = 1 },
+  { kind = "hex", value = "0x11" },
+]}
+
+[[loop]]
+kind = "assign"
+target = "spiRx"
+value = { kind = "call", name = "SPI_TRANSFER", args = [
+  { kind = "uint", value = 1 },
+  { kind = "hex", value = "0x22" },
+]}
+
+[[loop]]
+kind = "assign"
+target = "msg"
+value = { kind = "expr_text", text = "CONCAT(\"i2c=\", TO_STRING(i2cVal), \",spi=\", TO_STRING(spiRx))" }
+
+[[loop]]
+kind = "call"
+name = "SERIAL_PRINTLN"
+args = [{ kind = "var", name = "msg" }]

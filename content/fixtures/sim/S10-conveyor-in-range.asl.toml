@@ -1,0 +1,182 @@
+# Sim snapshot S10 — conveyor count + IN_RANGE gate (scenario 3 logic path)
+# Optic rising edges → CTU; IN_RANGE keeps motor; at PV divert + full flag.
+
+[metadata]
+project_name = "S10-conveyor-in-range"
+editor = "dendriForge"
+author = "dendriForge DEN-16"
+notes = "CTU + IN_RANGE conveyor subset — DEN-16 (no plant physics)"
+
+[[hardware]]
+pin = 2
+hw_type = "digital"
+io_mode = "DI"
+label = "optic"
+target_role = "digital-in"
+
+[[hardware]]
+pin = 3
+hw_type = "digital"
+io_mode = "DI"
+label = "resetBtn"
+target_role = "digital-in"
+
+[[hardware]]
+pin = 10
+hw_type = "digital"
+io_mode = "DO"
+label = "motor"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 11
+hw_type = "digital"
+io_mode = "DO"
+label = "divert"
+target_role = "digital-out"
+
+[[data]]
+name = "pv"
+type = "INT"
+scope = "CONST"
+init = "5"
+unit = "-"
+
+[[data]]
+name = "lo"
+type = "INT"
+scope = "CONST"
+init = "1"
+unit = "-"
+
+[[data]]
+name = "hi"
+type = "INT"
+scope = "CONST"
+init = "4"
+unit = "-"
+
+[[data]]
+name = "optic"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "reset"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "qu"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "ctu1_CV"
+type = "INT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "inBand"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "emptyOrBand"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT"
+args = [{ kind = "uint", value = 2 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT_PULLUP"
+args = [{ kind = "uint", value = 3 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 10 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 11 }]
+
+# Clear edge then sample pin for rising CTU clock.
+[[loop]]
+kind = "assign"
+target = "optic"
+value = { kind = "bool", value = false }
+
+[[loop]]
+kind = "assign"
+target = "qu"
+value = { kind = "call", name = "CTU", args = [
+  { kind = "string", value = "ctu1" },
+  { kind = "var", name = "optic" },
+  { kind = "var", name = "reset" },
+  { kind = "var", name = "pv" },
+]}
+
+[[loop]]
+kind = "assign"
+target = "optic"
+value = { kind = "call", name = "GET_BOOL", args = [{ kind = "uint", value = 2 }] }
+
+[[loop]]
+kind = "assign"
+target = "reset"
+value = { kind = "call", name = "GET_BOOL", args = [{ kind = "uint", value = 3 }] }
+
+[[loop]]
+kind = "assign"
+target = "qu"
+value = { kind = "call", name = "CTU", args = [
+  { kind = "string", value = "ctu1" },
+  { kind = "var", name = "optic" },
+  { kind = "var", name = "reset" },
+  { kind = "var", name = "pv" },
+]}
+
+[[loop]]
+kind = "assign"
+target = "inBand"
+value = { kind = "call", name = "IN_RANGE", args = [
+  { kind = "var", name = "lo" },
+  { kind = "var", name = "ctu1_CV" },
+  { kind = "var", name = "hi" },
+]}
+
+[[loop]]
+kind = "assign"
+target = "emptyOrBand"
+value = { kind = "expr_text", text = "inBand OR (ctu1_CV = 0)" }
+
+[[loop]]
+kind = "if"
+condition = { kind = "var", name = "qu" }
+then = [
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 10 }, { kind = "bool", value = false }] },
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 11 }, { kind = "bool", value = true }] },
+]
+elif = []
+else = [
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 10 }, { kind = "var", name = "emptyOrBand" }] },
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 11 }, { kind = "bool", value = false }] },
+]

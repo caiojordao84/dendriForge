@@ -1,0 +1,9 @@
+t=     0 BOOT
+t=     0 BUS_CFG UART baud=115200
+t=     0 SETUP_DONE
+t=     0 SCAN_START cycle=1
+t=     0 ASSIGN line="t=7,23.46"
+t=     0 SERIAL_OUT t=7,23.46\n
+t=     0 ASSIGN cmd="PING"
+t=     0 SERIAL_OUT PONG\n
+t=     0 SCAN_END cycle=1

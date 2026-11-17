@@ -1,0 +1,74 @@
+# Sim snapshot S09 — CONCAT / TO_STRING / TO_STRING_FMT (scenario 11 strings)
+
+[metadata]
+project_name = "S09-string-ops"
+editor = "dendriForge"
+author = "dendriForge DEN-16"
+notes = "String ops for UART CSV / command path — DEN-16"
+
+[[data]]
+name = "tempC"
+type = "REAL"
+scope = "VAR"
+init = "23.456"
+unit = "degC"
+
+[[data]]
+name = "sampleN"
+type = "UINT"
+scope = "VAR"
+init = "7"
+unit = "-"
+
+[[data]]
+name = "line"
+type = "STRING"
+scope = "VAR"
+init = "\"\""
+unit = "-"
+
+[[data]]
+name = "cmd"
+type = "STRING"
+scope = "VAR"
+init = "\"\""
+unit = "-"
+
+[[data]]
+name = "errMsg"
+type = "STRING"
+scope = "VAR"
+init = "\"\""
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_SERIAL"
+args = [{ kind = "uint", value = 115200 }]
+
+[[loop]]
+kind = "assign"
+target = "line"
+value = { kind = "expr_text", text = "CONCAT(\"t=\", TO_STRING(sampleN), \",\", TO_STRING_FMT(tempC, 2))" }
+
+[[loop]]
+kind = "call"
+name = "SERIAL_PRINTLN"
+args = [{ kind = "var", name = "line" }]
+
+[[loop]]
+kind = "assign"
+target = "cmd"
+value = { kind = "call", name = "SERIAL_READLN", args = [] }
+
+[[loop]]
+kind = "if"
+condition = { kind = "binop", op = "eq", left = { kind = "var", name = "cmd" }, right = { kind = "string", value = "PING" } }
+then = [
+  { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "string", value = "PONG" }] },
+]
+elif = []
+else = [
+  { kind = "assign", target = "errMsg", value = { kind = "expr_text", text = "CONCAT(\"ERR:\", cmd)" } },
+  { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "var", name = "errMsg" }] },
+]

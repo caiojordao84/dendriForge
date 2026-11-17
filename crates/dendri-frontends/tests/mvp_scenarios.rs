@@ -1,18 +1,18 @@
-//! DEN-15 — MVP scenarios 1–12 acceptance map.
+//! DEN-16 — MVP scenarios 1–12 acceptance map (sim opcode tranche).
 //!
 //! Honest statuses only:
 //! - **pass** — automated check green on current opcodes/sim
 //! - **partial** — structural and/or subset sim green; full scenario not met
 //! - **blocked** — missing sim/opcode/physics; fixture may still deserialize
 //!
-//! See store doc `docs/priority-6-v010-scenarios.md` for the human matrix.
+//! See store docs `priority-6-v010-scenarios.md` and `priority-7-sim-opcodes-acceptance.md`.
 
 use std::path::PathBuf;
 
 use dendri_ast::SourceLanguage;
 use dendri_frontends::{parse_source, roundtrip_language};
 use dendri_parse::{parse_program_file, parse_project_file};
-use dendri_sim::{SimConfig, Simulator};
+use dendri_sim::{SimConfig, Simulator, Value};
 use dendri_validate::{validate_program, validate_project};
 
 fn repo() -> PathBuf {
@@ -34,7 +34,7 @@ struct Scenario {
     note: &'static str,
 }
 
-/// Canonical matrix used by tests + docs (keep in sync with Priority 6 doc).
+/// Canonical matrix used by tests + docs (keep in sync with Priority 7 doc).
 fn matrix() -> [Scenario; 12] {
     [
         Scenario {
@@ -47,13 +47,13 @@ fn matrix() -> [Scenario; 12] {
             id: 2,
             title: "ADC/PWM/I2C/SPI/UART",
             status: Status::Partial,
-            note: "S04/S05 + G05–G07/G14–G16 TOML; I2C/SPI payload + displays blocked",
+            note: "S04/S05 + S12 I2C/SPI xfer pass; displays/SD drivers still blocked",
         },
         Scenario {
             id: 3,
             title: "Conveyor sorting / CT* / IN_RANGE",
-            status: Status::Partial,
-            note: "S07 CTU/CTD/CTUD pass; no plant fixture; IN_RANGE absent from catalog",
+            status: Status::Pass,
+            note: "S07 CT* + S10 IN_RANGE conveyor logic path; no plant physics",
         },
         Scenario {
             id: 4,
@@ -77,7 +77,7 @@ fn matrix() -> [Scenario; 12] {
             id: 7,
             title: "SCARA PID + E-Stop",
             status: Status::Blocked,
-            note: "example TOML migrated; ISR/PID/SQRT/LCD not simulated",
+            note: "S13 SQRT/LOG in sim; ISR/PID/LCD plant still blocked",
         },
         Scenario {
             id: 8,
@@ -89,7 +89,7 @@ fn matrix() -> [Scenario; 12] {
             id: 9,
             title: "RETAIN/PERSISTENT + watchdog",
             status: Status::Partial,
-            note: "G10/G17/G18 validate; live retain across restart not in sim",
+            note: "S11 live RETAIN/PERSISTENT soft-restart + SYS_*; watchdog/LCD deferred",
         },
         Scenario {
             id: 10,
@@ -101,7 +101,7 @@ fn matrix() -> [Scenario; 12] {
             id: 11,
             title: "UART command parser + CSV telemetry",
             status: Status::Partial,
-            note: "G13/G14 TOML+validate; CONCAT/TO_STRING* not executed in sim",
+            note: "S09 CONCAT/TO_STRING*/PING path; full G13 command suite not sim-accepted",
         },
         Scenario {
             id: 12,
@@ -124,9 +124,9 @@ fn scenario_matrix_is_complete() {
     let pass = m.iter().filter(|s| s.status == Status::Pass).count();
     let partial = m.iter().filter(|s| s.status == Status::Partial).count();
     let blocked = m.iter().filter(|s| s.status == Status::Blocked).count();
-    // Honest DEN-15 snapshot — update when a scenario genuinely graduates.
-    assert_eq!(pass, 1, "pass={pass}");
-    assert_eq!(partial, 6, "partial={partial}");
+    // DEN-16 snapshot — update when a scenario genuinely graduates.
+    assert_eq!(pass, 2, "pass={pass}");
+    assert_eq!(partial, 5, "partial={partial}");
     assert_eq!(blocked, 5, "blocked={blocked}");
 }
 
@@ -184,10 +184,11 @@ fn scenario1_ladder_edge_fb_still_passes() {
 }
 
 #[test]
-fn scenario2_pwm_adc_and_bus_cfg_partial() {
+fn scenario2_pwm_adc_and_bus_xfer_partial() {
     for rel in [
         "content/fixtures/sim/S04-pwm-adc-map.asl.toml",
         "content/fixtures/sim/S05-uart-i2c-spi.asl.toml",
+        "content/fixtures/sim/S12-i2c-spi-xfer.asl.toml",
     ] {
         let parsed = parse_program_file(&repo().join(rel)).unwrap();
         assert!(validate_program(&parsed.program, &parsed.inject).ok(), "{rel}");
@@ -200,7 +201,16 @@ fn scenario2_pwm_adc_and_bus_cfg_partial() {
         );
         sim.run(2).unwrap_or_else(|e| panic!("{rel} sim: {e}"));
     }
-    // Migrated goldens structural
+    let parsed = parse_program_file(
+        &repo().join("content/fixtures/sim/S12-i2c-spi-xfer.asl.toml"),
+    )
+    .unwrap();
+    let mut sim = Simulator::from_program(parsed.program, &SimConfig::default());
+    sim.run(1).unwrap();
+    assert_eq!(sim.var("i2cVal"), Some(&Value::Uint(0xA5)));
+    assert_eq!(sim.var("spiRx"), Some(&Value::Uint(0x11)));
+    assert!(sim.trace_text().contains("BUS_XFER"));
+
     for rel in [
         "content/fixtures/golden/G06-adc-multi-channel-logger.asl.toml",
         "content/fixtures/golden/G14-uart-csv-data-streamer.asl.toml",
@@ -213,7 +223,7 @@ fn scenario2_pwm_adc_and_bus_cfg_partial() {
 }
 
 #[test]
-fn scenario3_counters_partial() {
+fn scenario3_conveyor_in_range_pass() {
     let parsed = parse_program_file(
         &repo().join("content/fixtures/sim/S07-iec-counters.asl.toml"),
     )
@@ -227,6 +237,28 @@ fn scenario3_counters_partial() {
         },
     );
     sim.run(3).unwrap();
+
+    let parsed = parse_program_file(
+        &repo().join("content/fixtures/sim/S10-conveyor-in-range.asl.toml"),
+    )
+    .unwrap();
+    assert!(validate_program(&parsed.program, &parsed.inject).ok());
+    let mut sim = Simulator::from_program(
+        parsed.program,
+        &SimConfig {
+            max_cycles: 12,
+            ..SimConfig::default()
+        },
+    );
+    sim.ensure_setup().unwrap();
+    for _ in 0..5 {
+        sim.set_pin(2, true);
+        sim.step().unwrap();
+        sim.set_pin(2, false);
+        sim.step().unwrap();
+    }
+    assert!(sim.pin(11), "divert on at PV");
+    assert!(!sim.pin(10), "motor off at full");
 }
 
 #[test]
@@ -292,13 +324,77 @@ fn scenario_blocked_examples_deserialize_only() {
 }
 
 #[test]
-fn scenario9_and_11_and_12_validate_partial() {
+fn scenario7_math_sqrt_log_building_block() {
+    let parsed = parse_program_file(
+        &repo().join("content/fixtures/sim/S13-math-sqrt-log.asl.toml"),
+    )
+    .unwrap();
+    assert!(validate_program(&parsed.program, &parsed.inject).ok());
+    let mut sim = Simulator::from_program(parsed.program, &SimConfig::default());
+    sim.run(1).unwrap();
+    let dist = sim.var("dist").and_then(|v| v.as_f64().ok()).unwrap();
+    assert!((dist - 5.0).abs() < 1e-9, "3-4-5 triangle dist={dist}");
+    let logv = sim.var("logVal").and_then(|v| v.as_f64().ok()).unwrap();
+    assert!((logv - 3.0).abs() < 1e-9, "log10(1000)={logv}");
+}
+
+#[test]
+fn scenario9_retain_live_partial() {
+    let parsed = parse_program_file(
+        &repo().join("content/fixtures/sim/S11-retain-restart.asl.toml"),
+    )
+    .unwrap();
+    assert!(validate_program(&parsed.program, &parsed.inject).ok());
+    let mut sim = Simulator::from_program(parsed.program, &SimConfig::default());
+    sim.run(1).unwrap();
+    sim.soft_restart().unwrap();
+    sim.run(1).unwrap();
+    let boots = sim.var("rebootCount").and_then(|v| v.as_u64().ok()).unwrap();
+    assert_eq!(boots, 2);
+
     for rel in [
         "content/fixtures/golden/G10-watchdog-heartbeat-monitor.asl.toml",
         "content/fixtures/golden/G17-retain-power-cycle-counter.asl.toml",
         "content/fixtures/golden/G18-persistent-calibration-store.asl.toml",
+    ] {
+        let parsed = parse_program_file(&repo().join(rel)).unwrap();
+        let r = validate_program(&parsed.program, &parsed.inject);
+        assert!(r.ok(), "{rel}: {:?}", r.diagnostics);
+    }
+}
+
+#[test]
+fn scenario11_string_ops_partial() {
+    let parsed = parse_program_file(
+        &repo().join("content/fixtures/sim/S09-string-ops.asl.toml"),
+    )
+    .unwrap();
+    assert!(validate_program(&parsed.program, &parsed.inject).ok());
+    let mut sim = Simulator::from_program(
+        parsed.program,
+        &SimConfig {
+            serial_rx: vec!["PING".into()],
+            ..SimConfig::default()
+        },
+    );
+    sim.run(1).unwrap();
+    let trace = sim.trace_text();
+    assert!(trace.contains("SERIAL_OUT t=7,23.46"), "{trace}");
+    assert!(trace.contains("SERIAL_OUT PONG"), "{trace}");
+
+    for rel in [
         "content/fixtures/golden/G13-uart-echo-command-parser.asl.toml",
         "content/fixtures/golden/G14-uart-csv-data-streamer.asl.toml",
+    ] {
+        let parsed = parse_program_file(&repo().join(rel)).unwrap();
+        let r = validate_program(&parsed.program, &parsed.inject);
+        assert!(r.ok(), "{rel}: {:?}", r.diagnostics);
+    }
+}
+
+#[test]
+fn scenario9_and_11_and_12_validate_partial() {
+    for rel in [
         "content/fixtures/golden/G19-vendor-ext-custom-driver.asl.toml",
         "content/fixtures/golden/G20-nested-loop-matrix-scan.asl.toml",
         "content/fixtures/golden/G21-deep-call-chain-state-machine.asl.toml",
