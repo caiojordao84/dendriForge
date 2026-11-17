@@ -133,7 +133,7 @@ Priorities below assume MVP acceptance and the first ASL tag **`0.0.1`**.
 | Frontend | Priority |
 |---|---|
 | C++, MicroPython, ST, Ladder, SFC/GRAFCET | P1 (MVP) |
-| Rust (Embassy/HAL subset) | P2 |
+| Rust (Dendri HAL subset → ASL; Embassy depth later) | P2 (DEN-24 first slice) |
 
 | Backend | Priority |
 |---|---|

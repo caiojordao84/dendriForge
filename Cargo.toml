@@ -9,6 +9,7 @@ members = [
     "crates/dendri-backend-st",
     "crates/dendri-frontend-cpp",
     "crates/dendri-frontend-micropython",
+    "crates/dendri-frontend-rust",
     "crates/dendri-frontend-ladder",
     "crates/dendri-frontend-sfc",
     "crates/dendri-frontends",
@@ -42,6 +43,7 @@ dendri-emit = { path = "crates/dendri-emit" }
 dendri-backend-st = { path = "crates/dendri-backend-st" }
 dendri-frontend-cpp = { path = "crates/dendri-frontend-cpp" }
 dendri-frontend-micropython = { path = "crates/dendri-frontend-micropython" }
+dendri-frontend-rust = { path = "crates/dendri-frontend-rust" }
 dendri-frontend-ladder = { path = "crates/dendri-frontend-ladder" }
 dendri-frontend-sfc = { path = "crates/dendri-frontend-sfc" }
 dendri-frontends = { path = "crates/dendri-frontends" }

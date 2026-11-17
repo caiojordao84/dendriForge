@@ -1,17 +1,18 @@
-# Phase 1 — Text language frontends (DEN-7 / DEN-10 / DEN-11)
+# Phase 1 — Text language frontends (DEN-7 / DEN-10 / DEN-11 / DEN-24)
 
-**Status:** implemented (MVP subset through DEN-11 peripherals + IEC FBs). ASL language tag **`0.0.1`**.
+**Status:** P1 implemented (MVP subset through DEN-11 peripherals + IEC FBs). ASL language tag **`0.0.1`**. P2 Rust (DEN-24) first slice lands alongside — does not replace P1.
 
-P1 text languages parse to and generate from the same [`Program`] AST that `dendri-sim` runs.
+Text languages parse to and generate from the same [`Program`] AST that `dendri-sim` runs.
 
-| Language | Crate | Parse | Generate |
-|---|---|---|---|
-| C++ (Arduino-style) | `dendri-frontend-cpp` | yes | yes |
-| MicroPython | `dendri-frontend-micropython` | yes | yes |
-| Structured Text | `dendri-backend-st` | yes | yes |
-| Dispatch facade | `dendri-frontends` | yes | yes |
+| Language | Crate | Parse | Generate | Priority |
+|---|---|---|---|---|
+| C++ (Arduino-style) | `dendri-frontend-cpp` | yes | yes | P1 |
+| MicroPython | `dendri-frontend-micropython` | yes | yes | P1 |
+| Structured Text | `dendri-backend-st` | yes | yes | P1 |
+| Rust (Dendri HAL subset) | `dendri-frontend-rust` | yes | yes | P2 |
+| Dispatch facade | `dendri-frontends` | yes | yes | — |
 
-Ladder / SFC = **DEN-8** (see [`ladder-sfc.md`](./ladder-sfc.md)). Rust-as-user-scripting = **P2**.
+Ladder / SFC = **DEN-8** (see [`ladder-sfc.md`](./ladder-sfc.md)). Progress: store doc `docs/p2-rust-scripting.md`.
 
 ## CLI
 
@@ -19,12 +20,13 @@ Ladder / SFC = **DEN-8** (see [`ladder-sfc.md`](./ladder-sfc.md)). Rust-as-user-
 cargo run -p dendri-cli -- emit-cpp content/fixtures/sim/S01-blink-set-bool-wait.asl.toml
 cargo run -p dendri-cli -- emit-micropython content/fixtures/sim/S01-blink-set-bool-wait.asl.toml
 cargo run -p dendri-cli -- emit-st content/fixtures/sim/S01-blink-set-bool-wait.asl.toml
-cargo run -p dendri-cli -- parse-source --lang cpp content/fixtures/frontends/S01-blink.cpp
-cargo run -p dendri-cli -- frontend-roundtrip --lang st content/fixtures/sim/S04-pwm-adc-map.asl.toml
+cargo run -p dendri-cli -- emit-rust content/fixtures/sim/S01-blink-set-bool-wait.asl.toml
+cargo run -p dendri-cli -- parse-source --lang rust content/fixtures/frontends/S01-blink.rs
+cargo run -p dendri-cli -- frontend-roundtrip --lang rust content/fixtures/sim/S04-pwm-adc-map.asl.toml
 cargo run -p dendri-cli -- sync-sources content/fixtures/projects/P01-uno-led-blink.dendri.toml
 ```
 
-`.dendri.toml` `[[sources]]` carries inline `text` for `cpp` / `micropython` / `st`. Empty stubs can be filled from embedded `[asl]` via `sync-sources`.
+`.dendri.toml` `[[sources]]` carries inline `text` for `cpp` / `micropython` / `st` / `rust`. Empty stubs can be filled from embedded `[asl]` via `sync-sources`.
 
 ## Supported MVP subset (honest limits)
 
@@ -67,6 +69,16 @@ Fixtures: `S01`–`S07` under `content/fixtures/frontends/` + `content/fixtures/
 
 **Out:** full IEC 61131-3 (POUs, FBs beyond call form, POINTER, namespaces, vendor dialects). `SETUP`/`LOOP`/`CONSTANT` are Dendri MVP surface keywords for honest setup/loop split.
 
+### Rust (P2 / DEN-24)
+
+- Dendri HAL subset: `fn setup()` / `fn loop_()` (Rust `loop` is reserved)
+- `const name: u32` pins + `let mut` vars; `// ASL_HW` / `// ASL_DATA` round-trip
+- `pin_mode` / `digital_write` / `digital_read` / `delay_ms` / `analog_*` / `serial_*`
+- Direct ASL opcode calls for PWM/ADC cfg, buses, IEC FBs
+- `if` / `else if` / `else` / `while` / `for x in 0..N`
+
+**Out:** crates/modules, traits, async/Embassy runtime, macros, generics, Rhai or any second sim engine. ASL remains the execution IR.
+
 ## Supported peripherals / IEC FBs (DEN-11)
 
 | Area | Ops (sim + frontends) |
@@ -77,10 +89,10 @@ Fixtures: `S01`–`S07` under `content/fixtures/frontends/` + `content/fixtures/
 | I2C / SPI | `CFG_I2C`, `CFG_SENSOR_I2C`, `CFG_SPI` (config only — no transfer yet) |
 | IEC FBs | `TON` (ET clamp), `TOF`, `TP`, `CTU`, `CTD`, `CTUD`, `R_TRIG`, `F_TRIG` |
 
-## Gaps → DEN-12+ / later priorities
+## Gaps → later priorities
 
-- I2C/SPI **transfer** + display/sensor driver FBs (scenario 2 remainder)
-- Full Ladder/SFC canvas polish beyond linear (priority 3)
+- I2C/SPI **transfer** + display/sensor driver FBs
+- Embassy/async Rust depth beyond Dendri HAL subset
 - Broader math/string ops in sim
 - Retain/persistent EEPROM story in frontends
 - ASL `0.0.1` is assigned (see `docs/phase-0/versioning.md`)
