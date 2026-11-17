@@ -2,7 +2,7 @@
 
 use dendri_ast::expr::{BinaryOp, Expr, UnaryOp};
 use dendri_ast::stmt::Stmt;
-use dendri_ast::{DataType, Program};
+use dendri_ast::{DataType, Program, Scope};
 use std::collections::HashMap;
 
 /// Emit MicroPython from an ASL program AST.
@@ -22,6 +22,10 @@ pub fn emit_micropython(program: &Program) -> String {
     out.push_str("from time import sleep_ms\n\n");
 
     for h in &program.hardware {
+        out.push_str(&format!(
+            "# ASL_HW: pin={} type={:?} mode={:?} label={} role={}\n",
+            h.pin, h.hw_type, h.io_mode, h.label, h.target_role
+        ));
         out.push_str(&format!("{} = {}\n", to_upper_snake(&h.label), h.pin));
     }
     if !program.hardware.is_empty() {
@@ -29,6 +33,13 @@ pub fn emit_micropython(program: &Program) -> String {
     }
 
     for d in &program.data {
+        out.push_str(&format!(
+            "# ASL_DATA: name={} type={} scope={} unit={}\n",
+            d.name,
+            d.data_type.as_str(),
+            scope_tag(d.scope),
+            d.unit
+        ));
         let val = mpy_init(d.data_type, &d.init);
         out.push_str(&format!("{} = {val}\n", d.name));
     }
@@ -88,6 +99,17 @@ pub fn emit_micropython(program: &Program) -> String {
     out.push_str("while True:\n");
     out.push_str("    loop()\n");
     out
+}
+
+fn scope_tag(scope: Scope) -> &'static str {
+    match scope {
+        Scope::Const => "CONST",
+        Scope::Var => "VAR",
+        Scope::Retain => "RETAIN",
+        Scope::Persistent => "PERSISTENT",
+        Scope::Temp => "TEMP",
+        Scope::Extern => "EXTERN",
+    }
 }
 
 fn to_upper_snake(s: &str) -> String {
@@ -222,10 +244,14 @@ fn emit_stmt(
         }
         Stmt::Call { name, args } => {
             match name.as_str() {
-                "CFG_DIGITAL_OUTPUT" | "CFG_DIGITAL_INPUT" | "CFG_DIGITAL_INPUT_PULLUP" => {
+                "CFG_DIGITAL_OUTPUT"
+                | "CFG_DIGITAL_INPUT"
+                | "CFG_DIGITAL_INPUT_PULLUP"
+                | "CFG_DIGITAL_INPUT_PULLDOWN" => {
                     let mode = match name.as_str() {
                         "CFG_DIGITAL_INPUT" => "Pin.IN",
                         "CFG_DIGITAL_INPUT_PULLUP" => "Pin.IN, Pin.PULL_UP",
+                        "CFG_DIGITAL_INPUT_PULLDOWN" => "Pin.IN, Pin.PULL_DOWN",
                         _ => "Pin.OUT",
                     };
                     let obj = resolve_pin_obj(&args[0], labels);

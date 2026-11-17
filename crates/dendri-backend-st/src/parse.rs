@@ -710,7 +710,23 @@ impl Parser {
         let _from = self.parse_expr()?;
         self.expect_ident_kw("TO")?;
         let to = self.parse_expr()?;
-        // optional `- 1` from emit — already part of expression
+        // Emit writes `TO {exclusive} - 1` for IEC-looking inclusive form.
+        // Unwrap that pattern so round-trip keeps the ASL exclusive bound.
+        let to = match to {
+            Expr::Binop {
+                op: BinaryOp::Sub,
+                left,
+                right,
+            } => match *right {
+                Expr::Uint { value: 1 } | Expr::Int { value: 1 } => *left,
+                other => Expr::Binop {
+                    op: BinaryOp::Sub,
+                    left,
+                    right: Box::new(other),
+                },
+            },
+            other => other,
+        };
         self.expect_ident_kw("DO")?;
         let mut body = Vec::new();
         while !self.check_ident_kw("END_FOR") {

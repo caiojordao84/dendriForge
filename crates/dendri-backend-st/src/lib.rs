@@ -1,7 +1,8 @@
-//! IEC 61131-3 Structured Text ↔ ASL AST (MVP subset).
+//! IEC 61131-3 Structured Text ↔ ASL AST (current sim opcode set).
 //!
-//! Parses and generates ST against the same [`Program`] AST that `dendri-sim` runs.
-//! See `docs/phase-1/frontends.md` for coverage limits.
+//! Parses and generates ST against the same [`Program`] AST that `dendri-sim` runs
+//! (`SET_BOOL` / `GET_BOOL` / `WAIT_TIME` / `TON`, control flow, typed `VAR`).
+//! See `docs/phase-1/frontends.md` for coverage limits and priority-2 gaps.
 
 mod emit;
 mod parse;

@@ -21,15 +21,50 @@ struct Line {
     number: usize,
 }
 
-fn preprocess(src: &str) -> (Option<String>, Vec<Line>) {
+#[derive(Debug, Clone)]
+struct HwAnno {
+    pin: u32,
+    io_mode: IoMode,
+    label: String,
+    target_role: String,
+}
+
+#[derive(Debug, Clone)]
+struct DataAnno {
+    data_type: DataType,
+    scope: Scope,
+    unit: String,
+}
+
+fn preprocess(
+    src: &str,
+) -> (
+    Option<String>,
+    Vec<Line>,
+    HashMap<String, HwAnno>,
+    HashMap<String, DataAnno>,
+) {
     let mut project_name = None;
     let mut lines = Vec::new();
+    let mut hw_annos = HashMap::new();
+    let mut data_annos = HashMap::new();
     for (i, raw) in src.lines().enumerate() {
         let number = i + 1;
         let trimmed = raw.trim();
         if trimmed.is_empty() || trimmed.starts_with('#') {
             if let Some(rest) = trimmed.strip_prefix("# project:") {
                 project_name = Some(rest.trim().to_string());
+            }
+            if let Some(rest) = trimmed.strip_prefix("# ASL_HW:") {
+                if let Some(hw) = parse_asl_hw_anno(rest.trim()) {
+                    hw_annos.insert(to_upper_snake(&hw.label), hw.clone());
+                    hw_annos.insert(hw.label.clone(), hw);
+                }
+            }
+            if let Some(rest) = trimmed.strip_prefix("# ASL_DATA:") {
+                if let Some((name, anno)) = parse_asl_data_anno(rest.trim()) {
+                    data_annos.insert(name, anno);
+                }
             }
             continue;
         }
@@ -46,7 +81,7 @@ fn preprocess(src: &str) -> (Option<String>, Vec<Line>) {
             number,
         });
     }
-    (project_name, lines)
+    (project_name, lines, hw_annos, data_annos)
 }
 
 struct Parser {
@@ -56,11 +91,14 @@ struct Parser {
     pin_consts: HashMap<String, u32>,     // LED_PIN -> 13
     pin_objs: HashMap<String, String>,    // led_pin -> LED_PIN
     obj_to_pin: HashMap<String, u32>,     // led_pin -> 13
+    pin_placeholders: HashMap<String, ()>, // start_btn_pin -> ()
+    hw_annos: HashMap<String, HwAnno>,
+    data_annos: HashMap<String, DataAnno>,
 }
 
 impl Parser {
     fn new(src: &str) -> Self {
-        let (project_name, lines) = preprocess(src);
+        let (project_name, lines, hw_annos, data_annos) = preprocess(src);
         Self {
             lines,
             pos: 0,
@@ -68,6 +106,9 @@ impl Parser {
             pin_consts: HashMap::new(),
             pin_objs: HashMap::new(),
             obj_to_pin: HashMap::new(),
+            pin_placeholders: HashMap::new(),
+            hw_annos,
+            data_annos,
         }
     }
 
@@ -98,6 +139,19 @@ impl Parser {
         let mut setup = Vec::new();
         let mut loop_body = Vec::new();
         let mut functions = Vec::new();
+
+        // Placeholders are emitted after pin consts — pre-scan so companion
+        // detection works even without ASL_HW annotations.
+        for line in &self.lines {
+            if line.indent != 0 {
+                continue;
+            }
+            if let Some((name, rhs)) = split_assign(&line.text) {
+                if rhs == "None" && name.ends_with("_pin") {
+                    self.pin_placeholders.insert(name, ());
+                }
+            }
+        }
 
         while let Some(line) = self.peek().cloned() {
             if line.indent != 0 {
@@ -136,23 +190,65 @@ impl Parser {
             let line = self.bump().unwrap();
             if let Some((name, rhs)) = split_assign(&line.text) {
                 if rhs == "None" {
-                    // pin object placeholder
+                    // pin object placeholder — remember for companion pin-const detection
+                    if name.ends_with("_pin") {
+                        self.pin_placeholders.insert(name, ());
+                    }
                     continue;
                 }
-                // Pin constants are named *PIN / *_PIN (emit uses LED_PIN).
-                // Other ALL_CAPS integers are TIME consts (ON_TIME = 100).
-                if looks_like_pin_const(&name) {
-                    if let Ok(pin) = rhs.parse::<u32>() {
+                // Pin constants: ASL_HW anno, *PIN name, or companion `*_pin = None`.
+                if let Ok(pin) = rhs.parse::<u32>() {
+                    let obj = pin_obj_from_const(&name);
+                    let is_pin = self.hw_annos.contains_key(&name)
+                        || looks_like_pin_const(&name)
+                        || self.pin_placeholders.contains_key(&obj);
+                    if is_pin {
                         self.pin_consts.insert(name.clone(), pin);
-                        hardware.push(HardwareEntry {
-                            pin,
-                            hw_type: HwType::Digital,
-                            io_mode: IoMode::Do,
-                            label: snake_to_camel(&name),
-                            target_role: "digital-out".into(),
-                        });
+                        if let Some(anno) = self
+                            .hw_annos
+                            .get(&name)
+                            .or_else(|| self.hw_annos.values().find(|h| h.pin == pin))
+                        {
+                            hardware.push(HardwareEntry {
+                                pin: anno.pin,
+                                hw_type: HwType::Digital,
+                                io_mode: anno.io_mode,
+                                label: anno.label.clone(),
+                                target_role: anno.target_role.clone(),
+                            });
+                        } else {
+                            hardware.push(HardwareEntry {
+                                pin,
+                                hw_type: HwType::Digital,
+                                io_mode: IoMode::Do,
+                                label: snake_to_camel(&name),
+                                target_role: "digital-out".into(),
+                            });
+                        }
                         continue;
                     }
+                }
+                if let Some(anno) = self.data_annos.get(&name) {
+                    let mut init = rhs.clone();
+                    if anno.data_type == DataType::Time {
+                        if let Ok(ms) = rhs.parse::<u64>() {
+                            init = format!("T#{ms}ms");
+                        }
+                    } else if anno.data_type == DataType::Bool {
+                        init = if rhs == "True" {
+                            "TRUE".into()
+                        } else {
+                            "FALSE".into()
+                        };
+                    }
+                    data.push(DataEntry {
+                        name,
+                        data_type: anno.data_type,
+                        scope: anno.scope,
+                        init,
+                        unit: anno.unit.clone(),
+                    });
+                    continue;
                 }
                 let (data_type, init, scope) = classify_global(&name, &rhs);
                 data.push(DataEntry {
@@ -393,6 +489,9 @@ impl Parser {
             pin_consts: self.pin_consts.clone(),
             pin_objs: self.pin_objs.clone(),
             obj_to_pin: self.obj_to_pin.clone(),
+            pin_placeholders: self.pin_placeholders.clone(),
+            hw_annos: self.hw_annos.clone(),
+            data_annos: self.data_annos.clone(),
         }
     }
 
@@ -409,6 +508,9 @@ impl Parser {
                 let opcode = match mode.as_str() {
                     "Pin.IN" => "CFG_DIGITAL_INPUT",
                     "Pin.IN, Pin.PULL_UP" | "Pin.IN,Pin.PULL_UP" => "CFG_DIGITAL_INPUT_PULLUP",
+                    "Pin.IN, Pin.PULL_DOWN" | "Pin.IN,Pin.PULL_DOWN" => {
+                        "CFG_DIGITAL_INPUT_PULLDOWN"
+                    }
                     _ => "CFG_DIGITAL_OUTPUT",
                 };
                 return Ok(Stmt::Call {
@@ -572,6 +674,80 @@ fn looks_like_pin_const(name: &str) -> bool {
     upper == "PIN" || upper.ends_with("_PIN") || upper.starts_with("PIN_")
 }
 
+fn pin_obj_from_const(const_name: &str) -> String {
+    let lower = const_name.to_ascii_lowercase();
+    if lower.ends_with("_pin") {
+        lower
+    } else {
+        format!("{lower}_pin")
+    }
+}
+
+fn parse_asl_hw_anno(body: &str) -> Option<HwAnno> {
+    let mut pin = None;
+    let mut label = String::new();
+    let mut role = String::from("digital-out");
+    let mut io_mode = IoMode::Do;
+    for part in body.split_whitespace() {
+        if let Some(v) = part.strip_prefix("pin=") {
+            pin = v.parse().ok();
+        } else if let Some(v) = part.strip_prefix("label=") {
+            label = v.to_string();
+        } else if let Some(v) = part.strip_prefix("role=") {
+            role = v.to_string();
+        } else if let Some(v) = part.strip_prefix("mode=") {
+            io_mode = match v {
+                "Di" | "DI" => IoMode::Di,
+                "Bi" | "BI" => IoMode::Bi,
+                _ => IoMode::Do,
+            };
+        }
+    }
+    let pin = pin?;
+    if label.is_empty() {
+        label = format!("pin{pin}");
+    }
+    Some(HwAnno {
+        pin,
+        io_mode,
+        label,
+        target_role: role,
+    })
+}
+
+fn parse_asl_data_anno(body: &str) -> Option<(String, DataAnno)> {
+    let mut name = None;
+    let mut data_type = DataType::Uint;
+    let mut scope = Scope::Var;
+    let mut unit = String::from("-");
+    for part in body.split_whitespace() {
+        if let Some(v) = part.strip_prefix("name=") {
+            name = Some(v.to_string());
+        } else if let Some(v) = part.strip_prefix("type=") {
+            data_type = DataType::parse(v)?;
+        } else if let Some(v) = part.strip_prefix("scope=") {
+            scope = match v {
+                "CONST" => Scope::Const,
+                "RETAIN" => Scope::Retain,
+                "PERSISTENT" => Scope::Persistent,
+                "TEMP" => Scope::Temp,
+                "EXTERN" => Scope::Extern,
+                _ => Scope::Var,
+            };
+        } else if let Some(v) = part.strip_prefix("unit=") {
+            unit = v.to_string();
+        }
+    }
+    Some((
+        name?,
+        DataAnno {
+            data_type,
+            scope,
+            unit,
+        },
+    ))
+}
+
 fn snake_to_camel(s: &str) -> String {
     let lower = s.to_ascii_lowercase();
     let mut out = String::new();
@@ -594,7 +770,18 @@ fn snake_to_camel(s: &str) -> String {
 }
 
 fn to_upper_snake(s: &str) -> String {
-    s.to_ascii_uppercase()
+    let mut out = String::new();
+    for (i, c) in s.chars().enumerate() {
+        if c.is_uppercase() && i > 0 {
+            out.push('_');
+        }
+        out.push(c.to_ascii_uppercase());
+    }
+    if out.is_empty() {
+        "PIN".into()
+    } else {
+        out
+    }
 }
 
 fn parse_pin_ctor(rhs: &str) -> Option<(String, String)> {
@@ -1048,7 +1235,9 @@ fn refine_hardware(hardware: &mut [HardwareEntry], setup: &[Stmt]) {
             };
             if let Some(h) = hardware.iter_mut().find(|h| h.pin == pin) {
                 match name.as_str() {
-                    "CFG_DIGITAL_INPUT" | "CFG_DIGITAL_INPUT_PULLUP" => {
+                    "CFG_DIGITAL_INPUT"
+                    | "CFG_DIGITAL_INPUT_PULLUP"
+                    | "CFG_DIGITAL_INPUT_PULLDOWN" => {
                         h.io_mode = IoMode::Di;
                         h.target_role = "digital-in".into();
                     }
