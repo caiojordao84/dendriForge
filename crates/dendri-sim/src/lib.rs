@@ -1,6 +1,7 @@
 //! Deterministic scan-cycle simulator for ASL.
 //!
 //! Opcode set: GPIO, PWM, ADC, UART/serial, I2C/SPI config **and** transfers,
+//! Modbus TCP virtual register map (`CFG_MODBUS_TCP` + FC1–6 singles),
 //! string ops (`CONCAT` / `TO_STRING*`), math (`SQRT` / `LOG` / `IN_RANGE`),
 //! interrupts (`CFG_ATTACH_INTERRUPT` / `CFG_DETACH_INTERRUPT`, RISING/FALLING/CHANGE),
 //! plant physics (`CFG_PLANT_TANK` / `CFG_PLANT_THERMAL` synced to scan),
@@ -19,7 +20,9 @@ use dendri_ast::stmt::Stmt;
 use dendri_ast::{Program, Scope, SimulationProject};
 use dendri_parse::parse_expr_text;
 
+mod modbus;
 mod value;
+pub use modbus::ModbusMap;
 pub use value::Value;
 
 /// One deterministic trace event.
@@ -364,6 +367,8 @@ pub struct Simulator {
     i2c_mem: HashMap<(u64, u64), u64>,
     /// Virtual SPI per-bus last/device byte.
     spi_mem: HashMap<u64, u64>,
+    /// Virtual Modbus TCP register map (unit, addr) — not a wire stack.
+    modbus: ModbusMap,
     /// In-memory FAT stub (path → file contents). Not a real filesystem.
     fat_files: HashMap<String, String>,
     time_ms: u64,
@@ -411,6 +416,14 @@ pub struct SimConfig {
     pub i2c_seed: HashMap<(u64, u64), u64>,
     /// Seed SPI device bytes as `bus → byte`.
     pub spi_seed: HashMap<u64, u64>,
+    /// Seed Modbus holding registers as `(unit_id, addr) → WORD`.
+    pub mb_holding_seed: HashMap<(u64, u64), u16>,
+    /// Seed Modbus coils as `(unit_id, addr) → BOOL`.
+    pub mb_coil_seed: HashMap<(u64, u64), bool>,
+    /// Seed Modbus input registers (FC4, read-only) as `(unit_id, addr) → WORD`.
+    pub mb_input_seed: HashMap<(u64, u64), u16>,
+    /// Seed Modbus discrete inputs (FC2, read-only) as `(unit_id, addr) → BOOL`.
+    pub mb_discrete_seed: HashMap<(u64, u64), bool>,
 }
 
 impl Default for SimConfig {
@@ -424,6 +437,10 @@ impl Default for SimConfig {
             retain_seed: HashMap::new(),
             i2c_seed: HashMap::new(),
             spi_seed: HashMap::new(),
+            mb_holding_seed: HashMap::new(),
+            mb_coil_seed: HashMap::new(),
+            mb_input_seed: HashMap::new(),
+            mb_discrete_seed: HashMap::new(),
         }
     }
 }
@@ -471,6 +488,12 @@ impl Simulator {
             nv_store,
             i2c_mem: config.i2c_seed.clone(),
             spi_mem: config.spi_seed.clone(),
+            modbus: ModbusMap::from_seeds(
+                config.mb_holding_seed.clone(),
+                config.mb_coil_seed.clone(),
+                config.mb_input_seed.clone(),
+                config.mb_discrete_seed.clone(),
+            ),
             fat_files: HashMap::new(),
             time_ms: 0,
             cycle: 0,
@@ -527,6 +550,7 @@ impl Simulator {
         let nv = self.nv_store.clone();
         let i2c = self.i2c_mem.clone();
         let spi = self.spi_mem.clone();
+        let modbus = self.modbus.clone();
         let fat_files = self.fat_files.clone();
         let program = self.program.clone();
         let functions = self.functions.clone();
@@ -559,6 +583,7 @@ impl Simulator {
         self.nv_store = nv;
         self.i2c_mem = i2c;
         self.spi_mem = spi;
+        self.modbus = modbus;
         self.fat_files = fat_files;
         self.time_ms = 0;
         self.cycle = 0;
@@ -585,6 +610,21 @@ impl Simulator {
     /// Read virtual FAT stub contents (path → text), if any.
     pub fn fat_file(&self, path: &str) -> Option<&str> {
         self.fat_files.get(path).map(|s| s.as_str())
+    }
+
+    /// Borrow the virtual Modbus TCP register map.
+    pub fn modbus(&self) -> &ModbusMap {
+        &self.modbus
+    }
+
+    /// Holding register value, or `0` if unset.
+    pub fn mb_holding(&self, unit: u64, addr: u64) -> u16 {
+        *self.modbus.holding.get(&(unit, addr)).unwrap_or(&0)
+    }
+
+    /// Coil value, or `false` if unset.
+    pub fn mb_coil(&self, unit: u64, addr: u64) -> bool {
+        *self.modbus.coils.get(&(unit, addr)).unwrap_or(&false)
     }
 
     fn sync_nv_from_vars(&mut self) {
@@ -1325,6 +1365,112 @@ impl Simulator {
                     detail: format!("XFER bus={bus} tx=0x{data:02X} rx=0x{prev:02X}"),
                 });
                 Ok(Value::Uint(prev))
+            }
+            "CFG_MODBUS_TCP" => {
+                if args.len() != 3 {
+                    return Err(format!(
+                        "CFG_MODBUS_TCP expects 3 args, got {}",
+                        args.len()
+                    ));
+                }
+                let unit_id = self.eval(&args[0])?.as_u64()?;
+                let role = self.eval(&args[1])?.as_string()?;
+                let port = self.eval(&args[2])?.as_u64()?;
+                let detail = self.modbus.configure(unit_id, role, port);
+                self.push(TraceKind::BusCfg {
+                    bus: "MODBUS_TCP".into(),
+                    detail,
+                });
+                Ok(Value::Void)
+            }
+            "MB_WRITE_HOLDING" => {
+                if args.len() != 3 {
+                    return Err(format!(
+                        "MB_WRITE_HOLDING expects 3 args, got {}",
+                        args.len()
+                    ));
+                }
+                let unit = self.eval(&args[0])?.as_u64()?;
+                let addr = self.eval(&args[1])?.as_u64()?;
+                let value = (self.eval(&args[2])?.as_u64()? & 0xffff) as u16;
+                let detail = self.modbus.write_holding(unit, addr, value);
+                self.push(TraceKind::BusXfer {
+                    bus: "MODBUS_TCP".into(),
+                    detail,
+                });
+                Ok(Value::Void)
+            }
+            "MB_READ_HOLDING" => {
+                if args.len() != 2 {
+                    return Err(format!(
+                        "MB_READ_HOLDING expects 2 args, got {}",
+                        args.len()
+                    ));
+                }
+                let unit = self.eval(&args[0])?.as_u64()?;
+                let addr = self.eval(&args[1])?.as_u64()?;
+                let (value, detail) = self.modbus.read_holding(unit, addr);
+                self.push(TraceKind::BusXfer {
+                    bus: "MODBUS_TCP".into(),
+                    detail,
+                });
+                Ok(Value::Uint(value as u64))
+            }
+            "MB_WRITE_COIL" => {
+                if args.len() != 3 {
+                    return Err(format!("MB_WRITE_COIL expects 3 args, got {}", args.len()));
+                }
+                let unit = self.eval(&args[0])?.as_u64()?;
+                let addr = self.eval(&args[1])?.as_u64()?;
+                let value = self.eval(&args[2])?.as_bool()?;
+                let detail = self.modbus.write_coil(unit, addr, value);
+                self.push(TraceKind::BusXfer {
+                    bus: "MODBUS_TCP".into(),
+                    detail,
+                });
+                Ok(Value::Void)
+            }
+            "MB_READ_COIL" => {
+                if args.len() != 2 {
+                    return Err(format!("MB_READ_COIL expects 2 args, got {}", args.len()));
+                }
+                let unit = self.eval(&args[0])?.as_u64()?;
+                let addr = self.eval(&args[1])?.as_u64()?;
+                let (value, detail) = self.modbus.read_coil(unit, addr);
+                self.push(TraceKind::BusXfer {
+                    bus: "MODBUS_TCP".into(),
+                    detail,
+                });
+                Ok(Value::Bool(value))
+            }
+            "MB_READ_INPUT" => {
+                if args.len() != 2 {
+                    return Err(format!("MB_READ_INPUT expects 2 args, got {}", args.len()));
+                }
+                let unit = self.eval(&args[0])?.as_u64()?;
+                let addr = self.eval(&args[1])?.as_u64()?;
+                let (value, detail) = self.modbus.read_input(unit, addr);
+                self.push(TraceKind::BusXfer {
+                    bus: "MODBUS_TCP".into(),
+                    detail,
+                });
+                Ok(Value::Uint(value as u64))
+            }
+            "MB_READ_DISCRETE" => {
+                if args.len() != 2 {
+                    return Err(format!(
+                        "MB_READ_DISCRETE expects 2 args, got {}",
+                        args.len()
+                    ));
+                }
+                let unit = self.eval(&args[0])?.as_u64()?;
+                let addr = self.eval(&args[1])?.as_u64()?;
+                let (value, detail) = self.modbus.read_discrete(unit, addr);
+                self.push(TraceKind::BusXfer {
+                    bus: "MODBUS_TCP".into(),
+                    detail,
+                });
+                Ok(Value::Bool(value))
             }
             "WAIT_TIME" => {
                 let ms = match self.eval(&args[0])? {

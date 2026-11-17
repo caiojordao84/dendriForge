@@ -335,5 +335,6 @@ sw = "STEP 7 Basic V11+ / TIA Portal V11+; TIA Portal Professional V13+ for full
 board_family_skill_id = "siemens-simatic-s7-1200-plc-family"
 board_profile_id = "siemens-s7-1200-cpu-1214c"
 default_language_skills = ["ladder-tia-portal-s7-1200", "fbd-tia-portal-s7-1200", "scl-tia-portal-s7-1200"]
+sim_protocols = ["modbus-tcp"]
 svg_path = "content/assets/svg/boards/siemens-s7-1200-cpu-1214c.svg"
 svg_status = "authored"

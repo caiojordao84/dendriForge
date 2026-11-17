@@ -1,0 +1,20 @@
+t=     0 BOOT
+t=     0 BUS_CFG UART baud=115200
+t=     0 BUS_CFG MODBUS_TCP unit=1 role=server port=502
+t=     0 SETUP_DONE
+t=     0 SCAN_START cycle=1
+t=     0 PIN_WRITE pin=13 value=true
+t=     0 BUS_XFER MODBUS_TCP WRITE_HOLDING unit=1 addr=100 value=0x1234
+t=     0 BUS_XFER MODBUS_TCP READ_HOLDING unit=1 addr=100 value=0x1234
+t=     0 ASSIGN hr=4660
+t=     0 BUS_XFER MODBUS_TCP WRITE_COIL unit=1 addr=0 value=true
+t=     0 BUS_XFER MODBUS_TCP READ_COIL unit=1 addr=0 value=true
+t=     0 ASSIGN coil=true
+t=     0 BUS_XFER MODBUS_TCP READ_INPUT unit=1 addr=10 value=0x00AB
+t=     0 ASSIGN ir=171
+t=     0 BUS_XFER MODBUS_TCP READ_DISCRETE unit=1 addr=2 value=true
+t=     0 ASSIGN di=true
+t=     0 ASSIGN msg="hr=4660,coil=true,ir=171,di=true"
+t=     0 SERIAL_OUT hr=4660,coil=true,ir=171,di=true\n
+t=     0 PIN_WRITE pin=13 value=false
+t=     0 SCAN_END cycle=1

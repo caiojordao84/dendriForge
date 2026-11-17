@@ -282,3 +282,44 @@ fn project_sim_runs() {
     assert!(text.contains("PIN_WRITE"));
     assert!(text.contains("WAIT"));
 }
+
+#[test]
+fn s29_modbus_tcp_trace() {
+    let mut mb_input_seed = std::collections::HashMap::new();
+    mb_input_seed.insert((1, 10), 0x00AB);
+    let mut mb_discrete_seed = std::collections::HashMap::new();
+    mb_discrete_seed.insert((1, 2), true);
+    assert_trace_with(
+        "S29-modbus-tcp.asl.toml",
+        1,
+        SimConfig {
+            max_cycles: 1,
+            mb_input_seed,
+            mb_discrete_seed,
+            ..SimConfig::default()
+        },
+    );
+}
+
+#[test]
+fn s29_modbus_tcp_map_survives_soft_restart() {
+    let path = repo().join("content/fixtures/sim/S29-modbus-tcp.asl.toml");
+    let parsed = parse_program_file(&path).unwrap();
+    let mut mb_input_seed = std::collections::HashMap::new();
+    mb_input_seed.insert((1, 10), 0x00AB);
+    let mut sim = Simulator::from_program(
+        parsed.program,
+        &SimConfig {
+            max_cycles: 1,
+            mb_input_seed,
+            ..SimConfig::default()
+        },
+    );
+    sim.run(1).unwrap();
+    assert_eq!(sim.mb_holding(1, 100), 0x1234);
+    assert!(sim.mb_coil(1, 0));
+    sim.soft_restart().unwrap();
+    assert_eq!(sim.mb_holding(1, 100), 0x1234);
+    assert!(sim.mb_coil(1, 0));
+    assert_eq!(sim.modbus().read_input(1, 10).0, 0x00AB);
+}

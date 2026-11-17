@@ -149,8 +149,14 @@ SVG canvas keyed by ASL identifiers in the TOML project; orthogonal wire routing
 ### Ladder / GRAFCET editors
 Mandatory I/O tables; bidirectional diagram ↔ TOML sync; reopen preserves layout and bindings.
 
+### Industrial protocols (P2)
+| Protocol | Status |
+|---|---|
+| Modbus TCP | **First slice (DEN-25):** virtual register map in `dendri-sim` (`CFG_MODBUS_TCP` + FC1–6 singles); profile `comm-modbus-tcp`; fixture S29. Not a wire MBAP/TCP stack. |
+| Modbus RTU / MQTT / OPC UA / PROFINET | Deferred |
+
 ### HMI / SCADA / IoT (later)
-Data-driven SVG bindings to ASL tags; internal sim bus first; protocols beyond MVP needs later.
+Data-driven SVG bindings to ASL tags; internal sim bus first; deeper protocol stacks after Modbus TCP map.
 
 ### AI assistant (BYOK, later)
 User-supplied keys / local CLI; always validate AI output through `dendri-validate`.

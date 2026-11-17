@@ -76,6 +76,11 @@ pub struct DendriMeta {
     pub component_profile_id: Option<String>,
     #[serde(default)]
     pub board_profile_id: Option<String>,
+    /// Industrial / bus protocols this profile can drive in sim (e.g. `modbus-tcp`).
+    #[serde(default)]
+    pub sim_protocols: Vec<String>,
+    #[serde(default)]
+    pub simulation_engine: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -395,7 +400,7 @@ mod tests {
         let components = s.list_ids("components").unwrap();
         let screens = s.list_ids("screens").unwrap();
         assert_eq!(boards.len(), 60, "all boards migrated");
-        assert_eq!(components.len(), 150, "all components migrated");
+        assert_eq!(components.len(), 151, "all components migrated");
         assert_eq!(screens.len(), 2, "all screens migrated");
         let report = s.validate_all().unwrap();
         assert!(
@@ -403,10 +408,24 @@ mod tests {
             "profile load errors: {:?}",
             report.errors
         );
-        assert_eq!(report.loaded, 212);
+        assert_eq!(report.loaded, 213);
         assert!(report.svg_present >= 6);
         // Screens load through dedicated API.
         let screen = s.load_screen("ind-hmi-numeric-indicator").unwrap();
         assert_eq!(screen.identification.id, "ind-hmi-numeric-indicator");
+    }
+
+    #[test]
+    fn modbus_tcp_profiles_declare_protocol() {
+        let s = store();
+        let siemens = s.load_board("siemens-s7-1200-cpu-1214c").unwrap();
+        let protos = &siemens.dendri.as_ref().unwrap().sim_protocols;
+        assert!(protos.iter().any(|p| p == "modbus-tcp"));
+        let gw = s.load_component("comm-modbus-tcp").unwrap();
+        assert_eq!(gw.identification.id, "comm-modbus-tcp");
+        assert_eq!(
+            gw.dendri.as_ref().unwrap().simulation_engine.as_deref(),
+            Some("modbus-tcp-register-map")
+        );
     }
 }

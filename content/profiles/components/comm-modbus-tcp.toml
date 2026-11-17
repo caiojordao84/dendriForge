@@ -1,0 +1,125 @@
+# component profile — Modbus TCP gateway / remote I/O (DEN-25 P2)
+# Virtual register-map partner for CFG_MODBUS_TCP / MB_* ops in dendri-sim.
+# ASL 0.0.1 lives on program IR (metadata.asl_version), not profiles.
+
+[metadata]
+author = "dendriForge"
+editor = "dendriForge"
+project_name = "comm-modbus-tcp-profile"
+
+[identification]
+category = "node"
+family = "communication"
+id = "comm-modbus-tcp"
+image = "comm-modbus-tcp.svg"
+name = "Modbus TCP Gateway / Remote I/O"
+standard = "Modbus TCP"
+subfamily = "industrial-ethernet"
+symbol = "comm-modbus-tcp-symbol.svg"
+symbol_standard = "IEC"
+
+[params.unit_id]
+default = 1
+editable = true
+label = "Modbus Unit ID"
+max = 247
+min = 1
+type = "int"
+
+[params.role]
+default = "server"
+editable = true
+label = "Role"
+options = ["server", "client"]
+type = "enum"
+
+[params.tcp_port]
+default = 502
+editable = true
+label = "TCP Port"
+max = 65535
+min = 1
+type = "int"
+
+[params.supply_voltage]
+default = 24
+editable = true
+label = "Supply Voltage"
+options = [12, 24]
+type = "enum"
+unit = "V"
+
+[[ports]]
+current_max = "200mA"
+direction = "input"
+id = "VCC"
+notes = "supply +"
+type = "power"
+voltage_max = "{supply_voltage}"
+
+[[ports]]
+direction = "input"
+id = "GND"
+notes = "supply -"
+type = "ground"
+
+[[protocol_ports]]
+direction = "bidirectional"
+id = "ETH"
+notes = "10/100 Ethernet — Modbus TCP (sim = virtual register map)"
+protocol = "Modbus-TCP"
+
+[simulation]
+bidirectional = true
+dynamic = true
+model = "script"
+noise_model = false
+protocol_emulation = true
+states = ["idle", "xfer", "fault"]
+thermal_model = false
+
+[limits]
+ip_rating = "IP20"
+max_current = "200mA"
+max_temp = 60
+max_voltage = "{supply_voltage}"
+min_temp = -10
+warnings = [
+  "Sim path is a virtual holding/coil/input/discrete map — not a real MBAP/TCP socket stack",
+  "Unit ID and register address ranges must match the controller configuration",
+]
+
+[connections]
+allowed_with = ["comm-*", "plc-*", "mcu-*"]
+forbidden_with = ["ac-source"]
+requires = ["dc-source"]
+typical_context = ["remote-io", "scada", "plc-gateway", "hmi"]
+
+[canvas]
+animated = true
+height = 50
+label_position = "top"
+
+[canvas.port_ETH]
+x = 30
+y = 50
+
+[canvas.port_GND]
+x = 45
+y = 0
+
+[canvas.port_VCC]
+x = 15
+y = 0
+ports_layout = "custom"
+value_display = "Modbus TCP / unit {unit_id}"
+width = 60
+
+[dendri]
+component_family_skill_id = "communication-family"
+component_profile_id = "comm-modbus-tcp"
+palette_group = "Communication > Industrial Ethernet"
+simulation_engine = "modbus-tcp-register-map"
+svg_path = "content/assets/svg/components/comm-modbus-tcp.svg"
+tags = ["modbus", "modbus-tcp", "ethernet", "communication", "industrial", "scada"]
+svg_status = "missing"

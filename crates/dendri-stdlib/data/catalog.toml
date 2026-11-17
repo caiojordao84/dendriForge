@@ -551,6 +551,65 @@ aliases = ["spiTransfer"]
 notes = "Sim: full-duplex byte transfer against per-bus device memory (returns previous byte)"
 
 # ---------------------------------------------------------------------------
+# Modbus TCP (P2 industrial — virtual register map; not a wire MBAP stack)
+# ---------------------------------------------------------------------------
+[[ops]]
+canonical = "CFG_MODBUS_TCP"
+category = "modbus"
+signature = "unit_id: UINT, role: STRING, port: UINT"
+returns = "VOID"
+aliases = ["modbusTcpBegin", "CFG_MODBUS"]
+notes = "Sim: bind virtual Modbus TCP endpoint (unit/role/port). role=server|client (slave/master aliases). No real TCP sockets."
+
+[[ops]]
+canonical = "MB_READ_HOLDING"
+category = "modbus"
+signature = "unit_id: UINT, addr: UINT"
+returns = "WORD"
+aliases = ["modbusReadHolding", "MB_FC3"]
+notes = "Sim: FC3 single holding register read; missing → 0"
+
+[[ops]]
+canonical = "MB_WRITE_HOLDING"
+category = "modbus"
+signature = "unit_id: UINT, addr: UINT, value: WORD"
+returns = "VOID"
+aliases = ["modbusWriteHolding", "MB_FC6"]
+notes = "Sim: FC6 single holding register write"
+
+[[ops]]
+canonical = "MB_READ_COIL"
+category = "modbus"
+signature = "unit_id: UINT, addr: UINT"
+returns = "BOOL"
+aliases = ["modbusReadCoil", "MB_FC1"]
+notes = "Sim: FC1 single coil read; missing → FALSE"
+
+[[ops]]
+canonical = "MB_WRITE_COIL"
+category = "modbus"
+signature = "unit_id: UINT, addr: UINT, value: BOOL"
+returns = "VOID"
+aliases = ["modbusWriteCoil", "MB_FC5"]
+notes = "Sim: FC5 single coil write"
+
+[[ops]]
+canonical = "MB_READ_INPUT"
+category = "modbus"
+signature = "unit_id: UINT, addr: UINT"
+returns = "WORD"
+aliases = ["modbusReadInput", "MB_FC4"]
+notes = "Sim: FC4 single input register read (seedable RO); missing → 0"
+
+[[ops]]
+canonical = "MB_READ_DISCRETE"
+category = "modbus"
+signature = "unit_id: UINT, addr: UINT"
+returns = "BOOL"
+aliases = ["modbusReadDiscrete", "MB_FC2"]
+notes = "Sim: FC2 single discrete input read (seedable RO); missing → FALSE"
+
+# ---------------------------------------------------------------------------
 # Display
 # ---------------------------------------------------------------------------
 [[ops]]
