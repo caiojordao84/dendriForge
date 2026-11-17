@@ -2,12 +2,13 @@
 //!
 //! Opcode set: GPIO, PWM, ADC, UART/serial, I2C/SPI config **and** transfers,
 //! string ops (`CONCAT` / `TO_STRING*`), math (`SQRT` / `LOG` / `IN_RANGE`),
+//! interrupts (`CFG_ATTACH_INTERRUPT` / `CFG_DETACH_INTERRUPT`, RISING/FALLING/CHANGE),
 //! `SYS_*_RETAIN` + soft-restart persistence, MAP_RANGE, and IEC FBs
 //! (TON/TOF/TP, CTU/CTD/CTUD, R_TRIG/F_TRIG).
 //! Interactive `step` / pin APIs feed the live SVG canvas (`dendri-canvas`);
 //! this crate still emits logical traces for CI snapshots.
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt::Write as _;
 
 use dendri_ast::expr::{BinaryOp, Expr, UnaryOp};
@@ -69,7 +70,63 @@ pub enum TraceKind {
         cv: i64,
     },
     Assign { name: String, value: String },
+    IsrAttach {
+        pin: u32,
+        mode: String,
+        handler: String,
+    },
+    IsrDetach { pin: u32 },
+    IsrFire {
+        pin: u32,
+        mode: String,
+        handler: String,
+        level: bool,
+    },
     Halt { reason: String },
+}
+
+/// Edge trigger mode for `CFG_ATTACH_INTERRUPT`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EdgeMode {
+    Rising,
+    Falling,
+    Change,
+}
+
+impl EdgeMode {
+    pub fn parse(s: &str) -> Result<Self, String> {
+        match s.trim().to_ascii_uppercase().as_str() {
+            "RISING" => Ok(Self::Rising),
+            "FALLING" => Ok(Self::Falling),
+            "CHANGE" => Ok(Self::Change),
+            other => Err(format!("unknown EDGE mode {other}")),
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Rising => "RISING",
+            Self::Falling => "FALLING",
+            Self::Change => "CHANGE",
+        }
+    }
+
+    fn matches(self, prev: bool, next: bool) -> bool {
+        if prev == next {
+            return false;
+        }
+        match self {
+            Self::Rising => !prev && next,
+            Self::Falling => prev && !next,
+            Self::Change => true,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct InterruptAttach {
+    handler: String,
+    mode: EdgeMode,
 }
 
 impl TraceEvent {
@@ -156,6 +213,24 @@ impl TraceEvent {
             TraceKind::Assign { name, value } => {
                 format!("t={:>6} ASSIGN {name}={value}", self.time_ms)
             }
+            TraceKind::IsrAttach { pin, mode, handler } => {
+                format!(
+                    "t={:>6} ISR_ATTACH pin={pin} mode={mode} handler={handler}",
+                    self.time_ms
+                )
+            }
+            TraceKind::IsrDetach { pin } => {
+                format!("t={:>6} ISR_DETACH pin={pin}", self.time_ms)
+            }
+            TraceKind::IsrFire {
+                pin,
+                mode,
+                handler,
+                level,
+            } => format!(
+                "t={:>6} ISR_FIRE pin={pin} mode={mode} handler={handler} level={level}",
+                self.time_ms
+            ),
             TraceKind::Halt { reason } => {
                 format!("t={:>6} HALT {reason}", self.time_ms)
             }
@@ -222,6 +297,12 @@ pub struct Simulator {
     edges: HashMap<String, EdgeState>,
     counters: HashMap<String, CounterState>,
     functions: HashMap<String, (Vec<String>, Vec<Stmt>)>,
+    /// Pin → attached ISR (external edge via `set_pin`).
+    interrupts: HashMap<u32, InterruptAttach>,
+    /// Vars written inside `isr_*` bodies (volatile for codegen / honesty).
+    volatile_vars: HashSet<String>,
+    /// True while an ISR body is executing (shared-state writes are volatile).
+    in_isr: bool,
     pub trace: Vec<TraceEvent>,
     /// Max statements per scan to avoid runaway while/for.
     stmt_budget: usize,
@@ -314,6 +395,9 @@ impl Simulator {
             edges: HashMap::new(),
             counters: HashMap::new(),
             functions,
+            interrupts: HashMap::new(),
+            volatile_vars: HashSet::new(),
+            in_isr: false,
             trace: Vec::new(),
             stmt_budget: config.stmt_budget,
             initial_pins: config.initial_pins.clone(),
@@ -390,6 +474,9 @@ impl Simulator {
         self.timers.clear();
         self.edges.clear();
         self.counters.clear();
+        self.interrupts.clear();
+        self.volatile_vars.clear();
+        self.in_isr = false;
         self.functions = functions;
         self.scopes = scopes;
         self.trace.clear();
@@ -452,7 +539,7 @@ impl Simulator {
             return Ok(());
         }
         self.push(TraceKind::Boot);
-        self.exec_block(&self.program.setup.clone())?;
+        self.exec_block_top(&self.program.setup.clone())?;
         self.setup_done = true;
         self.push(TraceKind::SetupDone);
         Ok(())
@@ -463,7 +550,7 @@ impl Simulator {
         self.ensure_setup()?;
         self.cycle += 1;
         self.push(TraceKind::ScanStart { cycle: self.cycle });
-        self.exec_block(&self.program.loop_body.clone())?;
+        self.exec_block_top(&self.program.loop_body.clone())?;
         self.push(TraceKind::ScanEnd { cycle: self.cycle });
         Ok(())
     }
@@ -472,8 +559,142 @@ impl Simulator {
         *self.pins.get(&pin).unwrap_or(&false)
     }
 
-    pub fn set_pin(&mut self, pin: u32, value: bool) {
+    /// Vars written from ISR bodies (sim-visible volatile set).
+    pub fn volatile_vars(&self) -> &HashSet<String> {
+        &self.volatile_vars
+    }
+
+    /// Attached interrupt map: pin → (handler, mode string).
+    pub fn interrupts(&self) -> Vec<(u32, String, String)> {
+        let mut out: Vec<_> = self
+            .interrupts
+            .iter()
+            .map(|(pin, att)| (*pin, att.handler.clone(), att.mode.as_str().to_string()))
+            .collect();
+        out.sort_by_key(|(p, _, _)| *p);
+        out
+    }
+
+    /// Drive an external input pin. Fires attached ISRs on matching edges.
+    pub fn set_pin(&mut self, pin: u32, value: bool) -> Result<(), String> {
+        let prev = *self.pins.get(&pin).unwrap_or(&false);
         self.pins.insert(pin, value);
+        if prev != value {
+            self.maybe_fire_isr(pin, prev, value)?;
+        }
+        Ok(())
+    }
+
+    fn maybe_fire_isr(&mut self, pin: u32, prev: bool, next: bool) -> Result<(), String> {
+        let Some(att) = self.interrupts.get(&pin).cloned() else {
+            return Ok(());
+        };
+        if !att.mode.matches(prev, next) {
+            return Ok(());
+        }
+        self.push(TraceKind::IsrFire {
+            pin,
+            mode: att.mode.as_str().to_string(),
+            handler: att.handler.clone(),
+            level: next,
+        });
+        self.invoke_isr(&att.handler)
+    }
+
+    fn invoke_isr(&mut self, handler: &str) -> Result<(), String> {
+        let Some((params, body)) = self.functions.get(handler).cloned() else {
+            return Err(format!("ISR handler {handler} not found"));
+        };
+        if !params.is_empty() {
+            return Err(format!("ISR {handler} must take zero params"));
+        }
+        let was = self.in_isr;
+        self.in_isr = true;
+        let result = self.exec_function_body(handler, &[], &body);
+        self.in_isr = was;
+        result.map(|_| ())
+    }
+
+    /// Execute a user function body; persists mutations to pre-existing globals.
+    fn exec_function_body(
+        &mut self,
+        name: &str,
+        args: &[Expr],
+        body: &[Stmt],
+    ) -> Result<Value, String> {
+        let Some((params, _)) = self.functions.get(name).cloned() else {
+            return Err(format!("function {name} not found"));
+        };
+        if params.len() != args.len() {
+            return Err(format!(
+                "arity mismatch calling {name}: {} vs {}",
+                params.len(),
+                args.len()
+            ));
+        }
+        let mut locals = HashMap::new();
+        for (p, a) in params.iter().zip(args.iter()) {
+            locals.insert(p.clone(), self.eval(a)?);
+        }
+        let saved = self.vars.clone();
+        for (k, v) in locals {
+            self.vars.insert(k, v);
+        }
+        let ret = match self.exec_block(body)? {
+            Some(v) => v,
+            None => Value::Bool(false),
+        };
+        let mut merged = saved;
+        for (k, v) in self.vars.drain() {
+            if merged.contains_key(&k) {
+                merged.insert(k, v);
+            }
+        }
+        self.vars = merged;
+        Ok(ret)
+    }
+
+    fn resolve_isr_ref(expr: &Expr) -> Result<String, String> {
+        match expr {
+            Expr::Var { name } => Ok(name.clone()),
+            Expr::String { value } => Ok(value.clone()),
+            Expr::Lit {
+                value: Literal::String { value },
+            } => Ok(value.clone()),
+            other => Err(format!("ISR_REF expected var/string, got {other:?}")),
+        }
+    }
+
+    fn collect_assigns(stmts: &[Stmt], out: &mut HashSet<String>) {
+        for stmt in stmts {
+            match stmt {
+                Stmt::Assign { target, .. } => {
+                    out.insert(target.clone());
+                }
+                Stmt::If {
+                    then,
+                    elif,
+                    else_body,
+                    ..
+                } => {
+                    Self::collect_assigns(then, out);
+                    for arm in elif {
+                        Self::collect_assigns(&arm.then, out);
+                    }
+                    if let Some(body) = else_body {
+                        Self::collect_assigns(body, out);
+                    }
+                }
+                Stmt::While { body, .. } | Stmt::For { body, .. } => {
+                    Self::collect_assigns(body, out);
+                }
+                Stmt::Call { .. }
+                | Stmt::Return { .. }
+                | Stmt::Exit
+                | Stmt::Continue
+                | Stmt::VendorExtension { .. } => {}
+            }
+        }
     }
 
     pub fn pins(&self) -> &HashMap<u32, bool> {
@@ -500,14 +721,17 @@ impl Simulator {
         s
     }
 
-    fn exec_block(&mut self, body: &[Stmt]) -> Result<(), String> {
+    /// `Ok(Some(v))` = early `return` (possibly nested); `Ok(None)` = fall through.
+    fn exec_block(&mut self, body: &[Stmt]) -> Result<Option<Value>, String> {
         for stmt in body {
-            self.exec_stmt(stmt)?;
+            if let Some(v) = self.exec_stmt(stmt)? {
+                return Ok(Some(v));
+            }
         }
-        Ok(())
+        Ok(None)
     }
 
-    fn exec_stmt(&mut self, stmt: &Stmt) -> Result<(), String> {
+    fn exec_stmt(&mut self, stmt: &Stmt) -> Result<Option<Value>, String> {
         if self.stmt_budget == 0 {
             return Err("statement budget exceeded".into());
         }
@@ -520,13 +744,18 @@ impl Simulator {
                     name: target.clone(),
                     value: v.to_trace(),
                 });
+                if self.in_isr {
+                    self.volatile_vars.insert(target.clone());
+                }
                 if self.is_nv_scope(target) {
                     self.nv_store.insert(target.clone(), v.clone());
                 }
                 self.vars.insert(target.clone(), v);
+                Ok(None)
             }
             Stmt::Call { name, args } => {
                 self.eval_call(name, args)?;
+                Ok(None)
             }
             Stmt::If {
                 condition,
@@ -535,55 +764,71 @@ impl Simulator {
                 else_body,
             } => {
                 if self.eval(condition)?.as_bool()? {
-                    self.exec_block(then)?;
+                    self.exec_block(then)
                 } else {
-                    let mut taken = false;
                     for arm in elif {
                         if self.eval(&arm.condition)?.as_bool()? {
-                            self.exec_block(&arm.then)?;
-                            taken = true;
-                            break;
+                            return self.exec_block(&arm.then);
                         }
                     }
-                    if !taken {
-                        if let Some(body) = else_body {
-                            self.exec_block(body)?;
-                        }
+                    if let Some(body) = else_body {
+                        self.exec_block(body)
+                    } else {
+                        Ok(None)
                     }
                 }
             }
             Stmt::While { condition, body } => {
                 let mut guard = 0u32;
                 while self.eval(condition)?.as_bool()? {
-                    self.exec_block(body)?;
+                    if let Some(v) = self.exec_block(body)? {
+                        return Ok(Some(v));
+                    }
                     guard += 1;
                     if guard > 1000 {
                         return Err("while loop guard exceeded".into());
                     }
                 }
+                Ok(None)
             }
             Stmt::For { counter, to, body } => {
                 let n = self.eval(to)?.as_u64()?;
                 let cname = counter.clone().unwrap_or_else(|| "_i".into());
                 for i in 0..n {
                     self.vars.insert(cname.clone(), Value::Uint(i));
-                    self.exec_block(body)?;
+                    if let Some(v) = self.exec_block(body)? {
+                        return Ok(Some(v));
+                    }
                 }
+                Ok(None)
             }
-            Stmt::Return { .. } => {
-                return Err("return outside function".into());
+            Stmt::Return { value } => {
+                let v = if let Some(expr) = value {
+                    self.eval(expr)?
+                } else {
+                    Value::Bool(false)
+                };
+                Ok(Some(v))
             }
             Stmt::Exit => {
                 self.push(TraceKind::Halt {
                     reason: "EXIT".into(),
                 });
+                Ok(None)
             }
-            Stmt::Continue => {}
+            Stmt::Continue => Ok(None),
             Stmt::VendorExtension { reason } => {
                 self.push(TraceKind::Halt {
                     reason: format!("VENDOR_EXTENSION:{reason}"),
                 });
+                Ok(None)
             }
+        }
+    }
+
+    fn exec_block_top(&mut self, body: &[Stmt]) -> Result<(), String> {
+        if let Some(_) = self.exec_block(body)? {
+            return Err("return outside function".into());
         }
         Ok(())
     }
@@ -636,50 +881,60 @@ impl Simulator {
         let canon = dendri_stdlib::resolve_name(name).unwrap_or(name);
 
         // User function
-        if let Some((params, body)) = self.functions.get(canon).cloned() {
-            if params.len() != args.len() {
-                return Err(format!(
-                    "arity mismatch calling {canon}: {} vs {}",
-                    params.len(),
-                    args.len()
-                ));
-            }
-            let mut locals = HashMap::new();
-            for (p, a) in params.iter().zip(args.iter()) {
-                locals.insert(p.clone(), self.eval(a)?);
-            }
-            let saved = self.vars.clone();
-            for (k, v) in locals {
-                self.vars.insert(k, v);
-            }
-            let mut ret = Value::Bool(false);
-            for stmt in &body {
-                match stmt {
-                    Stmt::Return { value } => {
-                        ret = if let Some(v) = value {
-                            self.eval(v)?
-                        } else {
-                            Value::Bool(false)
-                        };
-                        break;
-                    }
-                    other => self.exec_stmt(other)?,
-                }
-            }
-            let mut merged = saved;
-            for (k, v) in self.vars.drain() {
-                if merged.contains_key(&k) {
-                    merged.insert(k, v);
-                }
-            }
-            self.vars = merged;
-            return Ok(ret);
+        if let Some((_params, body)) = self.functions.get(canon).cloned() {
+            return self.exec_function_body(canon, args, &body);
         }
 
         match canon {
             "CFG_DIGITAL_OUTPUT" | "CFG_DIGITAL_INPUT" | "CFG_DIGITAL_INPUT_PULLUP"
             | "CFG_DIGITAL_INPUT_PULLDOWN" => {
                 let _pin = self.eval(&args[0])?.as_u64()? as u32;
+                Ok(Value::Void)
+            }
+            "CFG_ATTACH_INTERRUPT" => {
+                if args.len() != 3 {
+                    return Err(format!(
+                        "CFG_ATTACH_INTERRUPT expects 3 args, got {}",
+                        args.len()
+                    ));
+                }
+                let pin = self.eval(&args[0])?.as_u64()? as u32;
+                let handler = Self::resolve_isr_ref(&args[1])?;
+                if !self.functions.contains_key(&handler) {
+                    return Err(format!("unresolved ISR reference: {handler}"));
+                }
+                let mode_s = self.eval(&args[2])?.as_string()?;
+                let mode = EdgeMode::parse(&mode_s)?;
+                // Static volatile set: assignment targets inside the ISR body.
+                if let Some((_, body)) = self.functions.get(&handler).cloned() {
+                    let mut written = HashSet::new();
+                    Self::collect_assigns(&body, &mut written);
+                    self.volatile_vars.extend(written);
+                }
+                self.interrupts.insert(
+                    pin,
+                    InterruptAttach {
+                        handler: handler.clone(),
+                        mode,
+                    },
+                );
+                self.push(TraceKind::IsrAttach {
+                    pin,
+                    mode: mode.as_str().to_string(),
+                    handler,
+                });
+                Ok(Value::Void)
+            }
+            "CFG_DETACH_INTERRUPT" => {
+                if args.len() != 1 {
+                    return Err(format!(
+                        "CFG_DETACH_INTERRUPT expects 1 arg, got {}",
+                        args.len()
+                    ));
+                }
+                let pin = self.eval(&args[0])?.as_u64()? as u32;
+                self.interrupts.remove(&pin);
+                self.push(TraceKind::IsrDetach { pin });
                 Ok(Value::Void)
             }
             "SET_BOOL" => {
@@ -1051,6 +1306,14 @@ impl Simulator {
                     return Err("MOD by zero".into());
                 }
                 Ok(Value::Uint(a % b))
+            }
+            "TIME_DIFF" => {
+                if args.len() != 2 {
+                    return Err(format!("TIME_DIFF expects 2 args, got {}", args.len()));
+                }
+                let a = self.eval(&args[0])?.as_u64()?;
+                let b = self.eval(&args[1])?.as_u64()?;
+                Ok(Value::Uint(a.saturating_sub(b)))
             }
             "GET_SYS_TIME" => Ok(Value::Uint(self.time_ms)),
             "GET_SYS_TIME_US" => Ok(Value::Uint(self.time_ms.saturating_mul(1000))),

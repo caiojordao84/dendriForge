@@ -7,7 +7,7 @@ ASL programs for the live IR. **No ASL version field** — unversioned until MVP
 | `golden/` | Positive goldens **G01–G21** (migrated from `core/asl/v010/golden/`) — validate + round-trip |
 | `errors/` | Negative corpus E01–E07 with `metadata.expect_error` (optional `fixture_inject`) |
 | `examples/` | All ten v010 examples migrated to `.asl.toml` (sim may be blocked) |
-| `sim/` | Deterministic `dendri-sim` fixtures (`S01`–`S13`; S08=sc1 blink; S09 strings; S10 conveyor/`IN_RANGE`; S11 retain; S12 I2C/SPI xfer; S13 SQRT/LOG) |
+| `sim/` | Deterministic `dendri-sim` fixtures (`S01`–`S16`; S08=sc1 blink; S09 strings; S10 conveyor/`IN_RANGE`; S11 retain; S12 I2C/SPI xfer; S13 SQRT/LOG; S14 ISR edges; S15 encoder; S16 ring buffer) |
 | `projects/` | Single-file `.dendri.toml` projects (hardware + wiring + sources + ASL) |
 | `frontends/` | P1 language sources (C++ / MicroPython / ST) for parse→ASL→sim acceptance |
 | `ladder/` | Ladder diagram TOML (`L01`–`L05`; L05 = scenario 6 electro-pneumatic twin) |
