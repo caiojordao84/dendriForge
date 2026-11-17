@@ -1,0 +1,241 @@
+# Migrated from core/asl/v010/golden/G10-watchdog-heartbeat-monitor.toon
+# Legacy TOON retained under core/asl/v010/ (read-only).
+
+[metadata]
+project_name = "G10-watchdog-heartbeat-monitor"
+editor = "dendriForge"
+author = "dendriForge Golden Suite"
+notes = "Migrated from legacy v010 TOON — ASL unversioned"
+
+[[hardware]]
+pin = 2
+hw_type = "digital"
+io_mode = "DI"
+label = "heartbeatPin"
+target_role = "int-rising"
+
+[[hardware]]
+pin = 3
+hw_type = "digital"
+io_mode = "DO"
+label = "ledHealthy"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 4
+hw_type = "digital"
+io_mode = "DO"
+label = "ledAlarm"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 5
+hw_type = "digital"
+io_mode = "DO"
+label = "buzzerPin"
+target_role = "pwm-out"
+
+[[data]]
+name = "WDT_TIMEOUT"
+type = "TIME"
+scope = "CONST"
+init = "T#2000ms"
+unit = "ms"
+
+[[data]]
+name = "WDT_CRITICAL"
+type = "TIME"
+scope = "CONST"
+init = "T#5000ms"
+unit = "ms"
+
+[[data]]
+name = "BAUD_RATE"
+type = "DINT"
+scope = "CONST"
+init = "115200"
+unit = "-"
+
+[[data]]
+name = "LOOP_DELAY"
+type = "TIME"
+scope = "CONST"
+init = "T#100ms"
+unit = "ms"
+
+[[data]]
+name = "BUZZER_FREQ"
+type = "UINT"
+scope = "CONST"
+init = "1000"
+unit = "Hz"
+
+[[data]]
+name = "ALARM_NONE"
+type = "UINT"
+scope = "CONST"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "ALARM_WARN"
+type = "UINT"
+scope = "CONST"
+init = "1"
+unit = "-"
+
+[[data]]
+name = "ALARM_CRIT"
+type = "UINT"
+scope = "CONST"
+init = "2"
+unit = "-"
+
+[[data]]
+name = "rebootCount"
+type = "UINT"
+scope = "RETAIN"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "lastHeartbeat"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "alarmState"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "silenceAlarm"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "nowMs"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "missedBeats"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "wdtElapsed"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "prevAlarmState"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_SERIAL"
+args = [{ kind = "uint", value = 115200 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT_PULLDOWN"
+args = [{ kind = "uint", value = 2 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 3 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 4 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_PWM_OUTPUT"
+args = [{ kind = "uint", value = 5 }, { kind = "uint", value = 1000 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ATTACH_INTERRUPT"
+args = [{ kind = "uint", value = 2 }, { kind = "var", name = "isr_heartbeat" }, { kind = "string", value = "RISING" }]
+
+[[setup]]
+kind = "assign"
+target = "rebootCount"
+value = { kind = "expr_text", text = "rebootCount + 1" }
+
+[[setup]]
+kind = "call"
+name = "SERIAL_PRINTLN"
+args = [{ kind = "expr_text", text = "CONCAT(\"Boot #\", TO_STRING(rebootCount))" }]
+
+[[setup]]
+kind = "assign"
+target = "lastHeartbeat"
+value = { kind = "expr_text", text = "GET_SYS_TIME()" }
+
+[[loop]]
+kind = "assign"
+target = "nowMs"
+value = { kind = "expr_text", text = "GET_SYS_TIME()" }
+
+[[loop]]
+kind = "assign"
+target = "wdtElapsed"
+value = { kind = "expr_text", text = "TIME_DIFF(nowMs, lastHeartbeat)" }
+
+[[loop]]
+kind = "assign"
+target = "prevAlarmState"
+value = { kind = "var", name = "alarmState" }
+
+[[loop]]
+kind = "if"
+condition = { kind = "expr_text", text = "wdtElapsed >= WDT_CRITICAL" }
+then = [{ kind = "assign", target = "alarmState", value = { kind = "var", name = "ALARM_CRIT" } }, { kind = "assign", target = "missedBeats", value = { kind = "expr_text", text = "missedBeats + 1" } }]
+elif = [{ condition = { kind = "expr_text", text = "wdtElapsed >= WDT_TIMEOUT" }, then = [{ kind = "assign", target = "alarmState", value = { kind = "var", name = "ALARM_WARN" } }] }]
+else = [{ kind = "assign", target = "alarmState", value = { kind = "var", name = "ALARM_NONE" } }, { kind = "assign", target = "missedBeats", value = { kind = "uint", value = 0 } }]
+
+[[loop]]
+kind = "if"
+condition = { kind = "expr_text", text = "alarmState = ALARM_NONE" }
+then = [{ kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 3 }, { kind = "bool", value = true }] }, { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 4 }, { kind = "bool", value = false }] }, { kind = "call", name = "SET_PWM_DUTY", args = [{ kind = "uint", value = 5 }, { kind = "uint", value = 0 }] }]
+elif = [{ condition = { kind = "expr_text", text = "alarmState = ALARM_WARN" }, then = [{ kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 3 }, { kind = "bool", value = false }] }, { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 4 }, { kind = "bool", value = true }] }, { kind = "call", name = "SET_PWM_DUTY", args = [{ kind = "uint", value = 5 }, { kind = "uint", value = 0 }] }] }, { condition = { kind = "expr_text", text = "alarmState = ALARM_CRIT AND NOT silenceAlarm" }, then = [{ kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 3 }, { kind = "bool", value = false }] }, { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 4 }, { kind = "bool", value = true }] }, { kind = "call", name = "SET_PWM_DUTY", args = [{ kind = "uint", value = 5 }, { kind = "uint", value = 32768 }] }] }]
+
+[[loop]]
+kind = "if"
+condition = { kind = "expr_text", text = "alarmState != prevAlarmState" }
+then = [{ kind = "call", name = "log_alarm_transition", args = [{ kind = "var", name = "prevAlarmState" }, { kind = "var", name = "alarmState" }] }, { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "LOOP_DELAY" }] }]
+
+[[functions]]
+name = "isr_heartbeat"
+params = []
+body = [{ kind = "assign", target = "lastHeartbeat", value = { kind = "expr_text", text = "GET_SYS_TIME()" } }, { kind = "assign", target = "silenceAlarm", value = { kind = "bool", value = false } }]
+
+[[functions]]
+name = "log_alarm_transition"
+params = ["fromState", "toState"]
+body = [{ kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "expr_text", text = "CONCAT(\"WDT [t=\", TO_STRING(GET_SYS_TIME()), \"ms] \", alarm_name(fromState), \" -> \", alarm_name(toState))" }] }, { kind = "if", condition = { kind = "expr_text", text = "toState = ALARM_CRIT" }, then = [{ kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "expr_text", text = "CONCAT(\"  missed_beats=\", TO_STRING(missedBeats), \" reboot_count=\", TO_STRING(rebootCount))" }] }] }]
+
+[[functions]]
+name = "alarm_name"
+params = ["s"]
+body = [{ kind = "if", condition = { kind = "expr_text", text = "s = ALARM_NONE" }, then = [{ kind = "return", value = { kind = "string", value = "HEALTHY" } }], elif = [{ condition = { kind = "expr_text", text = "s = ALARM_WARN" }, then = [{ kind = "return", value = { kind = "string", value = "WARN" } }] }, { condition = { kind = "expr_text", text = "s = ALARM_CRIT" }, then = [{ kind = "return", value = { kind = "string", value = "CRITICAL" } }] }] }, { kind = "return", value = { kind = "string", value = "UNKNOWN" } }]

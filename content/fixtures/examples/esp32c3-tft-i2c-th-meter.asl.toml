@@ -1,0 +1,249 @@
+# Migrated from core/asl/v010/examples/esp32c3-tft-i2c-th-meter.toon
+# Legacy TOON retained under core/asl/v010/ (read-only).
+
+[metadata]
+project_name = "esp32c3-tft-i2c-th-meter"
+editor = "dendriForge"
+author = "123deoliveira4"
+notes = "Migrated from legacy v010 TOON — ASL unversioned"
+
+[[hardware]]
+pin = 8
+hw_type = "digital"
+io_mode = "BI"
+label = "sdaPin"
+target_role = "i2c-sda"
+
+[[hardware]]
+pin = 9
+hw_type = "digital"
+io_mode = "BI"
+label = "sclPin"
+target_role = "i2c-scl"
+
+[[hardware]]
+pin = 4
+hw_type = "digital"
+io_mode = "DO"
+label = "tftMosiPin"
+target_role = "spi-mosi"
+
+[[hardware]]
+pin = 6
+hw_type = "digital"
+io_mode = "DO"
+label = "tftClkPin"
+target_role = "spi-sck"
+
+[[hardware]]
+pin = 7
+hw_type = "digital"
+io_mode = "DO"
+label = "tftCsPin"
+target_role = "spi-cs"
+
+[[hardware]]
+pin = 5
+hw_type = "digital"
+io_mode = "DO"
+label = "tftDcPin"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 3
+hw_type = "digital"
+io_mode = "DO"
+label = "tftRstPin"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 21
+hw_type = "digital"
+io_mode = "DO"
+label = "uartTxPin"
+target_role = "uart-tx"
+
+[[data]]
+name = "TEMP_UNIT"
+type = "STRING"
+scope = "CONST"
+init = "C"
+unit = "°C"
+
+[[data]]
+name = "HUMD_UNIT"
+type = "STRING"
+scope = "CONST"
+init = "%"
+unit = "%"
+
+[[data]]
+name = "COLOR_BLACK"
+type = "UINT"
+scope = "CONST"
+init = "0x0000"
+unit = "-"
+
+[[data]]
+name = "COLOR_WHITE"
+type = "UINT"
+scope = "CONST"
+init = "0xFFFF"
+unit = "-"
+
+[[data]]
+name = "COLOR_RED"
+type = "UINT"
+scope = "CONST"
+init = "0xF800"
+unit = "-"
+
+[[data]]
+name = "CENTER_X"
+type = "UINT"
+scope = "CONST"
+init = "80"
+unit = "px"
+
+[[data]]
+name = "CENTER_Y"
+type = "UINT"
+scope = "CONST"
+init = "75"
+unit = "px"
+
+[[data]]
+name = "LOOP_INTERVAL"
+type = "TIME"
+scope = "CONST"
+init = "T#1000ms"
+unit = "ms"
+
+[[data]]
+name = "humd"
+type = "REAL"
+scope = "VAR"
+init = "0.0"
+unit = "%"
+
+[[data]]
+name = "temp"
+type = "REAL"
+scope = "VAR"
+init = "0.0"
+unit = "°C"
+
+[[setup]]
+kind = "call"
+name = "CFG_I2C_BUS"
+args = [{ kind = "uint", value = 0 }, { kind = "uint", value = 8 }, { kind = "uint", value = 9 }, { kind = "uint", value = 100000 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_SPI_BUS"
+args = [{ kind = "uint", value = 1 }, { kind = "uint", value = 4 }, { kind = "int", value = -1 }, { kind = "uint", value = 6 }, { kind = "uint", value = 7 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_TFT_DISPLAY"
+args = [{ kind = "uint", value = 5 }, { kind = "uint", value = 3 }, { kind = "uint", value = 0 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_I2C_SENSOR_TH"
+args = []
+
+[[setup]]
+kind = "call"
+name = "CFG_UART_BEGIN"
+args = [{ kind = "uint", value = 9600 }]
+
+[[setup]]
+kind = "call"
+name = "UART_PRINTLN"
+args = [{ kind = "string", value = "Starting Universal I2C T/H Sensor" }]
+
+[[setup]]
+kind = "call"
+name = "TFT_FILL_SCREEN"
+args = [{ kind = "var", name = "COLOR_WHITE" }]
+
+[[setup]]
+kind = "call"
+name = "setup_the_screen"
+args = []
+
+[[loop]]
+kind = "assign"
+target = "temp"
+value = { kind = "expr_text", text = "READ_TEMPERATURE()" }
+
+[[loop]]
+kind = "assign"
+target = "humd"
+value = { kind = "expr_text", text = "READ_HUMIDITY()" }
+
+[[loop]]
+kind = "call"
+name = "WAIT_TIME"
+args = [{ kind = "var", name = "LOOP_INTERVAL" }]
+
+[[loop]]
+kind = "call"
+name = "TFT_SET_TEXT_COLOR"
+args = [{ kind = "var", name = "COLOR_BLACK" }, { kind = "var", name = "COLOR_WHITE" }]
+
+[[loop]]
+kind = "call"
+name = "TFT_SET_TEXT_SIZE"
+args = [{ kind = "uint", value = 2 }]
+
+[[loop]]
+kind = "call"
+name = "TFT_PRINT_TEXT"
+args = [{ kind = "expr_text", text = "CENTER_X - 35" }, { kind = "expr_text", text = "CENTER_Y + 29" }, { kind = "expr_text", text = "TO_STRING(humd, 1)" }]
+
+[[loop]]
+kind = "call"
+name = "TFT_PRINT_TEXT"
+args = [{ kind = "expr_text", text = "CENTER_X - 35" }, { kind = "expr_text", text = "CENTER_Y - 27" }, { kind = "expr_text", text = "TO_STRING(temp, 1)" }]
+
+[[loop]]
+kind = "call"
+name = "UART_PRINT"
+args = [{ kind = "string", value = "Time: " }]
+
+[[loop]]
+kind = "call"
+name = "UART_PRINT"
+args = [{ kind = "expr_text", text = "TO_STRING(GET_TIMESTAMP())" }]
+
+[[loop]]
+kind = "call"
+name = "UART_PRINT"
+args = [{ kind = "string", value = " Temp: " }]
+
+[[loop]]
+kind = "call"
+name = "UART_PRINT"
+args = [{ kind = "expr_text", text = "TO_STRING(temp, 1)" }]
+
+[[loop]]
+kind = "call"
+name = "UART_PRINT"
+args = [{ kind = "string", value = " Hum: " }]
+
+[[loop]]
+kind = "call"
+name = "UART_PRINT"
+args = [{ kind = "expr_text", text = "TO_STRING(humd, 1)" }]
+
+[[loop]]
+kind = "call"
+name = "UART_PRINTLN"
+args = [{ kind = "var", name = "HUMD_UNIT" }]
+
+[[functions]]
+name = "setup_the_screen"
+params = []
+body = [{ kind = "call", name = "TFT_DRAW_ROUND_RECT", args = [{ kind = "expr_text", text = "CENTER_X - 75" }, { kind = "expr_text", text = "CENTER_Y - 65" }, { kind = "uint", value = 120 }, { kind = "uint", value = 140 }, { kind = "uint", value = 4 }, { kind = "var", name = "COLOR_RED" }] }, { kind = "call", name = "TFT_DRAW_ROUND_RECT", args = [{ kind = "expr_text", text = "CENTER_X - 70" }, { kind = "expr_text", text = "CENTER_Y - 35" }, { kind = "uint", value = 110 }, { kind = "uint", value = 30 }, { kind = "uint", value = 4 }, { kind = "var", name = "COLOR_RED" }] }, { kind = "call", name = "TFT_DRAW_ROUND_RECT", args = [{ kind = "expr_text", text = "CENTER_X - 70" }, { kind = "expr_text", text = "CENTER_Y + 20" }, { kind = "uint", value = 110 }, { kind = "uint", value = 30 }, { kind = "uint", value = 4 }, { kind = "var", name = "COLOR_RED" }] }, { kind = "call", name = "TFT_SET_TEXT_SIZE", args = [{ kind = "uint", value = 1 }] }, { kind = "call", name = "TFT_SET_TEXT_COLOR", args = [{ kind = "var", name = "COLOR_BLACK" }, { kind = "var", name = "COLOR_WHITE" }] }, { kind = "call", name = "TFT_PRINT_TEXT", args = [{ kind = "expr_text", text = "CENTER_X - 55" }, { kind = "expr_text", text = "CENTER_Y - 48" }, { kind = "string", value = "temperature" }] }, { kind = "call", name = "TFT_PRINT_TEXT", args = [{ kind = "expr_text", text = "CENTER_X + 15" }, { kind = "expr_text", text = "CENTER_Y - 52" }, { kind = "string", value = "o" }] }, { kind = "call", name = "TFT_PRINT_TEXT", args = [{ kind = "expr_text", text = "CENTER_X + 21" }, { kind = "expr_text", text = "CENTER_Y - 48" }, { kind = "var", name = "TEMP_UNIT" }] }, { kind = "call", name = "TFT_PRINT_TEXT", args = [{ kind = "expr_text", text = "CENTER_X - 45" }, { kind = "expr_text", text = "CENTER_Y + 10" }, { kind = "string", value = "% humidity" }] }, { kind = "call", name = "TFT_PRINT_TEXT", args = [{ kind = "expr_text", text = "CENTER_X - 55" }, { kind = "expr_text", text = "CENTER_Y + 63" }, { kind = "string", value = "Universal T/H I2C" }] }]

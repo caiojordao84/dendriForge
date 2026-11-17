@@ -169,6 +169,21 @@ returns = "ANY_NUM"
 aliases = ["abs"]
 
 [[ops]]
+canonical = "SIN"
+category = "math"
+signature = "x: REAL"
+returns = "REAL"
+aliases = ["sin"]
+notes = "Catalog for G07 golden; sim MVP may still stub"
+
+[[ops]]
+canonical = "COS"
+category = "math"
+signature = "x: REAL"
+returns = "REAL"
+aliases = ["cos"]
+
+[[ops]]
 canonical = "EXPT"
 category = "math"
 signature = "x: REAL, y: REAL"

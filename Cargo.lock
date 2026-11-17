@@ -968,6 +968,7 @@ dependencies = [
  "dendri-frontend-sfc",
  "dendri-parse",
  "dendri-sim",
+ "dendri-validate",
  "thiserror 2.0.21",
  "toml",
 ]

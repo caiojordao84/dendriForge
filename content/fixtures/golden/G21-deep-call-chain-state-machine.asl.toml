@@ -1,0 +1,379 @@
+# Migrated from core/asl/v010/golden/G21-deep-call-chain-state-machine.toon
+# Legacy TOON retained under core/asl/v010/ (read-only).
+
+[metadata]
+project_name = "G21-deep-call-chain-state-machine"
+editor = "dendriForge"
+author = "dendriForge Golden Suite"
+notes = "Migrated from legacy v010 TOON — ASL unversioned"
+
+[[hardware]]
+pin = 0
+hw_type = "digital"
+io_mode = "BI"
+label = "uartTxPin"
+target_role = "uart-tx"
+
+[[hardware]]
+pin = 1
+hw_type = "digital"
+io_mode = "BI"
+label = "uartRxPin"
+target_role = "uart-rx"
+
+[[hardware]]
+pin = 2
+hw_type = "digital"
+io_mode = "DI"
+label = "btnNext"
+target_role = "int-falling"
+
+[[hardware]]
+pin = 3
+hw_type = "digital"
+io_mode = "DI"
+label = "btnReset"
+target_role = "int-falling"
+
+[[hardware]]
+pin = 4
+hw_type = "digital"
+io_mode = "DO"
+label = "ledState"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 5
+hw_type = "digital"
+io_mode = "DO"
+label = "pwmOut"
+target_role = "pwm-out"
+
+[[hardware]]
+pin = 6
+hw_type = "analog"
+io_mode = "DI"
+label = "sensorIn"
+target_role = "adc:t"
+
+[[data]]
+name = "BAUD_RATE"
+type = "DINT"
+scope = "CONST"
+init = "115200"
+unit = "-"
+
+[[data]]
+name = "LOOP_DELAY"
+type = "TIME"
+scope = "CONST"
+init = "T#50ms"
+unit = "ms"
+
+[[data]]
+name = "DEBOUNCE_MS"
+type = "DWORD"
+scope = "CONST"
+init = "80"
+unit = "ms"
+
+[[data]]
+name = "STATE_IDLE"
+type = "UINT"
+scope = "CONST"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "STATE_RAMP_UP"
+type = "UINT"
+scope = "CONST"
+init = "1"
+unit = "-"
+
+[[data]]
+name = "STATE_HOLD"
+type = "UINT"
+scope = "CONST"
+init = "2"
+unit = "-"
+
+[[data]]
+name = "STATE_RAMP_DOWN"
+type = "UINT"
+scope = "CONST"
+init = "3"
+unit = "-"
+
+[[data]]
+name = "STATE_FAULT"
+type = "UINT"
+scope = "CONST"
+init = "4"
+unit = "-"
+
+[[data]]
+name = "RAMP_STEP"
+type = "REAL"
+scope = "CONST"
+init = "0.05"
+unit = "-"
+
+[[data]]
+name = "HOLD_DUTY"
+type = "REAL"
+scope = "CONST"
+init = "0.75"
+unit = "-"
+
+[[data]]
+name = "FAULT_THRESHOLD"
+type = "REAL"
+scope = "CONST"
+init = "0.95"
+unit = "-"
+
+[[data]]
+name = "HOLD_DURATION"
+type = "TIME"
+scope = "CONST"
+init = "T#3000ms"
+unit = "ms"
+
+[[data]]
+name = "fsmState"
+type = "UINT"
+scope = "RETAIN"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "prevState"
+type = "UINT"
+scope = "RETAIN"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "currentDuty"
+type = "REAL"
+scope = "VAR"
+init = "0.0"
+unit = "-"
+
+[[data]]
+name = "holdStart"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "btnNextFlag"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "btnResetFlag"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "lastBtnNext"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "lastBtnReset"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "rawSensor"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "sensorVolt"
+type = "REAL"
+scope = "VAR"
+init = "0.0"
+unit = "V"
+
+[[data]]
+name = "faultReason"
+type = "STRING"
+scope = "VAR"
+init = "none"
+unit = "-"
+
+[[data]]
+name = "transitionCount"
+type = "UINT"
+scope = "RETAIN"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "nowMs"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "stateLog"
+type = "STRING"
+scope = "VAR"
+init = ""
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_SERIAL"
+args = [{ kind = "uint", value = 115200 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ADC_INPUT"
+args = [{ kind = "uint", value = 6 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_PWM_OUTPUT"
+args = [{ kind = "uint", value = 5 }, { kind = "uint", value = 1000 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT_PULLUP"
+args = [{ kind = "uint", value = 2 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT_PULLUP"
+args = [{ kind = "uint", value = 3 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 4 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ATTACH_INTERRUPT"
+args = [{ kind = "uint", value = 2 }, { kind = "var", name = "isr_btn_next" }, { kind = "string", value = "FALLING" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ATTACH_INTERRUPT"
+args = [{ kind = "uint", value = 3 }, { kind = "var", name = "isr_btn_reset" }, { kind = "string", value = "FALLING" }]
+
+[[setup]]
+kind = "call"
+name = "SET_PWM_DUTY"
+args = [{ kind = "uint", value = 5 }, { kind = "uint", value = 0 }]
+
+[[setup]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "uint", value = 4 }, { kind = "bool", value = false }]
+
+[[setup]]
+kind = "call"
+name = "SERIAL_PRINTLN"
+args = [{ kind = "expr_text", text = "CONCAT(\"FSM init state=\", TO_STRING(fsmState), \" transitions=\", TO_STRING(transitionCount))" }]
+
+[[loop]]
+kind = "assign"
+target = "nowMs"
+value = { kind = "expr_text", text = "GET_SYS_TIME()" }
+
+[[loop]]
+kind = "assign"
+target = "rawSensor"
+value = { kind = "expr_text", text = "READ_ADC(6)" }
+
+[[loop]]
+kind = "assign"
+target = "sensorVolt"
+value = { kind = "expr_text", text = "adc_to_volt(rawSensor)" }
+
+[[loop]]
+kind = "if"
+condition = { kind = "var", name = "btnNextFlag" }
+then = [{ kind = "assign", target = "btnNextFlag", value = { kind = "bool", value = false } }, { kind = "call", name = "fsm_advance", args = [] }]
+
+[[loop]]
+kind = "if"
+condition = { kind = "var", name = "btnResetFlag" }
+then = [{ kind = "assign", target = "btnResetFlag", value = { kind = "bool", value = false } }, { kind = "call", name = "fsm_reset", args = [] }, { kind = "call", name = "fsm_tick", args = [] }, { kind = "call", name = "apply_outputs", args = [{ kind = "var", name = "fsmState" }, { kind = "var", name = "currentDuty" }] }, { kind = "assign", target = "stateLog", value = { kind = "expr_text", text = "build_log(fsmState, currentDuty, sensorVolt)" } }, { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "var", name = "stateLog" }] }, { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "LOOP_DELAY" }] }]
+
+[[functions]]
+name = "isr_btn_next"
+params = []
+body = [{ kind = "assign", target = "nowMs", value = { kind = "expr_text", text = "GET_SYS_TIME()" } }, { kind = "if", condition = { kind = "expr_text", text = "TIME_DIFF(nowMs, lastBtnNext) > DEBOUNCE_MS" }, then = [{ kind = "assign", target = "btnNextFlag", value = { kind = "bool", value = true } }, { kind = "assign", target = "lastBtnNext", value = { kind = "var", name = "nowMs" } }] }]
+
+[[functions]]
+name = "isr_btn_reset"
+params = []
+body = [{ kind = "assign", target = "nowMs", value = { kind = "expr_text", text = "GET_SYS_TIME()" } }, { kind = "if", condition = { kind = "expr_text", text = "TIME_DIFF(nowMs, lastBtnReset) > DEBOUNCE_MS" }, then = [{ kind = "assign", target = "btnResetFlag", value = { kind = "bool", value = true } }, { kind = "assign", target = "lastBtnReset", value = { kind = "var", name = "nowMs" } }] }]
+
+[[functions]]
+name = "fsm_advance"
+params = []
+body = [{ kind = "if", condition = { kind = "expr_text", text = "fsmState = STATE_IDLE" }, then = [{ kind = "call", name = "transition_to", args = [{ kind = "var", name = "STATE_RAMP_UP" }] }], elif = [{ condition = { kind = "expr_text", text = "fsmState = STATE_RAMP_UP" }, then = [{ kind = "call", name = "transition_to", args = [{ kind = "var", name = "STATE_HOLD" }] }] }, { condition = { kind = "expr_text", text = "fsmState = STATE_HOLD" }, then = [{ kind = "call", name = "transition_to", args = [{ kind = "var", name = "STATE_RAMP_DOWN" }] }] }, { condition = { kind = "expr_text", text = "fsmState = STATE_RAMP_DOWN" }, then = [{ kind = "call", name = "transition_to", args = [{ kind = "var", name = "STATE_IDLE" }] }] }, { condition = { kind = "expr_text", text = "fsmState = STATE_FAULT" }, then = [{ kind = "call", name = "transition_to", args = [{ kind = "var", name = "STATE_IDLE" }] }] }] }]
+
+[[functions]]
+name = "fsm_reset"
+params = []
+body = [{ kind = "assign", target = "currentDuty", value = { kind = "real", value = 0.0 } }, { kind = "assign", target = "faultReason", value = { kind = "string", value = "none" } }, { kind = "call", name = "transition_to", args = [{ kind = "var", name = "STATE_IDLE" }] }]
+
+[[functions]]
+name = "transition_to"
+params = ["newState"]
+body = [{ kind = "assign", target = "prevState", value = { kind = "var", name = "fsmState" } }, { kind = "assign", target = "fsmState", value = { kind = "var", name = "newState" } }, { kind = "assign", target = "transitionCount", value = { kind = "expr_text", text = "transitionCount + 1" } }, { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "expr_text", text = "CONCAT(\"FSM \", state_name(prevState), \"->\", state_name(newState), \" #\", TO_STRING(transitionCount))" }] }]
+
+[[functions]]
+name = "state_name"
+params = ["s"]
+body = [{ kind = "if", condition = { kind = "expr_text", text = "s = STATE_IDLE" }, then = [{ kind = "return", value = { kind = "string", value = "IDLE" } }], elif = [{ condition = { kind = "expr_text", text = "s = STATE_RAMP_UP" }, then = [{ kind = "return", value = { kind = "string", value = "RAMP_UP" } }] }, { condition = { kind = "expr_text", text = "s = STATE_HOLD" }, then = [{ kind = "return", value = { kind = "string", value = "HOLD" } }] }, { condition = { kind = "expr_text", text = "s = STATE_RAMP_DOWN" }, then = [{ kind = "return", value = { kind = "string", value = "RAMP_DOWN" } }] }, { condition = { kind = "expr_text", text = "s = STATE_FAULT" }, then = [{ kind = "return", value = { kind = "string", value = "FAULT" } }] }] }, { kind = "return", value = { kind = "string", value = "UNKNOWN" } }]
+
+[[functions]]
+name = "fsm_tick"
+params = []
+body = [{ kind = "if", condition = { kind = "expr_text", text = "fsmState = STATE_IDLE" }, then = [{ kind = "assign", target = "currentDuty", value = { kind = "real", value = 0.0 } }], elif = [{ condition = { kind = "expr_text", text = "fsmState = STATE_RAMP_UP" }, then = [{ kind = "assign", target = "currentDuty", value = { kind = "expr_text", text = "CLAMP(currentDuty + RAMP_STEP, 0.0, HOLD_DUTY)" } }] }] }, { kind = "if", condition = { kind = "expr_text", text = "currentDuty >= HOLD_DUTY" }, then = [{ kind = "assign", target = "holdStart", value = { kind = "expr_text", text = "GET_SYS_TIME()" } }, { kind = "call", name = "transition_to", args = [{ kind = "var", name = "STATE_HOLD" }] }] }, { kind = "if", condition = { kind = "expr_text", text = "check_fault(sensorVolt, currentDuty, FAULT_THRESHOLD)" }, then = [{ kind = "assign", target = "faultReason", value = { kind = "expr_text", text = "CONCAT(\"ramp_up overvolt=\", TO_STRING_FMT(sensorVolt, 3))" } }, { kind = "call", name = "transition_to", args = [{ kind = "var", name = "STATE_FAULT" }] }], elif = [{ condition = { kind = "expr_text", text = "fsmState = STATE_HOLD" }, then = [] }] }, { kind = "if", condition = { kind = "expr_text", text = "TIME_DIFF(GET_SYS_TIME(), holdStart) >= HOLD_DURATION" }, then = [{ kind = "call", name = "transition_to", args = [{ kind = "var", name = "STATE_RAMP_DOWN" }] }] }, { kind = "if", condition = { kind = "expr_text", text = "check_fault(sensorVolt, currentDuty, FAULT_THRESHOLD)" }, then = [{ kind = "assign", target = "faultReason", value = { kind = "expr_text", text = "CONCAT(\"hold overvolt=\", TO_STRING_FMT(sensorVolt, 3))" } }, { kind = "call", name = "transition_to", args = [{ kind = "var", name = "STATE_FAULT" }] }], elif = [{ condition = { kind = "expr_text", text = "fsmState = STATE_RAMP_DOWN" }, then = [{ kind = "assign", target = "currentDuty", value = { kind = "expr_text", text = "CLAMP(currentDuty - RAMP_STEP, 0.0, HOLD_DUTY)" } }] }] }, { kind = "if", condition = { kind = "expr_text", text = "currentDuty <= 0.0" }, then = [{ kind = "call", name = "transition_to", args = [{ kind = "var", name = "STATE_IDLE" }] }], elif = [{ condition = { kind = "expr_text", text = "fsmState = STATE_FAULT" }, then = [{ kind = "assign", target = "currentDuty", value = { kind = "real", value = 0.0 } }] }] }]
+
+[[functions]]
+name = "check_fault"
+params = ["volt", "duty", "limit"]
+body = [{ kind = "if", condition = { kind = "expr_text", text = "volt > limit" }, then = [{ kind = "return", value = { kind = "bool", value = true } }] }, { kind = "if", condition = { kind = "expr_text", text = "duty > limit" }, then = [{ kind = "return", value = { kind = "bool", value = true } }] }, { kind = "return", value = { kind = "bool", value = false } }]
+
+[[functions]]
+name = "apply_outputs"
+params = ["state", "duty"]
+body = [{ kind = "call", name = "SET_PWM_DUTY", args = [{ kind = "uint", value = 5 }, { kind = "expr_text", text = "duty_to_pwm(duty)" }] }, { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 4 }, { kind = "expr_text", text = "state != STATE_IDLE AND state != STATE_FAULT" }] }]
+
+[[functions]]
+name = "duty_to_pwm"
+params = ["duty"]
+body = [{ kind = "return", value = { kind = "expr_text", text = "REAL_TO_INT(CLAMP(duty, 0.0, 1.0) * 65535.0)" } }]
+
+[[functions]]
+name = "adc_to_volt"
+params = ["raw"]
+body = [{ kind = "return", value = { kind = "expr_text", text = "MAP_RANGE(INT_TO_REAL(raw), 0.0, 65535.0, 0.0, 3.3)" } }]
+
+[[functions]]
+name = "build_log"
+params = ["state", "duty", "volt"]
+body = [{ kind = "return", value = { kind = "expr_text", text = "CONCAT(TO_STRING(GET_SYS_TIME()), \",\", state_name(state), \",\", TO_STRING_FMT(duty, 4), \",\", TO_STRING_FMT(volt, 4), \",\", faultReason)" } }]

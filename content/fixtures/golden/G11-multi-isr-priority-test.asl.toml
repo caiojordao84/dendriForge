@@ -1,0 +1,271 @@
+# Migrated from core/asl/v010/golden/G11-multi-isr-priority-test.toon
+# Legacy TOON retained under core/asl/v010/ (read-only).
+
+[metadata]
+project_name = "G11-multi-isr-priority-test"
+editor = "dendriForge"
+author = "dendriForge Golden Suite"
+notes = "Migrated from legacy v010 TOON — ASL unversioned"
+
+[[hardware]]
+pin = 10
+hw_type = "digital"
+io_mode = "DI"
+label = "pinRising"
+target_role = "int-rising"
+
+[[hardware]]
+pin = 11
+hw_type = "digital"
+io_mode = "DI"
+label = "pinFalling"
+target_role = "int-falling"
+
+[[hardware]]
+pin = 12
+hw_type = "digital"
+io_mode = "DI"
+label = "pinChange"
+target_role = "int-change"
+
+[[hardware]]
+pin = 13
+hw_type = "digital"
+io_mode = "DO"
+label = "ledRising"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 14
+hw_type = "digital"
+io_mode = "DO"
+label = "ledFalling"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 15
+hw_type = "digital"
+io_mode = "DO"
+label = "ledChange"
+target_role = "digital-out"
+
+[[data]]
+name = "DEBOUNCE"
+type = "TIME"
+scope = "CONST"
+init = "T#50ms"
+unit = "ms"
+
+[[data]]
+name = "LOOP_DELAY"
+type = "TIME"
+scope = "CONST"
+init = "T#10ms"
+unit = "ms"
+
+[[data]]
+name = "DETACH_THRESHOLD"
+type = "UINT"
+scope = "CONST"
+init = "20"
+unit = "-"
+
+[[data]]
+name = "flagRising"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "flagFalling"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "flagChange"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "lastRising"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "lastFalling"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "lastChange"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "countRising"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "countFalling"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "countChange"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "nowMs"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "changeState"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "risingDetached"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "totalEvents"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "prevTotal"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "eventLine"
+type = "STRING"
+scope = "VAR"
+init = ""
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_SERIAL"
+args = [{ kind = "uint", value = 115200 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT_PULLUP"
+args = [{ kind = "uint", value = 10 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT_PULLUP"
+args = [{ kind = "uint", value = 11 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT"
+args = [{ kind = "uint", value = 12 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 13 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 14 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 15 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ATTACH_INTERRUPT"
+args = [{ kind = "uint", value = 10 }, { kind = "var", name = "isr_rising" }, { kind = "string", value = "RISING" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ATTACH_INTERRUPT"
+args = [{ kind = "uint", value = 11 }, { kind = "var", name = "isr_falling" }, { kind = "string", value = "FALLING" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ATTACH_INTERRUPT"
+args = [{ kind = "uint", value = 12 }, { kind = "var", name = "isr_change" }, { kind = "string", value = "CHANGE" }]
+
+[[setup]]
+kind = "call"
+name = "SERIAL_PRINTLN"
+args = [{ kind = "string", value = "event,count,ts_ms" }]
+
+[[loop]]
+kind = "if"
+condition = { kind = "var", name = "flagRising" }
+then = [{ kind = "assign", target = "flagRising", value = { kind = "bool", value = false } }, { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 13 }, { kind = "expr_text", text = "NOT GET_BOOL(13)" }] }, { kind = "assign", target = "countRising", value = { kind = "expr_text", text = "countRising + 1" } }]
+
+[[loop]]
+kind = "if"
+condition = { kind = "expr_text", text = "countRising >= DETACH_THRESHOLD AND NOT risingDetached" }
+then = [{ kind = "call", name = "CFG_DETACH_INTERRUPT", args = [{ kind = "uint", value = 10 }] }, { kind = "assign", target = "risingDetached", value = { kind = "bool", value = true } }, { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "string", value = "rising_detached" }] }]
+
+[[loop]]
+kind = "if"
+condition = { kind = "var", name = "flagFalling" }
+then = [{ kind = "assign", target = "flagFalling", value = { kind = "bool", value = false } }, { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 14 }, { kind = "expr_text", text = "NOT GET_BOOL(14)" }] }, { kind = "assign", target = "countFalling", value = { kind = "expr_text", text = "countFalling + 1" } }]
+
+[[loop]]
+kind = "if"
+condition = { kind = "var", name = "flagChange" }
+then = [{ kind = "assign", target = "flagChange", value = { kind = "bool", value = false } }, { kind = "assign", target = "changeState", value = { kind = "expr_text", text = "GET_BOOL(12)" } }, { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 15 }, { kind = "var", name = "changeState" }] }, { kind = "assign", target = "countChange", value = { kind = "expr_text", text = "countChange + 1" } }, { kind = "assign", target = "totalEvents", value = { kind = "expr_text", text = "countRising + countFalling + countChange" } }]
+
+[[loop]]
+kind = "if"
+condition = { kind = "expr_text", text = "totalEvents != prevTotal" }
+then = [{ kind = "assign", target = "eventLine", value = { kind = "expr_text", text = "CONCAT(TO_STRING(totalEvents), \",r=\", TO_STRING(countRising), \",f=\", TO_STRING(countFalling), \",c=\", TO_STRING(countChange))" } }, { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "var", name = "eventLine" }] }, { kind = "assign", target = "prevTotal", value = { kind = "var", name = "totalEvents" } }, { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "LOOP_DELAY" }] }]
+
+[[functions]]
+name = "isr_rising"
+params = []
+body = [{ kind = "assign", target = "nowMs", value = { kind = "expr_text", text = "GET_SYS_TIME()" } }, { kind = "if", condition = { kind = "expr_text", text = "TIME_DIFF(nowMs, lastRising) > DEBOUNCE" }, then = [{ kind = "assign", target = "flagRising", value = { kind = "bool", value = true } }, { kind = "assign", target = "lastRising", value = { kind = "var", name = "nowMs" } }] }]
+
+[[functions]]
+name = "isr_falling"
+params = []
+body = [{ kind = "assign", target = "nowMs", value = { kind = "expr_text", text = "GET_SYS_TIME()" } }, { kind = "if", condition = { kind = "expr_text", text = "TIME_DIFF(nowMs, lastFalling) > DEBOUNCE" }, then = [{ kind = "assign", target = "flagFalling", value = { kind = "bool", value = true } }, { kind = "assign", target = "lastFalling", value = { kind = "var", name = "nowMs" } }] }]
+
+[[functions]]
+name = "isr_change"
+params = []
+body = [{ kind = "assign", target = "nowMs", value = { kind = "expr_text", text = "GET_SYS_TIME()" } }, { kind = "if", condition = { kind = "expr_text", text = "TIME_DIFF(nowMs, lastChange) > DEBOUNCE" }, then = [{ kind = "assign", target = "flagChange", value = { kind = "bool", value = true } }, { kind = "assign", target = "lastChange", value = { kind = "var", name = "nowMs" } }] }]

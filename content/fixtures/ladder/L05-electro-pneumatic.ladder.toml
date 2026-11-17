@@ -1,0 +1,189 @@
+# Ladder twin of SFC G03 electro-pneumatic (scenario 6 subset).
+# One rung per sequence step: contacts on sensors + start → coils for Ap/Bp/Am/Bm.
+# Honest DEN-12/15 coverage — lowers to ASL coils + pin write on status.
+
+name = "L05-electro-pneumatic"
+
+[[hardware]]
+pin = 13
+hw_type = "digital"
+io_mode = "DO"
+label = "statusPin"
+target_role = "digital-out"
+
+[[data]]
+name = "start"
+type = "BOOL"
+scope = "VAR"
+init = "TRUE"
+unit = "-"
+
+[[data]]
+name = "A0"
+type = "BOOL"
+scope = "VAR"
+init = "TRUE"
+unit = "-"
+
+[[data]]
+name = "A1"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "B0"
+type = "BOOL"
+scope = "VAR"
+init = "TRUE"
+unit = "-"
+
+[[data]]
+name = "B1"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "Ap"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "Am"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "Bp"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "Bm"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "busy"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 13 }]
+
+[[rungs]]
+id = "r_start_ap"
+row = 0
+comment = "Idle A0·B0 + start → Ap"
+
+[[rungs.cells]]
+kind = "contact_no"
+operand = "start"
+col = 0
+
+[[rungs.cells]]
+kind = "contact_no"
+operand = "A0"
+col = 1
+
+[[rungs.cells]]
+kind = "contact_no"
+operand = "B0"
+col = 2
+
+[[rungs.cells]]
+kind = "coil"
+operand = "Ap"
+col = 3
+
+[[rungs]]
+id = "r_bp"
+row = 1
+comment = "A1 → Bp"
+
+[[rungs.cells]]
+kind = "contact_no"
+operand = "A1"
+col = 0
+
+[[rungs.cells]]
+kind = "coil"
+operand = "Bp"
+col = 1
+
+[[rungs]]
+id = "r_am"
+row = 2
+comment = "B1 → Am"
+
+[[rungs.cells]]
+kind = "contact_no"
+operand = "B1"
+col = 0
+
+[[rungs.cells]]
+kind = "coil"
+operand = "Am"
+col = 1
+
+[[rungs]]
+id = "r_bm"
+row = 3
+comment = "A0 after Am path → Bm"
+
+[[rungs.cells]]
+kind = "contact_no"
+operand = "A0"
+col = 0
+
+[[rungs.cells]]
+kind = "contact_no"
+operand = "Am"
+col = 1
+
+[[rungs.cells]]
+kind = "coil"
+operand = "Bm"
+col = 2
+
+[[rungs]]
+id = "r_status"
+row = 4
+comment = "Any valve coil → status LED"
+
+[[rungs.cells]]
+kind = "parallel"
+col = 0
+branches = [
+  { id = "b_ap", cells = [{ kind = "contact_no", operand = "Ap", col = 0 }] },
+  { id = "b_bp", cells = [{ kind = "contact_no", operand = "Bp", col = 0 }] },
+  { id = "b_am", cells = [{ kind = "contact_no", operand = "Am", col = 0 }] },
+  { id = "b_bm", cells = [{ kind = "contact_no", operand = "Bm", col = 0 }] },
+]
+
+[[rungs.cells]]
+kind = "coil"
+operand = "busy"
+col = 1
+
+[[rungs.cells]]
+kind = "action"
+col = 2
+stmts = [
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 13 }, { kind = "var", name = "busy" }] },
+]

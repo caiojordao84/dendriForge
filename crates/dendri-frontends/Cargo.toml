@@ -17,4 +17,5 @@ thiserror = { workspace = true }
 [dev-dependencies]
 dendri-parse = { workspace = true }
 dendri-sim = { workspace = true }
+dendri-validate = { workspace = true }
 toml = { workspace = true }
