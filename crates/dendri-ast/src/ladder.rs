@@ -1,8 +1,8 @@
 //! Ladder (IEC 61131-3 LD) AST — diagram IR + TOML serialization.
 //!
-//! Cells form left-to-right series power flow within a rung. Parallel branches
-//! are MVP-deferred (document as gap). Layout coords are editor hints and
-//! round-trip through TOML.
+//! Cells form left-to-right series power flow within a rung. Parallel OR rails
+//! are expressed as [`LadderCell::Parallel`] (one nesting level is the honest MVP).
+//! Layout coords are editor hints and round-trip through TOML.
 
 use serde::{Deserialize, Serialize};
 
@@ -42,6 +42,15 @@ pub struct LadderRung {
     pub row: u32,
 }
 
+/// One series branch inside a [`LadderCell::Parallel`] OR rail.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct LadderBranch {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default)]
+    pub cells: Vec<LadderCell>,
+}
+
 /// Cell kinds mirror IEC LD contacts/coils/FBs plus DendriForge action hooks.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -71,7 +80,7 @@ pub enum LadderCell {
         #[serde(default)]
         col: u32,
     },
-    /// IEC timer FB placeholder (TON / TOF / TP).
+    /// IEC timer FB (TON / TOF / TP) — lowered to matching sim opcodes.
     FbTimer {
         fb: TimerFbKind,
         instance: String,
@@ -80,7 +89,7 @@ pub enum LadderCell {
         #[serde(default)]
         col: u32,
     },
-    /// IEC counter FB placeholder (CTU / CTD / CTUD).
+    /// IEC counter FB (CTU / CTD / CTUD) — lowered to matching sim opcodes.
     FbCounter {
         fb: CounterFbKind,
         instance: String,
@@ -89,10 +98,28 @@ pub enum LadderCell {
         #[serde(default)]
         col: u32,
     },
+    /// Rising / falling edge detector — lowers to `R_TRIG` / `F_TRIG`.
+    FbEdge {
+        /// `true` → R_TRIG, `false` → F_TRIG.
+        rising: bool,
+        instance: String,
+        /// Optional CLK operand; when absent, CLK is the incoming power rail.
+        #[serde(default)]
+        operand: Option<String>,
+        #[serde(default)]
+        col: u32,
+    },
     FbCompare {
         op: String,
         left: Expr,
         right: Expr,
+        #[serde(default)]
+        col: u32,
+    },
+    /// Parallel OR of series branches (IEC LD parallel rails). One nesting level MVP.
+    Parallel {
+        #[serde(default)]
+        branches: Vec<LadderBranch>,
         #[serde(default)]
         col: u32,
     },
@@ -124,7 +151,9 @@ impl LadderCell {
             | Self::CoilReset { col, .. }
             | Self::FbTimer { col, .. }
             | Self::FbCounter { col, .. }
+            | Self::FbEdge { col, .. }
             | Self::FbCompare { col, .. }
+            | Self::Parallel { col, .. }
             | Self::Action { col, .. }
             | Self::Wire { col }
             | Self::Empty { col } => *col,

@@ -1,7 +1,8 @@
-//! SFC / GRAFCET diagram TOML ↔ shared ASL AST (DEN-8 MVP subset).
+//! SFC / GRAFCET diagram TOML ↔ shared ASL AST (DEN-12 depth).
 //!
 //! Source text is a TOML [`GrafcetDocument`]. Lowering produces a step-token
-//! state machine in `loop` for the scan-cycle simulator.
+//! state machine with two-phase transition apply (AND fork/join via multi
+//! `from`/`to`). Nested charts remain deferred.
 
 mod lower;
 
@@ -224,5 +225,69 @@ mod tests {
         let emitted = emit_sfc(&program);
         let again = parse_sfc(&emitted).unwrap();
         assert_eq!(again.grafcet, program.grafcet);
+    }
+
+    #[test]
+    fn and_divergence_two_phase_lower() {
+        let doc = GrafcetDocument {
+            name: "fork".into(),
+            initial_steps: vec!["S0".into()],
+            steps: vec![
+                GrafcetStep {
+                    id: "S0".into(),
+                    initial: true,
+                    actions: vec![],
+                    comment: None,
+                    x: 0.0,
+                    y: 0.0,
+                },
+                GrafcetStep {
+                    id: "Sa".into(),
+                    initial: false,
+                    actions: vec![Stmt::Assign {
+                        target: "a".into(),
+                        value: Expr::Bool { value: true },
+                    }],
+                    comment: None,
+                    x: -40.0,
+                    y: 80.0,
+                },
+                GrafcetStep {
+                    id: "Sb".into(),
+                    initial: false,
+                    actions: vec![Stmt::Assign {
+                        target: "b".into(),
+                        value: Expr::Bool { value: true },
+                    }],
+                    comment: None,
+                    x: 40.0,
+                    y: 80.0,
+                },
+            ],
+            transitions: vec![GrafcetTransition {
+                id: "T_fork".into(),
+                from: vec!["S0".into()],
+                to: vec!["Sa".into(), "Sb".into()],
+                condition: Expr::Bool { value: true },
+                comment: Some("AND divergence".into()),
+                x: 0.0,
+                y: 40.0,
+            }],
+            io_map: vec![],
+            hardware: vec![],
+            data: vec![],
+            setup: vec![],
+        };
+        let p = document_to_program(doc);
+        // Fire assign appears before any token clear/set for that transition.
+        let dump = format!("{:?}", p.loop_body);
+        let fire_pos = dump.find("__sfc_fire_T_fork").expect("fire flag");
+        let clear_pos = dump.find("__sfc_S0").expect("source token");
+        assert!(
+            fire_pos < clear_pos,
+            "two-phase: fire before apply\n{dump}"
+        );
+        assert!(dump.contains("__sfc_Sa"), "{dump}");
+        assert!(dump.contains("__sfc_Sb"), "{dump}");
     }
 }

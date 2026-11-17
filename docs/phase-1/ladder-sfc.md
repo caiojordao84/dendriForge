@@ -1,6 +1,6 @@
-# Phase 1 — Ladder & SFC/GRAFCET (DEN-8)
+# Phase 1 — Ladder & SFC/GRAFCET (DEN-8 → DEN-12)
 
-**Status:** MVP subset landed. ASL still **unversioned** (do not assign `0.0.1`).
+**Status:** Beyond-linear subset landed (parallel OR, AND fork/join, IEC FB lower). ASL still **unversioned** (do not assign `0.0.1`).
 
 ## Editor choice
 
@@ -10,7 +10,7 @@
 | Toolchain | **rustc 1.86.0** (MSRV bump from 1.85.1 required by Wayland/`calloop` stack used by iced) |
 | Sync core | **`dendri-sync`** — headless, CI-tested; GUI is a thin shell |
 
-Full canvas polish (drag handles, IEC glyphs, SVG board overlay) is incremental. Sync + IR are the solid path.
+Full canvas polish (drag handles, IEC glyphs, SVG board overlay) is incremental — see DEN-13. Sync + IR are the solid path.
 
 ## Sync design
 
@@ -24,29 +24,33 @@ DiagramModel  ←→  [[sources]].text (diagram TOML)  ←→  [asl] Program
 - **TOML edit** → parse source text → replace diagram + ASL blocks (+ lower).
 - **ASL edit** → emit ladder/sfc documents into `[[sources]]` (synthesize Action/step views when blocks empty).
 - Determinism: AST equality after round-trips (not byte-identical TOML).
+- Edit sequences (add / remove / reorder) covered by `dendri-sync` unit tests.
 
 ## Crates
 
 | Crate | Role |
 |---|---|
-| `dendri-frontend-ladder` | Ladder diagram TOML ↔ ASL; series power-flow lower |
-| `dendri-frontend-sfc` | GRAFCET/SFC TOML ↔ ASL; step-token state machine lower |
+| `dendri-frontend-ladder` | Ladder diagram TOML ↔ ASL; series + parallel OR + IEC FB lower |
+| `dendri-frontend-sfc` | GRAFCET/SFC TOML ↔ ASL; two-phase step-token machine (AND fork/join) |
 | `dendri-sync` | Bidirectional real-time `SyncSession` |
 | `dendri-editor` | iced GUI (palette + TOML pane) |
 
-## Honest MVP subset
+## Honest subset (DEN-12)
 
 **In**
 
-- Ladder: NO/NC contacts, coils (normal/set/reset), Action cells (ASL stmts), Wire/Empty, layout `col`/`row`, optional TON lower
-- SFC: steps with ASL actions, transitions with receptivity expr, layout `x`/`y`, linear charts
-- Round-trip fixtures `L01`/`L02` / `G01`; P01 `[[sources]]` ladder/sfc filled; `[[asl.ladder]]` / `[[asl.grafcet]]` populated
-- Button SVG authored (`cmd-pushbutton-no-start.svg`) + staged under `content/assets/svg/`
+- Ladder: NO/NC contacts, coils (normal/set/reset), Action cells, Wire/Empty, layout `col`/`row`
+- Ladder: **one-level** `Parallel` OR rails (`LadderBranch`)
+- Ladder: IEC FBs lowered to sim opcodes — `TON` / `TOF` / `TP`, `CTU` / `CTD` / `CTUD`, `R_TRIG` / `F_TRIG` (`FbEdge`)
+- SFC: steps with ASL actions, transitions with receptivity expr, layout `x`/`y`
+- SFC: **AND divergence / convergence** via multi `from` / `to`; two-phase fire then apply
+- Fixtures `L01`–`L04` / `G01`–`G03`; P01 visual sources; visual acceptance + sync edit-sequence tests
 
 **Out / deferred**
 
-- Parallel ladder branches, nested GRAFCET, full FB palette UX
-- Drag-canvas polish, live SVG sim binding classes
+- Nested GRAFCET / macro-steps
+- Deep OR networks / vertical wire matrix / multi-level parallel nesting
+- Drag-canvas polish, live SVG sim binding classes (DEN-13+)
 - Claiming ASL `0.0.1`
 - Rust user-language frontend (P2)
 
@@ -54,8 +58,9 @@ DiagramModel  ←→  [[sources]].text (diagram TOML)  ←→  [asl] Program
 
 ```bash
 cargo test -p dendri-frontends --test visual_acceptance
-cargo run -p dendri-cli -- parse-source --lang ladder content/fixtures/ladder/L01-blink-actions.ladder.toml
-cargo run -p dendri-cli -- parse-source --lang sfc content/fixtures/sfc/G01-blink-two-step.sfc.toml
+cargo test -p dendri-sync --lib
+cargo run -p dendri-cli -- parse-source --lang ladder content/fixtures/ladder/L03-parallel-or.ladder.toml
+cargo run -p dendri-cli -- parse-source --lang sfc content/fixtures/sfc/G02-and-divergence.sfc.toml
 cargo run -p dendri-cli -- frontend-roundtrip --lang ladder content/fixtures/sim/S01-blink-set-bool-wait.asl.toml
 cargo run -p dendri-cli -- sync-visual content/fixtures/projects/P01-uno-led-blink.dendri.toml
 cargo run -p dendri-editor

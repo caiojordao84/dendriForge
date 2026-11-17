@@ -1,7 +1,8 @@
-//! Ladder diagram TOML ↔ shared ASL AST (DEN-8 MVP subset).
+//! Ladder diagram TOML ↔ shared ASL AST (DEN-12 depth beyond linear).
 //!
-//! Source text is a TOML [`LadderDocument`]. Lowering produces series power-flow
-//! boolean logic in `setup`/`loop` for the scan-cycle simulator.
+//! Source text is a TOML [`LadderDocument`]. Lowering produces left-to-right
+//! series power-flow (plus one-level parallel OR rails) and honest IEC FB calls
+//! (`TON`/`TOF`/`TP`/`CTU`/`CTD`/`CTUD`/`R_TRIG`/`F_TRIG`) for `dendri-sim`.
 
 mod lower;
 
@@ -232,5 +233,130 @@ mod tests {
         let p = document_to_program(doc);
         assert!(!p.loop_body.is_empty());
         assert_eq!(p.ladder.len(), 1);
+    }
+
+    #[test]
+    fn parallel_or_lowers_to_or_binop() {
+        use dendri_ast::LadderBranch;
+        let doc = LadderDocument {
+            name: "or_rail".into(),
+            rungs: vec![LadderRung {
+                id: "r1".into(),
+                row: 0,
+                comment: None,
+                cells: vec![
+                    LadderCell::Parallel {
+                        col: 0,
+                        branches: vec![
+                            LadderBranch {
+                                id: "b0".into(),
+                                cells: vec![LadderCell::ContactNo {
+                                    operand: "a".into(),
+                                    col: 0,
+                                }],
+                            },
+                            LadderBranch {
+                                id: "b1".into(),
+                                cells: vec![LadderCell::ContactNo {
+                                    operand: "b".into(),
+                                    col: 0,
+                                }],
+                            },
+                        ],
+                    },
+                    LadderCell::Coil {
+                        operand: "out".into(),
+                        col: 1,
+                    },
+                ],
+            }],
+            io_map: vec![],
+            hardware: vec![],
+            data: vec![],
+            setup: vec![],
+        };
+        let p = document_to_program(doc);
+        let text = format!("{:?}", p.loop_body);
+        assert!(text.contains("Or"), "{text}");
+        assert!(text.contains("out"), "{text}");
+    }
+
+    #[test]
+    fn iec_fbs_lower_to_sim_opcodes() {
+        use dendri_ast::{CounterFbKind, TimerFbKind};
+        let doc = LadderDocument {
+            name: "fbs".into(),
+            rungs: vec![
+                LadderRung {
+                    id: "r_ton".into(),
+                    row: 0,
+                    comment: None,
+                    cells: vec![
+                        LadderCell::ContactNo {
+                            operand: "in".into(),
+                            col: 0,
+                        },
+                        LadderCell::FbTimer {
+                            fb: TimerFbKind::Tof,
+                            instance: "tof1".into(),
+                            args: vec![Expr::Var {
+                                name: "PT".into(),
+                            }],
+                            col: 1,
+                        },
+                    ],
+                },
+                LadderRung {
+                    id: "r_edge".into(),
+                    row: 1,
+                    comment: None,
+                    cells: vec![
+                        LadderCell::ContactNo {
+                            operand: "btn".into(),
+                            col: 0,
+                        },
+                        LadderCell::FbEdge {
+                            rising: true,
+                            instance: "rt1".into(),
+                            operand: None,
+                            col: 1,
+                        },
+                    ],
+                },
+                LadderRung {
+                    id: "r_ctu".into(),
+                    row: 2,
+                    comment: None,
+                    cells: vec![
+                        LadderCell::ContactNo {
+                            operand: "pulse".into(),
+                            col: 0,
+                        },
+                        LadderCell::FbCounter {
+                            fb: CounterFbKind::Ctu,
+                            instance: "ctu1".into(),
+                            args: vec![
+                                Expr::Var {
+                                    name: "reset".into(),
+                                },
+                                Expr::Var {
+                                    name: "pv".into(),
+                                },
+                            ],
+                            col: 1,
+                        },
+                    ],
+                },
+            ],
+            io_map: vec![],
+            hardware: vec![],
+            data: vec![],
+            setup: vec![],
+        };
+        let p = document_to_program(doc);
+        let dump = format!("{:?}", p.loop_body);
+        assert!(dump.contains("TOF"), "{dump}");
+        assert!(dump.contains("R_TRIG"), "{dump}");
+        assert!(dump.contains("CTU"), "{dump}");
     }
 }

@@ -1,0 +1,179 @@
+# SFC — electro-pneumatic A+ B+ A- B- sequence (scenario 6 subset, DEN-12).
+# Linear chart with end-of-stroke sensors; cycle advances when sensors true.
+# Initial: A0+B0; start button begins A+.
+
+name = "G03-electro-pneumatic"
+initial_steps = ["S_idle"]
+
+[[hardware]]
+pin = 13
+hw_type = "digital"
+io_mode = "DO"
+label = "statusPin"
+target_role = "digital-out"
+
+[[data]]
+name = "start"
+type = "BOOL"
+scope = "VAR"
+init = "TRUE"
+unit = "-"
+
+[[data]]
+name = "A0"
+type = "BOOL"
+scope = "VAR"
+init = "TRUE"
+unit = "-"
+
+[[data]]
+name = "A1"
+type = "BOOL"
+scope = "VAR"
+init = "TRUE"
+unit = "-"
+
+[[data]]
+name = "B0"
+type = "BOOL"
+scope = "VAR"
+init = "TRUE"
+unit = "-"
+
+[[data]]
+name = "B1"
+type = "BOOL"
+scope = "VAR"
+init = "TRUE"
+unit = "-"
+
+[[data]]
+name = "Ap"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "Am"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "Bp"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "Bm"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "uint", value = 13 }]
+
+[[steps]]
+id = "S_idle"
+initial = true
+x = 0.0
+y = 0.0
+comment = "wait start"
+actions = [
+  { kind = "assign", target = "Ap", value = { kind = "bool", value = false } },
+  { kind = "assign", target = "Am", value = { kind = "bool", value = false } },
+  { kind = "assign", target = "Bp", value = { kind = "bool", value = false } },
+  { kind = "assign", target = "Bm", value = { kind = "bool", value = false } },
+]
+
+[[steps]]
+id = "S_Ap"
+initial = false
+x = 0.0
+y = 80.0
+comment = "A+"
+actions = [
+  { kind = "assign", target = "Ap", value = { kind = "bool", value = true } },
+  { kind = "assign", target = "Am", value = { kind = "bool", value = false } },
+]
+
+[[steps]]
+id = "S_Bp"
+initial = false
+x = 0.0
+y = 160.0
+comment = "B+"
+actions = [
+  { kind = "assign", target = "Bp", value = { kind = "bool", value = true } },
+  { kind = "assign", target = "Bm", value = { kind = "bool", value = false } },
+]
+
+[[steps]]
+id = "S_Am"
+initial = false
+x = 0.0
+y = 240.0
+comment = "A-"
+actions = [
+  { kind = "assign", target = "Ap", value = { kind = "bool", value = false } },
+  { kind = "assign", target = "Am", value = { kind = "bool", value = true } },
+]
+
+[[steps]]
+id = "S_Bm"
+initial = false
+x = 0.0
+y = 320.0
+comment = "B-"
+actions = [
+  { kind = "assign", target = "Bp", value = { kind = "bool", value = false } },
+  { kind = "assign", target = "Bm", value = { kind = "bool", value = true } },
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "uint", value = 13 }, { kind = "bool", value = true }] },
+]
+
+[[transitions]]
+id = "T_start"
+from = ["S_idle"]
+to = ["S_Ap"]
+condition = { kind = "binop", op = "and", left = { kind = "var", name = "start" }, right = { kind = "binop", op = "and", left = { kind = "var", name = "A0" }, right = { kind = "var", name = "B0" } } }
+x = 0.0
+y = 40.0
+
+[[transitions]]
+id = "T_A1"
+from = ["S_Ap"]
+to = ["S_Bp"]
+condition = { kind = "var", name = "A1" }
+x = 0.0
+y = 120.0
+
+[[transitions]]
+id = "T_B1"
+from = ["S_Bp"]
+to = ["S_Am"]
+condition = { kind = "var", name = "B1" }
+x = 0.0
+y = 200.0
+
+[[transitions]]
+id = "T_A0"
+from = ["S_Am"]
+to = ["S_Bm"]
+condition = { kind = "var", name = "A0" }
+x = 0.0
+y = 280.0
+
+[[transitions]]
+id = "T_done"
+from = ["S_Bm"]
+to = ["S_idle"]
+condition = { kind = "var", name = "B0" }
+x = 0.0
+y = 360.0

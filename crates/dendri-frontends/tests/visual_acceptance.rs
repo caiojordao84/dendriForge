@@ -94,3 +94,88 @@ fn emit_ladder_sfc_from_asl_s01() {
         );
     }
 }
+
+#[test]
+fn ladder_l03_parallel_or_sim() {
+    let path = repo_root().join("content/fixtures/ladder/L03-parallel-or.ladder.toml");
+    let src = std::fs::read_to_string(&path).expect("L03");
+    let program = parse_source(SourceLanguage::Ladder, &src).expect("parse L03");
+    roundtrip_language(SourceLanguage::Ladder, &program).expect("L03 RT");
+    assert!(matches!(
+        &program.ladder[0].rungs[0].cells[0],
+        dendri_ast::LadderCell::Parallel { .. }
+    ));
+    let mut sim = Simulator::from_program(
+        program,
+        &SimConfig {
+            max_cycles: 1,
+            ..SimConfig::default()
+        },
+    );
+    sim.run(1).expect("sim");
+    let trace = sim.trace_text();
+    assert!(trace.contains("PIN_WRITE pin=13 value=true"), "{trace}");
+}
+
+#[test]
+fn ladder_l04_iec_fbs_sim() {
+    let path = repo_root().join("content/fixtures/ladder/L04-iec-fbs.ladder.toml");
+    let src = std::fs::read_to_string(&path).expect("L04");
+    let program = parse_source(SourceLanguage::Ladder, &src).expect("parse L04");
+    roundtrip_language(SourceLanguage::Ladder, &program).expect("L04 RT");
+    let mut sim = Simulator::from_program(
+        program,
+        &SimConfig {
+            max_cycles: 1,
+            ..SimConfig::default()
+        },
+    );
+    sim.run(1).expect("sim");
+    let trace = sim.trace_text();
+    assert!(trace.contains("R_TRIG"), "{trace}");
+    assert!(trace.contains("TON"), "{trace}");
+    assert!(trace.contains("TOF"), "{trace}");
+    assert!(trace.contains("CTU"), "{trace}");
+    assert!(trace.contains("PIN_WRITE pin=13"), "{trace}");
+}
+
+#[test]
+fn sfc_g02_and_divergence_sim() {
+    let path = repo_root().join("content/fixtures/sfc/G02-and-divergence.sfc.toml");
+    let src = std::fs::read_to_string(&path).expect("G02");
+    let program = parse_source(SourceLanguage::Sfc, &src).expect("parse G02");
+    roundtrip_language(SourceLanguage::Sfc, &program).expect("G02 RT");
+    let fork = &program.grafcet[0].transitions[0];
+    assert_eq!(fork.to.len(), 2, "AND divergence");
+    let join = &program.grafcet[0].transitions[1];
+    assert_eq!(join.from.len(), 2, "AND convergence");
+    let mut sim = Simulator::from_program(
+        program,
+        &SimConfig {
+            max_cycles: 3,
+            ..SimConfig::default()
+        },
+    );
+    sim.run(3).expect("sim");
+    let trace = sim.trace_text();
+    assert!(trace.contains("PIN_WRITE pin=13 value=true"), "{trace}");
+}
+
+#[test]
+fn sfc_g03_electro_pneumatic_sim() {
+    let path = repo_root().join("content/fixtures/sfc/G03-electro-pneumatic.sfc.toml");
+    let src = std::fs::read_to_string(&path).expect("G03");
+    let program = parse_source(SourceLanguage::Sfc, &src).expect("parse G03");
+    roundtrip_language(SourceLanguage::Sfc, &program).expect("G03 RT");
+    assert_eq!(program.grafcet[0].steps.len(), 5);
+    let mut sim = Simulator::from_program(
+        program,
+        &SimConfig {
+            max_cycles: 5,
+            ..SimConfig::default()
+        },
+    );
+    sim.run(5).expect("sim");
+    let trace = sim.trace_text();
+    assert!(trace.contains("PIN_WRITE pin=13 value=true"), "{trace}");
+}

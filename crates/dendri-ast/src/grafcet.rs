@@ -2,7 +2,8 @@
 //!
 //! Steps hold ASL actions; transitions carry receptivity expressions.
 //! Layout positions are editor hints and round-trip through TOML.
-//! MVP: linear charts + simple AND divergence (multi from/to); nested charts deferred.
+//! Honest MVP: linear charts + AND divergence/convergence via multi `from`/`to`.
+//! Nested / macro-steps remain deferred (DEN-13+ canvas).
 
 use serde::{Deserialize, Serialize};
 

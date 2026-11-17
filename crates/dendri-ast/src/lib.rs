@@ -19,8 +19,8 @@ pub use grafcet::{
     GrafcetBlock, GrafcetDocument, GrafcetIoBinding, GrafcetStep, GrafcetTransition,
 };
 pub use ladder::{
-    CounterFbKind, LadderBlock, LadderCell, LadderDocument, LadderIoBinding, LadderRung,
-    TimerFbKind,
+    CounterFbKind, LadderBlock, LadderBranch, LadderCell, LadderDocument, LadderIoBinding,
+    LadderRung, TimerFbKind,
 };
 pub use lit::Literal;
 pub use program::{

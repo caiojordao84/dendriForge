@@ -408,4 +408,215 @@ mod tests {
             .unwrap()
             .contains("S0"));
     }
+
+    fn ladder_doc_two_rungs() -> LadderDocument {
+        LadderDocument {
+            name: "edit_seq".into(),
+            rungs: vec![
+                LadderRung {
+                    id: "r1".into(),
+                    row: 0,
+                    comment: None,
+                    cells: vec![LadderCell::ContactNo {
+                        operand: "a".into(),
+                        col: 0,
+                    }],
+                },
+                LadderRung {
+                    id: "r2".into(),
+                    row: 1,
+                    comment: None,
+                    cells: vec![LadderCell::Coil {
+                        operand: "led".into(),
+                        col: 0,
+                    }],
+                },
+            ],
+            io_map: vec![],
+            hardware: vec![],
+            data: vec![],
+            setup: vec![],
+        }
+    }
+
+    #[test]
+    fn ladder_edit_sequence_add_remove_reorder() {
+        let mut session = SyncSession::new(bare_project());
+        let mut doc = ladder_doc_two_rungs();
+        session.apply_ladder_document(doc.clone()).unwrap();
+        session.assert_ladder_roundtrip().unwrap();
+        assert_eq!(session.ladder_model().unwrap().rungs.len(), 2);
+
+        // Add cell on first rung
+        doc.rungs[0].cells.push(LadderCell::ContactNo {
+            operand: "b".into(),
+            col: 1,
+        });
+        session.apply_ladder_document(doc.clone()).unwrap();
+        session.assert_ladder_roundtrip().unwrap();
+        assert_eq!(session.ladder_model().unwrap().rungs[0].cells.len(), 2);
+
+        // Remove middle-ish cell (last on rung 0)
+        doc.rungs[0].cells.pop();
+        session.apply_ladder_document(doc.clone()).unwrap();
+        session.assert_ladder_roundtrip().unwrap();
+        assert_eq!(session.ladder_model().unwrap().rungs[0].cells.len(), 1);
+
+        // Reorder rungs by swapping row + vec order
+        doc.rungs.swap(0, 1);
+        doc.rungs[0].row = 0;
+        doc.rungs[1].row = 1;
+        session.apply_ladder_document(doc.clone()).unwrap();
+        session.assert_ladder_roundtrip().unwrap();
+        assert_eq!(session.ladder_model().unwrap().rungs[0].id, "r2");
+
+        // Remove a rung
+        doc.rungs.pop();
+        session.apply_ladder_document(doc).unwrap();
+        session.assert_ladder_roundtrip().unwrap();
+        assert_eq!(session.ladder_model().unwrap().rungs.len(), 1);
+
+        // TOML origin still projects
+        let text = session
+            .source_text(SourceLanguage::Ladder)
+            .unwrap()
+            .to_string();
+        session
+            .apply_source_toml(VisualKind::Ladder, &text)
+            .unwrap();
+        assert_eq!(session.last_origin, Some(SyncOrigin::TomlSource));
+        session.assert_ladder_roundtrip().unwrap();
+    }
+
+    #[test]
+    fn sfc_edit_sequence_add_remove_transition() {
+        use dendri_ast::{GrafcetStep, GrafcetTransition};
+
+        let mut session = SyncSession::new(bare_project());
+        let mut doc = GrafcetDocument {
+            name: "chart".into(),
+            initial_steps: vec!["S0".into()],
+            steps: vec![GrafcetStep {
+                id: "S0".into(),
+                initial: true,
+                actions: vec![],
+                comment: None,
+                x: 0.0,
+                y: 0.0,
+            }],
+            transitions: vec![],
+            io_map: vec![],
+            hardware: vec![],
+            data: vec![],
+            setup: vec![],
+        };
+        session.apply_sfc_document(doc.clone()).unwrap();
+        session.assert_sfc_roundtrip().unwrap();
+
+        // Add step + transition
+        doc.steps.push(GrafcetStep {
+            id: "S1".into(),
+            initial: false,
+            actions: vec![Stmt::Call {
+                name: "SET_BOOL".into(),
+                args: vec![Expr::Uint { value: 13 }, Expr::Bool { value: true }],
+            }],
+            comment: Some("added".into()),
+            x: 0.0,
+            y: 80.0,
+        });
+        doc.transitions.push(GrafcetTransition {
+            id: "T0".into(),
+            from: vec!["S0".into()],
+            to: vec!["S1".into()],
+            condition: Expr::Bool { value: true },
+            comment: None,
+            x: 0.0,
+            y: 40.0,
+        });
+        session.apply_sfc_document(doc.clone()).unwrap();
+        session.assert_sfc_roundtrip().unwrap();
+        assert_eq!(session.sfc_model().unwrap().transitions.len(), 1);
+        assert!(session
+            .project
+            .asl
+            .loop_body
+            .iter()
+            .any(|s| matches!(s, Stmt::Assign { target, .. } if target.contains("__sfc_fire_T0"))));
+
+        // Reorder steps (swap display positions)
+        doc.steps.swap(0, 1);
+        doc.steps[0].y = 0.0;
+        doc.steps[1].y = 80.0;
+        session.apply_sfc_document(doc.clone()).unwrap();
+        session.assert_sfc_roundtrip().unwrap();
+
+        // Remove transition then remove non-initial step
+        doc.transitions.clear();
+        doc.steps.retain(|s| s.id == "S0");
+        doc.initial_steps = vec!["S0".into()];
+        session.apply_sfc_document(doc).unwrap();
+        session.assert_sfc_roundtrip().unwrap();
+        assert_eq!(session.sfc_model().unwrap().steps.len(), 1);
+        assert!(session.sfc_model().unwrap().transitions.is_empty());
+    }
+
+    #[test]
+    fn parallel_cell_survives_diagram_toml_asl_sync() {
+        use dendri_ast::LadderBranch;
+
+        let mut session = SyncSession::new(bare_project());
+        let doc = LadderDocument {
+            name: "or_rail".into(),
+            rungs: vec![LadderRung {
+                id: "r1".into(),
+                row: 0,
+                comment: None,
+                cells: vec![
+                    LadderCell::Parallel {
+                        col: 0,
+                        branches: vec![
+                            LadderBranch {
+                                id: "b0".into(),
+                                cells: vec![LadderCell::ContactNo {
+                                    operand: "a".into(),
+                                    col: 0,
+                                }],
+                            },
+                            LadderBranch {
+                                id: "b1".into(),
+                                cells: vec![LadderCell::ContactNo {
+                                    operand: "b".into(),
+                                    col: 0,
+                                }],
+                            },
+                        ],
+                    },
+                    LadderCell::Coil {
+                        operand: "led".into(),
+                        col: 1,
+                    },
+                ],
+            }],
+            io_map: vec![],
+            hardware: session.project.asl.hardware.clone(),
+            data: session.project.asl.data.clone(),
+            setup: vec![],
+        };
+        session.apply_ladder_document(doc).unwrap();
+        session.assert_ladder_roundtrip().unwrap();
+        let text = session
+            .source_text(SourceLanguage::Ladder)
+            .unwrap()
+            .to_string();
+        assert!(text.contains("parallel"), "{text}");
+        session
+            .apply_source_toml(VisualKind::Ladder, &text)
+            .unwrap();
+        let block = session.ladder_model().unwrap();
+        assert!(matches!(
+            block.rungs[0].cells[0],
+            LadderCell::Parallel { .. }
+        ));
+    }
 }

@@ -40,7 +40,12 @@ enum Message {
     AddContactNo,
     AddCoil,
     AddActionSetBool,
+    AddParallelOr,
+    AddTon,
+    AddRTrig,
     AddSfcStep,
+    AddSfcTransition,
+    RemoveLastLadderCell,
     ReloadFromAsl,
     Save,
     OpenDefault,
@@ -160,6 +165,87 @@ impl Editor {
                     self.status = "diagram → TOML/ASL (action)".into();
                 }
             }
+            Message::AddParallelOr => {
+                if let Err(e) = self.mutate_ladder(|doc| {
+                    use dendri_ast::{LadderBranch, LadderCell};
+                    if let Some(rung) = doc.rungs.first_mut() {
+                        let col = rung.cells.len() as u32;
+                        rung.cells.push(LadderCell::Parallel {
+                            col,
+                            branches: vec![
+                                LadderBranch {
+                                    id: "b0".into(),
+                                    cells: vec![LadderCell::ContactNo {
+                                        operand: "a".into(),
+                                        col: 0,
+                                    }],
+                                },
+                                LadderBranch {
+                                    id: "b1".into(),
+                                    cells: vec![LadderCell::ContactNo {
+                                        operand: "b".into(),
+                                        col: 0,
+                                    }],
+                                },
+                            ],
+                        });
+                    }
+                }) {
+                    self.status = format!("edit failed: {e}");
+                } else {
+                    self.status = "diagram → TOML/ASL (parallel OR)".into();
+                }
+            }
+            Message::AddTon => {
+                if let Err(e) = self.mutate_ladder(|doc| {
+                    use dendri_ast::expr::Expr;
+                    use dendri_ast::{LadderCell, TimerFbKind};
+                    if let Some(rung) = doc.rungs.first_mut() {
+                        let col = rung.cells.len() as u32;
+                        rung.cells.push(LadderCell::FbTimer {
+                            fb: TimerFbKind::Ton,
+                            instance: "ton1".into(),
+                            args: vec![Expr::Var {
+                                name: "PT".into(),
+                            }],
+                            col,
+                        });
+                    }
+                }) {
+                    self.status = format!("edit failed: {e}");
+                } else {
+                    self.status = "diagram → TOML/ASL (TON)".into();
+                }
+            }
+            Message::AddRTrig => {
+                if let Err(e) = self.mutate_ladder(|doc| {
+                    use dendri_ast::LadderCell;
+                    if let Some(rung) = doc.rungs.first_mut() {
+                        let col = rung.cells.len() as u32;
+                        rung.cells.push(LadderCell::FbEdge {
+                            rising: true,
+                            instance: "rt1".into(),
+                            operand: None,
+                            col,
+                        });
+                    }
+                }) {
+                    self.status = format!("edit failed: {e}");
+                } else {
+                    self.status = "diagram → TOML/ASL (R_TRIG)".into();
+                }
+            }
+            Message::RemoveLastLadderCell => {
+                if let Err(e) = self.mutate_ladder(|doc| {
+                    if let Some(rung) = doc.rungs.first_mut() {
+                        let _ = rung.cells.pop();
+                    }
+                }) {
+                    self.status = format!("edit failed: {e}");
+                } else {
+                    self.status = "diagram → TOML/ASL (remove cell)".into();
+                }
+            }
             Message::AddSfcStep => {
                 if let Err(e) = self.mutate_sfc(|doc| {
                     let n = doc.steps.len();
@@ -180,6 +266,31 @@ impl Editor {
                     self.status = format!("edit failed: {e}");
                 } else {
                     self.status = "diagram → TOML/ASL (step)".into();
+                }
+            }
+            Message::AddSfcTransition => {
+                if let Err(e) = self.mutate_sfc(|doc| {
+                    use dendri_ast::expr::Expr;
+                    if doc.steps.len() < 2 {
+                        return;
+                    }
+                    let from = doc.steps[doc.steps.len() - 2].id.clone();
+                    let to = doc.steps[doc.steps.len() - 1].id.clone();
+                    let id = format!("T{}", doc.transitions.len());
+                    let y = doc.steps[doc.steps.len() - 1].y - 40.0;
+                    doc.transitions.push(dendri_ast::GrafcetTransition {
+                        id,
+                        from: vec![from],
+                        to: vec![to],
+                        condition: Expr::Bool { value: true },
+                        comment: Some("palette".into()),
+                        x: 0.0,
+                        y,
+                    });
+                }) {
+                    self.status = format!("edit failed: {e}");
+                } else {
+                    self.status = "diagram → TOML/ASL (transition)".into();
                 }
             }
             Message::ReloadFromAsl => match self.session.sync_visual_sources_from_asl() {
@@ -234,9 +345,17 @@ impl Editor {
                 button("+ NO contact").on_press(Message::AddContactNo),
                 button("+ Coil").on_press(Message::AddCoil),
                 button("+ SET_BOOL").on_press(Message::AddActionSetBool),
+                button("+ Parallel OR").on_press(Message::AddParallelOr),
+                button("+ TON").on_press(Message::AddTon),
+                button("+ R_TRIG").on_press(Message::AddRTrig),
+                button("- Cell").on_press(Message::RemoveLastLadderCell),
             ]
             .spacing(8),
-            VisualKind::Sfc => row![button("+ Step").on_press(Message::AddSfcStep)].spacing(8),
+            VisualKind::Sfc => row![
+                button("+ Step").on_press(Message::AddSfcStep),
+                button("+ Transition").on_press(Message::AddSfcTransition),
+            ]
+            .spacing(8),
         };
 
         let diagram = container(scrollable(self.diagram_view()))
@@ -400,7 +519,17 @@ fn cell_label(cell: &LadderCell) -> String {
         LadderCell::Empty { .. } => "..".into(),
         LadderCell::FbTimer { fb, instance, .. } => format!("[{fb:?}:{instance}]"),
         LadderCell::FbCounter { fb, instance, .. } => format!("[{fb:?}:{instance}]"),
+        LadderCell::FbEdge {
+            rising, instance, ..
+        } => format!(
+            "[{}:{}]",
+            if *rising { "R_TRIG" } else { "F_TRIG" },
+            instance
+        ),
         LadderCell::FbCompare { op, .. } => format!("[{op}]"),
+        LadderCell::Parallel { branches, .. } => {
+            format!("[||*{}]", branches.len())
+        }
     }
 }
 
