@@ -1,8 +1,8 @@
-//! Unified P1 language frontends ↔ shared ASL AST.
+//! Unified language frontends ↔ shared ASL AST.
 //!
-//! Text: C++, MicroPython, Structured Text (DEN-7).
-//! Visual: Ladder, SFC/GRAFCET diagram TOML (DEN-8).
-//! Rust-as-scripting remains P2.
+//! Text P1: C++, MicroPython, Structured Text (DEN-7).
+//! Visual P1: Ladder, SFC/GRAFCET diagram TOML (DEN-8).
+//! Text P2: Dendri HAL Rust subset (DEN-24) — coexists; ASL remains IR.
 
 use dendri_ast::{Program, SourceLanguage};
 use thiserror::Error;
@@ -11,7 +11,7 @@ use thiserror::Error;
 pub enum FrontendError {
     #[error("{0}")]
     Message(String),
-    #[error("language {0} is not supported (Rust user-language = P2)")]
+    #[error("language {0} is not supported")]
     Unsupported(&'static str),
 }
 
@@ -33,6 +33,12 @@ impl From<dendri_backend_st::StParseError> for FrontendError {
     }
 }
 
+impl From<dendri_frontend_rust::RustParseError> for FrontendError {
+    fn from(e: dendri_frontend_rust::RustParseError) -> Self {
+        Self::Message(e.to_string())
+    }
+}
+
 impl From<dendri_frontend_ladder::LadderError> for FrontendError {
     fn from(e: dendri_frontend_ladder::LadderError) -> Self {
         Self::Message(e.to_string())
@@ -45,12 +51,13 @@ impl From<dendri_frontend_sfc::SfcError> for FrontendError {
     }
 }
 
-/// Parse source text of a P1 language into the shared ASL [`Program`] AST.
+/// Parse source text into the shared ASL [`Program`] AST.
 pub fn parse_source(language: SourceLanguage, text: &str) -> Result<Program, FrontendError> {
     match language {
         SourceLanguage::Cpp => Ok(dendri_frontend_cpp::parse_cpp(text)?),
         SourceLanguage::Micropython => Ok(dendri_frontend_micropython::parse_micropython(text)?),
         SourceLanguage::St => Ok(dendri_backend_st::parse_st(text)?),
+        SourceLanguage::Rust => Ok(dendri_frontend_rust::parse_rust(text)?),
         SourceLanguage::Ladder => Ok(dendri_frontend_ladder::parse_ladder(text)?),
         SourceLanguage::Sfc => Ok(dendri_frontend_sfc::parse_sfc(text)?),
         SourceLanguage::Asl => Err(FrontendError::Message(
@@ -59,12 +66,13 @@ pub fn parse_source(language: SourceLanguage, text: &str) -> Result<Program, Fro
     }
 }
 
-/// Generate source text for a P1 language from the shared ASL [`Program`] AST.
+/// Generate source text from the shared ASL [`Program`] AST.
 pub fn emit_source(language: SourceLanguage, program: &Program) -> Result<String, FrontendError> {
     match language {
         SourceLanguage::Cpp => Ok(dendri_frontend_cpp::emit_cpp(program)),
         SourceLanguage::Micropython => Ok(dendri_frontend_micropython::emit_micropython(program)),
         SourceLanguage::St => Ok(dendri_backend_st::emit_st(program)),
+        SourceLanguage::Rust => Ok(dendri_frontend_rust::emit_rust(program)),
         SourceLanguage::Ladder => Ok(dendri_frontend_ladder::emit_ladder(program)),
         SourceLanguage::Sfc => Ok(dendri_frontend_sfc::emit_sfc(program)),
         SourceLanguage::Asl => Err(FrontendError::Message(
@@ -150,4 +158,5 @@ pub use dendri_backend_st::{emit_st, parse_st};
 pub use dendri_frontend_cpp::{emit_cpp, parse_cpp};
 pub use dendri_frontend_ladder::{emit_ladder, parse_ladder};
 pub use dendri_frontend_micropython::{emit_micropython, parse_micropython};
+pub use dendri_frontend_rust::{emit_rust, parse_rust};
 pub use dendri_frontend_sfc::{emit_sfc, parse_sfc};

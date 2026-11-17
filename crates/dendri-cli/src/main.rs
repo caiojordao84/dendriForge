@@ -21,6 +21,7 @@ enum Lang {
     Cpp,
     Micropython,
     St,
+    Rust,
     Ladder,
     Sfc,
 }
@@ -31,6 +32,7 @@ impl From<Lang> for SourceLanguage {
             Lang::Cpp => SourceLanguage::Cpp,
             Lang::Micropython => SourceLanguage::Micropython,
             Lang::St => SourceLanguage::St,
+            Lang::Rust => SourceLanguage::Rust,
             Lang::Ladder => SourceLanguage::Ladder,
             Lang::Sfc => SourceLanguage::Sfc,
         }
@@ -60,6 +62,8 @@ enum Cmd {
     EmitCpp { path: PathBuf },
     /// Emit MicroPython from the same AST
     EmitMicropython { path: PathBuf },
+    /// Emit Dendri HAL Rust (P2) from the same AST
+    EmitRust { path: PathBuf },
     /// Emit Ladder diagram TOML from ASL
     EmitLadder { path: PathBuf },
     /// Emit SFC/GRAFCET diagram TOML from ASL
@@ -215,6 +219,11 @@ fn run(cli: Cli) -> Result<(), String> {
             print!("{}", dendri_frontends::emit_micropython(doc.program()));
             Ok(())
         }
+        Cmd::EmitRust { path } => {
+            let doc = parse_path(&path).map_err(|e| e.to_string())?;
+            print!("{}", dendri_frontends::emit_rust(doc.program()));
+            Ok(())
+        }
         Cmd::EmitLadder { path } => {
             let doc = parse_path(&path).map_err(|e| e.to_string())?;
             print!("{}", dendri_frontends::emit_ladder(doc.program()));
@@ -256,6 +265,7 @@ fn run(cli: Cli) -> Result<(), String> {
                     SourceLanguage::Cpp
                     | SourceLanguage::Micropython
                     | SourceLanguage::St
+                    | SourceLanguage::Rust
                     | SourceLanguage::Ladder
                     | SourceLanguage::Sfc => {
                         src.text = dendri_frontends::emit_source(src.language, &p.project.asl)

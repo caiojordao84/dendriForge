@@ -1,0 +1,14 @@
+[package]
+name = "dendri-frontend-rust"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Dendri HAL Rust subset ↔ ASL AST frontend (P2 user scripting)"
+
+[dependencies]
+dendri-ast = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+dendri-parse = { workspace = true }
+dendri-sim = { workspace = true }

@@ -47,11 +47,12 @@ fn s07_program() -> dendri_ast::Program {
     load_asl("content/fixtures/sim/S07-iec-counters.asl.toml")
 }
 
-fn text_langs() -> [SourceLanguage; 3] {
+fn text_langs() -> [SourceLanguage; 4] {
     [
         SourceLanguage::Cpp,
         SourceLanguage::Micropython,
         SourceLanguage::St,
+        SourceLanguage::Rust,
     ]
 }
 
@@ -68,6 +69,11 @@ fn micropython_roundtrip_s01() {
 #[test]
 fn st_roundtrip_s01() {
     roundtrip_language(SourceLanguage::St, &s01_program()).expect("st roundtrip");
+}
+
+#[test]
+fn rust_roundtrip_s01() {
+    roundtrip_language(SourceLanguage::Rust, &s01_program()).expect("rust roundtrip");
 }
 
 #[test]
@@ -145,6 +151,26 @@ fn parse_st_fixture_runs_sim() {
 }
 
 #[test]
+fn parse_rust_fixture_runs_sim() {
+    let src = std::fs::read_to_string(
+        repo_root().join("content/fixtures/frontends/S01-blink.rs"),
+    )
+    .expect("rust fixture");
+    let program = parse_source(SourceLanguage::Rust, &src).expect("parse rust");
+    let mut sim = Simulator::from_program(
+        program,
+        &SimConfig {
+            max_cycles: 2,
+            ..SimConfig::default()
+        },
+    );
+    sim.run(2).expect("sim");
+    let trace = sim.trace_text();
+    assert!(trace.contains("PIN_WRITE pin=13 value=true"), "{trace}");
+    assert!(trace.contains("WAIT ms=100"), "{trace}");
+}
+
+#[test]
 fn parse_s02_ton_fixtures_run_sim() {
     let cases = [
         (SourceLanguage::Cpp, "content/fixtures/frontends/S02-ton.cpp"),
@@ -153,6 +179,7 @@ fn parse_s02_ton_fixtures_run_sim() {
             "content/fixtures/frontends/S02-ton.py",
         ),
         (SourceLanguage::St, "content/fixtures/frontends/S02-ton.st"),
+        (SourceLanguage::Rust, "content/fixtures/frontends/S02-ton.rs"),
     ];
     for (lang, rel) in cases {
         let src = std::fs::read_to_string(repo_root().join(rel)).expect(rel);
@@ -191,6 +218,10 @@ fn parse_s03_control_flow_fixtures_run_sim() {
         (
             SourceLanguage::St,
             "content/fixtures/frontends/S03-control-flow.st",
+        ),
+        (
+            SourceLanguage::Rust,
+            "content/fixtures/frontends/S03-control-flow.rs",
         ),
     ];
     let mut pins = HashMap::new();
@@ -267,6 +298,10 @@ fn parse_s04_pwm_adc_fixtures_run_sim() {
             "content/fixtures/frontends/S04-pwm-adc.py",
         ),
         (SourceLanguage::St, "content/fixtures/frontends/S04-pwm-adc.st"),
+        (
+            SourceLanguage::Rust,
+            "content/fixtures/frontends/S04-pwm-adc.rs",
+        ),
     ];
     let mut adc = HashMap::new();
     adc.insert(34, 32768);
@@ -306,6 +341,10 @@ fn parse_s06_tof_trig_fixtures_run_sim() {
             "content/fixtures/frontends/S06-tof-trig.py",
         ),
         (SourceLanguage::St, "content/fixtures/frontends/S06-tof-trig.st"),
+        (
+            SourceLanguage::Rust,
+            "content/fixtures/frontends/S06-tof-trig.rs",
+        ),
     ];
     for (lang, rel) in cases {
         let src = std::fs::read_to_string(repo_root().join(rel)).expect(rel);

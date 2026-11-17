@@ -76,7 +76,7 @@ pub struct SourceScript {
     pub path_hint: Option<String>,
 }
 
-/// P1 language tags. Text frontends landed in DEN-7; Ladder/SFC = DEN-8; Rust = P2.
+/// Language tags for `[[sources]]`. Text P1 = DEN-7; Ladder/SFC = DEN-8; Rust = P2 (DEN-24).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SourceLanguage {
@@ -86,6 +86,8 @@ pub enum SourceLanguage {
     Micropython,
     /// IEC 61131-3 Structured Text (DEN-7).
     St,
+    /// Dendri HAL Rust subset (DEN-24 / P2) — lowers to ASL; does not replace P1.
+    Rust,
     /// IEC 61131-3 Ladder (DEN-8).
     Ladder,
     /// IEC 60848 / GRAFCET SFC (DEN-8).
@@ -100,6 +102,7 @@ impl SourceLanguage {
             Self::Cpp => "cpp",
             Self::Micropython => "micropython",
             Self::St => "st",
+            Self::Rust => "rust",
             Self::Ladder => "ladder",
             Self::Sfc => "sfc",
             Self::Asl => "asl",

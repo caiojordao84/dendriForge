@@ -1,16 +1,16 @@
-# Frontend fixtures (DEN-7 / DEN-10 / DEN-11)
+# Frontend fixtures (DEN-7 / DEN-10 / DEN-11 / DEN-24)
 
-Hand-checkable P1 language sources that parse into the shared ASL AST and run on `dendri-sim`.
+Hand-checkable language sources that parse into the shared ASL AST and run on `dendri-sim`.
 
 | File | Language | Paired ASL |
 |---|---|---|
-| `S01-blink.{cpp,py,st}` | C++ / MicroPython / ST | `../sim/S01-blink-set-bool-wait.asl.toml` |
-| `S02-ton.{cpp,py,st}` | C++ / MicroPython / ST | `../sim/S02-ton-on-delay.asl.toml` |
-| `S03-control-flow.{cpp,py,st}` | C++ / MicroPython / ST | `../sim/S03-control-flow-get-bool.asl.toml` |
-| `S04-pwm-adc.{cpp,py,st}` | C++ / MicroPython / ST | `../sim/S04-pwm-adc-map.asl.toml` |
-| `S05-uart-buses.{cpp,py,st}` | C++ / MicroPython / ST | `../sim/S05-uart-i2c-spi.asl.toml` |
-| `S06-tof-trig.{cpp,py,st}` | C++ / MicroPython / ST | `../sim/S06-iec-tof-trig.asl.toml` |
-| `S07-counters.{cpp,py,st}` | C++ / MicroPython / ST | `../sim/S07-iec-counters.asl.toml` |
+| `S01-blink.{cpp,py,st,rs}` | C++ / MicroPython / ST / Rust | `../sim/S01-blink-set-bool-wait.asl.toml` |
+| `S02-ton.{cpp,py,st,rs}` | C++ / MicroPython / ST / Rust | `../sim/S02-ton-on-delay.asl.toml` |
+| `S03-control-flow.{cpp,py,st,rs}` | C++ / MicroPython / ST / Rust | `../sim/S03-control-flow-get-bool.asl.toml` |
+| `S04-pwm-adc.{cpp,py,st,rs}` | C++ / MicroPython / ST / Rust | `../sim/S04-pwm-adc-map.asl.toml` |
+| `S05-uart-buses.{cpp,py,st,rs}` | C++ / MicroPython / ST / Rust | `../sim/S05-uart-i2c-spi.asl.toml` |
+| `S06-tof-trig.{cpp,py,st,rs}` | C++ / MicroPython / ST / Rust | `../sim/S06-iec-tof-trig.asl.toml` |
+| `S07-counters.{cpp,py,st,rs}` | C++ / MicroPython / ST / Rust | `../sim/S07-iec-counters.asl.toml` |
 
 Coverage intent:
 
@@ -28,6 +28,9 @@ Regenerate from ASL:
 cargo run -q -p dendri-cli -- emit-cpp content/fixtures/sim/S04-pwm-adc-map.asl.toml
 cargo run -q -p dendri-cli -- emit-micropython content/fixtures/sim/S06-iec-tof-trig.asl.toml
 cargo run -q -p dendri-cli -- emit-st content/fixtures/sim/S07-iec-counters.asl.toml
+cargo run -q -p dendri-cli -- emit-rust content/fixtures/sim/S01-blink-set-bool-wait.asl.toml
 ```
 
 Acceptance tests live in `crates/dendri-frontends/tests/frontend_acceptance.rs`.
+
+Rust (P2 / DEN-24) is a Dendri HAL subset that lowers to ASL — it does not replace P1 languages or introduce a second sim engine.

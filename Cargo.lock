@@ -957,6 +957,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "dendri-frontend-rust"
+version = "0.0.0"
+dependencies = [
+ "dendri-ast",
+ "dendri-parse",
+ "dendri-sim",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "dendri-frontend-sfc"
 version = "0.0.0"
 dependencies = [
@@ -976,6 +986,7 @@ dependencies = [
  "dendri-frontend-cpp",
  "dendri-frontend-ladder",
  "dendri-frontend-micropython",
+ "dendri-frontend-rust",
  "dendri-frontend-sfc",
  "dendri-parse",
  "dendri-sim",

@@ -33,13 +33,13 @@ jobs:
           cargo run -q -p dendri-cli -- roundtrip content/fixtures/canvas/C01-button-led.asl.toml
           cargo run -q -p dendri-cli -- roundtrip content/fixtures/canvas/C01-button-led.dendri.toml
           cargo run -q -p dendri-cli -- canvas-sim content/fixtures/canvas/C01-button-led.dendri.toml --sequence 0,1,0
-      - name: frontend round-trips (C++ / MicroPython / ST / Ladder / SFC)
+      - name: frontend round-trips (C++ / MicroPython / ST / Rust / Ladder / SFC)
         run: |
-          for lang in cpp micropython st ladder sfc; do
+          for lang in cpp micropython st rust ladder sfc; do
             echo "== frontend-roundtrip $lang S01"
             cargo run -q -p dendri-cli -- frontend-roundtrip --lang "$lang" content/fixtures/sim/S01-blink-set-bool-wait.asl.toml
           done
-          for lang in cpp micropython st; do
+          for lang in cpp micropython st rust; do
             echo "== frontend-roundtrip $lang S02"
             cargo run -q -p dendri-cli -- frontend-roundtrip --lang "$lang" content/fixtures/sim/S02-ton-on-delay.asl.toml
             echo "== frontend-roundtrip $lang S03"
