@@ -46,7 +46,7 @@ Fixtures: `S01` blink, `S02` TON, `S03` control-flow + GET_BOOL — each with `.
 - `const int label = N` pin labels (+ `// ASL_HW:` for non-`*Pin` names and DI/DO honesty)
 - `const unsigned long` → `TIME`; `const unsigned int` / `int` / `bool` / `float` with `// ASL_DATA:`
 
-**Out:** classes, templates, pointers, preprocessor semantics, STM32/ESP-IDF HAL beyond Arduino aliases.
+**Out:** classes, templates, pointers, preprocessor semantics, STM32/ESP-IDF HAL beyond Arduino aliases; ledc channel allocation (ESP32) beyond `analogWrite` / `CFG_PWM_*`.
 
 ### MicroPython
 

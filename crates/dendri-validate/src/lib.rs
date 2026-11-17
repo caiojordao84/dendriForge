@@ -373,13 +373,23 @@ fn check_call(name: &str, args: &[Expr], ctx: &mut CheckCtx<'_>) {
     }
 
     if let Some(op) = dendri_stdlib::lookup(name) {
-        // IEC FB timers accept 2 (IN, PT) or 3 (instance, IN, PT) in Phase 1 sim.
-        if matches!(op.canonical.as_str(), "TON" | "TOF" | "TP") {
-            if args.len() != 2 && args.len() != 3 {
+        // IEC FBs accept optional leading instance id string before IEC inputs.
+        let fb_ok = match op.canonical.as_str() {
+            "TON" | "TOF" | "TP" => args.len() == 2 || args.len() == 3,
+            "R_TRIG" | "F_TRIG" => args.len() == 1 || args.len() == 2,
+            "CTU" | "CTD" => args.len() == 3 || args.len() == 4,
+            "CTUD" => args.len() == 5 || args.len() == 6,
+            _ => false,
+        };
+        if matches!(
+            op.canonical.as_str(),
+            "TON" | "TOF" | "TP" | "R_TRIG" | "F_TRIG" | "CTU" | "CTD" | "CTUD"
+        ) {
+            if !fb_ok {
                 ctx.out.diagnostics.push(Diagnostic {
                     code: ErrorCode::ErrFunctionArityMismatch,
                     message: format!(
-                        "stdlib `{}` expects 2 or 3 args, got {}",
+                        "stdlib `{}` unexpected arity {}",
                         op.canonical,
                         args.len()
                     ),

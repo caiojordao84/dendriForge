@@ -60,6 +60,7 @@ impl Value {
         match self {
             Value::Uint(u) => Ok(*u),
             Value::Int(i) if *i >= 0 => Ok(*i as u64),
+            Value::Real(r) if *r >= 0.0 => Ok(*r as u64),
             Value::TimeMs(ms) => Ok(*ms),
             Value::Bool(b) => Ok(if *b { 1 } else { 0 }),
             other => Err(format!("expected UINT, got {other:?}")),
@@ -73,6 +74,29 @@ impl Value {
             Value::TimeMs(ms) => Ok(*ms as i64),
             Value::Bool(b) => Ok(if *b { 1 } else { 0 }),
             other => Err(format!("expected INT, got {other:?}")),
+        }
+    }
+
+    pub fn as_f64(&self) -> Result<f64, String> {
+        match self {
+            Value::Real(r) => Ok(*r),
+            Value::Int(i) => Ok(*i as f64),
+            Value::Uint(u) => Ok(*u as f64),
+            Value::TimeMs(ms) => Ok(*ms as f64),
+            Value::Bool(b) => Ok(if *b { 1.0 } else { 0.0 }),
+            other => Err(format!("expected REAL, got {other:?}")),
+        }
+    }
+
+    pub fn as_string(&self) -> Result<String, String> {
+        match self {
+            Value::String(s) => Ok(s.clone()),
+            Value::Bool(b) => Ok(b.to_string()),
+            Value::Int(i) => Ok(i.to_string()),
+            Value::Uint(u) => Ok(u.to_string()),
+            Value::Real(r) => Ok(format!("{r}")),
+            Value::TimeMs(ms) => Ok(format!("{ms}ms")),
+            Value::Void => Err("expected STRING, got void".into()),
         }
     }
 

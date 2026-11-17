@@ -1,8 +1,9 @@
-//! IEC 61131-3 Structured Text ↔ ASL AST (current sim opcode set).
+//! IEC 61131-3 Structured Text ↔ ASL AST (priority-2 sim opcode set).
 //!
-//! Parses and generates ST against the same [`Program`] AST that `dendri-sim` runs
-//! (`SET_BOOL` / `GET_BOOL` / `WAIT_TIME` / `TON`, control flow, typed `VAR`).
-//! See `docs/phase-1/frontends.md` for coverage limits and priority-2 gaps.
+//! Parses and generates ST against the same [`Program`] AST that `dendri-sim` runs.
+//! Direct ASL opcode calls: GPIO, PWM/ADC/UART/I2C/SPI cfg, IEC FBs
+//! (`TON`/`TOF`/`TP`/`CTU`/`CTD`/`CTUD`/`R_TRIG`/`F_TRIG`), control flow, typed `VAR`.
+//! See `docs/phase-1/frontends.md` for coverage limits.
 
 mod emit;
 mod parse;

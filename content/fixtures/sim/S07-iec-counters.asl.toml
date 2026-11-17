@@ -1,0 +1,153 @@
+# Sim snapshot S07 — CTU / CTD / CTUD (scenario 3 counters subset)
+# Each scan forces CLK low then high so edge detectors see a rising edge.
+
+[metadata]
+project_name = "S07-iec-counters"
+editor = "dendriForge"
+author = "dendriForge Priority 2"
+notes = "CTU + CTD + CTUD — DEN-11"
+
+[[data]]
+name = "pulse"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "reset"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "load"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "pv"
+type = "INT"
+scope = "CONST"
+init = "3"
+unit = "-"
+
+[[data]]
+name = "qu"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "qd"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "ctu1_CV"
+type = "INT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "ctd1_CV"
+type = "INT"
+scope = "VAR"
+init = "3"
+unit = "-"
+
+[[data]]
+name = "ctud1_CV"
+type = "INT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "ctud1_QD"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+# Drive CLK low first so prev_* clears, then rising edge.
+[[loop]]
+kind = "assign"
+target = "pulse"
+value = { kind = "bool", value = false }
+
+[[loop]]
+kind = "assign"
+target = "qu"
+value = { kind = "call", name = "CTU", args = [
+  { kind = "string", value = "ctu1" },
+  { kind = "var", name = "pulse" },
+  { kind = "var", name = "reset" },
+  { kind = "var", name = "pv" },
+]}
+
+[[loop]]
+kind = "assign"
+target = "qd"
+value = { kind = "call", name = "CTD", args = [
+  { kind = "string", value = "ctd1" },
+  { kind = "var", name = "pulse" },
+  { kind = "var", name = "load" },
+  { kind = "var", name = "pv" },
+]}
+
+[[loop]]
+kind = "assign"
+target = "qu"
+value = { kind = "call", name = "CTUD", args = [
+  { kind = "string", value = "ctud1" },
+  { kind = "var", name = "pulse" },
+  { kind = "bool", value = false },
+  { kind = "var", name = "reset" },
+  { kind = "var", name = "load" },
+  { kind = "var", name = "pv" },
+]}
+
+[[loop]]
+kind = "assign"
+target = "pulse"
+value = { kind = "bool", value = true }
+
+[[loop]]
+kind = "assign"
+target = "qu"
+value = { kind = "call", name = "CTU", args = [
+  { kind = "string", value = "ctu1" },
+  { kind = "var", name = "pulse" },
+  { kind = "var", name = "reset" },
+  { kind = "var", name = "pv" },
+]}
+
+[[loop]]
+kind = "assign"
+target = "qd"
+value = { kind = "call", name = "CTD", args = [
+  { kind = "string", value = "ctd1" },
+  { kind = "var", name = "pulse" },
+  { kind = "var", name = "load" },
+  { kind = "var", name = "pv" },
+]}
+
+[[loop]]
+kind = "assign"
+target = "qu"
+value = { kind = "call", name = "CTUD", args = [
+  { kind = "string", value = "ctud1" },
+  { kind = "var", name = "pulse" },
+  { kind = "bool", value = false },
+  { kind = "var", name = "reset" },
+  { kind = "var", name = "load" },
+  { kind = "var", name = "pv" },
+]}

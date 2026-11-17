@@ -1,0 +1,12 @@
+t=     0 BOOT
+t=     0 BUS_CFG ADC pin=34
+t=     0 PWM_FREQ pin=25 hz=5000
+t=     0 BUS_CFG PWM pin=25 freq=5000
+t=     0 PWM_DUTY pin=25 duty=0
+t=     0 SETUP_DONE
+t=     0 SCAN_START cycle=1
+t=     0 ADC_READ pin=34 value=32768
+t=     0 ASSIGN raw=32768
+t=     0 ASSIGN duty=127
+t=     0 PWM_DUTY pin=25 duty=127
+t=     0 SCAN_END cycle=1

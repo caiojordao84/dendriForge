@@ -98,7 +98,10 @@ fn cpp_const(ty: DataType, init: &str) -> (&'static str, String) {
             },
         ),
         DataType::Real | DataType::Lreal => ("float", init.to_string()),
-        DataType::String => ("String", format!("\"{init}\"")),
+        DataType::String => {
+            let inner = init.trim().trim_matches('"');
+            ("String", format!("\"{inner}\""))
+        }
         DataType::Int | DataType::Dint => ("int", init.to_string()),
         DataType::Uint | DataType::Byte | DataType::Word | DataType::Dword => {
             ("unsigned int", init.to_string())
@@ -261,6 +264,78 @@ fn emit_call(name: &str, args: &[Expr], labels: &HashMap<u32, String>) -> String
             format!("digitalWrite({pin}, {val})")
         }
         "GET_BOOL" => format!("digitalRead({})", resolve_pin(&args[0], labels)),
+        "CFG_PWM_OUTPUT" => {
+            // Arduino AVR subset: pinMode OUTPUT; freq kept as ASL call arg for round-trip.
+            let pin = resolve_pin(&args[0], labels);
+            let freq = args
+                .get(1)
+                .map(|e| emit_expr(e, labels))
+                .unwrap_or_else(|| "1000".into());
+            format!("CFG_PWM_OUTPUT({pin}, {freq})")
+        }
+        "SET_PWM_DUTY" => {
+            let pin = resolve_pin(&args[0], labels);
+            let duty = args
+                .get(1)
+                .map(|e| emit_expr(e, labels))
+                .unwrap_or_else(|| "0".into());
+            format!("analogWrite({pin}, {duty})")
+        }
+        "SET_PWM_FREQ" => {
+            let a = args
+                .iter()
+                .map(|e| emit_expr(e, labels))
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("SET_PWM_FREQ({a})")
+        }
+        "GET_PWM_DUTY" => format!("GET_PWM_DUTY({})", resolve_pin(&args[0], labels)),
+        "CFG_ADC_INPUT" => {
+            format!("CFG_ADC_INPUT({})", resolve_pin(&args[0], labels))
+        }
+        "READ_ADC" => format!("analogRead({})", resolve_pin(&args[0], labels)),
+        "CFG_SERIAL" => {
+            let baud = args
+                .first()
+                .map(|e| emit_expr(e, labels))
+                .unwrap_or_else(|| "9600".into());
+            format!("Serial.begin({baud})")
+        }
+        "SERIAL_PRINT" => {
+            let msg = args
+                .first()
+                .map(|e| emit_expr(e, labels))
+                .unwrap_or_else(|| "\"\"".into());
+            format!("Serial.print({msg})")
+        }
+        "SERIAL_PRINTLN" => {
+            let msg = args
+                .first()
+                .map(|e| emit_expr(e, labels))
+                .unwrap_or_else(|| "\"\"".into());
+            format!("Serial.println({msg})")
+        }
+        "SERIAL_FLUSH" => "Serial.flush()".into(),
+        "SERIAL_AVAILABLE" => "Serial.available()".into(),
+        "SERIAL_READ" => "Serial.read()".into(),
+        "SERIAL_READLN" => "Serial.readStringUntil('\\n')".into(),
+        "CFG_I2C" => {
+            // Emit Wire.begin(sda, scl) + keep bus/freq via CFG_I2C for full round-trip.
+            let a = args
+                .iter()
+                .map(|e| emit_expr(e, labels))
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("CFG_I2C({a})")
+        }
+        "CFG_SPI" => {
+            let a = args
+                .iter()
+                .map(|e| emit_expr(e, labels))
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("CFG_SPI({a})")
+        }
         "WAIT_TIME" => {
             let a = args.first().map(|e| emit_expr(e, labels)).unwrap_or_else(|| "0".into());
             format!("delay({a})")

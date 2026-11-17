@@ -24,6 +24,7 @@ struct Line {
 #[derive(Debug, Clone)]
 struct HwAnno {
     pin: u32,
+    hw_type: HwType,
     io_mode: IoMode,
     label: String,
     target_role: String,
@@ -211,7 +212,7 @@ impl Parser {
                         {
                             hardware.push(HardwareEntry {
                                 pin: anno.pin,
-                                hw_type: HwType::Digital,
+                                hw_type: anno.hw_type,
                                 io_mode: anno.io_mode,
                                 label: anno.label.clone(),
                                 target_role: anno.target_role.clone(),
@@ -518,6 +519,67 @@ impl Parser {
                     args: vec![Expr::Uint { value: pin as u64 }],
                 });
             }
+            // fan_pwm_pwm = PWM(Pin(FAN_PWM), freq=5000)
+            if let Some((pin, freq)) = parse_pwm_ctor(&rhs) {
+                let pin_n = resolve_pin_number(&pin, &self.pin_consts).unwrap_or(0);
+                self.obj_to_pin.insert(lhs.clone(), pin_n);
+                let freq_e = parse_expr(&freq).unwrap_or(Expr::Uint { value: 1000 });
+                let freq_e = rewrite_expr(freq_e, &self.pin_consts, &self.obj_to_pin);
+                return Ok(Stmt::Call {
+                    name: "CFG_PWM_OUTPUT".into(),
+                    args: vec![Expr::Uint { value: pin_n as u64 }, freq_e],
+                });
+            }
+            // pot_pin_adc = ADC(Pin(POT_PIN))
+            if let Some(pin) = parse_adc_ctor(&rhs) {
+                let pin_n = resolve_pin_number(&pin, &self.pin_consts).unwrap_or(0);
+                self.obj_to_pin.insert(lhs.clone(), pin_n);
+                return Ok(Stmt::Call {
+                    name: "CFG_ADC_INPUT".into(),
+                    args: vec![Expr::Uint { value: pin_n as u64 }],
+                });
+            }
+            // uart_0 = UART(0, baudrate=115200)
+            if let Some(baud) = parse_uart_ctor(&rhs) {
+                let baud_e = parse_expr(&baud).unwrap_or(Expr::Int { value: 9600 });
+                return Ok(Stmt::Call {
+                    name: "CFG_SERIAL".into(),
+                    args: vec![rewrite_expr(baud_e, &self.pin_consts, &self.obj_to_pin)],
+                });
+            }
+            // i2c_0 = I2C(0, sda=Pin(SDA_PIN), scl=Pin(SCL_PIN), freq=400000)
+            if let Some((bus, sda, scl, freq)) = parse_i2c_ctor(&rhs) {
+                return Ok(Stmt::Call {
+                    name: "CFG_I2C".into(),
+                    args: vec![
+                        parse_expr(&bus).unwrap_or(Expr::Uint { value: 0 }),
+                        Expr::Uint {
+                            value: resolve_pin_number(&sda, &self.pin_consts).unwrap_or(0) as u64,
+                        },
+                        Expr::Uint {
+                            value: resolve_pin_number(&scl, &self.pin_consts).unwrap_or(0) as u64,
+                        },
+                        parse_expr(&freq).unwrap_or(Expr::Int { value: 400_000 }),
+                    ],
+                });
+            }
+            // spi_1 = SPI(1, baudrate=..., sck=Pin(..), mosi=Pin(..), miso=Pin(..))
+            if let Some((bus, mosi, miso, sck)) = parse_spi_ctor(&rhs) {
+                return Ok(Stmt::Call {
+                    name: "CFG_SPI".into(),
+                    args: vec![
+                        parse_expr(&bus).unwrap_or(Expr::Uint { value: 1 }),
+                        Expr::Uint {
+                            value: resolve_pin_number(&mosi, &self.pin_consts).unwrap_or(0) as u64,
+                        },
+                        parse_expr(&miso).unwrap_or(Expr::Int { value: -1 }),
+                        Expr::Uint {
+                            value: resolve_pin_number(&sck, &self.pin_consts).unwrap_or(0) as u64,
+                        },
+                        Expr::Uint { value: 5 }, // CS not always in SPI() — default for subset
+                    ],
+                });
+            }
             // q = TON(...)
             let value = parse_expr(&rhs).map_err(|e| self.err(line, e.to_string()))?;
             return Ok(Stmt::Assign {
@@ -526,7 +588,7 @@ impl Parser {
             });
         }
 
-        // led_pin.value(1)  or sleep_ms(ON_TIME)
+        // led_pin.value(1)  or sleep_ms(ON_TIME) or pwm.duty_u16 / uart.write
         if let Some((obj, method, args)) = parse_obj_method(t) {
             if method == "value" {
                 let pin = self
@@ -558,6 +620,65 @@ impl Parser {
                 return Ok(Stmt::Call {
                     name: "SET_BOOL".into(),
                     args: vec![Expr::Uint { value: pin as u64 }, val],
+                });
+            }
+            if method == "duty_u16" || method == "duty" {
+                let pin = self.obj_to_pin.get(&obj).copied().unwrap_or(0);
+                let duty = if args.is_empty() {
+                    Expr::Uint { value: 0 }
+                } else {
+                    rewrite_expr(
+                        parse_expr(&args[0])?,
+                        &self.pin_consts,
+                        &self.obj_to_pin,
+                    )
+                };
+                return Ok(Stmt::Call {
+                    name: "SET_PWM_DUTY".into(),
+                    args: vec![Expr::Uint { value: pin as u64 }, duty],
+                });
+            }
+            if method == "freq" {
+                let pin = self.obj_to_pin.get(&obj).copied().unwrap_or(0);
+                let hz = rewrite_expr(
+                    parse_expr(&args.first().cloned().unwrap_or_else(|| "0".into()))?,
+                    &self.pin_consts,
+                    &self.obj_to_pin,
+                );
+                return Ok(Stmt::Call {
+                    name: "SET_PWM_FREQ".into(),
+                    args: vec![Expr::Uint { value: pin as u64 }, hz],
+                });
+            }
+            if obj.starts_with("uart_") && method == "write" {
+                let raw = args.first().cloned().unwrap_or_default();
+                if let Some(msg) = raw.strip_suffix(" + \"\\n\"")
+                    .or_else(|| raw.strip_suffix(" + '\\n'"))
+                {
+                    let msg_e = rewrite_expr(
+                        parse_expr(msg.trim())?,
+                        &self.pin_consts,
+                        &self.obj_to_pin,
+                    );
+                    return Ok(Stmt::Call {
+                        name: "SERIAL_PRINTLN".into(),
+                        args: vec![msg_e],
+                    });
+                }
+                let msg_e = rewrite_expr(
+                    parse_expr(&raw)?,
+                    &self.pin_consts,
+                    &self.obj_to_pin,
+                );
+                return Ok(Stmt::Call {
+                    name: "SERIAL_PRINT".into(),
+                    args: vec![msg_e],
+                });
+            }
+            if obj.starts_with("uart_") && method == "flush" {
+                return Ok(Stmt::Call {
+                    name: "SERIAL_FLUSH".into(),
+                    args: vec![],
                 });
             }
         }
@@ -688,6 +809,7 @@ fn parse_asl_hw_anno(body: &str) -> Option<HwAnno> {
     let mut label = String::new();
     let mut role = String::from("digital-out");
     let mut io_mode = IoMode::Do;
+    let mut hw_type = HwType::Digital;
     for part in body.split_whitespace() {
         if let Some(v) = part.strip_prefix("pin=") {
             pin = v.parse().ok();
@@ -695,6 +817,12 @@ fn parse_asl_hw_anno(body: &str) -> Option<HwAnno> {
             label = v.to_string();
         } else if let Some(v) = part.strip_prefix("role=") {
             role = v.to_string();
+        } else if let Some(v) = part.strip_prefix("type=") {
+            hw_type = match v {
+                "Analog" | "analog" => HwType::Analog,
+                "Bool" | "bool" | "BOOL" => HwType::Bool,
+                _ => HwType::Digital,
+            };
         } else if let Some(v) = part.strip_prefix("mode=") {
             io_mode = match v {
                 "Di" | "DI" => IoMode::Di,
@@ -709,6 +837,7 @@ fn parse_asl_hw_anno(body: &str) -> Option<HwAnno> {
     }
     Some(HwAnno {
         pin,
+        hw_type,
         io_mode,
         label,
         target_role: role,
@@ -788,6 +917,89 @@ fn parse_pin_ctor(rhs: &str) -> Option<(String, String)> {
     let rest = rhs.strip_prefix("Pin(")?.strip_suffix(')')?;
     let (pin, mode) = rest.split_once(',')?;
     Some((pin.trim().to_string(), mode.trim().to_string()))
+}
+
+fn parse_pwm_ctor(rhs: &str) -> Option<(String, String)> {
+    // PWM(Pin(NAME), freq=N) or PWM(Pin(NAME), freq = N)
+    let rest = rhs.strip_prefix("PWM(")?.strip_suffix(')')?;
+    let args = split_args(rest);
+    if args.is_empty() {
+        return None;
+    }
+    let pin = args[0]
+        .strip_prefix("Pin(")?
+        .strip_suffix(')')?
+        .trim()
+        .to_string();
+    let mut freq = "1000".to_string();
+    for a in args.iter().skip(1) {
+        if let Some(v) = a.strip_prefix("freq=") {
+            freq = v.trim().to_string();
+        } else if let Some(v) = a.strip_prefix("freq =") {
+            freq = v.trim().to_string();
+        }
+    }
+    Some((pin, freq))
+}
+
+fn parse_adc_ctor(rhs: &str) -> Option<String> {
+    let rest = rhs.strip_prefix("ADC(")?.strip_suffix(')')?;
+    let pin = rest.strip_prefix("Pin(")?.strip_suffix(')')?;
+    Some(pin.trim().to_string())
+}
+
+fn parse_uart_ctor(rhs: &str) -> Option<String> {
+    let rest = rhs.strip_prefix("UART(")?.strip_suffix(')')?;
+    let args = split_args(rest);
+    for a in &args {
+        if let Some(v) = a.strip_prefix("baudrate=") {
+            return Some(v.trim().to_string());
+        }
+        if let Some(v) = a.strip_prefix("baudrate =") {
+            return Some(v.trim().to_string());
+        }
+    }
+    args.get(1).cloned()
+}
+
+fn parse_kw_pin(args: &[String], key: &str) -> Option<String> {
+    for a in args {
+        let prefix = format!("{key}=");
+        let prefix_sp = format!("{key} =");
+        if let Some(v) = a.strip_prefix(&prefix).or_else(|| a.strip_prefix(&prefix_sp)) {
+            let v = v.trim();
+            if let Some(inner) = v.strip_prefix("Pin(").and_then(|s| s.strip_suffix(')')) {
+                return Some(inner.trim().to_string());
+            }
+            return Some(v.to_string());
+        }
+    }
+    None
+}
+
+fn parse_i2c_ctor(rhs: &str) -> Option<(String, String, String, String)> {
+    let rest = rhs.strip_prefix("I2C(")?.strip_suffix(')')?;
+    let args = split_args(rest);
+    let bus = args.first()?.clone();
+    let sda = parse_kw_pin(&args, "sda")?;
+    let scl = parse_kw_pin(&args, "scl")?;
+    let mut freq = "400000".to_string();
+    for a in &args {
+        if let Some(v) = a.strip_prefix("freq=").or_else(|| a.strip_prefix("freq =")) {
+            freq = v.trim().to_string();
+        }
+    }
+    Some((bus, sda, scl, freq))
+}
+
+fn parse_spi_ctor(rhs: &str) -> Option<(String, String, String, String)> {
+    let rest = rhs.strip_prefix("SPI(")?.strip_suffix(')')?;
+    let args = split_args(rest);
+    let bus = args.first()?.clone();
+    let mosi = parse_kw_pin(&args, "mosi")?;
+    let miso = parse_kw_pin(&args, "miso").unwrap_or_else(|| "-1".into());
+    let sck = parse_kw_pin(&args, "sck")?;
+    Some((bus, mosi, miso, sck))
 }
 
 fn pin_expr_name(pin_expr: &str) -> Option<String> {
@@ -1126,7 +1338,7 @@ impl<'a> ExprParser<'a> {
                 if self.i < self.s.len() {
                     self.i += 1; // )
                 }
-                // method call obj.value()
+                // method call obj.value() / obj.read_u16() / obj.duty_u16()
                 if let Some((obj, method)) = name.rsplit_once('.') {
                     if method == "value" {
                         return Ok(Expr::Call {
@@ -1135,6 +1347,36 @@ impl<'a> ExprParser<'a> {
                                 name: obj.to_string(),
                             }],
                         });
+                    }
+                    if method == "read_u16" {
+                        return Ok(Expr::Call {
+                            name: "READ_ADC".into(),
+                            args: vec![Expr::Var {
+                                name: obj.to_string(),
+                            }],
+                        });
+                    }
+                    if method == "duty_u16" && args_s.trim().is_empty() {
+                        return Ok(Expr::Call {
+                            name: "GET_PWM_DUTY".into(),
+                            args: vec![Expr::Var {
+                                name: obj.to_string(),
+                            }],
+                        });
+                    }
+                    if obj.starts_with("uart_") {
+                        let opcode = match method {
+                            "any" => Some("SERIAL_AVAILABLE"),
+                            "read" => Some("SERIAL_READ"),
+                            "readline" => Some("SERIAL_READLN"),
+                            _ => None,
+                        };
+                        if let Some(op) = opcode {
+                            return Ok(Expr::Call {
+                                name: op.into(),
+                                args: vec![],
+                            });
+                        }
                     }
                 }
                 let args = if args_s.trim().is_empty() {
@@ -1196,7 +1438,7 @@ fn rewrite_expr(
                 .into_iter()
                 .map(|a| rewrite_expr(a, pin_consts, obj_to_pin))
                 .collect();
-            if name == "GET_BOOL" {
+            if name == "GET_BOOL" || name == "READ_ADC" || name == "GET_PWM_DUTY" {
                 let pin = match args.first() {
                     Some(Expr::Uint { value }) => *value,
                     Some(Expr::Var { name }) => obj_to_pin
@@ -1207,7 +1449,7 @@ fn rewrite_expr(
                     _ => 0,
                 };
                 return Expr::Call {
-                    name: "GET_BOOL".into(),
+                    name,
                     args: vec![Expr::Uint { value: pin }],
                 };
             }

@@ -1,14 +1,17 @@
-//! Arduino-style C++ ↔ ASL AST frontend (current sim opcode set).
+//! Arduino-style C++ ↔ ASL AST frontend (priority-2 sim opcode set).
 //!
 //! Supported surface:
 //! - `const int pinLabel = N;` hardware pins (`// ASL_HW:` for DI/DO + non-`*Pin` labels)
 //! - `const unsigned long` → `TIME`; `ASL_DATA` for UINT/INT/BOOL/REAL honesty
 //! - `void setup()` / `void loop()` / user functions
 //! - `pinMode` / `digitalWrite` / `digitalRead` / `delay` / `millis`
-//! - `if` / `else if` / `else` / `while` / simple `for` / assign / call / `TON(...)`
+//! - `analogWrite` / `analogRead` / `Serial.begin|print|println` / `CFG_PWM_*` / `CFG_ADC_*`
+//! - `CFG_I2C` / `CFG_SPI` (ASL call form; `Wire.begin` / `SPI.begin` accepted on parse)
+//! - IEC FBs as calls: `TON` / `TOF` / `TP` / `CTU` / `CTD` / `CTUD` / `R_TRIG` / `F_TRIG`
+//! - `if` / `else if` / `else` / `while` / simple `for` / assign / call
 //!
 //! Not supported yet: classes, templates, pointers, `#include` semantics,
-//! PWM/ADC/UART Arduino APIs (priority 2 — wait for sim).
+//! full Wire/SPI transfer APIs, ledc channel allocation.
 
 mod emit;
 mod parse;
