@@ -305,11 +305,18 @@ impl<'a> Lexer<'a> {
     }
 }
 
+struct DataAnno {
+    data_type: Option<DataType>,
+    scope: Option<Scope>,
+    unit: Option<String>,
+}
+
 struct Parser {
     tokens: Vec<(Tok, usize, usize)>,
     pos: usize,
     project_name: Option<String>,
     hardware: Vec<HardwareEntry>,
+    data_annos: std::collections::HashMap<String, DataAnno>,
 }
 
 impl Parser {
@@ -325,12 +332,20 @@ impl Parser {
             }
         }
         let mut hardware = Vec::new();
+        let mut data_annos = std::collections::HashMap::new();
         for line in src.lines() {
             let t = line.trim();
             if let Some(rest) = t.strip_prefix("(* HW:") {
                 if let Some(body) = rest.strip_suffix("*)") {
                     if let Some(hw) = parse_hw_comment(body.trim()) {
                         hardware.push(hw);
+                    }
+                }
+            }
+            if let Some(rest) = t.strip_prefix("(* ASL_DATA:") {
+                if let Some(body) = rest.strip_suffix("*)") {
+                    if let Some((name, anno)) = parse_asl_data_comment(body.trim()) {
+                        data_annos.insert(name, anno);
                     }
                 }
             }
@@ -351,6 +366,7 @@ impl Parser {
             pos: 0,
             project_name,
             hardware,
+            data_annos,
         })
     }
 
@@ -497,6 +513,9 @@ impl Parser {
         if self.check_ident_kw("RETAIN") {
             self.bump();
             scope = Scope::Retain;
+        } else if self.check_ident_kw("PERSISTENT") {
+            self.bump();
+            scope = Scope::Persistent;
         }
         match self.bump() {
             Tok::Colon => {}
@@ -516,23 +535,24 @@ impl Parser {
         if matches!(self.peek(), Tok::Semi) {
             self.bump();
         }
-        // CONSTANT marker from emit: we can't see comment; CONST if name is UPPER and TIME/BOOL const pattern —
-        // emit marks CONST with comment. Accept optional keyword CONSTANT after type via alternate form
-        // already handled. Heuristic: if next token was eaten... for emit we use comment.
-        // Also accept: NAME : TYPE := INIT; (* CONSTANT *) — comment stripped, so detect CONST
-        // by checking if identifier was previously... We'll mark CONST when init is present and
-        // name is all-caps TIME/UINT typical constants — too magic.
-        // Better: emit CONST as `CONSTANT NAME : TYPE := INIT;`
+        let anno = self.data_annos.get(&name);
+        let scope = anno.and_then(|a| a.scope).unwrap_or(scope);
+        let data_type = anno.and_then(|a| a.data_type).unwrap_or(data_type);
+        let unit = anno
+            .and_then(|a| a.unit.clone())
+            .unwrap_or_else(|| {
+                if data_type == DataType::Time {
+                    "ms".into()
+                } else {
+                    "-".into()
+                }
+            });
         Ok(DataEntry {
             name,
             data_type,
             scope,
             init,
-            unit: if data_type == DataType::Time {
-                "ms".into()
-            } else {
-                "-".into()
-            },
+            unit,
         })
     }
 
@@ -543,7 +563,13 @@ impl Parser {
             Tok::Time(t) => Ok(t),
             Tok::Uint(u) => Ok(u.to_string()),
             Tok::Int(i) => Ok(i.to_string()),
-            Tok::Real(r) => Ok(r.to_string()),
+            Tok::Real(r) => Ok(format_real_init(r)),
+            Tok::Minus => match self.bump() {
+                Tok::Real(r) => Ok(format_real_init(-r)),
+                Tok::Uint(u) => Ok(format!("-{u}")),
+                Tok::Int(i) => Ok((-i).to_string()),
+                other => Err(self.err(format!("expected numeric after '-', got {other:?}"))),
+            },
             Tok::String(s) => Ok(format!("\"{s}\"")),
             Tok::Ident(s) if s.eq_ignore_ascii_case("TRUE") => Ok("TRUE".into()),
             Tok::Ident(s) if s.eq_ignore_ascii_case("FALSE") => Ok("FALSE".into()),
@@ -657,6 +683,14 @@ impl Parser {
             }
             if matches!(self.peek(), Tok::Semi) {
                 self.bump();
+            }
+            if name.eq_ignore_ascii_case("VENDOR_EXTENSION") {
+                let reason = match args.first() {
+                    Some(Expr::String { value }) => value.clone(),
+                    Some(other) => format!("{other:?}"),
+                    None => String::new(),
+                };
+                return Ok(Stmt::VendorExtension { reason });
             }
             return Ok(Stmt::Call { name, args });
         }
@@ -887,9 +921,15 @@ impl Parser {
         if matches!(self.peek(), Tok::Minus) {
             self.bump();
             let expr = self.parse_unary()?;
-            return Ok(Expr::Unary {
-                op: UnaryOp::Neg,
-                expr: Box::new(expr),
+            return Ok(match expr {
+                Expr::Uint { value } if value <= i64::MAX as u64 => Expr::Int {
+                    value: -(value as i64),
+                },
+                Expr::Int { value } => Expr::Int { value: -value },
+                other => Expr::Unary {
+                    op: UnaryOp::Neg,
+                    expr: Box::new(other),
+                },
             });
         }
         self.parse_primary()
@@ -973,6 +1013,49 @@ fn default_init(ty: DataType) -> String {
         DataType::String => "\"\"".into(),
         _ => "0".into(),
     }
+}
+
+fn format_real_init(value: f64) -> String {
+    let s = format!("{value}");
+    if s.contains('.') || s.contains('e') || s.contains('E') {
+        s
+    } else {
+        format!("{value:.1}")
+    }
+}
+
+fn parse_asl_data_comment(body: &str) -> Option<(String, DataAnno)> {
+    let mut name = None;
+    let mut data_type = None;
+    let mut scope = None;
+    let mut unit = None;
+    for part in body.split_whitespace() {
+        if let Some(v) = part.strip_prefix("name=") {
+            name = Some(v.to_string());
+        } else if let Some(v) = part.strip_prefix("type=") {
+            data_type = DataType::parse(&v.to_ascii_uppercase());
+        } else if let Some(v) = part.strip_prefix("scope=") {
+            scope = match v.to_ascii_uppercase().as_str() {
+                "CONST" => Some(Scope::Const),
+                "VAR" => Some(Scope::Var),
+                "RETAIN" => Some(Scope::Retain),
+                "PERSISTENT" => Some(Scope::Persistent),
+                "TEMP" => Some(Scope::Temp),
+                "EXTERN" => Some(Scope::Extern),
+                _ => None,
+            };
+        } else if let Some(v) = part.strip_prefix("unit=") {
+            unit = Some(v.to_string());
+        }
+    }
+    Some((
+        name?,
+        DataAnno {
+            data_type,
+            scope,
+            unit,
+        },
+    ))
 }
 
 fn parse_hw_comment(body: &str) -> Option<HardwareEntry> {

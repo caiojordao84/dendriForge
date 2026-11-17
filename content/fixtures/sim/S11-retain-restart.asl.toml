@@ -4,7 +4,7 @@
 project_name = "S11-retain-restart"
 editor = "dendriForge"
 author = "dendriForge DEN-16"
-notes = "Live RETAIN + SYS_WRITE/READ_RETAIN — DEN-16"
+notes = "Live RETAIN + SYS_WRITE/READ_RETAIN — DEN-16 / DEN-21 structured exprs"
 
 [[data]]
 name = "rebootCount"
@@ -47,7 +47,7 @@ args = [{ kind = "string", value = "PERSISTENT_SECTOR" }]
 [[setup]]
 kind = "assign"
 target = "rebootCount"
-value = { kind = "expr_text", text = "rebootCount + 1" }
+value = { kind = "binop", op = "add", left = { kind = "var", name = "rebootCount" }, right = { kind = "uint", value = 1 } }
 
 [[setup]]
 kind = "call"
@@ -70,7 +70,12 @@ value = { kind = "call", name = "SYS_READ_RETAIN", args = [{ kind = "string", va
 [[loop]]
 kind = "assign"
 target = "msg"
-value = { kind = "expr_text", text = "CONCAT(\"boot=\", TO_STRING(scratch), \",gain=\", TO_STRING_FMT(calGain, 1))" }
+value = { kind = "call", name = "CONCAT", args = [
+  { kind = "string", value = "boot=" },
+  { kind = "call", name = "TO_STRING", args = [{ kind = "var", name = "scratch" }] },
+  { kind = "string", value = ",gain=" },
+  { kind = "call", name = "TO_STRING_FMT", args = [{ kind = "var", name = "calGain" }, { kind = "uint", value = 1 }] },
+] }
 
 [[loop]]
 kind = "call"

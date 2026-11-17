@@ -1,11 +1,11 @@
 # Sim S19 — LCD / OLED / TFT stubs + PLAY_TONE (scenario 10 honesty)
-# Multi-display page flip + tone; full Pong collision stays partial elsewhere.
+# Multi-display page flip + tone; full Pong collision covered by S22.
 
 [metadata]
 project_name = "S19-display-stubs"
 editor = "dendriForge"
 author = "dendriForge DEN-18"
-notes = "Display + tone stubs — DEN-18 (scenario 10 subset)"
+notes = "Display + tone stubs — DEN-18 / DEN-21 structured + TIME tone (scenario 10 subset)"
 
 [[hardware]]
 pin = 11
@@ -64,6 +64,13 @@ init = "0"
 unit = "-"
 
 [[data]]
+name = "TONE_MS"
+type = "TIME"
+scope = "CONST"
+init = "T#50ms"
+unit = "ms"
+
+[[data]]
 name = "msg"
 type = "STRING"
 scope = "VAR"
@@ -73,7 +80,7 @@ unit = "-"
 [[setup]]
 kind = "call"
 name = "CFG_I2C"
-args = [{ kind = "uint", value = 0 }, { kind = "uint", value = 21 }, { kind = "uint", value = 22 }, { kind = "int", value = 400000 }]
+args = [{ kind = "uint", value = 0 }, { kind = "uint", value = 21 }, { kind = "uint", value = 22 }, { kind = "uint", value = 400000 }]
 
 [[setup]]
 kind = "call"
@@ -88,7 +95,7 @@ args = [{ kind = "hex", value = "0x3C" }]
 [[setup]]
 kind = "call"
 name = "CFG_TFT"
-args = [{ kind = "uint", value = 2 }, { kind = "int", value = -1 }, { kind = "int", value = 5 }]
+args = [{ kind = "uint", value = 2 }, { kind = "int", value = -1 }, { kind = "uint", value = 5 }]
 
 [[setup]]
 kind = "call"
@@ -123,7 +130,10 @@ args = [{ kind = "uint", value = 2 }]
 [[loop]]
 kind = "assign"
 target = "msg"
-value = { kind = "expr_text", text = "CONCAT(\"T=\", TO_STRING_FMT(tempC, 1))" }
+value = { kind = "call", name = "CONCAT", args = [
+  { kind = "string", value = "T=" },
+  { kind = "call", name = "TO_STRING_FMT", args = [{ kind = "var", name = "tempC" }, { kind = "uint", value = 1 }] },
+] }
 
 [[loop]]
 kind = "call"
@@ -212,7 +222,7 @@ args = [{ kind = "uint", value = 0 }, { kind = "uint", value = 1 }, { kind = "va
 [[loop]]
 kind = "call"
 name = "PLAY_TONE"
-args = [{ kind = "uint", value = 11 }, { kind = "uint", value = 440 }, { kind = "time", value = "T#50ms" }]
+args = [{ kind = "uint", value = 11 }, { kind = "uint", value = 440 }, { kind = "var", name = "TONE_MS" }]
 
 [[loop]]
 kind = "assign"

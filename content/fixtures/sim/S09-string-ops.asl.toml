@@ -4,7 +4,7 @@
 project_name = "S09-string-ops"
 editor = "dendriForge"
 author = "dendriForge DEN-16"
-notes = "String ops for UART CSV / command path — DEN-16"
+notes = "String ops for UART CSV / command path — DEN-16 / DEN-21 structured exprs"
 
 [[data]]
 name = "tempC"
@@ -49,7 +49,12 @@ args = [{ kind = "uint", value = 115200 }]
 [[loop]]
 kind = "assign"
 target = "line"
-value = { kind = "expr_text", text = "CONCAT(\"t=\", TO_STRING(sampleN), \",\", TO_STRING_FMT(tempC, 2))" }
+value = { kind = "call", name = "CONCAT", args = [
+  { kind = "string", value = "t=" },
+  { kind = "call", name = "TO_STRING", args = [{ kind = "var", name = "sampleN" }] },
+  { kind = "string", value = "," },
+  { kind = "call", name = "TO_STRING_FMT", args = [{ kind = "var", name = "tempC" }, { kind = "uint", value = 2 }] },
+] }
 
 [[loop]]
 kind = "call"
@@ -69,6 +74,9 @@ then = [
 ]
 elif = []
 else = [
-  { kind = "assign", target = "errMsg", value = { kind = "expr_text", text = "CONCAT(\"ERR:\", cmd)" } },
+  { kind = "assign", target = "errMsg", value = { kind = "call", name = "CONCAT", args = [
+    { kind = "string", value = "ERR:" },
+    { kind = "var", name = "cmd" },
+  ] } },
   { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "var", name = "errMsg" }] },
 ]

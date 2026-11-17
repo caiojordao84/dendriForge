@@ -29,9 +29,17 @@ pub fn emit_st(program: &Program) -> String {
         let st_ty = d.data_type.as_str();
         let init = st_init(&d.init, d.data_type);
         let retain = match d.scope {
-            Scope::Retain | Scope::Persistent => " RETAIN",
+            Scope::Retain => " RETAIN",
+            Scope::Persistent => " PERSISTENT",
             _ => "",
         };
+        out.push_str(&format!(
+            "    (* ASL_DATA: name={} type={} scope={} unit={} *)\n",
+            d.name,
+            d.data_type.as_str(),
+            scope_tag(d.scope),
+            d.unit
+        ));
         if d.scope == Scope::Const {
             // CONSTANT keyword is Dendri MVP surface (IEC uses CONSTANT separately).
             out.push_str(&format!(
@@ -79,6 +87,17 @@ pub fn emit_st(program: &Program) -> String {
     out
 }
 
+fn scope_tag(scope: Scope) -> &'static str {
+    match scope {
+        Scope::Const => "CONST",
+        Scope::Var => "VAR",
+        Scope::Retain => "RETAIN",
+        Scope::Persistent => "PERSISTENT",
+        Scope::Temp => "TEMP",
+        Scope::Extern => "EXTERN",
+    }
+}
+
 fn st_init(init: &str, ty: DataType) -> String {
     match ty {
         DataType::Bool => {
@@ -99,7 +118,26 @@ fn st_init(init: &str, ty: DataType) -> String {
             let inner = init.trim().trim_matches('"').trim_matches('\'');
             format!("'{inner}'")
         }
+        DataType::Real | DataType::Lreal => {
+            // Keep a decimal so `1.0` does not collapse to `1` on reparse.
+            if init.contains('.') || init.contains('e') || init.contains('E') {
+                init.to_string()
+            } else if let Ok(v) = init.parse::<f64>() {
+                format_real_literal(v)
+            } else {
+                init.to_string()
+            }
+        }
         _ => init.to_string(),
+    }
+}
+
+fn format_real_literal(value: f64) -> String {
+    let s = format!("{value}");
+    if s.contains('.') || s.contains('e') || s.contains('E') {
+        s
+    } else {
+        format!("{value:.1}")
     }
 }
 
@@ -161,7 +199,7 @@ fn emit_stmt(stmt: &Stmt, out: &mut String, indent: usize) {
         Stmt::Exit => out.push_str(&format!("{pad}EXIT;\n")),
         Stmt::Continue => out.push_str(&format!("{pad}(* CONTINUE *)\n")),
         Stmt::VendorExtension { reason } => {
-            out.push_str(&format!("{pad}(* VENDOR_EXTENSION: {reason} *)\n"));
+            out.push_str(&format!("{pad}VENDOR_EXTENSION('{reason}');\n"));
         }
     }
 }
@@ -177,7 +215,7 @@ fn emit_expr(expr: &Expr) -> String {
         }
         Expr::Uint { value } => value.to_string(),
         Expr::Int { value } => value.to_string(),
-        Expr::Real { value } => format!("{value}"),
+        Expr::Real { value } => format_real_literal(*value),
         Expr::String { value } => format!("'{value}'"),
         Expr::Time { value } => value.clone(),
         Expr::Hex { value } => value.clone(),

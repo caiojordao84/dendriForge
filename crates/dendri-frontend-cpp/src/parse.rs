@@ -773,9 +773,10 @@ impl Parser {
             "float" => {
                 data_type = DataType::Real;
                 init = match init_expr {
-                    Expr::Real { value } => value.to_string(),
-                    Expr::Uint { value } => value.to_string(),
-                    _ => "0".into(),
+                    Expr::Real { value } => format_real_init(value),
+                    Expr::Uint { value } => format_real_init(value as f64),
+                    Expr::Int { value } => format_real_init(value as f64),
+                    _ => "0.0".into(),
                 };
                 unit = "-".into();
             }
@@ -1204,10 +1205,18 @@ impl Parser {
             }
             Tok::Minus => {
                 self.bump();
-                Ok(Expr::Unary {
-                    op: UnaryOp::Neg,
-                    expr: Box::new(self.parse_unary()?),
-                })
+                let inner = self.parse_unary()?;
+                // Fold numeric literals so `CFG_TFT(..., -1, ...)` round-trips as Int.
+                match inner {
+                    Expr::Uint { value } if value <= i64::MAX as u64 => Ok(Expr::Int {
+                        value: -(value as i64),
+                    }),
+                    Expr::Int { value } => Ok(Expr::Int { value: -value }),
+                    other => Ok(Expr::Unary {
+                        op: UnaryOp::Neg,
+                        expr: Box::new(other),
+                    }),
+                }
             }
             Tok::BitNot => {
                 self.bump();
@@ -1419,6 +1428,14 @@ fn lower_call_stmt(name: &str, args: Vec<Expr>) -> Stmt {
             name: "SET_PWM_DUTY".into(),
             args,
         },
+        "VENDOR_EXTENSION" => {
+            let reason = match args.first() {
+                Some(Expr::String { value }) => value.clone(),
+                Some(other) => format!("{other:?}"),
+                None => String::new(),
+            };
+            Stmt::VendorExtension { reason }
+        }
         other => Stmt::Call {
             name: other.into(),
             args,
@@ -1654,6 +1671,15 @@ fn parse_asl_data_anno(body: &str) -> Option<(String, DataAnno)> {
             unit,
         },
     ))
+}
+
+fn format_real_init(value: f64) -> String {
+    let s = format!("{value}");
+    if s.contains('.') || s.contains('e') || s.contains('E') {
+        s
+    } else {
+        format!("{value:.1}")
+    }
 }
 
 /// Parse Arduino-style C++ source into the shared ASL [`Program`] AST.
