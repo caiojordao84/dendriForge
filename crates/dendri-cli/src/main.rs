@@ -98,6 +98,17 @@ enum Cmd {
         #[arg(long)]
         family: Option<String>,
     },
+    /// Migrate legacy core/asl/v010/**/*.toon → content/fixtures/**/*.asl.toml (DEN-20)
+    MigrateAsl {
+        #[arg(long)]
+        repo: Option<PathBuf>,
+        /// Print destinations without writing (skips hand-protected fixtures)
+        #[arg(long)]
+        dry_run: bool,
+        /// Substring filter against the source path (repeatable)
+        #[arg(long)]
+        only: Vec<String>,
+    },
     /// Headless SVG canvas sim: button sequence → visual-frame snapshot (CI)
     CanvasSim {
         path: PathBuf,
@@ -405,6 +416,30 @@ fn run(cli: Cli) -> Result<(), String> {
                 "content_assets_preferred: {}",
                 report.preferred_paths_present
             );
+            Ok(())
+        }
+        Cmd::MigrateAsl {
+            repo,
+            dry_run,
+            only,
+        } => {
+            let root = repo.unwrap_or_else(|| discover_repo_root());
+            let opts = dendri_ast::MigrateOptions { dry_run, only };
+            let report =
+                dendri_ast::migrate_v010(&root, &opts).map_err(|e| e.to_string())?;
+            for item in &report.items {
+                if item.protected {
+                    continue;
+                }
+                let rel = item
+                    .destination
+                    .strip_prefix(&root)
+                    .unwrap_or(&item.destination);
+                let tag = if dry_run { "DRY " } else { "WRITE" };
+                println!("{tag} {}", rel.display());
+            }
+            println!("converted={}", report.converted);
+            println!("skipped_protected={}", report.skipped_protected);
             Ok(())
         }
         Cmd::MigrateProfiles { repo, family } => {

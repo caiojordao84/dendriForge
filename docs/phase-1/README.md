@@ -19,8 +19,9 @@
 | `dendri-editor` | iced 0.13 Ladder/SFC visual editor MVP |
 | `dendri-sim` | Scan-cycle ticks; interactive `step` / pin APIs; opcode traces |
 | `dendri-canvas` | Live SVG binding for Uno + LED + button (DEN-13) |
+| `dendri-ast` | ASL IR types + legacy ASL TOON→`.asl.toml` migrate (`toon`, DEN-20) |
 | `dendri-profiles` | Load board/component/screen TOML profiles + SVG hooks; TOON→TOML migrate |
-| `dendri-cli` | `dendri validate\|roundtrip\|sim\|canvas-sim\|profiles\|migrate-profiles\|emit-*\|…` |
+| `dendri-cli` | `dendri validate\|roundtrip\|sim\|canvas-sim\|profiles\|migrate-profiles\|migrate-asl\|emit-*\|…` |
 
 Language coverage: [`frontends.md`](./frontends.md), [`ladder-sfc.md`](./ladder-sfc.md).
 
@@ -48,5 +49,6 @@ cargo run -p dendri-editor
 cargo run -p dendri-cli -- profiles
 cargo run -p dendri-cli -- profiles --all
 cargo run -p dendri-cli -- migrate-profiles
+cargo run -p dendri-cli -- migrate-asl --dry-run
 ```
 

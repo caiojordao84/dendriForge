@@ -25,6 +25,8 @@ corpus — not the Phase 0 / MVP contract.
 - Board / component / screen profiles are migrated to
   `content/profiles/{boards,components,screens}/*.toml` (DEN-14). Re-run with
   `dendri migrate-profiles`. SVG assets prefer `content/assets/svg/`.
+- ASL programs under `core/asl/v010/` migrate to `content/fixtures/**/*.asl.toml`
+  via `dendri migrate-asl` (DEN-20; hand-protected fixtures are skipped).
 - A later cleanup may relocate `core/` → `legacy/toon/core/`; until then this
   directory documents the freeze without a bulk move. `core/**/*.toon` stays
   **read-only legacy** until that cleanup.

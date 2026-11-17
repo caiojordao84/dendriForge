@@ -16,7 +16,8 @@ ASL programs for the live IR. **No ASL version field** — unversioned until MVP
 
 Extensions: **`.asl.toml`** (programs), **`.dendri.toml`** (simulation projects). Legacy TOON sources remain under `core/asl/v010/` (read-only; historical path name only — see `legacy/toon/README.md`).
 
-Re-migrate from TOON (skips hand-protected fixtures): `python3 tools/migrate_asl_toon.py`.
+Re-migrate from TOON (skips hand-protected fixtures):
+`cargo run -p dendri-cli -- migrate-asl` (or `--dry-run`). Python `tools/migrate_asl_toon.py` is deprecated (DEN-20).
 
 Structural load: `cargo test -p dendri-ast --test load_fixtures`.  
 Validate / round-trip: `cargo test -p dendri-validate -p dendri-emit`.  
