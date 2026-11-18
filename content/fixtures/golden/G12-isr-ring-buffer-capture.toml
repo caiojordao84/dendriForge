@@ -1,0 +1,217 @@
+# Migrated from core/asl/v010/golden/G12-isr-ring-buffer-capture.toon
+# Legacy TOON retained under core/asl/v010/ (read-only).
+
+[metadata]
+asl_version = "0.0.1"
+project_name = "G12-isr-ring-buffer-capture"
+editor = "dendriForge"
+author = "dendriForge Golden Suite"
+notes = "Migrated from legacy v010 TOON — ASL 0.0.1"
+
+[[hardware]]
+pin = 14
+hw_type = "digital"
+io_mode = "DI"
+label = "capturePin"
+target_role = "int-rising"
+
+[[hardware]]
+pin = 15
+hw_type = "digital"
+io_mode = "DO"
+label = "ledOverflow"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 16
+hw_type = "digital"
+io_mode = "DO"
+label = "ledDraining"
+target_role = "digital-out"
+
+[[data]]
+name = "BUF_SIZE"
+type = "UINT"
+scope = "CONST"
+init = "16"
+unit = "-"
+
+[[data]]
+name = "DRAIN_DELAY"
+type = "TIME"
+scope = "CONST"
+init = "T#5ms"
+unit = "ms"
+
+[[data]]
+name = "BAUD_RATE"
+type = "DINT"
+scope = "CONST"
+init = "115200"
+unit = "-"
+
+[[data]]
+name = "LOOP_DELAY"
+type = "TIME"
+scope = "CONST"
+init = "T#20ms"
+unit = "ms"
+
+[[data]]
+name = "buf0"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "buf1"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "buf2"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "buf3"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "buf4"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "buf5"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "buf6"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "buf7"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "bufHead"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "bufTail"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "bufOverflow"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "captureCount"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "drainCount"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "nowUs"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "us"
+
+[[setup]]
+kind = "call"
+name = "CFG_SERIAL"
+args = [{ kind = "uint", value = 115200 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT"
+args = [{ kind = "var", name = "capturePin" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "var", name = "ledOverflow" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "var", name = "ledDraining" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ATTACH_INTERRUPT"
+args = [{ kind = "var", name = "capturePin" }, { kind = "var", name = "isr_capture" }, { kind = "string", value = "RISING" }]
+
+[[setup]]
+kind = "call"
+name = "SERIAL_PRINTLN"
+args = [{ kind = "string", value = "idx,ts_us" }]
+
+[[loop]]
+kind = "if"
+condition = { kind = "var", name = "bufOverflow" }
+then = [{ kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "ledOverflow" }, { kind = "bool", value = true }] }, { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "string", value = "OVERFLOW" }] }, { kind = "assign", target = "bufOverflow", value = { kind = "bool", value = false } }]
+
+[[loop]]
+kind = "if"
+condition = { kind = "expr_text", text = "bufHead != bufTail" }
+then = [{ kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "ledDraining" }, { kind = "bool", value = true }] }, { kind = "while", condition = { kind = "expr_text", text = "bufHead != bufTail" }, body = [{ kind = "call", name = "drain_next", args = [] }, { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "DRAIN_DELAY" }] }, { kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "ledDraining" }, { kind = "bool", value = false }] }] }]
+else = [{ kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "ledOverflow" }, { kind = "bool", value = false }] }, { kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "ledDraining" }, { kind = "bool", value = false }] }, { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "LOOP_DELAY" }] }]
+
+[[functions]]
+name = "isr_capture"
+params = []
+body = [{ kind = "assign", target = "nowUs", value = { kind = "expr_text", text = "GET_SYS_TIME_US()" } }, { kind = "assign", target = "nextHead", value = { kind = "expr_text", text = "MOD(bufHead + 1, BUF_SIZE)" } }, { kind = "if", condition = { kind = "expr_text", text = "nextHead = bufTail" }, then = [{ kind = "assign", target = "bufOverflow", value = { kind = "bool", value = true } }, { kind = "return" }, { kind = "call", name = "buf_write", args = [{ kind = "var", name = "bufHead" }, { kind = "var", name = "nowUs" }] }, { kind = "assign", target = "bufHead", value = { kind = "var", name = "nextHead" } }, { kind = "assign", target = "captureCount", value = { kind = "expr_text", text = "captureCount + 1" } }] }]
+
+[[functions]]
+name = "buf_write"
+params = ["idx", "val"]
+body = [{ kind = "if", condition = { kind = "expr_text", text = "idx = 0" }, then = [{ kind = "assign", target = "buf0", value = { kind = "var", name = "val" } }], elif = [{ condition = { kind = "expr_text", text = "idx = 1" }, then = [{ kind = "assign", target = "buf1", value = { kind = "var", name = "val" } }] }, { condition = { kind = "expr_text", text = "idx = 2" }, then = [{ kind = "assign", target = "buf2", value = { kind = "var", name = "val" } }] }, { condition = { kind = "expr_text", text = "idx = 3" }, then = [{ kind = "assign", target = "buf3", value = { kind = "var", name = "val" } }] }, { condition = { kind = "expr_text", text = "idx = 4" }, then = [{ kind = "assign", target = "buf4", value = { kind = "var", name = "val" } }] }, { condition = { kind = "expr_text", text = "idx = 5" }, then = [{ kind = "assign", target = "buf5", value = { kind = "var", name = "val" } }] }, { condition = { kind = "expr_text", text = "idx = 6" }, then = [{ kind = "assign", target = "buf6", value = { kind = "var", name = "val" } }] }, { condition = { kind = "expr_text", text = "idx = 7" }, then = [{ kind = "assign", target = "buf7", value = { kind = "var", name = "val" } }] }] }]
+
+[[functions]]
+name = "buf_read"
+params = ["idx"]
+body = [{ kind = "if", condition = { kind = "expr_text", text = "idx = 0" }, then = [{ kind = "return", value = { kind = "var", name = "buf0" } }], elif = [{ condition = { kind = "expr_text", text = "idx = 1" }, then = [{ kind = "return", value = { kind = "var", name = "buf1" } }] }, { condition = { kind = "expr_text", text = "idx = 2" }, then = [{ kind = "return", value = { kind = "var", name = "buf2" } }] }, { condition = { kind = "expr_text", text = "idx = 3" }, then = [{ kind = "return", value = { kind = "var", name = "buf3" } }] }, { condition = { kind = "expr_text", text = "idx = 4" }, then = [{ kind = "return", value = { kind = "var", name = "buf4" } }] }, { condition = { kind = "expr_text", text = "idx = 5" }, then = [{ kind = "return", value = { kind = "var", name = "buf5" } }] }, { condition = { kind = "expr_text", text = "idx = 6" }, then = [{ kind = "return", value = { kind = "var", name = "buf6" } }] }, { condition = { kind = "expr_text", text = "idx = 7" }, then = [{ kind = "return", value = { kind = "var", name = "buf7" } }] }] }, { kind = "return", value = { kind = "uint", value = 0 } }]
+
+[[functions]]
+name = "drain_next"
+params = []
+body = [{ kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "expr_text", text = "CONCAT(TO_STRING(drainCount), \",\", TO_STRING(buf_read(bufTail)))" }] }, { kind = "assign", target = "bufTail", value = { kind = "expr_text", text = "MOD(bufTail + 1, BUF_SIZE)" } }, { kind = "assign", target = "drainCount", value = { kind = "expr_text", text = "drainCount + 1" } }, { kind = "if", condition = { kind = "expr_text", text = "drainCount >= captureCount" }, then = [{ kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "ledOverflow" }, { kind = "bool", value = false }] }] }]

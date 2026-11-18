@@ -508,7 +508,7 @@ mod tests {
 
     #[test]
     fn binding_from_p01_wiring() {
-        let path = repo().join("content/fixtures/projects/P01-uno-led-blink.dendri.toml");
+        let path = repo().join("content/fixtures/projects/P01-uno-led-blink.toml");
         let doc = parse_path(&path).unwrap();
         let project = match doc {
             dendri_parse::ParsedDocument::Project(p) => p.project,

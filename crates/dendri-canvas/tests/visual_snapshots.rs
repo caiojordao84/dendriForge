@@ -27,11 +27,13 @@ fn load_canvas(rel: &str) -> SimCanvas {
                     dendri_ast::ComponentInstance {
                         instance_id: "led1".into(),
                         profile: "led".into(),
+                        label: None,
                         params: Default::default(),
                     },
                     dendri_ast::ComponentInstance {
                         instance_id: "btn_start".into(),
                         profile: "cmd-pushbutton-no-start".into(),
+                        label: None,
                         params: Default::default(),
                     },
                 ],
@@ -42,9 +44,19 @@ fn load_canvas(rel: &str) -> SimCanvas {
                         signal: Some("digital".into()),
                     },
                     dendri_ast::Wire {
+                        from: "board.GND".into(),
+                        to: "led1.K".into(),
+                        signal: Some("gnd".into()),
+                    },
+                    dendri_ast::Wire {
                         from: "board.D2".into(),
-                        to: "btn_start.NO1".into(),
+                        to: "btn_start.NO".into(),
                         signal: Some("digital".into()),
+                    },
+                    dendri_ast::Wire {
+                        from: "board.GND".into(),
+                        to: "btn_start.COM".into(),
+                        signal: Some("gnd".into()),
                     },
                 ],
                 sources: vec![],
@@ -57,7 +69,7 @@ fn load_canvas(rel: &str) -> SimCanvas {
 
 #[test]
 fn c01_button_led_visual_frames() {
-    let mut canvas = load_canvas("content/fixtures/canvas/C01-button-led.dendri.toml");
+    let mut canvas = load_canvas("content/fixtures/canvas/C01-button-led.toml");
     canvas.boot().unwrap();
     // released → LED off
     canvas.release_button();
@@ -92,7 +104,7 @@ fn c01_button_led_visual_frames() {
 
 #[test]
 fn press_propagates_to_pin_and_led_render() {
-    let mut canvas = load_canvas("content/fixtures/canvas/C01-button-led.asl.toml");
+    let mut canvas = load_canvas("content/fixtures/canvas/C01-button-led-logic.toml");
     canvas.boot().unwrap();
     canvas.press_button();
     let frame = canvas.step().unwrap();

@@ -1,0 +1,276 @@
+# Migrated from core/asl/v010/golden/G18-persistent-calibration-store.toon
+# Legacy TOON retained under core/asl/v010/ (read-only).
+
+[metadata]
+asl_version = "0.0.1"
+project_name = "G18-persistent-calibration-store"
+editor = "dendriForge"
+author = "dendriForge Golden Suite"
+notes = "Migrated from legacy v010 TOON — ASL 0.0.1"
+
+[[hardware]]
+pin = 0
+hw_type = "digital"
+io_mode = "BI"
+label = "uartTxPin"
+target_role = "uart-tx"
+
+[[hardware]]
+pin = 1
+hw_type = "digital"
+io_mode = "BI"
+label = "uartRxPin"
+target_role = "uart-rx"
+
+[[hardware]]
+pin = 34
+hw_type = "analog"
+io_mode = "DI"
+label = "sensorRaw"
+target_role = "adc:t"
+
+[[hardware]]
+pin = 35
+hw_type = "analog"
+io_mode = "DI"
+label = "refRaw"
+target_role = "adc:t"
+
+[[hardware]]
+pin = 2
+hw_type = "digital"
+io_mode = "DO"
+label = "ledCalib"
+target_role = "digital-out"
+
+[[data]]
+name = "BAUD_RATE"
+type = "DINT"
+scope = "CONST"
+init = "115200"
+unit = "-"
+
+[[data]]
+name = "LOOP_DELAY"
+type = "TIME"
+scope = "CONST"
+init = "T#100ms"
+unit = "ms"
+
+[[data]]
+name = "SAMPLE_COUNT"
+type = "UINT"
+scope = "CONST"
+init = "8"
+unit = "-"
+
+[[data]]
+name = "CAL_GAIN_MIN"
+type = "REAL"
+scope = "CONST"
+init = "0.5"
+unit = "-"
+
+[[data]]
+name = "CAL_GAIN_MAX"
+type = "REAL"
+scope = "CONST"
+init = "2.0"
+unit = "-"
+
+[[data]]
+name = "CAL_OFFSET_MIN"
+type = "REAL"
+scope = "CONST"
+init = "-500.0"
+unit = "-"
+
+[[data]]
+name = "CAL_OFFSET_MAX"
+type = "REAL"
+scope = "CONST"
+init = "500.0"
+unit = "-"
+
+[[data]]
+name = "CAL_DEFAULT_GAIN"
+type = "REAL"
+scope = "CONST"
+init = "1.0"
+unit = "-"
+
+[[data]]
+name = "CAL_DEFAULT_OFFSET"
+type = "REAL"
+scope = "CONST"
+init = "0.0"
+unit = "-"
+
+[[data]]
+name = "calGain"
+type = "REAL"
+scope = "PERSISTENT"
+init = "1.0"
+unit = "-"
+
+[[data]]
+name = "calOffset"
+type = "REAL"
+scope = "PERSISTENT"
+init = "0.0"
+unit = "-"
+
+[[data]]
+name = "calVersion"
+type = "UINT"
+scope = "PERSISTENT"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "bootCount"
+type = "UINT"
+scope = "RETAIN"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "rawSensor"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "rawRef"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "calibrated"
+type = "REAL"
+scope = "VAR"
+init = "0.0"
+unit = "-"
+
+[[data]]
+name = "refVoltage"
+type = "REAL"
+scope = "VAR"
+init = "0.0"
+unit = "V"
+
+[[data]]
+name = "calValid"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "rxLine"
+type = "STRING"
+scope = "VAR"
+init = ""
+unit = "-"
+
+[[data]]
+name = "cmdParts"
+type = "STRING"
+scope = "VAR"
+init = ""
+unit = "-"
+
+[[data]]
+name = "nowMs"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "lastLogTime"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "_i0"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_SERIAL"
+args = [{ kind = "uint", value = 115200 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ADC_INPUT"
+args = [{ kind = "var", name = "sensorRaw" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ADC_INPUT"
+args = [{ kind = "var", name = "refRaw" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "var", name = "ledCalib" }]
+
+[[setup]]
+kind = "assign"
+target = "bootCount"
+value = { kind = "expr_text", text = "bootCount + 1" }
+
+[[setup]]
+kind = "assign"
+target = "calValid"
+value = { kind = "expr_text", text = "validate_calibration(calGain, calOffset)" }
+
+[[setup]]
+kind = "if"
+condition = { kind = "expr_text", text = "NOT calValid" }
+then = [{ kind = "assign", target = "calGain", value = { kind = "var", name = "CAL_DEFAULT_GAIN" } }, { kind = "assign", target = "calOffset", value = { kind = "var", name = "CAL_DEFAULT_OFFSET" } }, { kind = "assign", target = "calVersion", value = { kind = "uint", value = 0 } }, { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "string", value = "WARN: invalid cal — defaults restored" }] }]
+else = [{ kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "expr_text", text = "CONCAT(\"Cal v\", TO_STRING(calVersion), \" gain=\", TO_STRING_FMT(calGain, 4), \" offset=\", TO_STRING_FMT(calOffset, 2))" }] }, { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "expr_text", text = "CONCAT(\"Boot #\", TO_STRING(bootCount))" }] }, { kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "ledCalib" }, { kind = "var", name = "calValid" }] }]
+
+[[loop]]
+kind = "assign"
+target = "nowMs"
+value = { kind = "expr_text", text = "GET_SYS_TIME()" }
+
+[[loop]]
+kind = "if"
+condition = { kind = "expr_text", text = "SERIAL_AVAILABLE() > 0" }
+then = [{ kind = "assign", target = "rxLine", value = { kind = "expr_text", text = "SERIAL_READLN()" } }, { kind = "call", name = "SERIAL_FLUSH", args = [] }, { kind = "call", name = "handle_cal_cmd", args = [{ kind = "var", name = "rxLine" }] }, { kind = "assign", target = "rawSensor", value = { kind = "expr_text", text = "sample_avg(34)" } }, { kind = "assign", target = "rawRef", value = { kind = "expr_text", text = "sample_avg(35)" } }, { kind = "assign", target = "refVoltage", value = { kind = "expr_text", text = "MAP_RANGE(INT_TO_REAL(rawRef), 0.0, 65535.0, 0.0, 3.3)" } }, { kind = "assign", target = "calibrated", value = { kind = "expr_text", text = "INT_TO_REAL(rawSensor) * calGain + calOffset" } }]
+
+[[loop]]
+kind = "if"
+condition = { kind = "expr_text", text = "TIME_DIFF(nowMs, lastLogTime) >= LOOP_DELAY" }
+then = [{ kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "expr_text", text = "CONCAT(TO_STRING(nowMs), \",\", TO_STRING(rawSensor), \",\", TO_STRING_FMT(calibrated, 3), \",\", TO_STRING_FMT(refVoltage, 4))" }] }, { kind = "assign", target = "lastLogTime", value = { kind = "var", name = "nowMs" } }, { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "LOOP_DELAY" }] }]
+
+[[functions]]
+name = "sample_avg"
+params = ["pin"]
+body = [{ kind = "assign", target = "acc", value = { kind = "uint", value = 0 } }, { kind = "for", counter = "_i0", to = { kind = "var", name = "SAMPLE_COUNT" }, body = [{ kind = "assign", target = "acc", value = { kind = "expr_text", text = "acc + READ_ADC(pin)" } }, { kind = "return", value = { kind = "expr_text", text = "acc / SAMPLE_COUNT" } }] }]
+
+[[functions]]
+name = "validate_calibration"
+params = ["gain", "offset"]
+body = [{ kind = "if", condition = { kind = "expr_text", text = "gain < CAL_GAIN_MIN OR gain > CAL_GAIN_MAX" }, then = [{ kind = "return", value = { kind = "bool", value = false } }] }, { kind = "if", condition = { kind = "expr_text", text = "offset < CAL_OFFSET_MIN OR offset > CAL_OFFSET_MAX" }, then = [{ kind = "return", value = { kind = "bool", value = false } }] }, { kind = "return", value = { kind = "bool", value = true } }]
+
+[[functions]]
+name = "apply_calibration"
+params = ["raw"]
+body = [{ kind = "return", value = { kind = "expr_text", text = "INT_TO_REAL(raw) * calGain + calOffset" } }]
+
+[[functions]]
+name = "handle_cal_cmd"
+params = ["cmd"]
+body = [{ kind = "if", condition = { kind = "expr_text", text = "cmd = \"CAL:RESET\"" }, then = [{ kind = "assign", target = "calGain", value = { kind = "var", name = "CAL_DEFAULT_GAIN" } }, { kind = "assign", target = "calOffset", value = { kind = "var", name = "CAL_DEFAULT_OFFSET" } }, { kind = "assign", target = "calVersion", value = { kind = "uint", value = 0 } }, { kind = "assign", target = "calValid", value = { kind = "bool", value = true } }, { kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "ledCalib" }, { kind = "bool", value = true }] }, { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "string", value = "CAL RESET OK" }] }], elif = [{ condition = { kind = "expr_text", text = "cmd = \"CAL:STATUS\"" }, then = [{ kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "expr_text", text = "CONCAT(\"gain=\", TO_STRING_FMT(calGain, 4), \" offset=\", TO_STRING_FMT(calOffset, 2), \" v=\", TO_STRING(calVersion), \" valid=\", SEL(calValid, \"N\", \"Y\"))" }] }] }, { condition = { kind = "expr_text", text = "cmd = \"CAL:BUMPVER\"" }, then = [{ kind = "assign", target = "calVersion", value = { kind = "expr_text", text = "calVersion + 1" } }, { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "expr_text", text = "CONCAT(\"calVersion=\", TO_STRING(calVersion))" }] }] }, { condition = { kind = "expr_text", text = "cmd = \"CAL:SETGAIN1.5\"" }, then = [{ kind = "assign", target = "calGain", value = { kind = "expr_text", text = "CLAMP(1.5, CAL_GAIN_MIN, CAL_GAIN_MAX)" } }, { kind = "assign", target = "calValid", value = { kind = "expr_text", text = "validate_calibration(calGain, calOffset)" } }, { kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "ledCalib" }, { kind = "var", name = "calValid" }] }, { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "expr_text", text = "CONCAT(\"gain=\", TO_STRING_FMT(calGain, 4))" }] }] }], else = [{ kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "expr_text", text = "CONCAT(\"UNKNOWN: \", cmd)" }] }] }]

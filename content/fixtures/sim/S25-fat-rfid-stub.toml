@@ -1,0 +1,117 @@
+# Sim S25 — FAT virtual file + RFID UID via SPI (scenario 2)
+# Beyond S21 SPI/vendor-skip: SD_FAT_* accumulates an in-memory file;
+# RFID_INIT skip + SPI_TRANSFER returns seeded UID byte.
+
+[metadata]
+asl_version = "0.0.1"
+project_name = "S25-fat-rfid-stub"
+editor = "dendriForge"
+author = "dendriForge DEN-22"
+notes = "Virtual FAT stub + RFID UID SPI — not a real filesystem or air protocol"
+
+[[hardware]]
+pin = 23
+hw_type = "digital"
+io_mode = "DO"
+label = "writeLed"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 22
+hw_type = "digital"
+io_mode = "DO"
+label = "rfidCs"
+target_role = "spi-cs"
+
+[[data]]
+name = "line"
+type = "STRING"
+scope = "VAR"
+init = "\"t=1,v=42\""
+unit = "-"
+
+[[data]]
+name = "spiRx"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "uidByte"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_SERIAL"
+args = [{ kind = "uint", value = 115200 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "var", name = "writeLed" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_SPI"
+args = [
+  { kind = "uint", value = 0 },
+  { kind = "uint", value = 23 },
+  { kind = "uint", value = 19 },
+  { kind = "uint", value = 18 },
+  { kind = "uint", value = 5 },
+]
+
+[[setup]]
+kind = "vendor_extension"
+reason = "RFID_INIT:spi_bus=0,cs=22"
+
+[[setup]]
+kind = "vendor_extension"
+reason = "SD_FAT_OPEN:telemetry.csv"
+
+[[loop]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "var", name = "writeLed" }, { kind = "bool", value = true }]
+
+[[loop]]
+# RFID UID byte: spi_seed(bus=0)=0xA5 returned on first SPI_TRANSFER.
+kind = "assign"
+target = "uidByte"
+value = { kind = "call", name = "SPI_TRANSFER", args = [
+  { kind = "uint", value = 0 },
+  { kind = "hex", value = "0x00" },
+] }
+
+[[loop]]
+kind = "assign"
+target = "spiRx"
+value = { kind = "call", name = "SPI_TRANSFER", args = [
+  { kind = "uint", value = 0 },
+  { kind = "hex", value = "0xAA" },
+] }
+
+[[loop]]
+kind = "vendor_extension"
+reason = "SD_FAT_APPEND:telemetry.csv|t=1,v=42"
+
+[[loop]]
+kind = "vendor_extension"
+reason = "SD_FAT_FLUSH:telemetry.csv"
+
+[[loop]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "var", name = "writeLed" }, { kind = "bool", value = false }]
+
+[[loop]]
+kind = "call"
+name = "SERIAL_PRINTLN"
+args = [{ kind = "call", name = "CONCAT", args = [
+  { kind = "string", value = "uid=" },
+  { kind = "call", name = "TO_STRING", args = [{ kind = "var", name = "uidByte" }] },
+] }]

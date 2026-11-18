@@ -1,7 +1,7 @@
 # ASL Formal Grammar — historical semantic draft
 
 > **Superseded surface format.** This EBNF describes the obsolete **TOON** document surface.
-> Live IR is **ASL in TOML** (`.asl.toml`). See [`phase-0/ir-schema.md`](./phase-0/ir-schema.md)
+> Live IR is **ASL in TOML** (`.toml`). See [`phase-0/ir-schema.md`](./phase-0/ir-schema.md)
 > and `crates/dendri-ast`. ASL language tag is **`0.0.1`** —
 > ignore any `ASLversion` / `0.1.0` terminals below as current policy.
 > Kept only as a semantic reference for blocks, types, and parse-error intent.
@@ -13,7 +13,7 @@ Grammar notation: **EBNF** — `[ ]` optional, `{ }` zero-or-more, `( )` groupin
 ## Top-Level Document
 
 ```ebnf
-toon_document ::=   /* historical name; live programs use *.asl.toml */
+toon_document ::=   /* historical name; live programs use *.toml */
     metadata_block
     hardware_block
     data_block

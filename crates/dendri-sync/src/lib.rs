@@ -154,12 +154,16 @@ impl SyncSession {
         self.apply_asl_program(program)
     }
 
-    /// Round-trip check: diagram → TOML → parse → compare blocks.
+    /// Round-trip check: ASL ladder block → emit → parse → compare blocks.
     pub fn assert_ladder_roundtrip(&self) -> Result<(), SyncError> {
         let text = self
             .source_text(SourceLanguage::Ladder)
-            .ok_or_else(|| SyncError::Message("no ladder source".into()))?;
-        let again = dendri_frontend_ladder::parse_ladder(text)?;
+            .map(str::to_string)
+            .unwrap_or_else(|| dendri_frontend_ladder::emit_ladder(&self.project.asl));
+        if text.trim().is_empty() {
+            return Err(SyncError::Message("no ladder source".into()));
+        }
+        let again = dendri_frontend_ladder::parse_ladder(&text)?;
         let Some(orig) = self.project.asl.ladder.first() else {
             return Err(SyncError::Message("no asl.ladder".into()));
         };
@@ -172,8 +176,12 @@ impl SyncSession {
     pub fn assert_sfc_roundtrip(&self) -> Result<(), SyncError> {
         let text = self
             .source_text(SourceLanguage::Sfc)
-            .ok_or_else(|| SyncError::Message("no sfc source".into()))?;
-        let again = dendri_frontend_sfc::parse_sfc(text)?;
+            .map(str::to_string)
+            .unwrap_or_else(|| dendri_frontend_sfc::emit_sfc(&self.project.asl));
+        if text.trim().is_empty() {
+            return Err(SyncError::Message("no sfc source".into()));
+        }
+        let again = dendri_frontend_sfc::parse_sfc(&text)?;
         let Some(orig) = self.project.asl.grafcet.first() else {
             return Err(SyncError::Message("no asl.grafcet".into()));
         };

@@ -1,7 +1,7 @@
 # Implementation Plan — dendriForge
 
 > Status: **Living document** — updated as phases are completed.  
-> **ASL:** Abstract Syntax Language, structured in **TOML** (`.asl.toml`).  
+> **ASL:** Abstract Syntax Language, structured in **TOML** (`.toml`).  
 > **ASL version:** **`0.0.1`** (`metadata.asl_version`). Do not treat `0.1.0` / `0.1.1` / `v010` as current.  
 > **Stack:** pure Rust. **IR:** TOML only (TOON is obsolete / legacy under `core/`).
 
@@ -20,7 +20,7 @@
 | `docs/phase-0/` | Live contract (IR schema, versioning, errors, layout, SVG) |
 | `crates/dendri-ast` | Rust IR types (source of truth) |
 | `crates/dendri-stdlib/data/catalog.toml` | IEC stdlib catalog |
-| `content/fixtures/` | Golden / error / example `.asl.toml` |
+| `content/fixtures/` | Golden / error / example `.toml` |
 | `docs/grammar.md`, `docs/stdlib.md` | **Superseded** semantic drafts (historical TOON surface) |
 | `core/**/*.toon` | Legacy TOON corpus — read-only; see `legacy/toon/README.md` |
 
@@ -44,7 +44,7 @@ ASL documents in TOML are the single source of truth for the platform. All parse
 │  Ladder · GRAFCET/SFC · HMI/SCADA/IoT · Code Editor        │
 │  (Ladder/SFC ↔ same TOML, bidirectional real-time sync)   │
 └────────────────────────┬────────────────────────────────────┘
-                         │  produces / consumes ASL (.asl.toml)
+                         │  produces / consumes ASL (.toml)
 ┌────────────────────────▼────────────────────────────────────┐
 │  ASL CORE  (dendri-ast · dendri-parse · dendri-validate …)  │
 │  phase-0 IR · catalog.toml · validator · serializer         │
@@ -80,7 +80,7 @@ ASL documents in TOML are the single source of truth for the platform. All parse
 - [x] Unified `ERR_*` error catalogue
 - [x] Stdlib ported to `catalog.toml`
 - [x] Ladder + GRAFCET AST stubs reserved
-- [x] MVP fixtures converted (`.asl.toml` goldens + errors)
+- [x] MVP fixtures converted (`.toml` goldens + errors)
 - [x] Compliance spine `content/standards/bindings.toml`
 - [x] Layout policy: new IR in `content/`; legacy TOON in `core/`
 - [x] Structural fixture load tests (`cargo test -p dendri-ast --test load_fixtures`)
@@ -111,11 +111,11 @@ ASL documents in TOML are the single source of truth for the platform. All parse
 **Goal:** Parse, validate, serialize, and simulate ASL TOML.
 
 #### Entregáveis
-- `dendri-parse` — load `.asl.toml` into `dendri-ast`
+- `dendri-parse` — load `.toml` into `dendri-ast`
 - `dendri-validate` — semantic validation (`ERR_*`)
 - `dendri-emit` — lossless round-trip / target emit
 - `dendri-sim` — deterministic scan-cycle execution
-- CLI: `dendri validate|roundtrip|info|sim <file.asl.toml>`
+- CLI: `dendri validate|roundtrip|info|sim <file.toml>`
 
 #### Criteria
 - Golden fixtures load and round-trip

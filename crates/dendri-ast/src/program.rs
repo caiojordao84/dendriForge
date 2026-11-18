@@ -5,12 +5,12 @@ use serde::{Deserialize, Serialize};
 use crate::stmt::Stmt;
 use crate::types::{DataType, HwType, IoMode};
 
-/// File extension for program IR: `.asl.toml`.
-pub const PROGRAM_EXTENSION: &str = "asl.toml";
+/// File extension for program IR: `.toml` (shape distinguishes program vs project).
+pub const PROGRAM_EXTENSION: &str = "toml";
 
 /// First ASL language version tag (assigned after MVP acceptance).
 ///
-/// Sole scheme: `metadata.asl_version` in `.asl.toml` / embedded `[asl.metadata]`.
+/// Sole scheme: `metadata.asl_version` in program `.toml` / embedded `[asl.metadata]`.
 /// Not Cargo crate version; not legacy TOON `ASLversion` / `v010`.
 pub const ASL_VERSION: &str = "0.0.1";
 

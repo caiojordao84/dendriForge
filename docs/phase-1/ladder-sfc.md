@@ -60,7 +60,7 @@ cargo test -p dendri-frontends --test visual_acceptance
 cargo test -p dendri-sync --lib
 cargo run -p dendri-cli -- parse-source --lang ladder content/fixtures/ladder/L03-parallel-or.ladder.toml
 cargo run -p dendri-cli -- parse-source --lang sfc content/fixtures/sfc/G02-and-divergence.sfc.toml
-cargo run -p dendri-cli -- frontend-roundtrip --lang ladder content/fixtures/sim/S01-blink-set-bool-wait.asl.toml
-cargo run -p dendri-cli -- sync-visual content/fixtures/projects/P01-uno-led-blink.dendri.toml
+cargo run -p dendri-cli -- frontend-roundtrip --lang ladder content/fixtures/sim/S01-blink-set-bool-wait.toml
+cargo run -p dendri-cli -- sync-visual content/fixtures/projects/P01-uno-led-blink.toml
 cargo run -p dendri-editor
 ```

@@ -1,0 +1,377 @@
+# Migrated from core/asl/v010/examples/advanced-robotic-scara-pid.toon
+# Legacy TOON retained under core/asl/v010/ (read-only).
+
+[metadata]
+asl_version = "0.0.1"
+project_name = "advanced-robotic-scara-pid"
+editor = "dendriForge"
+author = "ASLAgent#032"
+notes = "Migrated from legacy v010 TOON — ASL 0.0.1"
+
+[[hardware]]
+pin = 2
+hw_type = "digital"
+io_mode = "DI"
+label = "eStopPin"
+target_role = "int-falling"
+
+[[hardware]]
+pin = 3
+hw_type = "digital"
+io_mode = "DI"
+label = "encoderPin"
+target_role = "int-rising"
+
+[[hardware]]
+pin = 14
+hw_type = "digital"
+io_mode = "DO"
+label = "stepPin"
+target_role = "pwm-out"
+
+[[hardware]]
+pin = 15
+hw_type = "digital"
+io_mode = "DO"
+label = "dirPin"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 16
+hw_type = "digital"
+io_mode = "DO"
+label = "heaterPin"
+target_role = "pwm-out"
+
+[[hardware]]
+pin = 26
+hw_type = "analog"
+io_mode = "DI"
+label = "thermistorPin"
+target_role = "adc:t"
+
+[[hardware]]
+pin = 0
+hw_type = "digital"
+io_mode = "BI"
+label = "sdaPin"
+target_role = "i2c-sda"
+
+[[hardware]]
+pin = 1
+hw_type = "digital"
+io_mode = "BI"
+label = "sclPin"
+target_role = "i2c-scl"
+
+[[data]]
+name = "KP"
+type = "REAL"
+scope = "CONST"
+init = "25.5"
+unit = "-"
+
+[[data]]
+name = "KI"
+type = "REAL"
+scope = "CONST"
+init = "1.2"
+unit = "-"
+
+[[data]]
+name = "KD"
+type = "REAL"
+scope = "CONST"
+init = "5.0"
+unit = "-"
+
+[[data]]
+name = "SETPOINT_TEMP"
+type = "REAL"
+scope = "CONST"
+init = "210.0"
+unit = "°C"
+
+[[data]]
+name = "STEPS_PER_MM"
+type = "UINT"
+scope = "CONST"
+init = "80"
+unit = "steps/mm"
+
+[[data]]
+name = "INTEGRAL_CLAMP"
+type = "REAL"
+scope = "CONST"
+init = "1000.0"
+unit = "-"
+
+[[data]]
+name = "LOOP_DELAY_SHORT"
+type = "TIME"
+scope = "CONST"
+init = "T#50ms"
+unit = "ms"
+
+[[data]]
+name = "LOOP_DELAY_LONG"
+type = "TIME"
+scope = "CONST"
+init = "T#2000ms"
+unit = "ms"
+
+[[data]]
+name = "SAFETY_POLL"
+type = "TIME"
+scope = "CONST"
+init = "T#100ms"
+unit = "ms"
+
+[[data]]
+name = "STEP_PULSE_DT"
+type = "TIME"
+scope = "CONST"
+init = "T#2ms"
+unit = "ms"
+
+[[data]]
+name = "ENCODER_DEBOUNCE"
+type = "TIME"
+scope = "CONST"
+init = "T#5ms"
+unit = "ms"
+
+[[data]]
+name = "currentTemp"
+type = "REAL"
+scope = "VAR"
+init = "0.0"
+unit = "°C"
+
+[[data]]
+name = "pidError"
+type = "REAL"
+scope = "VAR"
+init = "0.0"
+unit = "-"
+
+[[data]]
+name = "lastError"
+type = "REAL"
+scope = "VAR"
+init = "0.0"
+unit = "-"
+
+[[data]]
+name = "integral"
+type = "REAL"
+scope = "VAR"
+init = "0.0"
+unit = "-"
+
+[[data]]
+name = "derivative"
+type = "REAL"
+scope = "VAR"
+init = "0.0"
+unit = "-"
+
+[[data]]
+name = "pidOutput"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "currentX"
+type = "REAL"
+scope = "VAR"
+init = "120.5"
+unit = "mm"
+
+[[data]]
+name = "currentY"
+type = "REAL"
+scope = "VAR"
+init = "85.0"
+unit = "mm"
+
+[[data]]
+name = "targetX"
+type = "REAL"
+scope = "VAR"
+init = "0.0"
+unit = "mm"
+
+[[data]]
+name = "targetY"
+type = "REAL"
+scope = "VAR"
+init = "0.0"
+unit = "mm"
+
+[[data]]
+name = "sysSafetyHalt"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "lastInterruptTime"
+type = "TIME"
+scope = "VAR"
+init = "T#0ms"
+unit = "ms"
+
+[[data]]
+name = "deltaX"
+type = "REAL"
+scope = "TEMP"
+init = "0.0"
+unit = "mm"
+
+[[data]]
+name = "deltaY"
+type = "REAL"
+scope = "TEMP"
+init = "0.0"
+unit = "mm"
+
+[[data]]
+name = "distance"
+type = "REAL"
+scope = "TEMP"
+init = "0.0"
+unit = "mm"
+
+[[data]]
+name = "totalSteps"
+type = "UINT"
+scope = "TEMP"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "rawAdc"
+type = "UINT"
+scope = "TEMP"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "resistance"
+type = "REAL"
+scope = "TEMP"
+init = "0.0"
+unit = "ohm"
+
+[[data]]
+name = "calculatedTemp"
+type = "REAL"
+scope = "TEMP"
+init = "0.0"
+unit = "°C"
+
+[[data]]
+name = "_i"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT_PULLUP"
+args = [{ kind = "var", name = "eStopPin" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT_PULLUP"
+args = [{ kind = "var", name = "encoderPin" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "var", name = "dirPin" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "var", name = "heaterPin" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ISR"
+args = [{ kind = "uint", value = 2 }, { kind = "var", name = "isr_emergency_halt" }, { kind = "string", value = "FALLING" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ISR"
+args = [{ kind = "uint", value = 3 }, { kind = "var", name = "isr_encoder_pulse" }, { kind = "string", value = "RISING" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_PWM_OUTPUT"
+args = [{ kind = "var", name = "stepPin" }, { kind = "uint", value = 2000 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_PWM_OUTPUT"
+args = [{ kind = "var", name = "heaterPin" }, { kind = "uint", value = 5000 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_I2C_BUS"
+args = [{ kind = "uint", value = 0 }, { kind = "uint", value = 0 }, { kind = "uint", value = 1 }, { kind = "uint", value = 400000 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_LCD_I2C"
+args = [{ kind = "hex", value = "0x27" }, { kind = "uint", value = 16 }, { kind = "uint", value = 2 }]
+
+[[loop]]
+kind = "if"
+condition = { kind = "var", name = "sysSafetyHalt" }
+then = [{ kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "SAFETY_POLL" }] }, { kind = "assign", target = "currentTemp", value = { kind = "expr_text", text = "read_temperature_celsius()" } }, { kind = "call", name = "compute_thermal_pid", args = [] }]
+
+[[loop]]
+kind = "if"
+condition = { kind = "expr_text", text = "NOT sysSafetyHalt" }
+then = [{ kind = "call", name = "move_to_vpos", args = [{ kind = "real", value = 200.0 }, { kind = "real", value = 150.0 }] }, { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "LOOP_DELAY_SHORT" }] }]
+
+[[loop]]
+kind = "if"
+condition = { kind = "expr_text", text = "NOT sysSafetyHalt" }
+then = [{ kind = "call", name = "move_to_vpos", args = [{ kind = "real", value = 120.5 }, { kind = "real", value = 85.0 }] }, { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "LOOP_DELAY_LONG" }] }]
+
+[[functions]]
+name = "move_to_vpos"
+params = ["valX", "valY"]
+body = [{ kind = "assign", target = "targetX", value = { kind = "var", name = "valX" } }, { kind = "assign", target = "targetY", value = { kind = "var", name = "valY" } }, { kind = "assign", target = "deltaX", value = { kind = "expr_text", text = "targetX - currentX" } }, { kind = "assign", target = "deltaY", value = { kind = "expr_text", text = "targetY - currentY" } }, { kind = "assign", target = "distance", value = { kind = "expr_text", text = "SQRT((deltaX * deltaX) + (deltaY * deltaY))" } }, { kind = "if", condition = { kind = "expr_text", text = "distance > 0.1" }, then = [] }, { kind = "if", condition = { kind = "expr_text", text = "deltaX >= 0" }, then = [{ kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "dirPin" }, { kind = "bool", value = true }] }], else = [{ kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "dirPin" }, { kind = "bool", value = false }] }, { kind = "assign", target = "totalSteps", value = { kind = "expr_text", text = "TO_INT(distance * STEPS_PER_MM)" } }, { kind = "call", name = "execute_trajectory_pulses", args = [{ kind = "var", name = "totalSteps" }] }, { kind = "assign", target = "currentX", value = { kind = "var", name = "targetX" } }, { kind = "assign", target = "currentY", value = { kind = "var", name = "targetY" } }] }]
+
+[[functions]]
+name = "execute_trajectory_pulses"
+params = ["pulses"]
+body = [{ kind = "for", counter = "_i", to = { kind = "var", name = "pulses" }, body = [{ kind = "if", condition = { kind = "expr_text", text = "NOT sysSafetyHalt" }, then = [{ kind = "call", name = "SET_PWM_DUTY", args = [{ kind = "var", name = "stepPin" }, { kind = "uint", value = 32768 }] }, { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "STEP_PULSE_DT" }] }, { kind = "call", name = "SET_PWM_DUTY", args = [{ kind = "var", name = "stepPin" }, { kind = "uint", value = 0 }] }, { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "STEP_PULSE_DT" }] }] }] }]
+
+[[functions]]
+name = "compute_thermal_pid"
+params = []
+body = [{ kind = "assign", target = "pidError", value = { kind = "expr_text", text = "SETPOINT_TEMP - currentTemp" } }, { kind = "assign", target = "integral", value = { kind = "expr_text", text = "integral + pidError" } }, { kind = "if", condition = { kind = "expr_text", text = "integral > INTEGRAL_CLAMP" }, then = [{ kind = "assign", target = "integral", value = { kind = "var", name = "INTEGRAL_CLAMP" } }] }, { kind = "if", condition = { kind = "expr_text", text = "integral < -INTEGRAL_CLAMP" }, then = [{ kind = "assign", target = "integral", value = { kind = "expr_text", text = "-INTEGRAL_CLAMP" } }, { kind = "assign", target = "derivative", value = { kind = "expr_text", text = "pidError - lastError" } }, { kind = "assign", target = "pidOutput", value = { kind = "expr_text", text = "TO_INT((KP * pidError) + (KI * integral) + (KD * derivative))" } }, { kind = "assign", target = "pidOutput", value = { kind = "expr_text", text = "CLAMP(pidOutput, 0, 65535)" } }, { kind = "call", name = "SET_PWM_DUTY", args = [{ kind = "var", name = "heaterPin" }, { kind = "var", name = "pidOutput" }] }, { kind = "assign", target = "lastError", value = { kind = "var", name = "pidError" } }] }]
+
+[[functions]]
+name = "read_temperature_celsius"
+params = []
+body = [{ kind = "assign", target = "rawAdc", value = { kind = "expr_text", text = "READ_ADC(26)" } }, { kind = "assign", target = "resistance", value = { kind = "expr_text", text = "(65535.0 / rawAdc) - 1.0" } }, { kind = "assign", target = "calculatedTemp", value = { kind = "expr_text", text = "1.0 / (0.001129148 + (0.000234125 * LOG(resistance)))" } }, { kind = "assign", target = "calculatedTemp", value = { kind = "expr_text", text = "calculatedTemp - 273.15" } }, { kind = "return", value = { kind = "var", name = "calculatedTemp" } }]
+
+[[functions]]
+name = "isr_emergency_halt"
+params = []
+body = [{ kind = "assign", target = "sysSafetyHalt", value = { kind = "bool", value = true } }, { kind = "call", name = "SET_PWM_DUTY", args = [{ kind = "var", name = "stepPin" }, { kind = "uint", value = 0 }] }, { kind = "call", name = "SET_PWM_DUTY", args = [{ kind = "var", name = "heaterPin" }, { kind = "uint", value = 0 }] }, { kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "dirPin" }, { kind = "bool", value = false }] }, { kind = "call", name = "LCD_CLEAR", args = [] }, { kind = "call", name = "LCD_PRINT", args = [{ kind = "uint", value = 0 }, { kind = "uint", value = 0 }, { kind = "string", value = "## E-STOP ##" }] }, { kind = "call", name = "LCD_PRINT", args = [{ kind = "uint", value = 0 }, { kind = "uint", value = 1 }, { kind = "string", value = "SYSTEM HALTED" }] }]
+
+[[functions]]
+name = "isr_encoder_pulse"
+params = []
+body = [{ kind = "assign", target = "timeNow", value = { kind = "expr_text", text = "GET_TIMESTAMP()" } }, { kind = "if", condition = { kind = "expr_text", text = "(timeNow - lastInterruptTime) > ENCODER_DEBOUNCE" }, then = [{ kind = "assign", target = "lastInterruptTime", value = { kind = "var", name = "timeNow" } }] }]

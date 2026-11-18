@@ -1,0 +1,59 @@
+# Error corpus E07 — expected ERR_FUNCTION_ARITY_MISMATCH
+# Migrated from core/asl/v010/errors/E07-function-arity-mismatch.toon
+
+[metadata]
+asl_version = "0.0.1"
+project_name = "E07-function-arity-mismatch"
+editor = "dendriForge"
+author = "dendriForge Error Corpus"
+expect_error = "ERR_FUNCTION_ARITY_MISMATCH"
+
+[[hardware]]
+pin = 2
+hw_type = "digital"
+io_mode = "DO"
+label = "ledPin"
+target_role = "digital-out"
+
+[[data]]
+name = "result"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "LOOP_DELAY"
+type = "TIME"
+scope = "CONST"
+init = "T#100ms"
+unit = "ms"
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "var", name = "ledPin" }]
+
+[[loop]]
+kind = "assign"
+target = "result"
+value = { kind = "call", name = "compute_scaled", args = [
+  { kind = "uint", value = 1 }, { kind = "uint", value = 2 }, { kind = "uint", value = 3 },
+]}
+
+[[loop]]
+kind = "assign"
+target = "result"
+value = { kind = "call", name = "compute_scaled", args = [{ kind = "uint", value = 1 }] }
+
+[[loop]]
+kind = "call"
+name = "WAIT_TIME"
+args = [{ kind = "var", name = "LOOP_DELAY" }]
+
+[[functions]]
+name = "compute_scaled"
+params = ["a", "b"]
+body = [
+  { kind = "return", value = { kind = "binop", op = "mul", left = { kind = "var", name = "a" }, right = { kind = "var", name = "b" } } },
+]

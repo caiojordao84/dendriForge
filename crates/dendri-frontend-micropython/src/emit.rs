@@ -363,6 +363,13 @@ fn resolve_pin_const(expr: &Expr, labels: &HashMap<u32, String>) -> String {
                 value.to_string()
             }
         }
+        Expr::Var { name } => {
+            if labels.values().any(|l| l == name) {
+                to_upper_snake(name)
+            } else {
+                name.clone()
+            }
+        }
         other => emit_expr(other, labels),
     }
 }

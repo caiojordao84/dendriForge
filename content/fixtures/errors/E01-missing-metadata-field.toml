@@ -1,0 +1,40 @@
+# Error corpus E01 — expected ERR_METADATA_MISSING_FIELD
+# Migrated from core/asl/v010/errors/E01-missing-metadata-field.toon
+# Trigger: omit required `project_name`.
+# `asl_version` may be present; validate requires project_name, not version.
+
+[metadata]
+asl_version = "0.0.1"
+# project_name: INTENTIONALLY OMITTED
+editor = "dendriForge"
+author = "dendriForge Error Corpus"
+expect_error = "ERR_METADATA_MISSING_FIELD"
+
+[[hardware]]
+pin = 2
+hw_type = "digital"
+io_mode = "DO"
+label = "ledPin"
+target_role = "digital-out"
+
+[[data]]
+name = "LOOP_DELAY"
+type = "TIME"
+scope = "CONST"
+init = "T#1000ms"
+unit = "ms"
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "var", name = "ledPin" }]
+
+[[loop]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "var", name = "ledPin" }, { kind = "bool", value = true }]
+
+[[loop]]
+kind = "call"
+name = "WAIT_TIME"
+args = [{ kind = "var", name = "LOOP_DELAY" }]

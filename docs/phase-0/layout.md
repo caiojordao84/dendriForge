@@ -4,7 +4,7 @@
 
 | Choice | Value |
 |---|---|
-| Program extension | **`.asl.toml`** (TOML envelope + structured statement AST) |
+| Program extension | **`.toml`** (TOML envelope + structured statement AST) |
 | Profile extension | **`.toml`** under `content/profiles/` |
 | ASL versioning | **`0.0.1`** via `metadata.asl_version` (see [`versioning.md`](./versioning.md)). Legacy folder `core/asl/v010/` is historical path only. |
 | New tree | **`content/`** — IR fixtures, sample profiles, standards, asset notes |
@@ -32,5 +32,5 @@ dendriforge/
 ## Migration policy
 
 - Phase 0 exit does **not** require old `.toon` to parse.
-- Phase 1 implements parsers against `.asl.toml` / profile `.toml` only.
+- Phase 1 implements parsers against `.toml` / profile `.toml` only.
 - A later cleanup may `git mv core → legacy/toon/core`; until then treat `core/` as frozen.

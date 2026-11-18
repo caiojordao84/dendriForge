@@ -18,7 +18,7 @@ fn assert_trace_with(name: &str, cycles: u64, cfg: SimConfig) {
     let got = sim.trace_text();
     let snap = repo()
         .join("crates/dendri-sim/tests/snapshots")
-        .join(name.replace(".asl.toml", ".trace.txt"));
+        .join(name.replace(".toml", ".trace.txt"));
     if std::env::var("UPDATE_SIM_SNAPSHOTS").as_deref() == Ok("1") {
         fs::create_dir_all(snap.parent().unwrap()).unwrap();
         fs::write(&snap, &got).unwrap();
@@ -41,12 +41,12 @@ fn assert_trace(name: &str, cycles: u64) {
 
 #[test]
 fn s01_blink_trace() {
-    assert_trace("S01-blink-set-bool-wait.asl.toml", 2);
+    assert_trace("S01-blink-set-bool-wait.toml", 2);
 }
 
 #[test]
 fn s02_ton_trace() {
-    assert_trace("S02-ton-on-delay.asl.toml", 3);
+    assert_trace("S02-ton-on-delay.toml", 3);
 }
 
 #[test]
@@ -54,7 +54,7 @@ fn s04_pwm_adc_map_trace() {
     let mut adc = std::collections::HashMap::new();
     adc.insert(34, 32768); // mid-scale → duty ≈ 127
     assert_trace_with(
-        "S04-pwm-adc-map.asl.toml",
+        "S04-pwm-adc-map.toml",
         1,
         SimConfig {
             max_cycles: 1,
@@ -66,23 +66,23 @@ fn s04_pwm_adc_map_trace() {
 
 #[test]
 fn s05_uart_i2c_spi_trace() {
-    assert_trace("S05-uart-i2c-spi.asl.toml", 1);
+    assert_trace("S05-uart-i2c-spi.toml", 1);
 }
 
 #[test]
 fn s06_iec_tof_trig_trace() {
-    assert_trace("S06-iec-tof-trig.asl.toml", 3);
+    assert_trace("S06-iec-tof-trig.toml", 3);
 }
 
 #[test]
 fn s07_iec_counters_trace() {
-    assert_trace("S07-iec-counters.asl.toml", 3);
+    assert_trace("S07-iec-counters.toml", 3);
 }
 
 #[test]
 fn s09_string_ops_trace() {
     assert_trace_with(
-        "S09-string-ops.asl.toml",
+        "S09-string-ops.toml",
         1,
         SimConfig {
             max_cycles: 1,
@@ -94,17 +94,17 @@ fn s09_string_ops_trace() {
 
 #[test]
 fn s12_i2c_spi_xfer_trace() {
-    assert_trace("S12-i2c-spi-xfer.asl.toml", 1);
+    assert_trace("S12-i2c-spi-xfer.toml", 1);
 }
 
 #[test]
 fn s13_math_sqrt_log_trace() {
-    assert_trace("S13-math-sqrt-log.asl.toml", 1);
+    assert_trace("S13-math-sqrt-log.toml", 1);
 }
 
 #[test]
 fn s10_conveyor_in_range_runs() {
-    let path = repo().join("content/fixtures/sim/S10-conveyor-in-range.asl.toml");
+    let path = repo().join("content/fixtures/sim/S10-conveyor-in-range.toml");
     let parsed = parse_program_file(&path).unwrap();
     let mut sim = Simulator::from_program(
         parsed.program,
@@ -129,7 +129,7 @@ fn s10_conveyor_in_range_runs() {
 
 #[test]
 fn s11_retain_survives_soft_restart() {
-    let path = repo().join("content/fixtures/sim/S11-retain-restart.asl.toml");
+    let path = repo().join("content/fixtures/sim/S11-retain-restart.toml");
     let parsed = parse_program_file(&path).unwrap();
     let mut sim = Simulator::from_program(
         parsed.program.clone(),
@@ -177,7 +177,7 @@ fn s11_retain_survives_soft_restart() {
 
 #[test]
 fn s17_reservoir_plant_fills() {
-    let path = repo().join("content/fixtures/sim/S17-reservoir-plant.asl.toml");
+    let path = repo().join("content/fixtures/sim/S17-reservoir-plant.toml");
     let parsed = parse_program_file(&path).unwrap();
     let mut sim = Simulator::from_program(
         parsed.program,
@@ -196,7 +196,7 @@ fn s17_reservoir_plant_fills() {
 
 #[test]
 fn s18_pid_estop_heats_then_halts() {
-    let path = repo().join("content/fixtures/sim/S18-pid-estop.asl.toml");
+    let path = repo().join("content/fixtures/sim/S18-pid-estop.toml");
     let parsed = parse_program_file(&path).unwrap();
     let mut sim = Simulator::from_program(
         parsed.program,
@@ -219,12 +219,12 @@ fn s18_pid_estop_heats_then_halts() {
 
 #[test]
 fn s19_display_stubs_emit_disp_and_tone() {
-    assert_trace("S19-display-stubs.asl.toml", 1);
+    assert_trace("S19-display-stubs.toml", 1);
 }
 
 #[test]
 fn s14_isr_edges_fire_on_set_pin() {
-    let path = repo().join("content/fixtures/sim/S14-isr-edge-modes.asl.toml");
+    let path = repo().join("content/fixtures/sim/S14-isr-edge-modes.toml");
     let parsed = parse_program_file(&path).unwrap();
     let mut sim = Simulator::from_program(parsed.program, &SimConfig::default());
     sim.ensure_setup().unwrap();
@@ -239,7 +239,7 @@ fn s14_isr_edges_fire_on_set_pin() {
 
 #[test]
 fn s15_encoder_counts_on_change() {
-    let path = repo().join("content/fixtures/sim/S15-encoder-quadrature.asl.toml");
+    let path = repo().join("content/fixtures/sim/S15-encoder-quadrature.toml");
     let parsed = parse_program_file(&path).unwrap();
     let mut sim = Simulator::from_program(parsed.program, &SimConfig::default());
     sim.ensure_setup().unwrap();
@@ -252,7 +252,7 @@ fn s15_encoder_counts_on_change() {
 
 #[test]
 fn s16_ring_buffer_overflow_path() {
-    let path = repo().join("content/fixtures/sim/S16-isr-ring-buffer.asl.toml");
+    let path = repo().join("content/fixtures/sim/S16-isr-ring-buffer.toml");
     let parsed = parse_program_file(&path).unwrap();
     let mut sim = Simulator::from_program(parsed.program, &SimConfig::default());
     sim.ensure_setup().unwrap();
@@ -270,13 +270,16 @@ fn s16_ring_buffer_overflow_path() {
 
 #[test]
 fn project_sim_runs() {
-    let path = repo().join("content/fixtures/projects/P01-uno-led-blink.dendri.toml");
+    let path = repo().join("content/fixtures/projects/P01-uno-led-blink.toml");
     let parsed = parse_project_file(&path).unwrap();
     let cfg = SimConfig {
         max_cycles: 2,
         ..SimConfig::default()
     };
     let mut sim = Simulator::from_project(&parsed.project, &cfg);
+    // P01 blinks only while the start button is held.
+    sim.ensure_setup().unwrap();
+    sim.set_pin(2, true).unwrap();
     sim.run(2).unwrap();
     let text = sim.trace_text();
     assert!(text.contains("PIN_WRITE"));
@@ -290,7 +293,7 @@ fn s29_modbus_tcp_trace() {
     let mut mb_discrete_seed = std::collections::HashMap::new();
     mb_discrete_seed.insert((1, 2), true);
     assert_trace_with(
-        "S29-modbus-tcp.asl.toml",
+        "S29-modbus-tcp.toml",
         1,
         SimConfig {
             max_cycles: 1,
@@ -303,7 +306,7 @@ fn s29_modbus_tcp_trace() {
 
 #[test]
 fn s29_modbus_tcp_map_survives_soft_restart() {
-    let path = repo().join("content/fixtures/sim/S29-modbus-tcp.asl.toml");
+    let path = repo().join("content/fixtures/sim/S29-modbus-tcp.toml");
     let parsed = parse_program_file(&path).unwrap();
     let mut mb_input_seed = std::collections::HashMap::new();
     mb_input_seed.insert((1, 10), 0x00AB);

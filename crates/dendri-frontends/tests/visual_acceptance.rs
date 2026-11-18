@@ -71,7 +71,7 @@ fn sfc_g01_roundtrip_and_sim() {
 
 #[test]
 fn emit_ladder_sfc_from_asl_s01() {
-    let path = repo_root().join("content/fixtures/sim/S01-blink-set-bool-wait.asl.toml");
+    let path = repo_root().join("content/fixtures/sim/S01-blink-set-bool-wait.toml");
     let text = std::fs::read_to_string(&path).unwrap();
     let program: dendri_ast::Program = toml::from_str(&text).unwrap();
     for lang in [SourceLanguage::Ladder, SourceLanguage::Sfc] {

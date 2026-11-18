@@ -1,0 +1,194 @@
+# Sim S17 — reservoir plant physics synced to scan (scenario 4)
+# Pump PWM fills; valve DO drains; PLANT_LEVEL / READ_DISTANCE_CM + hysteresis + LCD.
+
+[metadata]
+asl_version = "0.0.1"
+project_name = "S17-reservoir-plant"
+editor = "dendriForge"
+author = "dendriForge DEN-18"
+notes = "Tank physics + On/Off hysteresis — DEN-18 (scenario 4)"
+
+[[hardware]]
+pin = 10
+hw_type = "digital"
+io_mode = "DO"
+label = "pumpPwm"
+target_role = "pwm-out"
+
+[[hardware]]
+pin = 11
+hw_type = "digital"
+io_mode = "DO"
+label = "valve"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 16
+hw_type = "digital"
+io_mode = "DO"
+label = "trigPin"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 17
+hw_type = "digital"
+io_mode = "DI"
+label = "echoPin"
+target_role = "digital-in"
+
+[[data]]
+name = "HEIGHT"
+type = "REAL"
+scope = "CONST"
+init = "100.0"
+unit = "cm"
+
+[[data]]
+name = "SETPOINT"
+type = "REAL"
+scope = "CONST"
+init = "60.0"
+unit = "cm"
+
+[[data]]
+name = "HYST"
+type = "REAL"
+scope = "CONST"
+init = "5.0"
+unit = "cm"
+
+[[data]]
+name = "LEVEL_MIN"
+type = "REAL"
+scope = "CONST"
+init = "20.0"
+unit = "cm"
+
+[[data]]
+name = "SCAN_DT"
+type = "TIME"
+scope = "CONST"
+init = "T#1000ms"
+unit = "ms"
+
+[[data]]
+name = "level"
+type = "REAL"
+scope = "VAR"
+init = "0.0"
+unit = "cm"
+
+[[data]]
+name = "airGap"
+type = "REAL"
+scope = "VAR"
+init = "0.0"
+unit = "cm"
+
+[[data]]
+name = "pumpOn"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "msg"
+type = "STRING"
+scope = "VAR"
+init = "\"\""
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_PWM_OUTPUT"
+args = [{ kind = "var", name = "pumpPwm" }, { kind = "uint", value = 1000 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "var", name = "valve" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_LCD"
+args = [{ kind = "hex", value = "0x27" }, { kind = "uint", value = 16 }, { kind = "uint", value = 2 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_PLANT_TANK"
+args = [
+  { kind = "var", name = "HEIGHT" },
+  { kind = "uint", value = 10 },
+  { kind = "uint", value = 11 },
+  { kind = "real", value = 10.0 },
+  { kind = "real", value = 4.0 },
+]
+
+[[setup]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "var", name = "valve" }, { kind = "bool", value = false }]
+
+[[setup]]
+kind = "call"
+name = "SET_PWM_DUTY"
+args = [{ kind = "var", name = "pumpPwm" }, { kind = "uint", value = 65535 }]
+
+[[setup]]
+kind = "assign"
+target = "pumpOn"
+value = { kind = "bool", value = true }
+
+[[setup]]
+kind = "call"
+name = "LCD_PRINT"
+args = [{ kind = "uint", value = 0 }, { kind = "uint", value = 0 }, { kind = "string", value = "Tank boot" }]
+
+[[loop]]
+kind = "assign"
+target = "level"
+value = { kind = "call", name = "PLANT_LEVEL", args = [] }
+
+[[loop]]
+kind = "assign"
+target = "airGap"
+value = { kind = "call", name = "READ_DISTANCE_CM", args = [{ kind = "uint", value = 16 }, { kind = "uint", value = 17 }] }
+
+[[loop]]
+kind = "if"
+condition = { kind = "expr_text", text = "NOT pumpOn AND level <= LEVEL_MIN" }
+then = [
+  { kind = "assign", target = "pumpOn", value = { kind = "bool", value = true } },
+  { kind = "call", name = "SET_PWM_DUTY", args = [{ kind = "var", name = "pumpPwm" }, { kind = "uint", value = 65535 }] },
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "valve" }, { kind = "bool", value = false }] },
+]
+
+[[loop]]
+kind = "if"
+condition = { kind = "expr_text", text = "pumpOn AND level >= (SETPOINT - HYST)" }
+then = [
+  { kind = "assign", target = "pumpOn", value = { kind = "bool", value = false } },
+  { kind = "call", name = "SET_PWM_DUTY", args = [{ kind = "var", name = "pumpPwm" }, { kind = "uint", value = 0 }] },
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "valve" }, { kind = "bool", value = true }] },
+]
+
+[[loop]]
+kind = "call"
+name = "LCD_CLEAR"
+args = []
+
+[[loop]]
+kind = "assign"
+target = "msg"
+value = { kind = "expr_text", text = "CONCAT(\"L=\", TO_STRING_FMT(level, 1))" }
+
+[[loop]]
+kind = "call"
+name = "LCD_PRINT"
+args = [{ kind = "uint", value = 0 }, { kind = "uint", value = 0 }, { kind = "var", name = "msg" }]
+
+[[loop]]
+kind = "call"
+name = "WAIT_TIME"
+args = [{ kind = "var", name = "SCAN_DT" }]

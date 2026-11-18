@@ -1080,6 +1080,20 @@ impl Simulator {
         Ok(())
     }
 
+    /// Resolve a pin argument: hardware labels win over data vars of the same name.
+    fn eval_pin_arg(&mut self, expr: &Expr) -> Result<u32, String> {
+        match expr {
+            Expr::Uint { value } => Ok(*value as u32),
+            Expr::Var { name } => {
+                if let Some(hw) = self.program.hardware.iter().find(|h| h.label == *name) {
+                    return Ok(hw.pin);
+                }
+                Ok(self.eval(expr)?.as_u64()? as u32)
+            }
+            _ => Ok(self.eval(expr)?.as_u64()? as u32),
+        }
+    }
+
     fn eval(&mut self, expr: &Expr) -> Result<Value, String> {
         match expr {
             Expr::Bool { value } => Ok(Value::Bool(*value)),
@@ -1138,7 +1152,7 @@ impl Simulator {
         match canon {
             "CFG_DIGITAL_OUTPUT" | "CFG_DIGITAL_INPUT" | "CFG_DIGITAL_INPUT_PULLUP"
             | "CFG_DIGITAL_INPUT_PULLDOWN" => {
-                let _pin = self.eval(&args[0])?.as_u64()? as u32;
+                let _pin = self.eval_pin_arg(&args[0])?;
                 Ok(Value::Void)
             }
             "CFG_ATTACH_INTERRUPT" => {
@@ -1148,7 +1162,7 @@ impl Simulator {
                         args.len()
                     ));
                 }
-                let pin = self.eval(&args[0])?.as_u64()? as u32;
+                let pin = self.eval_pin_arg(&args[0])?;
                 let handler = Self::resolve_isr_ref(&args[1])?;
                 if !self.functions.contains_key(&handler) {
                     return Err(format!("unresolved ISR reference: {handler}"));
@@ -1182,26 +1196,26 @@ impl Simulator {
                         args.len()
                     ));
                 }
-                let pin = self.eval(&args[0])?.as_u64()? as u32;
+                let pin = self.eval_pin_arg(&args[0])?;
                 self.interrupts.remove(&pin);
                 self.push(TraceKind::IsrDetach { pin });
                 Ok(Value::Void)
             }
             "SET_BOOL" => {
-                let pin = self.eval(&args[0])?.as_u64()? as u32;
+                let pin = self.eval_pin_arg(&args[0])?;
                 let val = self.eval(&args[1])?.as_bool()?;
                 self.pins.insert(pin, val);
                 self.push(TraceKind::PinWrite { pin, value: val });
                 Ok(Value::Void)
             }
             "GET_BOOL" => {
-                let pin = self.eval(&args[0])?.as_u64()? as u32;
+                let pin = self.eval_pin_arg(&args[0])?;
                 let val = *self.pins.get(&pin).unwrap_or(&false);
                 self.push(TraceKind::PinRead { pin, value: val });
                 Ok(Value::Bool(val))
             }
             "CFG_PWM_OUTPUT" => {
-                let pin = self.eval(&args[0])?.as_u64()? as u32;
+                let pin = self.eval_pin_arg(&args[0])?;
                 let freq = self.eval(&args[1])?.as_u64()? as u32;
                 let st = self.pwm.entry(pin).or_default();
                 st.freq_hz = freq;
@@ -1213,26 +1227,26 @@ impl Simulator {
                 Ok(Value::Void)
             }
             "SET_PWM_FREQ" => {
-                let pin = self.eval(&args[0])?.as_u64()? as u32;
+                let pin = self.eval_pin_arg(&args[0])?;
                 let hz = self.eval(&args[1])?.as_u64()? as u32;
                 self.pwm.entry(pin).or_default().freq_hz = hz;
                 self.push(TraceKind::PwmFreq { pin, hz });
                 Ok(Value::Void)
             }
             "SET_PWM_DUTY" => {
-                let pin = self.eval(&args[0])?.as_u64()? as u32;
+                let pin = self.eval_pin_arg(&args[0])?;
                 let duty = self.eval(&args[1])?.as_u64()? as u32;
                 self.pwm.entry(pin).or_default().duty = duty;
                 self.push(TraceKind::PwmDuty { pin, duty });
                 Ok(Value::Void)
             }
             "GET_PWM_DUTY" => {
-                let pin = self.eval(&args[0])?.as_u64()? as u32;
+                let pin = self.eval_pin_arg(&args[0])?;
                 let duty = self.pwm.get(&pin).map(|s| s.duty).unwrap_or(0);
                 Ok(Value::Uint(duty as u64))
             }
             "CFG_ADC_INPUT" => {
-                let pin = self.eval(&args[0])?.as_u64()? as u32;
+                let pin = self.eval_pin_arg(&args[0])?;
                 self.adc.entry(pin).or_insert(0);
                 self.push(TraceKind::BusCfg {
                     bus: "ADC".into(),
@@ -1241,7 +1255,7 @@ impl Simulator {
                 Ok(Value::Void)
             }
             "READ_ADC" => {
-                let pin = self.eval(&args[0])?.as_u64()? as u32;
+                let pin = self.eval_pin_arg(&args[0])?;
                 let value = *self.adc.get(&pin).unwrap_or(&0);
                 self.push(TraceKind::AdcRead { pin, value });
                 Ok(Value::Uint(value as u64))
@@ -1297,8 +1311,8 @@ impl Simulator {
             }
             "CFG_I2C" => {
                 let bus = self.eval(&args[0])?.as_u64()?;
-                let sda = self.eval(&args[1])?.as_u64()?;
-                let scl = self.eval(&args[2])?.as_u64()?;
+                let sda = self.eval_pin_arg(&args[1])?;
+                let scl = self.eval_pin_arg(&args[2])?;
                 let freq = self.eval(&args[3])?.as_i64()?;
                 self.push(TraceKind::BusCfg {
                     bus: "I2C".into(),
@@ -1315,10 +1329,10 @@ impl Simulator {
             }
             "CFG_SPI" => {
                 let bus = self.eval(&args[0])?.as_u64()?;
-                let mosi = self.eval(&args[1])?.as_u64()?;
-                let miso = self.eval(&args[2])?.as_i64()?;
-                let sck = self.eval(&args[3])?.as_u64()?;
-                let cs = self.eval(&args[4])?.as_u64()?;
+                let mosi = self.eval_pin_arg(&args[1])?;
+                let miso = self.eval_pin_arg(&args[2])? as i64;
+                let sck = self.eval_pin_arg(&args[3])?;
+                let cs = self.eval_pin_arg(&args[4])?;
                 self.push(TraceKind::BusCfg {
                     bus: "SPI".into(),
                     detail: format!("bus={bus} mosi={mosi} miso={miso} sck={sck} cs={cs}"),
@@ -1725,8 +1739,8 @@ impl Simulator {
                     return Err(format!("CFG_PLANT_TANK expects 5 args, got {}", args.len()));
                 }
                 let height_cm = self.eval(&args[0])?.as_f64()?;
-                let pump_pin = self.eval(&args[1])?.as_u64()? as u32;
-                let valve_pin = self.eval(&args[2])?.as_u64()? as u32;
+                let pump_pin = self.eval_pin_arg(&args[1])?;
+                let valve_pin = self.eval_pin_arg(&args[2])?;
                 let fill_cm_per_s = self.eval(&args[3])?.as_f64()?;
                 let drain_cm_per_s = self.eval(&args[4])?.as_f64()?;
                 self.plant_tank = Some(PlantTank {
@@ -1833,7 +1847,7 @@ impl Simulator {
                 if args.len() != 3 {
                     return Err(format!("LCD_PRINT expects 3 args, got {}", args.len()));
                 }
-                let col = self.eval(&args[0])?.as_u64()? as u32;
+                let col = self.eval_pin_arg(&args[0])?;
                 let row = self.eval(&args[1])?.as_u64()? as u32;
                 let msg = self.eval(&args[2])?.as_string()?;
                 if let Some(lcd) = self.lcd.as_mut() {
@@ -1880,7 +1894,7 @@ impl Simulator {
                 if args.len() != 2 {
                     return Err(format!("OLED_SET_CURSOR expects 2 args, got {}", args.len()));
                 }
-                let x = self.eval(&args[0])?.as_u64()? as u32;
+                let x = self.eval_pin_arg(&args[0])?;
                 let y = self.eval(&args[1])?.as_u64()? as u32;
                 if let Some(o) = self.oled.as_mut() {
                     o.cursor_x = x;
@@ -1899,7 +1913,7 @@ impl Simulator {
                         args.len()
                     ));
                 }
-                let fg = self.eval(&args[0])?.as_u64()? as u32;
+                let fg = self.eval_pin_arg(&args[0])?;
                 let bg = self.eval(&args[1])?.as_u64()? as u32;
                 if let Some(o) = self.oled.as_mut() {
                     o.fg = fg;
@@ -2020,7 +2034,7 @@ impl Simulator {
                         args.len()
                     ));
                 }
-                let fg = self.eval(&args[0])?.as_u64()? as u32;
+                let fg = self.eval_pin_arg(&args[0])?;
                 let bg = self.eval(&args[1])?.as_u64()? as u32;
                 if let Some(t) = self.tft.as_mut() {
                     t.fg = fg;
@@ -2036,7 +2050,7 @@ impl Simulator {
                 if args.len() != 1 {
                     return Err(format!("TFT_SET_TEXT_SIZE expects 1 arg, got {}", args.len()));
                 }
-                let n = self.eval(&args[0])?.as_u64()? as u32;
+                let n = self.eval_pin_arg(&args[0])?;
                 if let Some(t) = self.tft.as_mut() {
                     t.text_size = n;
                 }
@@ -2082,7 +2096,7 @@ impl Simulator {
                 if args.len() != 3 {
                     return Err(format!("PLAY_TONE expects 3 args, got {}", args.len()));
                 }
-                let pin = self.eval(&args[0])?.as_u64()? as u32;
+                let pin = self.eval_pin_arg(&args[0])?;
                 let freq = self.eval(&args[1])?.as_u64()? as u32;
                 let duration_ms = match self.eval(&args[2])? {
                     Value::TimeMs(ms) => ms,

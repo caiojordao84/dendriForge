@@ -61,7 +61,7 @@ pub fn parse_source(language: SourceLanguage, text: &str) -> Result<Program, Fro
         SourceLanguage::Ladder => Ok(dendri_frontend_ladder::parse_ladder(text)?),
         SourceLanguage::Sfc => Ok(dendri_frontend_sfc::parse_sfc(text)?),
         SourceLanguage::Asl => Err(FrontendError::Message(
-            "ASL is the IR — use dendri-parse on .asl.toml".into(),
+            "ASL is the IR — use dendri-parse on .toml".into(),
         )),
     }
 }

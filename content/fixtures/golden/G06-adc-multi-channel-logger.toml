@@ -1,0 +1,212 @@
+# Migrated from core/asl/v010/golden/G06-adc-multi-channel-logger.toon
+# Legacy TOON retained under core/asl/v010/ (read-only).
+
+[metadata]
+asl_version = "0.0.1"
+project_name = "G06-adc-multi-channel-logger"
+editor = "dendriForge"
+author = "dendriForge Golden Suite"
+notes = "Migrated from legacy v010 TOON — ASL 0.0.1"
+
+[[hardware]]
+pin = 34
+hw_type = "analog"
+io_mode = "DI"
+label = "adcCh0"
+target_role = "adc:t"
+
+[[hardware]]
+pin = 35
+hw_type = "analog"
+io_mode = "DI"
+label = "adcCh1"
+target_role = "adc:t"
+
+[[hardware]]
+pin = 36
+hw_type = "analog"
+io_mode = "DI"
+label = "adcCh2"
+target_role = "adc:t"
+
+[[hardware]]
+pin = 37
+hw_type = "analog"
+io_mode = "DI"
+label = "adcCh3"
+target_role = "adc:t"
+
+[[data]]
+name = "SAMPLE_COUNT"
+type = "UINT"
+scope = "CONST"
+init = "8"
+unit = "-"
+
+[[data]]
+name = "LOG_INTERVAL"
+type = "TIME"
+scope = "CONST"
+init = "T#100ms"
+unit = "ms"
+
+[[data]]
+name = "ADC_MIN"
+type = "UINT"
+scope = "CONST"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "ADC_MAX"
+type = "UINT"
+scope = "CONST"
+init = "65535"
+unit = "-"
+
+[[data]]
+name = "VOLT_MIN"
+type = "REAL"
+scope = "CONST"
+init = "0.0"
+unit = "V"
+
+[[data]]
+name = "VOLT_MAX"
+type = "REAL"
+scope = "CONST"
+init = "3.3"
+unit = "V"
+
+[[data]]
+name = "BAUD_RATE"
+type = "DINT"
+scope = "CONST"
+init = "115200"
+unit = "-"
+
+[[data]]
+name = "rawSum0"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "rawSum1"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "rawSum2"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "rawSum3"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "volt0"
+type = "REAL"
+scope = "VAR"
+init = "0.0"
+unit = "V"
+
+[[data]]
+name = "volt1"
+type = "REAL"
+scope = "VAR"
+init = "0.0"
+unit = "V"
+
+[[data]]
+name = "volt2"
+type = "REAL"
+scope = "VAR"
+init = "0.0"
+unit = "V"
+
+[[data]]
+name = "volt3"
+type = "REAL"
+scope = "VAR"
+init = "0.0"
+unit = "V"
+
+[[data]]
+name = "logLine"
+type = "STRING"
+scope = "VAR"
+init = ""
+unit = "-"
+
+[[data]]
+name = "_i0"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_SERIAL"
+args = [{ kind = "uint", value = 115200 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ADC_INPUT"
+args = [{ kind = "var", name = "adcCh0" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ADC_INPUT"
+args = [{ kind = "var", name = "adcCh1" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ADC_INPUT"
+args = [{ kind = "var", name = "adcCh2" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ADC_INPUT"
+args = [{ kind = "var", name = "adcCh3" }]
+
+[[setup]]
+kind = "call"
+name = "SERIAL_PRINTLN"
+args = [{ kind = "string", value = "ts_ms,ch0_V,ch1_V,ch2_V,ch3_V" }]
+
+[[loop]]
+kind = "assign"
+target = "rawSum0"
+value = { kind = "uint", value = 0 }
+
+[[loop]]
+kind = "assign"
+target = "rawSum1"
+value = { kind = "uint", value = 0 }
+
+[[loop]]
+kind = "assign"
+target = "rawSum2"
+value = { kind = "uint", value = 0 }
+
+[[loop]]
+kind = "assign"
+target = "rawSum3"
+value = { kind = "uint", value = 0 }
+
+[[loop]]
+kind = "for"
+counter = "_i0"
+to = { kind = "var", name = "SAMPLE_COUNT" }
+body = [{ kind = "assign", target = "rawSum0", value = { kind = "expr_text", text = "rawSum0 + READ_ADC(34)" } }, { kind = "assign", target = "rawSum1", value = { kind = "expr_text", text = "rawSum1 + READ_ADC(35)" } }, { kind = "assign", target = "rawSum2", value = { kind = "expr_text", text = "rawSum2 + READ_ADC(36)" } }, { kind = "assign", target = "rawSum3", value = { kind = "expr_text", text = "rawSum3 + READ_ADC(37)" } }, { kind = "assign", target = "volt0", value = { kind = "expr_text", text = "MAP_RANGE(INT_TO_REAL(rawSum0 / SAMPLE_COUNT), INT_TO_REAL(ADC_MIN), INT_TO_REAL(ADC_MAX), VOLT_MIN, VOLT_MAX)" } }, { kind = "assign", target = "volt1", value = { kind = "expr_text", text = "MAP_RANGE(INT_TO_REAL(rawSum1 / SAMPLE_COUNT), INT_TO_REAL(ADC_MIN), INT_TO_REAL(ADC_MAX), VOLT_MIN, VOLT_MAX)" } }, { kind = "assign", target = "volt2", value = { kind = "expr_text", text = "MAP_RANGE(INT_TO_REAL(rawSum2 / SAMPLE_COUNT), INT_TO_REAL(ADC_MIN), INT_TO_REAL(ADC_MAX), VOLT_MIN, VOLT_MAX)" } }, { kind = "assign", target = "volt3", value = { kind = "expr_text", text = "MAP_RANGE(INT_TO_REAL(rawSum3 / SAMPLE_COUNT), INT_TO_REAL(ADC_MIN), INT_TO_REAL(ADC_MAX), VOLT_MIN, VOLT_MAX)" } }, { kind = "assign", target = "logLine", value = { kind = "expr_text", text = "CONCAT(TO_STRING(GET_SYS_TIME()), \",\", TO_STRING_FMT(volt0, 4), \",\", TO_STRING_FMT(volt1, 4), \",\", TO_STRING_FMT(volt2, 4), \",\", TO_STRING_FMT(volt3, 4))" } }, { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "var", name = "logLine" }] }, { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "LOG_INTERVAL" }] }]
