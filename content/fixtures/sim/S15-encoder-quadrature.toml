@@ -1,0 +1,154 @@
+# Sim S15 — rotary encoder via CHANGE ISR (scenario 8 / G04 logic, no LCD)
+
+[metadata]
+asl_version = "0.0.1"
+project_name = "S15-encoder-quadrature"
+editor = "dendriForge"
+author = "dendriForge DEN-17"
+notes = "Encoder A CHANGE + B direction — DEN-17"
+
+[[hardware]]
+pin = 20
+hw_type = "digital"
+io_mode = "DI"
+label = "encA"
+target_role = "int-change"
+
+[[hardware]]
+pin = 21
+hw_type = "digital"
+io_mode = "DI"
+label = "encB"
+target_role = "digital-in"
+
+[[hardware]]
+pin = 22
+hw_type = "digital"
+io_mode = "DI"
+label = "encBtn"
+target_role = "int-falling"
+
+[[hardware]]
+pin = 23
+hw_type = "digital"
+io_mode = "DO"
+label = "ledIndicator"
+target_role = "digital-out"
+
+[[data]]
+name = "COUNT_MIN"
+type = "INT"
+scope = "CONST"
+init = "-100"
+unit = "-"
+
+[[data]]
+name = "COUNT_MAX"
+type = "INT"
+scope = "CONST"
+init = "100"
+unit = "-"
+
+[[data]]
+name = "encoderCount"
+type = "INT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "lastEncA"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "btnPressed"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "encAState"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "displayDirty"
+type = "BOOL"
+scope = "VAR"
+init = "TRUE"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_SERIAL"
+args = [{ kind = "uint", value = 115200 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT_PULLUP"
+args = [{ kind = "var", name = "encA" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT_PULLUP"
+args = [{ kind = "var", name = "encB" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT_PULLUP"
+args = [{ kind = "var", name = "encBtn" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "var", name = "ledIndicator" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ATTACH_INTERRUPT"
+args = [{ kind = "var", name = "encA" }, { kind = "var", name = "isr_enc_a" }, { kind = "string", value = "CHANGE" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ATTACH_INTERRUPT"
+args = [{ kind = "var", name = "encBtn" }, { kind = "var", name = "isr_btn" }, { kind = "string", value = "FALLING" }]
+
+[[setup]]
+kind = "call"
+name = "SERIAL_PRINTLN"
+args = [{ kind = "string", value = "encoder_ready" }]
+
+[[loop]]
+kind = "if"
+condition = { kind = "var", name = "displayDirty" }
+then = [
+  { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "expr_text", text = "CONCAT(\"count=\", TO_STRING(encoderCount))" }] },
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "ledIndicator" }, { kind = "expr_text", text = "encoderCount > 0" }] },
+  { kind = "assign", target = "displayDirty", value = { kind = "bool", value = false } },
+]
+
+[[loop]]
+kind = "if"
+condition = { kind = "var", name = "btnPressed" }
+then = [
+  { kind = "assign", target = "encoderCount", value = { kind = "int", value = 0 } },
+  { kind = "assign", target = "displayDirty", value = { kind = "bool", value = true } },
+  { kind = "assign", target = "btnPressed", value = { kind = "bool", value = false } },
+  { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "string", value = "count_reset" }] },
+]
+
+[[functions]]
+name = "isr_enc_a"
+params = []
+body = [{ kind = "assign", target = "encAState", value = { kind = "expr_text", text = "GET_BOOL(20)" } }, { kind = "if", condition = { kind = "expr_text", text = "GET_BOOL(21)" }, then = [{ kind = "assign", target = "encoderCount", value = { kind = "expr_text", text = "encoderCount - 1" } }], else = [{ kind = "assign", target = "encoderCount", value = { kind = "expr_text", text = "encoderCount + 1" } }] }, { kind = "assign", target = "encoderCount", value = { kind = "expr_text", text = "CLAMP(encoderCount, COUNT_MIN, COUNT_MAX)" } }, { kind = "assign", target = "lastEncA", value = { kind = "var", name = "encAState" } }, { kind = "assign", target = "displayDirty", value = { kind = "bool", value = true } }]
+
+[[functions]]
+name = "isr_btn"
+params = []
+body = [{ kind = "assign", target = "btnPressed", value = { kind = "bool", value = true } }]

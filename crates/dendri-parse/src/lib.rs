@@ -1,7 +1,10 @@
-//! Parse ASL program IR (`.asl.toml`) and single-file projects (`.dendri.toml`).
+//! Parse ASL program IR and single-file projects (both use `.toml`).
 //!
-//! Structural deserialize uses [`dendri_ast`] types as the source of truth.
-//! Negative fixtures may carry `[fixture_inject]` tables consumed by validate.
+//! Document kind is detected by content shape: a `[board]` section plus an
+//! `[asl]` / `[asl.*]` program marks a project; otherwise the file is a bare
+//! ASL program. Structural deserialize uses [`dendri_ast`] types as the source
+//! of truth. Negative fixtures may carry `[fixture_inject]` tables consumed by
+//! validate.
 
 use std::fs;
 use std::path::Path;
@@ -121,23 +124,23 @@ pub fn parse_project_file(path: &Path) -> Result<ParsedProject, ParseError> {
     parse_project_str(&text)
 }
 
-/// Auto-detect `.dendri.toml` vs `.asl.toml` (or content shape).
+/// Auto-detect project vs program by TOML content shape (extension is always `.toml`).
 pub fn parse_path(path: &Path) -> Result<ParsedDocument, ParseError> {
     let text = fs::read_to_string(path)?;
-    let name = path
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or("")
-        .to_ascii_lowercase();
-
-    let looks_like_project = name.ends_with(".dendri.toml")
-        || (text.contains("[board]")
-            && (text.contains("[asl.") || text.contains("[asl]\n") || text.contains("\n[asl]")));
-
-    if looks_like_project {
+    if looks_like_project(&text) {
         return Ok(ParsedDocument::Project(parse_project_str(&text)?));
     }
     Ok(ParsedDocument::Program(parse_program_str(&text)?))
+}
+
+/// Project files carry `[board]` plus an embedded `[asl]` program envelope.
+pub fn looks_like_project(text: &str) -> bool {
+    let has_board = text.contains("[board]") || text.contains("[board.");
+    let has_asl = text.contains("[asl.")
+        || text.contains("[asl]\n")
+        || text.contains("\n[asl]")
+        || text.starts_with("[asl]");
+    has_board && has_asl
 }
 
 #[derive(Debug, Clone)]

@@ -1,7 +1,7 @@
 # ASL TOML IR schema (Phase 0)
 
 **Language:** ASL = **Abstract Syntax Language**  
-**Program files:** `*.asl.toml`  
+**Program files:** `*.toml`  
 **Rust source of truth:** `crates/dendri-ast`  
 **Profiles:** pure TOML under `content/profiles/`
 

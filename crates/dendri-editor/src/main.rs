@@ -740,12 +740,12 @@ fn cell_label(cell: &LadderCell) -> String {
 
 fn default_project_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../content/fixtures/projects/P01-uno-led-blink.dendri.toml")
+        .join("../../content/fixtures/projects/P01-uno-led-blink.toml")
 }
 
 fn canvas_demo_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../content/fixtures/canvas/C01-button-led.dendri.toml")
+        .join("../../content/fixtures/canvas/C01-button-led.toml")
 }
 
 fn load_session(path: &std::path::Path) -> Result<SyncSession, String> {

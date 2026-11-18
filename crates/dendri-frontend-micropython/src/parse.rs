@@ -529,7 +529,7 @@ impl Parser {
                 };
                 return Ok(Stmt::Call {
                     name: opcode.into(),
-                    args: vec![Expr::Uint { value: pin as u64 }],
+                    args: vec![pin_to_logical_expr(pin, &self.pin_consts)],
                 });
             }
             // fan_pwm_pwm = PWM(Pin(FAN_PWM), freq=5000)
@@ -540,7 +540,7 @@ impl Parser {
                 let freq_e = rewrite_expr(freq_e, &self.pin_consts, &self.obj_to_pin);
                 return Ok(Stmt::Call {
                     name: "CFG_PWM_OUTPUT".into(),
-                    args: vec![Expr::Uint { value: pin_n as u64 }, freq_e],
+                    args: vec![pin_to_logical_expr(pin_n, &self.pin_consts), freq_e],
                 });
             }
             // pot_pin_adc = ADC(Pin(POT_PIN))
@@ -549,7 +549,7 @@ impl Parser {
                 self.obj_to_pin.insert(lhs.clone(), pin_n);
                 return Ok(Stmt::Call {
                     name: "CFG_ADC_INPUT".into(),
-                    args: vec![Expr::Uint { value: pin_n as u64 }],
+                    args: vec![pin_to_logical_expr(pin_n, &self.pin_consts)],
                 });
             }
             // uart_0 = UART(0, baudrate=115200)
@@ -566,12 +566,14 @@ impl Parser {
                     name: "CFG_I2C".into(),
                     args: vec![
                         parse_expr(&bus).unwrap_or(Expr::Uint { value: 0 }),
-                        Expr::Uint {
-                            value: resolve_pin_number(&sda, &self.pin_consts).unwrap_or(0) as u64,
-                        },
-                        Expr::Uint {
-                            value: resolve_pin_number(&scl, &self.pin_consts).unwrap_or(0) as u64,
-                        },
+                        pin_to_logical_expr(
+                            resolve_pin_number(&sda, &self.pin_consts).unwrap_or(0),
+                            &self.pin_consts,
+                        ),
+                        pin_to_logical_expr(
+                            resolve_pin_number(&scl, &self.pin_consts).unwrap_or(0),
+                            &self.pin_consts,
+                        ),
                         parse_expr(&freq).unwrap_or(Expr::Int { value: 400_000 }),
                     ],
                 });
@@ -614,13 +616,14 @@ impl Parser {
                         self.pin_consts.get(&key).copied()
                     })
                     .unwrap_or(0);
+                let pin_expr = pin_to_logical_expr(pin, &self.pin_consts);
                 if args.is_empty() {
                     // read — shouldn't be stmt
                     return Ok(Stmt::Assign {
                         target: "_".into(),
                         value: Expr::Call {
                             name: "GET_BOOL".into(),
-                            args: vec![Expr::Uint { value: pin as u64 }],
+                            args: vec![pin_expr],
                         },
                     });
                 }
@@ -632,7 +635,7 @@ impl Parser {
                 };
                 return Ok(Stmt::Call {
                     name: "SET_BOOL".into(),
-                    args: vec![Expr::Uint { value: pin as u64 }, val],
+                    args: vec![pin_expr, val],
                 });
             }
             if method == "duty_u16" || method == "duty" {
@@ -648,7 +651,7 @@ impl Parser {
                 };
                 return Ok(Stmt::Call {
                     name: "SET_PWM_DUTY".into(),
-                    args: vec![Expr::Uint { value: pin as u64 }, duty],
+                    args: vec![pin_to_logical_expr(pin, &self.pin_consts), duty],
                 });
             }
             if method == "freq" {
@@ -660,7 +663,7 @@ impl Parser {
                 );
                 return Ok(Stmt::Call {
                     name: "SET_PWM_FREQ".into(),
-                    args: vec![Expr::Uint { value: pin as u64 }, hz],
+                    args: vec![pin_to_logical_expr(pin, &self.pin_consts), hz],
                 });
             }
             if obj.starts_with("uart_") && method == "write" {
@@ -931,6 +934,31 @@ fn to_upper_snake(s: &str) -> String {
         "PIN".into()
     } else {
         out
+    }
+}
+
+/// Prefer hardware label vars (camelCase) over raw pin numbers in ASL actions.
+fn pin_const_to_label(const_name: &str) -> String {
+    // Emit uses `LED_PIN = 13` for label `ledPin`.
+    if const_name
+        .chars()
+        .all(|c| c.is_ascii_uppercase() || c == '_' || c.is_ascii_digit())
+    {
+        snake_to_camel(&const_name.to_ascii_lowercase())
+    } else {
+        const_name.to_string()
+    }
+}
+
+fn pin_to_logical_expr(pin: u32, pin_consts: &HashMap<String, u32>) -> Expr {
+    if let Some((label, _)) = pin_consts.iter().find(|(_, p)| **p == pin) {
+        Expr::Var {
+            name: pin_const_to_label(label),
+        }
+    } else {
+        Expr::Uint {
+            value: pin as u64,
+        }
     }
 }
 
@@ -1486,12 +1514,25 @@ fn rewrite_expr(
     pin_consts: &HashMap<String, u32>,
     obj_to_pin: &HashMap<String, u32>,
 ) -> Expr {
+    // Reverse maps so Pin/ADC/PWM objects rehydrate to logical hardware labels.
+    let pin_to_label: HashMap<u32, String> = pin_consts
+        .iter()
+        .map(|(k, v)| (*v, k.clone()))
+        .collect();
     match expr {
         Expr::Var { name } => {
-            if let Some(&pin) = pin_consts.get(&name) {
-                Expr::Uint { value: pin as u64 }
+            if pin_consts.contains_key(&name) {
+                Expr::Var {
+                    name: pin_const_to_label(&name),
+                }
             } else if let Some(&pin) = obj_to_pin.get(&name) {
-                Expr::Uint { value: pin as u64 }
+                if let Some(label) = pin_to_label.get(&pin) {
+                    Expr::Var {
+                        name: pin_const_to_label(label),
+                    }
+                } else {
+                    Expr::Var { name }
+                }
             } else {
                 Expr::Var { name }
             }
@@ -1515,18 +1556,25 @@ fn rewrite_expr(
                 };
             }
             if name == "GET_BOOL" || name == "READ_ADC" || name == "GET_PWM_DUTY" {
-                let pin = match args.first() {
-                    Some(Expr::Uint { value }) => *value,
-                    Some(Expr::Var { name }) => obj_to_pin
-                        .get(name)
-                        .copied()
-                        .or_else(|| pin_consts.get(name).copied())
-                        .unwrap_or(0) as u64,
-                    _ => 0,
+                let pin_arg = match args.first() {
+                    Some(Expr::Var { name }) => Expr::Var {
+                        name: name.clone(),
+                    },
+                    Some(Expr::Uint { value }) => {
+                        if let Some(label) = pin_to_label.get(&(*value as u32)) {
+                            Expr::Var {
+                                name: label.clone(),
+                            }
+                        } else {
+                            Expr::Uint { value: *value }
+                        }
+                    }
+                    Some(other) => other.clone(),
+                    None => Expr::Uint { value: 0 },
                 };
                 return Expr::Call {
                     name,
-                    args: vec![Expr::Uint { value: pin }],
+                    args: vec![pin_arg],
                 };
             }
             Expr::Call { name, args }
@@ -1549,6 +1597,13 @@ fn refine_hardware(hardware: &mut [HardwareEntry], setup: &[Stmt]) {
         if let Stmt::Call { name, args } = stmt {
             let pin = match args.first() {
                 Some(Expr::Uint { value }) => *value as u32,
+                Some(Expr::Var { name }) => {
+                    if let Some(h) = hardware.iter().find(|h| h.label == *name) {
+                        h.pin
+                    } else {
+                        continue;
+                    }
+                }
                 _ => continue,
             };
             if let Some(h) = hardware.iter_mut().find(|h| h.pin == pin) {

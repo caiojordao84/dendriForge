@@ -8,7 +8,7 @@ TOON `ASLversion` as current.
 
 | Field | Where | Value |
 |---|---|---|
-| `asl_version` | `[metadata]` in `.asl.toml` and `[asl.metadata]` in `.dendri.toml` | `"0.0.1"` |
+| `asl_version` | `[metadata]` in `.toml` and `[asl.metadata]` in `.toml` | `"0.0.1"` |
 | Rust constant | `dendri_ast::ASL_VERSION` | `"0.0.1"` |
 
 ## Sole scheme
@@ -18,7 +18,7 @@ document `version`, Cargo-as-ASL, or `ASLversion` spellings in the live IR.
 
 | Artifact | Policy |
 |---|---|
-| `.asl.toml` / embedded ASL | Carry `metadata.asl_version = "0.0.1"` (serde defaults to current if omitted) |
+| `.toml` / embedded ASL | Carry `metadata.asl_version = "0.0.1"` (serde defaults to current if omitted) |
 | Profiles (`content/profiles/**/*.toml`) | Hardware/profile docs — **no** language version field |
 | Stdlib `catalog.toml` | Documents ASL `0.0.1`; no separate catalog language version |
 | Cargo `workspace.package.version` | Crate packaging only — **not** an ASL release |

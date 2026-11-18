@@ -1,0 +1,380 @@
+# Golden G17 — RETAIN scope / power-cycle counters
+# Migrated from core/asl/v010/golden/G17-retain-power-cycle-counter.toon
+# Norm cite: IEC 61131-3 RETAIN persistence semantics
+
+[metadata]
+asl_version = "0.0.1"
+project_name = "G17-retain-power-cycle-counter"
+editor = "dendriForge"
+author = "dendriForge Golden Suite"
+notes = "IEC 61131-3 RETAIN multi-var persistence"
+
+[[hardware]]
+pin = 0
+hw_type = "digital"
+io_mode = "BI"
+label = "sdaPin"
+target_role = "i2c-sda"
+
+[[hardware]]
+pin = 1
+hw_type = "digital"
+io_mode = "BI"
+label = "sclPin"
+target_role = "i2c-scl"
+
+[[hardware]]
+pin = 2
+hw_type = "digital"
+io_mode = "DI"
+label = "resetBtn"
+target_role = "int-falling"
+
+[[hardware]]
+pin = 3
+hw_type = "digital"
+io_mode = "DO"
+label = "ledPower"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 4
+hw_type = "digital"
+io_mode = "DO"
+label = "ledRetain"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 5
+hw_type = "digital"
+io_mode = "DO"
+label = "buzzerPin"
+target_role = "pwm-out"
+
+[[data]]
+name = "LOOP_DELAY"
+type = "TIME"
+scope = "CONST"
+init = "T#1000ms"
+unit = "ms"
+
+[[data]]
+name = "DEBOUNCE"
+type = "TIME"
+scope = "CONST"
+init = "T#100ms"
+unit = "ms"
+
+[[data]]
+name = "BEEP_DUR"
+type = "TIME"
+scope = "CONST"
+init = "T#80ms"
+unit = "ms"
+
+[[data]]
+name = "BUZZ_FREQ"
+type = "UINT"
+scope = "CONST"
+init = "2000"
+unit = "Hz"
+
+[[data]]
+name = "MILESTONE_CYCLES"
+type = "UINT"
+scope = "CONST"
+init = "100"
+unit = "-"
+
+[[data]]
+name = "rebootCount"
+type = "UINT"
+scope = "RETAIN"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "totalUptimeMs"
+type = "DWORD"
+scope = "RETAIN"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "maxSessionMs"
+type = "DWORD"
+scope = "RETAIN"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "lastSessionMs"
+type = "DWORD"
+scope = "RETAIN"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "milestoneCount"
+type = "UINT"
+scope = "RETAIN"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "sessionStart"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "nowMs"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "sessionMs"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "lastBtnTime"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "btnFlag"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "displayDirty"
+type = "BOOL"
+scope = "VAR"
+init = "TRUE"
+unit = "-"
+
+[[data]]
+name = "prevRebootCount"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "uptimeHours"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "uptimeMins"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "uptimeSecs"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_I2C"
+args = [{ kind = "uint", value = 0 }, { kind = "var", name = "sdaPin" }, { kind = "var", name = "sclPin" }, { kind = "int", value = 400000 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_LCD"
+args = [{ kind = "hex", value = "0x27" }, { kind = "uint", value = 20 }, { kind = "uint", value = 4 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_PWM_OUTPUT"
+args = [{ kind = "var", name = "buzzerPin" }, { kind = "uint", value = 2000 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT_PULLUP"
+args = [{ kind = "var", name = "resetBtn" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "var", name = "ledPower" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "var", name = "ledRetain" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ATTACH_INTERRUPT"
+args = [{ kind = "var", name = "resetBtn" }, { kind = "var", name = "isr_reset_btn" }, { kind = "string", value = "FALLING" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_SERIAL"
+args = [{ kind = "int", value = 115200 }]
+
+[[setup]]
+kind = "assign"
+target = "rebootCount"
+value = { kind = "binop", op = "add", left = { kind = "var", name = "rebootCount" }, right = { kind = "uint", value = 1 } }
+
+[[setup]]
+kind = "assign"
+target = "sessionStart"
+value = { kind = "call", name = "GET_SYS_TIME", args = [] }
+
+[[setup]]
+kind = "assign"
+target = "prevRebootCount"
+value = { kind = "var", name = "rebootCount" }
+
+[[setup]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "var", name = "ledPower" }, { kind = "bool", value = true }]
+
+[[setup]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "var", name = "ledRetain" }, { kind = "bool", value = true }]
+
+[[setup]]
+kind = "call"
+name = "beep_once"
+args = []
+
+[[setup]]
+kind = "call"
+name = "SERIAL_PRINTLN"
+args = [{ kind = "expr_text", text = "CONCAT(\"Boot #\", TO_STRING(rebootCount), \" | totalUptime=\", TO_STRING(totalUptimeMs), \"ms | maxSession=\", TO_STRING(maxSessionMs), \"ms\")" }]
+
+[[setup]]
+kind = "call"
+name = "LCD_CLEAR"
+args = []
+
+[[setup]]
+kind = "call"
+name = "LCD_PRINT"
+args = [
+  { kind = "uint", value = 0 }, { kind = "uint", value = 0 },
+  { kind = "expr_text", text = "CONCAT(\"Boot #\", TO_STRING(rebootCount))" },
+]
+
+[[loop]]
+kind = "assign"
+target = "nowMs"
+value = { kind = "call", name = "GET_SYS_TIME", args = [] }
+
+[[loop]]
+kind = "assign"
+target = "sessionMs"
+value = { kind = "call", name = "TIME_DIFF", args = [
+  { kind = "var", name = "nowMs" }, { kind = "var", name = "sessionStart" },
+]}
+
+[[loop]]
+kind = "assign"
+target = "totalUptimeMs"
+value = { kind = "binop", op = "add", left = { kind = "var", name = "totalUptimeMs" }, right = { kind = "var", name = "LOOP_DELAY" } }
+
+[[loop]]
+kind = "if"
+condition = { kind = "binop", op = "gt", left = { kind = "var", name = "sessionMs" }, right = { kind = "var", name = "maxSessionMs" } }
+then = [
+  { kind = "assign", target = "maxSessionMs", value = { kind = "var", name = "sessionMs" } },
+  { kind = "assign", target = "displayDirty", value = { kind = "bool", value = true } },
+]
+
+[[loop]]
+kind = "assign"
+target = "lastSessionMs"
+value = { kind = "var", name = "sessionMs" }
+
+[[loop]]
+kind = "if"
+condition = { kind = "expr_text", text = "MOD(rebootCount, MILESTONE_CYCLES) = 0 AND rebootCount > prevRebootCount" }
+then = [
+  { kind = "assign", target = "milestoneCount", value = { kind = "binop", op = "add", left = { kind = "var", name = "milestoneCount" }, right = { kind = "uint", value = 1 } } },
+  { kind = "assign", target = "prevRebootCount", value = { kind = "var", name = "rebootCount" } },
+  { kind = "call", name = "beep_once", args = [] },
+]
+
+[[loop]]
+kind = "if"
+condition = { kind = "var", name = "btnFlag" }
+then = [
+  { kind = "assign", target = "btnFlag", value = { kind = "bool", value = false } },
+  { kind = "assign", target = "rebootCount", value = { kind = "uint", value = 0 } },
+  { kind = "assign", target = "totalUptimeMs", value = { kind = "uint", value = 0 } },
+  { kind = "assign", target = "maxSessionMs", value = { kind = "uint", value = 0 } },
+  { kind = "assign", target = "lastSessionMs", value = { kind = "uint", value = 0 } },
+  { kind = "assign", target = "milestoneCount", value = { kind = "uint", value = 0 } },
+  { kind = "assign", target = "displayDirty", value = { kind = "bool", value = true } },
+  { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "string", value = "RETAIN counters reset" }] },
+]
+
+[[loop]]
+kind = "if"
+condition = { kind = "var", name = "displayDirty" }
+then = [
+  { kind = "assign", target = "uptimeSecs", value = { kind = "expr_text", text = "REAL_TO_INT(INT_TO_REAL(MOD(totalUptimeMs, 60000)) / 1000.0)" } },
+  { kind = "assign", target = "uptimeMins", value = { kind = "expr_text", text = "REAL_TO_INT(INT_TO_REAL(MOD(totalUptimeMs, 3600000)) / 60000.0)" } },
+  { kind = "assign", target = "uptimeHours", value = { kind = "expr_text", text = "REAL_TO_INT(INT_TO_REAL(totalUptimeMs) / 3600000.0)" } },
+  { kind = "call", name = "LCD_PRINT", args = [
+    { kind = "uint", value = 0 }, { kind = "uint", value = 1 },
+    { kind = "expr_text", text = "CONCAT(\"Session: \", TO_STRING_FMT(INT_TO_REAL(sessionMs) / 1000.0, 1), \"s     \")" },
+  ]},
+  { kind = "call", name = "LCD_PRINT", args = [
+    { kind = "uint", value = 0 }, { kind = "uint", value = 2 },
+    { kind = "expr_text", text = "CONCAT(\"UpTotal: \", TO_STRING(uptimeHours), \"h\", TO_STRING(uptimeMins), \"m\", TO_STRING(uptimeSecs), \"s \")" },
+  ]},
+  { kind = "call", name = "LCD_PRINT", args = [
+    { kind = "uint", value = 0 }, { kind = "uint", value = 3 },
+    { kind = "expr_text", text = "CONCAT(\"MaxSess: \", TO_STRING_FMT(INT_TO_REAL(maxSessionMs) / 1000.0, 1), \"s M=\", TO_STRING(milestoneCount))" },
+  ]},
+  { kind = "assign", target = "displayDirty", value = { kind = "bool", value = false } },
+]
+
+[[loop]]
+kind = "call"
+name = "WAIT_TIME"
+args = [{ kind = "var", name = "LOOP_DELAY" }]
+
+[[functions]]
+name = "isr_reset_btn"
+params = []
+body = [
+  { kind = "assign", target = "nowMs", value = { kind = "call", name = "GET_SYS_TIME", args = [] } },
+  { kind = "if", condition = { kind = "expr_text", text = "TIME_DIFF(nowMs, lastBtnTime) > DEBOUNCE" }, then = [
+    { kind = "assign", target = "btnFlag", value = { kind = "bool", value = true } },
+    { kind = "assign", target = "lastBtnTime", value = { kind = "var", name = "nowMs" } },
+  ]},
+]
+
+[[functions]]
+name = "beep_once"
+params = []
+body = [
+  { kind = "call", name = "SET_PWM_DUTY", args = [{ kind = "var", name = "buzzerPin" }, { kind = "uint", value = 32768 }] },
+  { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "BEEP_DUR" }] },
+  { kind = "call", name = "SET_PWM_DUTY", args = [{ kind = "var", name = "buzzerPin" }, { kind = "uint", value = 0 }] },
+]

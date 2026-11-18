@@ -1,4 +1,4 @@
-//! Legacy ASL TOON → `.asl.toml` migrator (DEN-20).
+//! Legacy ASL TOON → `.toml` migrator (DEN-20).
 //!
 //! Ports `tools/migrate_asl_toon.py` (DEN-15) to pure Rust. Converts
 //! `core/asl/v010/{golden,examples}` programs into tagged-statement TOML.
@@ -7,7 +7,7 @@
 //!
 //! Migrated programs stamp `asl_version = "0.0.1"` (live ASL tag).
 
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
@@ -57,20 +57,20 @@ const EDGE_MODES: &[&str] = &["RISING", "FALLING", "CHANGE"];
 
 /// Hand-migrated fixtures — must never be overwritten by the migrator.
 pub const PROTECTED: &[&str] = &[
-    "golden/G01-gpio-all-modes-probe.asl.toml",
-    "golden/G02-input-pullup-pulldown-matrix.asl.toml",
-    "golden/G03-traffic-light-sequencer.asl.toml",
-    "golden/G05-pwm-fade-breathing-led.asl.toml",
-    "golden/G08-stopwatch-lap-timer.asl.toml",
-    "golden/G17-retain-power-cycle-counter.asl.toml",
-    "examples/basic-blink-logic.asl.toml",
-    "errors/E01-missing-metadata-field.asl.toml",
-    "errors/E02-unknown-data-type.asl.toml",
-    "errors/E03-undeclared-variable.asl.toml",
-    "errors/E04-hardware-pin-conflict.asl.toml",
-    "errors/E05-setup-count-mismatch.asl.toml",
-    "errors/E06-invalid-scope-write-const.asl.toml",
-    "errors/E07-function-arity-mismatch.asl.toml",
+    "golden/G01-gpio-all-modes-probe.toml",
+    "golden/G02-input-pullup-pulldown-matrix.toml",
+    "golden/G03-traffic-light-sequencer.toml",
+    "golden/G05-pwm-fade-breathing-led.toml",
+    "golden/G08-stopwatch-lap-timer.toml",
+    "golden/G17-retain-power-cycle-counter.toml",
+    "examples/basic-blink-logic.toml",
+    "errors/E01-missing-metadata-field.toml",
+    "errors/E02-unknown-data-type.toml",
+    "errors/E03-undeclared-variable.toml",
+    "errors/E04-hardware-pin-conflict.toml",
+    "errors/E05-setup-count-mismatch.toml",
+    "errors/E06-invalid-scope-write-const.toml",
+    "errors/E07-function-arity-mismatch.toml",
 ];
 
 #[derive(Debug, Error)]
@@ -116,7 +116,7 @@ pub fn is_protected(rel: &str) -> bool {
     PROTECTED.contains(&rel)
 }
 
-/// Convert one ASL TOON program text into tagged `.asl.toml`.
+/// Convert one ASL TOON program text into tagged `.toml`.
 pub fn convert_program(text: &str, source_rel: &str) -> String {
     let meta = parse_metadata(text);
     let mut hw = parse_hardware(text);
@@ -233,10 +233,117 @@ pub fn convert_program(text: &str, source_rel: &str) -> String {
         s.pop();
     }
     s.push('\n');
-    s
+    rewrite_pin_args_to_labels(&s, &hw)
 }
 
-/// Migrate `core/asl/v010/{golden,examples}/*.toon` → `content/fixtures/.../*.asl.toml`.
+static RE_UINT_ARG: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"^\{\s*kind\s*=\s*"uint"\s*,\s*value\s*=\s*(\d+)\s*\}$"#).unwrap()
+});
+
+/// Rewrite pin-number uint args to hardware label vars (ASL logical-name rule).
+fn rewrite_pin_args_to_labels(text: &str, hw: &[HwRow]) -> String {
+    let pin_map: HashMap<i64, String> = hw
+        .iter()
+        .filter(|h| !h.label.is_empty())
+        .map(|h| (h.pin, h.label.clone()))
+        .collect();
+    if pin_map.is_empty() {
+        return text.to_string();
+    }
+
+    const PIN_OPS: &[(&str, &[usize])] = &[
+        ("CFG_DIGITAL_OUTPUT", &[0]),
+        ("CFG_DIGITAL_INPUT", &[0]),
+        ("CFG_DIGITAL_INPUT_PULLUP", &[0]),
+        ("CFG_DIGITAL_INPUT_PULLDOWN", &[0]),
+        ("SET_BOOL", &[0]),
+        ("GET_BOOL", &[0]),
+        ("CFG_PWM_OUTPUT", &[0]),
+        ("SET_PWM_DUTY", &[0]),
+        ("SET_PWM_FREQ", &[0]),
+        ("GET_PWM_DUTY", &[0]),
+        ("CFG_ADC_INPUT", &[0]),
+        ("READ_ADC", &[0]),
+        ("CFG_ATTACH_INTERRUPT", &[0]),
+        ("CFG_DETACH_INTERRUPT", &[0]),
+        ("PLAY_TONE", &[0]),
+        ("CFG_I2C", &[1, 2]),
+        ("CFG_SENSOR_I2C", &[1, 2]),
+    ];
+
+    fn split_args(args_str: &str) -> Vec<String> {
+        let mut args = Vec::new();
+        let mut depth = 0i32;
+        let mut start = None;
+        for (i, ch) in args_str.char_indices() {
+            match ch {
+                '{' => {
+                    if depth == 0 {
+                        start = Some(i);
+                    }
+                    depth += 1;
+                }
+                '}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        if let Some(s) = start {
+                            args.push(args_str[s..=i].to_string());
+                        }
+                        start = None;
+                    }
+                }
+                _ => {}
+            }
+        }
+        args
+    }
+
+    fn rewrite_args(args_str: &str, indices: &[usize], pin_map: &HashMap<i64, String>) -> String {
+        let args = split_args(args_str);
+        if args.is_empty() {
+            return args_str.to_string();
+        }
+        let mut out = Vec::new();
+        for (idx, a) in args.iter().enumerate() {
+            let trimmed = a.trim();
+            if let Some(caps) = RE_UINT_ARG.captures(trimmed) {
+                if indices.contains(&idx) {
+                    if let Ok(pin) = caps[1].parse::<i64>() {
+                        if let Some(label) = pin_map.get(&pin) {
+                            out.push(format!(r#"{{ kind = "var", name = "{label}" }}"#));
+                            continue;
+                        }
+                    }
+                }
+            }
+            out.push(trimmed.to_string());
+        }
+        out.join(", ")
+    }
+
+    let mut text = text.to_string();
+    for (op, indices) in PIN_OPS {
+        let pat = format!(r#"name\s*=\s*"{op}"\s*,\s*args\s*=\s*\[(.*?)\]"#);
+        let re = Regex::new(&pat).unwrap();
+        text = re
+            .replace_all(&text, |caps: &regex::Captures| {
+                let new_args = rewrite_args(&caps[1], indices, &pin_map);
+                format!(r#"name = "{op}", args = [{new_args}]"#)
+            })
+            .into_owned();
+        let pat2 = format!(r#"name\s*=\s*"{op}"\s*\nargs\s*=\s*\[(.*?)\]"#);
+        let re2 = Regex::new(&pat2).unwrap();
+        text = re2
+            .replace_all(&text, |caps: &regex::Captures| {
+                let new_args = rewrite_args(&caps[1], indices, &pin_map);
+                format!("name = \"{op}\"\nargs = [{new_args}]")
+            })
+            .into_owned();
+    }
+    text
+}
+
+/// Migrate `core/asl/v010/{golden,examples}/*.toon` → `content/fixtures/.../*.toml`.
 pub fn migrate_v010(repo_root: &Path, opts: &MigrateOptions) -> Result<MigrateReport, AslToonError> {
     let v010 = repo_root.join("core/asl/v010");
     let out_root = repo_root.join("content/fixtures");
@@ -259,7 +366,7 @@ pub fn migrate_v010(repo_root: &Path, opts: &MigrateOptions) -> Result<MigrateRe
                 .file_name()
                 .and_then(|s| s.to_str())
                 .unwrap_or("unknown.toon")
-                .replace(".toon", ".asl.toml");
+                .replace(".toon", ".toml");
             let rel = format!("{sub}/{dst_name}");
             let dst = out_root.join(sub).join(&dst_name);
 
@@ -1446,7 +1553,7 @@ mod tests {
     fn convert_g04_matches_checked_in_toml() {
         let root = repo();
         let src = root.join("core/asl/v010/golden/G04-rotary-encoder-counter.toon");
-        let exp = root.join("content/fixtures/golden/G04-rotary-encoder-counter.asl.toml");
+        let exp = root.join("content/fixtures/golden/G04-rotary-encoder-counter.toml");
         let text = fs::read_to_string(&src).unwrap();
         let got = convert_program(&text, "core/asl/v010/golden/G04-rotary-encoder-counter.toon");
         let expected = fs::read_to_string(&exp).unwrap();
@@ -1466,8 +1573,8 @@ mod tests {
         ];
         for stem in subset {
             let src = root.join(format!("core/asl/v010/golden/{stem}.toon"));
-            let exp = root.join(format!("content/fixtures/golden/{stem}.asl.toml"));
-            let rel = format!("golden/{stem}.asl.toml");
+            let exp = root.join(format!("content/fixtures/golden/{stem}.toml"));
+            let rel = format!("golden/{stem}.toml");
             assert!(!is_protected(&rel), "{rel} should not be protected");
             let text = fs::read_to_string(&src).unwrap();
             let source_rel = format!("core/asl/v010/golden/{stem}.toon");
@@ -1480,7 +1587,7 @@ mod tests {
     #[test]
     fn protected_fixtures_not_overwritten_on_migrate() {
         let root = repo();
-        let g01 = root.join("content/fixtures/golden/G01-gpio-all-modes-probe.asl.toml");
+        let g01 = root.join("content/fixtures/golden/G01-gpio-all-modes-probe.toml");
         let before = fs::read_to_string(&g01).unwrap();
         let _ = migrate_v010(
             &root,
@@ -1493,7 +1600,7 @@ mod tests {
         // dry-run never writes; also G01 is protected so even a write pass would skip.
         let after = fs::read_to_string(&g01).unwrap();
         assert_eq!(before, after);
-        assert!(is_protected("golden/G01-gpio-all-modes-probe.asl.toml"));
+        assert!(is_protected("golden/G01-gpio-all-modes-probe.toml"));
     }
 
     #[test]

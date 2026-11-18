@@ -1,0 +1,60 @@
+# Sim snapshot S01 — SET_BOOL + WAIT_TIME blink (deterministic trace)
+# Uses only the Phase 1 sim MVP opcode subset.
+
+[metadata]
+asl_version = "0.0.1"
+project_name = "S01-blink-set-bool-wait"
+editor = "dendriForge"
+author = "dendriForge Phase 1"
+notes = "Logical sim fixture — no SVG required"
+
+[[hardware]]
+pin = 13
+hw_type = "digital"
+io_mode = "DO"
+label = "ledPin"
+target_role = "digital-out"
+
+[[data]]
+name = "ON_TIME"
+type = "TIME"
+scope = "CONST"
+init = "T#100ms"
+unit = "ms"
+
+[[data]]
+name = "OFF_TIME"
+type = "TIME"
+scope = "CONST"
+init = "T#100ms"
+unit = "ms"
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "var", name = "ledPin" }]
+
+[[setup]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "var", name = "ledPin" }, { kind = "bool", value = false }]
+
+[[loop]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "var", name = "ledPin" }, { kind = "bool", value = true }]
+
+[[loop]]
+kind = "call"
+name = "WAIT_TIME"
+args = [{ kind = "var", name = "ON_TIME" }]
+
+[[loop]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "var", name = "ledPin" }, { kind = "bool", value = false }]
+
+[[loop]]
+kind = "call"
+name = "WAIT_TIME"
+args = [{ kind = "var", name = "OFF_TIME" }]

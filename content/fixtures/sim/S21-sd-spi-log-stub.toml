@@ -1,0 +1,86 @@
+# Sim S21 — SPI SD log stub (scenario 2)
+# CFG_SPI + SPI_TRANSFER payload + VENDOR_EXTENSION skip (no fake FAT filesystem).
+
+[metadata]
+asl_version = "0.0.1"
+project_name = "S21-sd-spi-log-stub"
+editor = "dendriForge"
+author = "dendriForge DEN-21"
+notes = "SD/RFID story remains partial — SPI xfer + vendor skip evidence only"
+
+[[hardware]]
+pin = 23
+hw_type = "digital"
+io_mode = "DO"
+label = "writeLed"
+target_role = "digital-out"
+
+[[data]]
+name = "line"
+type = "STRING"
+scope = "VAR"
+init = "\"t=1,v=42\""
+unit = "-"
+
+[[data]]
+name = "spiRx"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_SERIAL"
+args = [{ kind = "uint", value = 115200 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "var", name = "writeLed" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_SPI"
+args = [
+  { kind = "uint", value = 0 },
+  { kind = "uint", value = 23 },
+  { kind = "uint", value = 19 },
+  { kind = "uint", value = 18 },
+  { kind = "uint", value = 5 },
+]
+
+[[setup]]
+kind = "vendor_extension"
+reason = "SD_CARD_INIT:spi_bus=0,cs=5"
+
+[[loop]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "var", name = "writeLed" }, { kind = "bool", value = true }]
+
+[[loop]]
+kind = "assign"
+target = "spiRx"
+value = { kind = "call", name = "SPI_TRANSFER", args = [
+  { kind = "uint", value = 0 },
+  { kind = "hex", value = "0xAA" },
+] }
+
+[[loop]]
+kind = "vendor_extension"
+reason = "SD_CARD_WRITE:line"
+
+[[loop]]
+kind = "vendor_extension"
+reason = "SD_CARD_FLUSH"
+
+[[loop]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "var", name = "writeLed" }, { kind = "bool", value = false }]
+
+[[loop]]
+kind = "call"
+name = "SERIAL_PRINTLN"
+args = [{ kind = "var", name = "line" }]

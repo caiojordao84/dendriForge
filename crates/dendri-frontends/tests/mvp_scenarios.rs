@@ -132,7 +132,7 @@ fn scenario_matrix_is_complete() {
 
 #[test]
 fn scenario1_three_mode_blink_sim_and_canvas_project() {
-    let path = repo().join("content/fixtures/sim/S08-scenario1-three-mode-blink.asl.toml");
+    let path = repo().join("content/fixtures/sim/S08-scenario1-three-mode-blink.toml");
     let parsed = parse_program_file(&path).unwrap();
     assert!(validate_program(&parsed.program, &parsed.inject).ok());
 
@@ -162,7 +162,7 @@ fn scenario1_three_mode_blink_sim_and_canvas_project() {
     );
 
     // Project + canvas wiring validates
-    let proj_path = repo().join("content/fixtures/canvas/C02-scenario1-modes.dendri.toml");
+    let proj_path = repo().join("content/fixtures/canvas/C02-scenario1-modes.toml");
     let proj = parse_project_file(&proj_path).unwrap();
     assert!(validate_project(&proj.project).ok());
 }
@@ -186,9 +186,9 @@ fn scenario1_ladder_edge_fb_still_passes() {
 #[test]
 fn scenario2_pwm_adc_and_bus_xfer_pass() {
     for rel in [
-        "content/fixtures/sim/S04-pwm-adc-map.asl.toml",
-        "content/fixtures/sim/S05-uart-i2c-spi.asl.toml",
-        "content/fixtures/sim/S12-i2c-spi-xfer.asl.toml",
+        "content/fixtures/sim/S04-pwm-adc-map.toml",
+        "content/fixtures/sim/S05-uart-i2c-spi.toml",
+        "content/fixtures/sim/S12-i2c-spi-xfer.toml",
     ] {
         let parsed = parse_program_file(&repo().join(rel)).unwrap();
         assert!(validate_program(&parsed.program, &parsed.inject).ok(), "{rel}");
@@ -202,7 +202,7 @@ fn scenario2_pwm_adc_and_bus_xfer_pass() {
         sim.run(2).unwrap_or_else(|e| panic!("{rel} sim: {e}"));
     }
     let parsed = parse_program_file(
-        &repo().join("content/fixtures/sim/S12-i2c-spi-xfer.asl.toml"),
+        &repo().join("content/fixtures/sim/S12-i2c-spi-xfer.toml"),
     )
     .unwrap();
     let mut sim = Simulator::from_program(parsed.program, &SimConfig::default());
@@ -212,10 +212,10 @@ fn scenario2_pwm_adc_and_bus_xfer_pass() {
     assert!(sim.trace_text().contains("BUS_XFER"));
 
     for rel in [
-        "content/fixtures/golden/G06-adc-multi-channel-logger.asl.toml",
-        "content/fixtures/golden/G14-uart-csv-data-streamer.asl.toml",
-        "content/fixtures/golden/G15-i2c-multi-device-scan.asl.toml",
-        "content/fixtures/golden/G16-spi-sd-card-logger.asl.toml",
+        "content/fixtures/golden/G06-adc-multi-channel-logger.toml",
+        "content/fixtures/golden/G14-uart-csv-data-streamer.toml",
+        "content/fixtures/golden/G15-i2c-multi-device-scan.toml",
+        "content/fixtures/golden/G16-spi-sd-card-logger.toml",
     ] {
         let parsed = parse_program_file(&repo().join(rel)).unwrap();
         assert!(validate_program(&parsed.program, &parsed.inject).ok(), "{rel}");
@@ -225,7 +225,7 @@ fn scenario2_pwm_adc_and_bus_xfer_pass() {
 #[test]
 fn scenario3_conveyor_in_range_pass() {
     let parsed = parse_program_file(
-        &repo().join("content/fixtures/sim/S07-iec-counters.asl.toml"),
+        &repo().join("content/fixtures/sim/S07-iec-counters.toml"),
     )
     .unwrap();
     assert!(validate_program(&parsed.program, &parsed.inject).ok());
@@ -239,7 +239,7 @@ fn scenario3_conveyor_in_range_pass() {
     sim.run(3).unwrap();
 
     let parsed = parse_program_file(
-        &repo().join("content/fixtures/sim/S10-conveyor-in-range.asl.toml"),
+        &repo().join("content/fixtures/sim/S10-conveyor-in-range.toml"),
     )
     .unwrap();
     assert!(validate_program(&parsed.program, &parsed.inject).ok());
@@ -371,7 +371,7 @@ fn scenario6_sfc_and_ladder_twins_pass() {
 #[test]
 fn scenario2_s12_bus_xfer_five_lang_roundtrip() {
     let parsed = parse_program_file(
-        &repo().join("content/fixtures/sim/S12-i2c-spi-xfer.asl.toml"),
+        &repo().join("content/fixtures/sim/S12-i2c-spi-xfer.toml"),
     )
     .unwrap();
     for lang in text_and_visual_langs() {
@@ -384,11 +384,11 @@ fn scenario2_s12_bus_xfer_five_lang_roundtrip() {
 fn scenario_remaining_partial_examples_deserialize() {
     // Legacy elevator example retained; G04 is the scenario-5 acceptance path.
     for rel in [
-        "content/fixtures/examples/plc-elevator-advanced.asl.toml",
-        "content/fixtures/examples/pong-game-logic.asl.toml",
-        "content/fixtures/examples/multi-display-dashboard.asl.toml",
-        "content/fixtures/examples/reservatorio-controle-logic.asl.toml",
-        "content/fixtures/examples/advanced-robotic-scara-pid.asl.toml",
+        "content/fixtures/examples/plc-elevator-advanced.toml",
+        "content/fixtures/examples/pong-game-logic.toml",
+        "content/fixtures/examples/multi-display-dashboard.toml",
+        "content/fixtures/examples/reservatorio-controle-logic.toml",
+        "content/fixtures/examples/advanced-robotic-scara-pid.toml",
     ] {
         let parsed = parse_program_file(&repo().join(rel)).unwrap_or_else(|e| panic!("{rel}: {e}"));
         assert!(
@@ -401,7 +401,7 @@ fn scenario_remaining_partial_examples_deserialize() {
 #[test]
 fn scenario4_reservoir_plant_pass() {
     let parsed = parse_program_file(
-        &repo().join("content/fixtures/sim/S17-reservoir-plant.asl.toml"),
+        &repo().join("content/fixtures/sim/S17-reservoir-plant.toml"),
     )
     .unwrap();
     assert!(validate_program(&parsed.program, &parsed.inject).ok());
@@ -437,7 +437,7 @@ fn scenario4_reservoir_plant_pass() {
 #[test]
 fn scenario7_pid_estop_pass() {
     let parsed = parse_program_file(
-        &repo().join("content/fixtures/sim/S18-pid-estop.asl.toml"),
+        &repo().join("content/fixtures/sim/S18-pid-estop.toml"),
     )
     .unwrap();
     assert!(validate_program(&parsed.program, &parsed.inject).ok());
@@ -482,7 +482,7 @@ fn scenario7_pid_estop_pass() {
 #[test]
 fn scenario10_display_stubs_and_five_lang_rt_pass() {
     let parsed = parse_program_file(
-        &repo().join("content/fixtures/sim/S19-display-stubs.asl.toml"),
+        &repo().join("content/fixtures/sim/S19-display-stubs.toml"),
     )
     .unwrap();
     assert!(validate_program(&parsed.program, &parsed.inject).ok());
@@ -503,7 +503,7 @@ fn scenario10_display_stubs_and_five_lang_rt_pass() {
 #[test]
 fn scenario10_pong_collision_stub_pass() {
     let parsed = parse_program_file(
-        &repo().join("content/fixtures/sim/S22-pong-collision-stub.asl.toml"),
+        &repo().join("content/fixtures/sim/S22-pong-collision-stub.toml"),
     )
     .unwrap();
     assert!(validate_program(&parsed.program, &parsed.inject).ok());
@@ -524,7 +524,7 @@ fn scenario10_pong_collision_stub_pass() {
 #[test]
 fn scenario7_math_sqrt_log_building_block() {
     let parsed = parse_program_file(
-        &repo().join("content/fixtures/sim/S13-math-sqrt-log.asl.toml"),
+        &repo().join("content/fixtures/sim/S13-math-sqrt-log.toml"),
     )
     .unwrap();
     assert!(validate_program(&parsed.program, &parsed.inject).ok());
@@ -539,7 +539,7 @@ fn scenario7_math_sqrt_log_building_block() {
 #[test]
 fn scenario9_retain_live_and_five_lang_rt_pass() {
     let parsed = parse_program_file(
-        &repo().join("content/fixtures/sim/S11-retain-restart.asl.toml"),
+        &repo().join("content/fixtures/sim/S11-retain-restart.toml"),
     )
     .unwrap();
     assert!(validate_program(&parsed.program, &parsed.inject).ok());
@@ -555,9 +555,9 @@ fn scenario9_retain_live_and_five_lang_rt_pass() {
     assert_eq!(boots, 2);
 
     for rel in [
-        "content/fixtures/golden/G10-watchdog-heartbeat-monitor.asl.toml",
-        "content/fixtures/golden/G17-retain-power-cycle-counter.asl.toml",
-        "content/fixtures/golden/G18-persistent-calibration-store.asl.toml",
+        "content/fixtures/golden/G10-watchdog-heartbeat-monitor.toml",
+        "content/fixtures/golden/G17-retain-power-cycle-counter.toml",
+        "content/fixtures/golden/G18-persistent-calibration-store.toml",
     ] {
         let parsed = parse_program_file(&repo().join(rel)).unwrap();
         let r = validate_program(&parsed.program, &parsed.inject);
@@ -568,7 +568,7 @@ fn scenario9_retain_live_and_five_lang_rt_pass() {
 #[test]
 fn scenario9_watchdog_escalation_pass() {
     let parsed = parse_program_file(
-        &repo().join("content/fixtures/sim/S20-watchdog-escalation.asl.toml"),
+        &repo().join("content/fixtures/sim/S20-watchdog-escalation.toml"),
     )
     .unwrap();
     assert!(validate_program(&parsed.program, &parsed.inject).ok());
@@ -608,7 +608,7 @@ fn scenario9_watchdog_escalation_pass() {
 #[test]
 fn scenario11_string_ops_and_five_lang_rt_pass() {
     let parsed = parse_program_file(
-        &repo().join("content/fixtures/sim/S09-string-ops.asl.toml"),
+        &repo().join("content/fixtures/sim/S09-string-ops.toml"),
     )
     .unwrap();
     assert!(validate_program(&parsed.program, &parsed.inject).ok());
@@ -629,8 +629,8 @@ fn scenario11_string_ops_and_five_lang_rt_pass() {
     assert!(trace.contains("SERIAL_OUT PONG"), "{trace}");
 
     for rel in [
-        "content/fixtures/golden/G13-uart-echo-command-parser.asl.toml",
-        "content/fixtures/golden/G14-uart-csv-data-streamer.asl.toml",
+        "content/fixtures/golden/G13-uart-echo-command-parser.toml",
+        "content/fixtures/golden/G14-uart-csv-data-streamer.toml",
     ] {
         let parsed = parse_program_file(&repo().join(rel)).unwrap();
         let r = validate_program(&parsed.program, &parsed.inject);
@@ -641,7 +641,7 @@ fn scenario11_string_ops_and_five_lang_rt_pass() {
 #[test]
 fn scenario11_uart_multi_command_pass() {
     let parsed = parse_program_file(
-        &repo().join("content/fixtures/sim/S23-uart-commands.asl.toml"),
+        &repo().join("content/fixtures/sim/S23-uart-commands.toml"),
     )
     .unwrap();
     assert!(validate_program(&parsed.program, &parsed.inject).ok());
@@ -670,7 +670,7 @@ fn scenario11_uart_multi_command_pass() {
 #[test]
 fn scenario2_sd_spi_vendor_stub_pass() {
     let parsed = parse_program_file(
-        &repo().join("content/fixtures/sim/S21-sd-spi-log-stub.asl.toml"),
+        &repo().join("content/fixtures/sim/S21-sd-spi-log-stub.toml"),
     )
     .unwrap();
     assert!(validate_program(&parsed.program, &parsed.inject).ok());
@@ -690,7 +690,7 @@ fn scenario2_sd_spi_vendor_stub_pass() {
 fn scenario2_fat_rfid_stub_pass() {
     use std::collections::HashMap;
     let parsed = parse_program_file(
-        &repo().join("content/fixtures/sim/S25-fat-rfid-stub.asl.toml"),
+        &repo().join("content/fixtures/sim/S25-fat-rfid-stub.toml"),
     )
     .unwrap();
     assert!(validate_program(&parsed.program, &parsed.inject).ok());
@@ -725,7 +725,7 @@ fn scenario2_fat_rfid_stub_pass() {
 #[test]
 fn scenario11_csv_stream_pause_resume_pass() {
     let parsed = parse_program_file(
-        &repo().join("content/fixtures/sim/S26-uart-csv-stream.asl.toml"),
+        &repo().join("content/fixtures/sim/S26-uart-csv-stream.toml"),
     )
     .unwrap();
     assert!(validate_program(&parsed.program, &parsed.inject).ok());
@@ -780,8 +780,8 @@ fn scenario11_csv_stream_pause_resume_pass() {
 #[test]
 fn scenario11_g13_g14_five_lang_rt_pass() {
     for rel in [
-        "content/fixtures/golden/G13-uart-echo-command-parser.asl.toml",
-        "content/fixtures/golden/G14-uart-csv-data-streamer.asl.toml",
+        "content/fixtures/golden/G13-uart-echo-command-parser.toml",
+        "content/fixtures/golden/G14-uart-csv-data-streamer.toml",
     ] {
         let parsed = parse_program_file(&repo().join(rel)).unwrap();
         let r = validate_program(&parsed.program, &parsed.inject);
@@ -802,7 +802,7 @@ fn scenario11_g13_g14_five_lang_rt_pass() {
 #[test]
 fn scenario12_vendor_nested_stub_pass() {
     let parsed = parse_program_file(
-        &repo().join("content/fixtures/sim/S24-vendor-nested-stub.asl.toml"),
+        &repo().join("content/fixtures/sim/S24-vendor-nested-stub.toml"),
     )
     .unwrap();
     assert!(validate_program(&parsed.program, &parsed.inject).ok());
@@ -822,7 +822,7 @@ fn scenario12_vendor_nested_stub_pass() {
 #[test]
 fn scenario12_nested_max_vendor_pass() {
     let parsed = parse_program_file(
-        &repo().join("content/fixtures/sim/S27-nested-max-vendor.asl.toml"),
+        &repo().join("content/fixtures/sim/S27-nested-max-vendor.toml"),
     )
     .unwrap();
     assert!(validate_program(&parsed.program, &parsed.inject).ok());
@@ -849,7 +849,7 @@ fn scenario12_nested_max_vendor_pass() {
 #[test]
 fn scenario12_deep_call_chain_pass() {
     let parsed = parse_program_file(
-        &repo().join("content/fixtures/sim/S28-deep-call-chain.asl.toml"),
+        &repo().join("content/fixtures/sim/S28-deep-call-chain.toml"),
     )
     .unwrap();
     assert!(validate_program(&parsed.program, &parsed.inject).ok());
@@ -868,9 +868,9 @@ fn scenario12_deep_call_chain_pass() {
 #[test]
 fn scenario12_g19_g21_five_lang_rt_pass() {
     for rel in [
-        "content/fixtures/golden/G19-vendor-ext-custom-driver.asl.toml",
-        "content/fixtures/golden/G20-nested-loop-matrix-scan.asl.toml",
-        "content/fixtures/golden/G21-deep-call-chain-state-machine.asl.toml",
+        "content/fixtures/golden/G19-vendor-ext-custom-driver.toml",
+        "content/fixtures/golden/G20-nested-loop-matrix-scan.toml",
+        "content/fixtures/golden/G21-deep-call-chain-state-machine.toml",
     ] {
         let parsed = parse_program_file(&repo().join(rel)).unwrap();
         let r = validate_program(&parsed.program, &parsed.inject);
@@ -891,7 +891,7 @@ fn scenario12_g19_g21_five_lang_rt_pass() {
 #[test]
 fn scenario8_isr_edge_modes_and_detach() {
     let parsed = parse_program_file(
-        &repo().join("content/fixtures/sim/S14-isr-edge-modes.asl.toml"),
+        &repo().join("content/fixtures/sim/S14-isr-edge-modes.toml"),
     )
     .unwrap();
     assert!(validate_program(&parsed.program, &parsed.inject).ok());
@@ -945,7 +945,7 @@ fn scenario8_isr_edge_modes_and_detach() {
 #[test]
 fn scenario8_encoder_quadrature() {
     let parsed = parse_program_file(
-        &repo().join("content/fixtures/sim/S15-encoder-quadrature.asl.toml"),
+        &repo().join("content/fixtures/sim/S15-encoder-quadrature.toml"),
     )
     .unwrap();
     assert!(validate_program(&parsed.program, &parsed.inject).ok());
@@ -981,7 +981,7 @@ fn scenario8_encoder_quadrature() {
 #[test]
 fn scenario8_isr_ring_buffer() {
     let parsed = parse_program_file(
-        &repo().join("content/fixtures/sim/S16-isr-ring-buffer.asl.toml"),
+        &repo().join("content/fixtures/sim/S16-isr-ring-buffer.toml"),
     )
     .unwrap();
     assert!(validate_program(&parsed.program, &parsed.inject).ok());
@@ -1018,10 +1018,10 @@ fn scenario8_isr_ring_buffer() {
 #[test]
 fn scenario8_goldens_validate_structural() {
     for rel in [
-        "content/fixtures/golden/G04-rotary-encoder-counter.asl.toml",
-        "content/fixtures/golden/G09-frequency-counter-pwm-in.asl.toml",
-        "content/fixtures/golden/G11-multi-isr-priority-test.asl.toml",
-        "content/fixtures/golden/G12-isr-ring-buffer-capture.asl.toml",
+        "content/fixtures/golden/G04-rotary-encoder-counter.toml",
+        "content/fixtures/golden/G09-frequency-counter-pwm-in.toml",
+        "content/fixtures/golden/G11-multi-isr-priority-test.toml",
+        "content/fixtures/golden/G12-isr-ring-buffer-capture.toml",
     ] {
         let parsed = parse_program_file(&repo().join(rel)).unwrap();
         let r = validate_program(&parsed.program, &parsed.inject);

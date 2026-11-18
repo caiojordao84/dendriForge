@@ -62,17 +62,17 @@ mod tests {
             setup: vec![
                 Stmt::Call {
                     name: "CFG_DIGITAL_OUTPUT".into(),
-                    args: vec![Expr::Uint { value: 13 }],
+                    args: vec![Expr::Var { name: "ledPin".into() }],
                 },
                 Stmt::Call {
                     name: "SET_BOOL".into(),
-                    args: vec![Expr::Uint { value: 13 }, Expr::Bool { value: false }],
+                    args: vec![Expr::Var { name: "ledPin".into() }, Expr::Bool { value: false }],
                 },
             ],
             loop_body: vec![
                 Stmt::Call {
                     name: "SET_BOOL".into(),
-                    args: vec![Expr::Uint { value: 13 }, Expr::Bool { value: true }],
+                    args: vec![Expr::Var { name: "ledPin".into() }, Expr::Bool { value: true }],
                 },
                 Stmt::Call {
                     name: "WAIT_TIME".into(),
@@ -82,7 +82,7 @@ mod tests {
                 },
                 Stmt::Call {
                     name: "SET_BOOL".into(),
-                    args: vec![Expr::Uint { value: 13 }, Expr::Bool { value: false }],
+                    args: vec![Expr::Var { name: "ledPin".into() }, Expr::Bool { value: false }],
                 },
                 Stmt::Call {
                     name: "WAIT_TIME".into(),

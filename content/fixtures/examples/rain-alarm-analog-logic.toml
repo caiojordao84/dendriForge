@@ -1,0 +1,93 @@
+# Migrated from core/asl/v010/examples/rain-alarm-analog-logic.toon
+# Legacy TOON retained under core/asl/v010/ (read-only).
+
+[metadata]
+asl_version = "0.0.1"
+project_name = "rain-alarm-analog-logic"
+editor = "dendriForge"
+author = "Mugwara323"
+notes = "Migrated from legacy v010 TOON — ASL 0.0.1"
+
+[[hardware]]
+pin = 26
+hw_type = "analog"
+io_mode = "DI"
+label = "rainSensorPin"
+target_role = "adc:t"
+
+[[hardware]]
+pin = 15
+hw_type = "digital"
+io_mode = "DO"
+label = "buzzerPin"
+target_role = "pwm-out"
+
+[[data]]
+name = "RAIN_THRESHOLD"
+type = "UINT"
+scope = "CONST"
+init = "30000"
+unit = "-"
+
+[[data]]
+name = "BUZZER_DUTY"
+type = "UINT"
+scope = "CONST"
+init = "32768"
+unit = "-"
+
+[[data]]
+name = "LOOP_INTERVAL"
+type = "TIME"
+scope = "CONST"
+init = "T#100ms"
+unit = "ms"
+
+[[data]]
+name = "rainIntensity"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "buzzerActive"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_PWM_OUTPUT"
+args = [{ kind = "var", name = "buzzerPin" }, { kind = "uint", value = 1000 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ADC_INPUT"
+args = [{ kind = "var", name = "rainSensorPin" }]
+
+[[setup]]
+kind = "call"
+name = "SET_PWM_DUTY"
+args = [{ kind = "var", name = "buzzerPin" }, { kind = "uint", value = 0 }]
+
+[[loop]]
+kind = "assign"
+target = "rainIntensity"
+value = { kind = "expr_text", text = "READ_ADC(26)" }
+
+[[loop]]
+kind = "assign"
+target = "buzzerActive"
+value = { kind = "expr_text", text = "set_buzzer_state(rainIntensity)" }
+
+[[loop]]
+kind = "call"
+name = "WAIT_TIME"
+args = [{ kind = "var", name = "LOOP_INTERVAL" }]
+
+[[functions]]
+name = "set_buzzer_state"
+params = ["value"]
+body = [{ kind = "if", condition = { kind = "expr_text", text = "value > RAIN_THRESHOLD" }, then = [{ kind = "call", name = "SET_PWM_DUTY", args = [{ kind = "var", name = "buzzerPin" }, { kind = "var", name = "BUZZER_DUTY" }] }], else = [{ kind = "call", name = "SET_PWM_DUTY", args = [{ kind = "var", name = "buzzerPin" }, { kind = "uint", value = 0 }] }, { kind = "return", value = { kind = "expr_text", text = "value > RAIN_THRESHOLD" } }] }]

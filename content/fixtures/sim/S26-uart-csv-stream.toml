@@ -1,0 +1,169 @@
+# Sim S26 — UART CSV telemetry + PAUSE/RESUME (scenario 11 / G14 path)
+# Structured exprs only; multi-ADC CSV line + control commands.
+
+[metadata]
+asl_version = "0.0.1"
+project_name = "S26-uart-csv-stream"
+editor = "dendriForge"
+author = "dendriForge DEN-22"
+notes = "G14 CSV path subset — header + CSV stream + PAUSE/RESUME/HEADER"
+
+[[hardware]]
+pin = 34
+hw_type = "analog"
+io_mode = "DI"
+label = "sensorA"
+target_role = "adc:t"
+
+[[hardware]]
+pin = 35
+hw_type = "analog"
+io_mode = "DI"
+label = "sensorB"
+target_role = "adc:t"
+
+[[hardware]]
+pin = 36
+hw_type = "analog"
+io_mode = "DI"
+label = "sensorC"
+target_role = "adc:t"
+
+[[data]]
+name = "LOG_HEADER"
+type = "STRING"
+scope = "CONST"
+init = "\"ts_ms,seq,vA,vB,vC\""
+unit = "-"
+
+[[data]]
+name = "SAMPLE_INTERVAL"
+type = "TIME"
+scope = "CONST"
+init = "T#100ms"
+unit = "ms"
+
+[[data]]
+name = "streaming"
+type = "BOOL"
+scope = "VAR"
+init = "TRUE"
+unit = "-"
+
+[[data]]
+name = "seqNum"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "rawA"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "rawB"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "rawC"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "csvLine"
+type = "STRING"
+scope = "VAR"
+init = "\"\""
+unit = "-"
+
+[[data]]
+name = "cmd"
+type = "STRING"
+scope = "VAR"
+init = "\"\""
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_SERIAL"
+args = [{ kind = "uint", value = 115200 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ADC_INPUT"
+args = [{ kind = "var", name = "sensorA" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ADC_INPUT"
+args = [{ kind = "var", name = "sensorB" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ADC_INPUT"
+args = [{ kind = "var", name = "sensorC" }]
+
+[[setup]]
+kind = "call"
+name = "SERIAL_PRINTLN"
+args = [{ kind = "var", name = "LOG_HEADER" }]
+
+[[loop]]
+kind = "assign"
+target = "cmd"
+value = { kind = "call", name = "SERIAL_READLN", args = [] }
+
+[[loop]]
+kind = "if"
+condition = { kind = "binop", op = "eq", left = { kind = "var", name = "cmd" }, right = { kind = "string", value = "PAUSE" } }
+then = [
+  { kind = "assign", target = "streaming", value = { kind = "bool", value = false } },
+  { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "string", value = "PAUSED" }] },
+]
+elif = [
+  { condition = { kind = "binop", op = "eq", left = { kind = "var", name = "cmd" }, right = { kind = "string", value = "RESUME" } }, then = [
+    { kind = "assign", target = "streaming", value = { kind = "bool", value = true } },
+    { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "string", value = "RESUMED" }] },
+  ] },
+  { condition = { kind = "binop", op = "eq", left = { kind = "var", name = "cmd" }, right = { kind = "string", value = "HEADER" } }, then = [
+    { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "var", name = "LOG_HEADER" }] },
+  ] },
+]
+else = []
+
+[[loop]]
+kind = "if"
+condition = { kind = "var", name = "streaming" }
+then = [
+  { kind = "assign", target = "rawA", value = { kind = "call", name = "READ_ADC", args = [{ kind = "var", name = "sensorA" }] } },
+  { kind = "assign", target = "rawB", value = { kind = "call", name = "READ_ADC", args = [{ kind = "var", name = "sensorB" }] } },
+  { kind = "assign", target = "rawC", value = { kind = "call", name = "READ_ADC", args = [{ kind = "var", name = "sensorC" }] } },
+  { kind = "assign", target = "seqNum", value = { kind = "binop", op = "add", left = { kind = "var", name = "seqNum" }, right = { kind = "uint", value = 1 } } },
+  { kind = "assign", target = "csvLine", value = { kind = "call", name = "CONCAT", args = [
+    { kind = "call", name = "TO_STRING", args = [{ kind = "call", name = "GET_SYS_TIME", args = [] }] },
+    { kind = "string", value = "," },
+    { kind = "call", name = "TO_STRING", args = [{ kind = "var", name = "seqNum" }] },
+    { kind = "string", value = "," },
+    { kind = "call", name = "TO_STRING", args = [{ kind = "var", name = "rawA" }] },
+    { kind = "string", value = "," },
+    { kind = "call", name = "TO_STRING", args = [{ kind = "var", name = "rawB" }] },
+    { kind = "string", value = "," },
+    { kind = "call", name = "TO_STRING", args = [{ kind = "var", name = "rawC" }] },
+  ] } },
+  { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "var", name = "csvLine" }] },
+]
+else = []
+
+[[loop]]
+kind = "call"
+name = "WAIT_TIME"
+args = [{ kind = "var", name = "SAMPLE_INTERVAL" }]

@@ -31,11 +31,11 @@ fn all_golden_roundtrip() {
 fn sim_and_example_roundtrip() {
     let fixtures = repo().join("content/fixtures");
     let names = [
-        "examples/basic-blink-logic.asl.toml",
-        "examples/dual-button-led-control.asl.toml",
-        "sim/S01-blink-set-bool-wait.asl.toml",
-        "sim/S02-ton-on-delay.asl.toml",
-        "sim/S08-scenario1-three-mode-blink.asl.toml",
+        "examples/basic-blink-logic.toml",
+        "examples/dual-button-led-control.toml",
+        "sim/S01-blink-set-bool-wait.toml",
+        "sim/S02-ton-on-delay.toml",
+        "sim/S08-scenario1-three-mode-blink.toml",
     ];
     for rel in names {
         let path = fixtures.join(rel);
@@ -47,8 +47,8 @@ fn sim_and_example_roundtrip() {
 #[test]
 fn project_roundtrip() {
     for rel in [
-        "content/fixtures/projects/P01-uno-led-blink.dendri.toml",
-        "content/fixtures/canvas/C02-scenario1-modes.dendri.toml",
+        "content/fixtures/projects/P01-uno-led-blink.toml",
+        "content/fixtures/canvas/C02-scenario1-modes.toml",
     ] {
         let path = repo().join(rel);
         let parsed = parse_project_file(&path).unwrap_or_else(|e| panic!("{rel}: {e}"));

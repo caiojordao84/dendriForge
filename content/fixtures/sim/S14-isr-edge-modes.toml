@@ -1,0 +1,203 @@
+# Sim S14 — CFG_ATTACH/DETACH + RISING/FALLING/CHANGE (scenario 8 / G11 core)
+
+[metadata]
+asl_version = "0.0.1"
+project_name = "S14-isr-edge-modes"
+editor = "dendriForge"
+author = "dendriForge DEN-17"
+notes = "Multi-edge ISR + detach — DEN-17"
+
+[[hardware]]
+pin = 10
+hw_type = "digital"
+io_mode = "DI"
+label = "pinRising"
+target_role = "int-rising"
+
+[[hardware]]
+pin = 11
+hw_type = "digital"
+io_mode = "DI"
+label = "pinFalling"
+target_role = "int-falling"
+
+[[hardware]]
+pin = 12
+hw_type = "digital"
+io_mode = "DI"
+label = "pinChange"
+target_role = "int-change"
+
+[[hardware]]
+pin = 13
+hw_type = "digital"
+io_mode = "DO"
+label = "ledRising"
+target_role = "digital-out"
+
+[[data]]
+name = "DETACH_THRESHOLD"
+type = "UINT"
+scope = "CONST"
+init = "3"
+unit = "-"
+
+[[data]]
+name = "flagRising"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "flagFalling"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "flagChange"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "countRising"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "countFalling"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "countChange"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "risingDetached"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "line"
+type = "STRING"
+scope = "VAR"
+init = "\"\""
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_SERIAL"
+args = [{ kind = "uint", value = 115200 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT"
+args = [{ kind = "var", name = "pinRising" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT"
+args = [{ kind = "var", name = "pinFalling" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT"
+args = [{ kind = "var", name = "pinChange" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "var", name = "ledRising" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ATTACH_INTERRUPT"
+args = [{ kind = "var", name = "pinRising" }, { kind = "var", name = "isr_rising" }, { kind = "string", value = "RISING" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ATTACH_INTERRUPT"
+args = [{ kind = "var", name = "pinFalling" }, { kind = "var", name = "isr_falling" }, { kind = "string", value = "FALLING" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ATTACH_INTERRUPT"
+args = [{ kind = "var", name = "pinChange" }, { kind = "var", name = "isr_change" }, { kind = "string", value = "CHANGE" }]
+
+[[setup]]
+kind = "call"
+name = "SERIAL_PRINTLN"
+args = [{ kind = "string", value = "isr_ready" }]
+
+[[loop]]
+kind = "if"
+condition = { kind = "var", name = "flagRising" }
+then = [
+  { kind = "assign", target = "flagRising", value = { kind = "bool", value = false } },
+  { kind = "assign", target = "countRising", value = { kind = "expr_text", text = "countRising + 1" } },
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "ledRising" }, { kind = "bool", value = true }] },
+]
+
+[[loop]]
+kind = "if"
+condition = { kind = "expr_text", text = "countRising >= DETACH_THRESHOLD AND NOT risingDetached" }
+then = [
+  { kind = "call", name = "CFG_DETACH_INTERRUPT", args = [{ kind = "var", name = "pinRising" }] },
+  { kind = "assign", target = "risingDetached", value = { kind = "bool", value = true } },
+  { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "string", value = "rising_detached" }] },
+]
+
+[[loop]]
+kind = "if"
+condition = { kind = "var", name = "flagFalling" }
+then = [
+  { kind = "assign", target = "flagFalling", value = { kind = "bool", value = false } },
+  { kind = "assign", target = "countFalling", value = { kind = "expr_text", text = "countFalling + 1" } },
+]
+
+[[loop]]
+kind = "if"
+condition = { kind = "var", name = "flagChange" }
+then = [
+  { kind = "assign", target = "flagChange", value = { kind = "bool", value = false } },
+  { kind = "assign", target = "countChange", value = { kind = "expr_text", text = "countChange + 1" } },
+]
+
+[[loop]]
+kind = "assign"
+target = "line"
+value = { kind = "expr_text", text = "CONCAT(\"r=\", TO_STRING(countRising), \",f=\", TO_STRING(countFalling), \",c=\", TO_STRING(countChange))" }
+
+[[loop]]
+kind = "call"
+name = "SERIAL_PRINTLN"
+args = [{ kind = "var", name = "line" }]
+
+[[functions]]
+name = "isr_rising"
+params = []
+body = [{ kind = "assign", target = "flagRising", value = { kind = "bool", value = true } }]
+
+[[functions]]
+name = "isr_falling"
+params = []
+body = [{ kind = "assign", target = "flagFalling", value = { kind = "bool", value = true } }]
+
+[[functions]]
+name = "isr_change"
+params = []
+body = [{ kind = "assign", target = "flagChange", value = { kind = "bool", value = true } }]

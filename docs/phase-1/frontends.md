@@ -17,16 +17,16 @@ Ladder / SFC = **DEN-8** (see [`ladder-sfc.md`](./ladder-sfc.md)). Progress: sto
 ## CLI
 
 ```bash
-cargo run -p dendri-cli -- emit-cpp content/fixtures/sim/S01-blink-set-bool-wait.asl.toml
-cargo run -p dendri-cli -- emit-micropython content/fixtures/sim/S01-blink-set-bool-wait.asl.toml
-cargo run -p dendri-cli -- emit-st content/fixtures/sim/S01-blink-set-bool-wait.asl.toml
-cargo run -p dendri-cli -- emit-rust content/fixtures/sim/S01-blink-set-bool-wait.asl.toml
+cargo run -p dendri-cli -- emit-cpp content/fixtures/sim/S01-blink-set-bool-wait.toml
+cargo run -p dendri-cli -- emit-micropython content/fixtures/sim/S01-blink-set-bool-wait.toml
+cargo run -p dendri-cli -- emit-st content/fixtures/sim/S01-blink-set-bool-wait.toml
+cargo run -p dendri-cli -- emit-rust content/fixtures/sim/S01-blink-set-bool-wait.toml
 cargo run -p dendri-cli -- parse-source --lang rust content/fixtures/frontends/S01-blink.rs
-cargo run -p dendri-cli -- frontend-roundtrip --lang rust content/fixtures/sim/S04-pwm-adc-map.asl.toml
-cargo run -p dendri-cli -- sync-sources content/fixtures/projects/P01-uno-led-blink.dendri.toml
+cargo run -p dendri-cli -- frontend-roundtrip --lang rust content/fixtures/sim/S04-pwm-adc-map.toml
+cargo run -p dendri-cli -- sync-sources content/fixtures/projects/P01-uno-led-blink.toml
 ```
 
-`.dendri.toml` `[[sources]]` carries inline `text` for `cpp` / `micropython` / `st` / `rust`. Empty stubs can be filled from embedded `[asl]` via `sync-sources`.
+`.toml` `[[sources]]` carries inline `text` for `cpp` / `micropython` / `st` / `rust`. Empty stubs can be filled from embedded `[asl]` via `sync-sources`.
 
 ## Supported MVP subset (honest limits)
 

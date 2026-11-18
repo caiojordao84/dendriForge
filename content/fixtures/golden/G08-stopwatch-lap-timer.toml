@@ -1,0 +1,351 @@
+# Golden G08 — GET_SYS_TIME / TIME_DIFF / ISR buttons / LCD
+# Migrated from core/asl/v010/golden/G08-stopwatch-lap-timer.toon
+# Norm cite: IEC 61131-3 time / TIME_DIFF semantics
+
+[metadata]
+asl_version = "0.0.1"
+project_name = "G08-stopwatch-lap-timer"
+editor = "dendriForge"
+author = "dendriForge Golden Suite"
+notes = "IEC 61131-3 TIME_DIFF rollover-safe pattern"
+
+[[hardware]]
+pin = 0
+hw_type = "digital"
+io_mode = "BI"
+label = "sdaPin"
+target_role = "i2c-sda"
+
+[[hardware]]
+pin = 1
+hw_type = "digital"
+io_mode = "BI"
+label = "sclPin"
+target_role = "i2c-scl"
+
+[[hardware]]
+pin = 10
+hw_type = "digital"
+io_mode = "DI"
+label = "btnStart"
+target_role = "int-falling"
+
+[[hardware]]
+pin = 11
+hw_type = "digital"
+io_mode = "DI"
+label = "btnLap"
+target_role = "int-falling"
+
+[[hardware]]
+pin = 12
+hw_type = "digital"
+io_mode = "DI"
+label = "btnReset"
+target_role = "int-falling"
+
+[[hardware]]
+pin = 13
+hw_type = "digital"
+io_mode = "DO"
+label = "ledRunning"
+target_role = "digital-out"
+
+[[data]]
+name = "DEBOUNCE"
+type = "TIME"
+scope = "CONST"
+init = "T#80ms"
+unit = "ms"
+
+[[data]]
+name = "LOOP_DELAY"
+type = "TIME"
+scope = "CONST"
+init = "T#50ms"
+unit = "ms"
+
+[[data]]
+name = "MAX_LAPS"
+type = "UINT"
+scope = "CONST"
+init = "9"
+unit = "-"
+
+[[data]]
+name = "STATE_IDLE"
+type = "UINT"
+scope = "CONST"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "STATE_RUNNING"
+type = "UINT"
+scope = "CONST"
+init = "1"
+unit = "-"
+
+[[data]]
+name = "STATE_PAUSED"
+type = "UINT"
+scope = "CONST"
+init = "2"
+unit = "-"
+
+[[data]]
+name = "swState"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "startTime"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "elapsedMs"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "lapCount"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "lapTime"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "lastLapMs"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "lastBtnStart"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "lastBtnLap"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "lastBtnReset"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "nowMs"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "displayDirty"
+type = "BOOL"
+scope = "VAR"
+init = "TRUE"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_I2C"
+args = [{ kind = "uint", value = 0 }, { kind = "var", name = "sdaPin" }, { kind = "var", name = "sclPin" }, { kind = "int", value = 400000 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_LCD"
+args = [{ kind = "hex", value = "0x27" }, { kind = "uint", value = 16 }, { kind = "uint", value = 2 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT_PULLUP"
+args = [{ kind = "var", name = "btnStart" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT_PULLUP"
+args = [{ kind = "var", name = "btnLap" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT_PULLUP"
+args = [{ kind = "var", name = "btnReset" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "var", name = "ledRunning" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ATTACH_INTERRUPT"
+args = [{ kind = "var", name = "btnStart" }, { kind = "var", name = "isr_btn_start" }, { kind = "string", value = "FALLING" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ATTACH_INTERRUPT"
+args = [{ kind = "var", name = "btnLap" }, { kind = "var", name = "isr_btn_lap" }, { kind = "string", value = "FALLING" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ATTACH_INTERRUPT"
+args = [{ kind = "var", name = "btnReset" }, { kind = "var", name = "isr_btn_reset" }, { kind = "string", value = "FALLING" }]
+
+[[setup]]
+kind = "call"
+name = "LCD_CLEAR"
+args = []
+
+[[setup]]
+kind = "call"
+name = "LCD_PRINT"
+args = [
+  { kind = "uint", value = 0 }, { kind = "uint", value = 0 },
+  { kind = "string", value = "Stopwatch Ready" },
+]
+
+[[loop]]
+kind = "assign"
+target = "nowMs"
+value = { kind = "call", name = "GET_SYS_TIME", args = [] }
+
+[[loop]]
+kind = "if"
+condition = { kind = "binop", op = "eq", left = { kind = "var", name = "swState" }, right = { kind = "var", name = "STATE_RUNNING" } }
+then = [
+  { kind = "assign", target = "elapsedMs", value = { kind = "call", name = "TIME_DIFF", args = [
+    { kind = "var", name = "nowMs" }, { kind = "var", name = "startTime" },
+  ]}},
+  { kind = "assign", target = "displayDirty", value = { kind = "bool", value = true } },
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "ledRunning" }, { kind = "bool", value = true }] },
+]
+elif = [
+  { condition = { kind = "binop", op = "eq", left = { kind = "var", name = "swState" }, right = { kind = "var", name = "STATE_PAUSED" } }, then = [
+    { kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "ledRunning" }, { kind = "bool", value = false }] },
+  ]},
+]
+else = [
+  { kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "ledRunning" }, { kind = "bool", value = false }] },
+]
+
+[[loop]]
+kind = "if"
+condition = { kind = "var", name = "displayDirty" }
+then = [
+  { kind = "call", name = "update_display", args = [] },
+  { kind = "assign", target = "displayDirty", value = { kind = "bool", value = false } },
+]
+
+[[loop]]
+kind = "call"
+name = "WAIT_TIME"
+args = [{ kind = "var", name = "LOOP_DELAY" }]
+
+[[functions]]
+name = "isr_btn_start"
+params = []
+body = [
+  { kind = "assign", target = "nowMs", value = { kind = "call", name = "GET_SYS_TIME", args = [] } },
+  { kind = "if", condition = { kind = "expr_text", text = "TIME_DIFF(nowMs, lastBtnStart) > DEBOUNCE" }, then = [
+    { kind = "if", condition = { kind = "binop", op = "eq", left = { kind = "var", name = "swState" }, right = { kind = "var", name = "STATE_IDLE" } }, then = [
+      { kind = "assign", target = "startTime", value = { kind = "var", name = "nowMs" } },
+      { kind = "assign", target = "swState", value = { kind = "var", name = "STATE_RUNNING" } },
+    ], elif = [
+      { condition = { kind = "binop", op = "eq", left = { kind = "var", name = "swState" }, right = { kind = "var", name = "STATE_RUNNING" } }, then = [
+        { kind = "assign", target = "swState", value = { kind = "var", name = "STATE_PAUSED" } },
+      ]},
+      { condition = { kind = "binop", op = "eq", left = { kind = "var", name = "swState" }, right = { kind = "var", name = "STATE_PAUSED" } }, then = [
+        { kind = "assign", target = "startTime", value = { kind = "call", name = "TIME_DIFF", args = [
+          { kind = "var", name = "nowMs" }, { kind = "var", name = "elapsedMs" },
+        ]}},
+        { kind = "assign", target = "swState", value = { kind = "var", name = "STATE_RUNNING" } },
+      ]},
+    ]},
+    { kind = "assign", target = "lastBtnStart", value = { kind = "var", name = "nowMs" } },
+  ]},
+]
+
+[[functions]]
+name = "isr_btn_lap"
+params = []
+body = [
+  { kind = "assign", target = "nowMs", value = { kind = "call", name = "GET_SYS_TIME", args = [] } },
+  { kind = "if", condition = { kind = "expr_text", text = "TIME_DIFF(nowMs, lastBtnLap) > DEBOUNCE" }, then = [
+    { kind = "if", condition = { kind = "expr_text", text = "swState = STATE_RUNNING AND lapCount < MAX_LAPS" }, then = [
+      { kind = "assign", target = "lapTime", value = { kind = "call", name = "TIME_DIFF", args = [
+        { kind = "var", name = "elapsedMs" }, { kind = "var", name = "lastLapMs" },
+      ]}},
+      { kind = "assign", target = "lastLapMs", value = { kind = "var", name = "elapsedMs" } },
+      { kind = "assign", target = "lapCount", value = { kind = "binop", op = "add", left = { kind = "var", name = "lapCount" }, right = { kind = "uint", value = 1 } } },
+    ]},
+    { kind = "assign", target = "lastBtnLap", value = { kind = "var", name = "nowMs" } },
+  ]},
+]
+
+[[functions]]
+name = "isr_btn_reset"
+params = []
+body = [
+  { kind = "assign", target = "nowMs", value = { kind = "call", name = "GET_SYS_TIME", args = [] } },
+  { kind = "if", condition = { kind = "expr_text", text = "TIME_DIFF(nowMs, lastBtnReset) > DEBOUNCE" }, then = [
+    { kind = "assign", target = "swState", value = { kind = "var", name = "STATE_IDLE" } },
+    { kind = "assign", target = "elapsedMs", value = { kind = "uint", value = 0 } },
+    { kind = "assign", target = "lapCount", value = { kind = "uint", value = 0 } },
+    { kind = "assign", target = "lastLapMs", value = { kind = "uint", value = 0 } },
+    { kind = "assign", target = "lastBtnReset", value = { kind = "var", name = "nowMs" } },
+  ]},
+]
+
+[[functions]]
+name = "format_time"
+params = ["ms"]
+body = [
+  { kind = "assign", target = "secs", value = { kind = "expr_text", text = "REAL_TO_INT(INT_TO_REAL(ms) / 1000.0)" } },
+  { kind = "assign", target = "tenths", value = { kind = "expr_text", text = "REAL_TO_INT(INT_TO_REAL(MOD(ms, 1000)) / 100.0)" } },
+  { kind = "return", value = { kind = "expr_text", text = "CONCAT(TO_STRING(secs), \".\", TO_STRING(tenths), \"s\")" } },
+]
+
+[[functions]]
+name = "update_display"
+params = []
+body = [
+  { kind = "call", name = "LCD_PRINT", args = [
+    { kind = "uint", value = 0 }, { kind = "uint", value = 0 },
+    { kind = "expr_text", text = "CONCAT(\"Time: \", format_time(elapsedMs), \"   \")" },
+  ]},
+  { kind = "if", condition = { kind = "binop", op = "gt", left = { kind = "var", name = "lapCount" }, right = { kind = "uint", value = 0 } }, then = [
+    { kind = "call", name = "LCD_PRINT", args = [
+      { kind = "uint", value = 0 }, { kind = "uint", value = 1 },
+      { kind = "expr_text", text = "CONCAT(\"Lap \", TO_STRING(lapCount), \": \", format_time(lapTime), \"  \")" },
+    ]},
+  ], else = [
+    { kind = "call", name = "LCD_PRINT", args = [
+      { kind = "uint", value = 0 }, { kind = "uint", value = 1 },
+      { kind = "string", value = "Lap: --         " },
+    ]},
+  ]},
+]

@@ -1,6 +1,6 @@
 # dendriForge — Documentation
 
-> **Live IR:** ASL = **Abstract Syntax Language**, structured in **TOML** (`.asl.toml`).  
+> **Live IR:** ASL = **Abstract Syntax Language**, structured in **TOML** (`.toml`).  
 > **Versioning:** ASL language tag **`0.0.1`** (`metadata.asl_version`). Do not treat `0.1.0` / `0.1.1` / `v010` as current.  
 > **Authority:** [`phase-0/`](./phase-0/) + Rust types in `crates/dendri-ast`.
 
@@ -39,7 +39,7 @@ These Markdown drafts capture IEC naming, stdlib intent, and parse/validate idea
 
 ```
  Source Language                 ASL IR (TOML)              Target Language
- (C++, MicroPython, ST,    →   (.asl.toml — this        →  (C++, MicroPython,
+ (C++, MicroPython, ST,    →   (.toml — this        →  (C++, MicroPython,
   Ladder, SFC/GRAFCET …)        contract)                   ST, Ladder, SFC …)
 ```
 
@@ -52,7 +52,7 @@ ASL-in-TOML is the **Rosetta Stone** IR. Any supported source language is parsed
 
 ## Key Design Decisions
 
-- **TOML only** — programs are `.asl.toml`; profiles are `.toml`. TOON is obsolete as IR.
+- **TOML only** — programs are `.toml`; profiles are `.toml`. TOON is obsolete as IR.
 - **Single-file project (MVP)** — one TOML file holds hardware, wiring, original scripts, and ASL.
 - **IEC 61131-3 canonical naming** — stdlib functions use IEC names; aliases normalize at parse time.
 - **Shared AST** — one Rust AST for parsers, generators, and simulators (`dendri-ast`).

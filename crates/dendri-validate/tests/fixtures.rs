@@ -62,14 +62,14 @@ fn migrated_examples_validate_structurally() {
         ok >= 2,
         "expected ≥2 examples to validate, ok={ok} soft_fail={soft_fail:?}"
     );
-    let blink = repo().join("content/fixtures/examples/basic-blink-logic.asl.toml");
+    let blink = repo().join("content/fixtures/examples/basic-blink-logic.toml");
     let parsed = parse_program_file(&blink).unwrap();
     assert!(validate_program(&parsed.program, &parsed.inject).ok());
 }
 
 #[test]
 fn scenario1_s08_validates() {
-    let path = repo().join("content/fixtures/sim/S08-scenario1-three-mode-blink.asl.toml");
+    let path = repo().join("content/fixtures/sim/S08-scenario1-three-mode-blink.toml");
     let parsed = parse_program_file(&path).unwrap();
     let result = validate_program(&parsed.program, &parsed.inject);
     assert!(result.ok(), "{:?}", result.diagnostics);
@@ -78,8 +78,8 @@ fn scenario1_s08_validates() {
 #[test]
 fn project_p01_and_c02_validate() {
     for rel in [
-        "content/fixtures/projects/P01-uno-led-blink.dendri.toml",
-        "content/fixtures/canvas/C02-scenario1-modes.dendri.toml",
+        "content/fixtures/projects/P01-uno-led-blink.toml",
+        "content/fixtures/canvas/C02-scenario1-modes.toml",
     ] {
         let path = repo().join(rel);
         let parsed = parse_project_file(&path).unwrap_or_else(|e| panic!("{rel}: {e}"));
@@ -92,13 +92,13 @@ fn project_p01_and_c02_validate() {
 fn error_corpus_matches_expect_error() {
     let root = repo().join("content/fixtures/errors");
     for name in [
-        "E01-missing-metadata-field.asl.toml",
-        "E02-unknown-data-type.asl.toml",
-        "E03-undeclared-variable.asl.toml",
-        "E04-hardware-pin-conflict.asl.toml",
-        "E05-setup-count-mismatch.asl.toml",
-        "E06-invalid-scope-write-const.asl.toml",
-        "E07-function-arity-mismatch.asl.toml",
+        "E01-missing-metadata-field.toml",
+        "E02-unknown-data-type.toml",
+        "E03-undeclared-variable.toml",
+        "E04-hardware-pin-conflict.toml",
+        "E05-setup-count-mismatch.toml",
+        "E06-invalid-scope-write-const.toml",
+        "E07-function-arity-mismatch.toml",
     ] {
         let path = root.join(name);
         let text = fs::read_to_string(&path).unwrap();

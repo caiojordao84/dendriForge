@@ -41,7 +41,7 @@ impl From<Lang> for SourceLanguage {
 
 #[derive(Subcommand, Debug)]
 enum Cmd {
-    /// Semantic validate an `.asl.toml` or `.dendri.toml` file
+    /// Semantic validate a program or project `.toml` file
     Validate {
         path: PathBuf,
         /// Treat as error-corpus fixture (apply fixture_inject)
@@ -80,9 +80,23 @@ enum Cmd {
         #[arg(long, value_enum)]
         lang: Lang,
     },
-    /// Fill empty `[[sources]].text` in a `.dendri.toml` from embedded ASL (stdout)
-    SyncSources { path: PathBuf },
-    /// Bidirectional sync smoke: load project, project ASL↔ladder/sfc, re-emit
+    /// Export generated backends from ASL into `build/` (or `--out`)
+    Export {
+        path: PathBuf,
+        /// Output directory (default: `<project-dir>/build` or `./build`)
+        #[arg(long)]
+        out: Option<PathBuf>,
+        /// Also print project TOML to stdout after ensuring visual ASL blocks
+        #[arg(long)]
+        print_project: bool,
+    },
+    /// Deprecated alias for `export` (no longer embeds sources in the project file)
+    SyncSources {
+        path: PathBuf,
+        #[arg(long)]
+        out: Option<PathBuf>,
+    },
+    /// Bidirectional sync smoke: load project, project ASL↔ladder/sfc blocks
     SyncVisual { path: PathBuf },
     /// Show document / profile info
     Info { path: PathBuf },
@@ -102,7 +116,7 @@ enum Cmd {
         #[arg(long)]
         family: Option<String>,
     },
-    /// Migrate legacy core/asl/v010/**/*.toon → content/fixtures/**/*.asl.toml (DEN-20)
+    /// Migrate legacy core/asl/v010/**/*.toon → content/fixtures/**/*.toml (DEN-20)
     MigrateAsl {
         #[arg(long)]
         repo: Option<PathBuf>,
@@ -252,33 +266,15 @@ fn run(cli: Cli) -> Result<(), String> {
             );
             Ok(())
         }
-        Cmd::SyncSources { path } => {
-            let doc = parse_path(&path).map_err(|e| e.to_string())?;
-            let ParsedDocument::Project(mut p) = doc else {
-                return Err("sync-sources requires a .dendri.toml project".into());
-            };
-            for src in &mut p.project.sources {
-                if !src.text.trim().is_empty() {
-                    continue;
-                }
-                match src.language {
-                    SourceLanguage::Cpp
-                    | SourceLanguage::Micropython
-                    | SourceLanguage::St
-                    | SourceLanguage::Rust
-                    | SourceLanguage::Ladder
-                    | SourceLanguage::Sfc => {
-                        src.text = dendri_frontends::emit_source(src.language, &p.project.asl)
-                            .map_err(|e| e.to_string())?;
-                    }
-                    _ => {}
-                }
-            }
-            dendri_sync::fill_visual_sources(&mut p.project);
-            let out = dendri_emit::emit_project(&p.project).map_err(|e| e.to_string())?;
-            print!("{out}");
-            Ok(())
+        Cmd::SyncSources { path, out } => {
+            eprintln!("note: sync-sources is deprecated; use `dendri export` (writes build/, no embedded sources)");
+            run_export(&path, out.as_deref(), false)
         }
+        Cmd::Export {
+            path,
+            out,
+            print_project,
+        } => run_export(&path, out.as_deref(), print_project),
         Cmd::SyncVisual { path } => {
             let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
             let mut session =
@@ -286,33 +282,35 @@ fn run(cli: Cli) -> Result<(), String> {
             session
                 .sync_visual_sources_from_asl()
                 .map_err(|e| e.to_string())?;
-            // Round-trip ladder source if present
-            if let Some(t) = session.source_text(SourceLanguage::Ladder) {
-                let t = t.to_string();
-                if !t.trim().is_empty() {
-                    session
-                        .apply_source_toml(dendri_sync::VisualKind::Ladder, &t)
-                        .map_err(|e| e.to_string())?;
-                    session.assert_ladder_roundtrip().map_err(|e| e.to_string())?;
-                }
+            // Ephemeral ladder/sfc texts (not stored in project TOML) round-trip via ASL blocks.
+            let ladder = session
+                .source_text(SourceLanguage::Ladder)
+                .unwrap_or("")
+                .to_string();
+            if !ladder.trim().is_empty() {
+                session
+                    .apply_source_toml(dendri_sync::VisualKind::Ladder, &ladder)
+                    .map_err(|e| e.to_string())?;
+                session.assert_ladder_roundtrip().map_err(|e| e.to_string())?;
             }
-            if let Some(t) = session.source_text(SourceLanguage::Sfc) {
-                let t = t.to_string();
-                if !t.trim().is_empty() {
-                    session
-                        .apply_source_toml(dendri_sync::VisualKind::Sfc, &t)
-                        .map_err(|e| e.to_string())?;
-                    session.assert_sfc_roundtrip().map_err(|e| e.to_string())?;
-                }
+            let sfc = session
+                .source_text(SourceLanguage::Sfc)
+                .unwrap_or("")
+                .to_string();
+            if !sfc.trim().is_empty() {
+                session
+                    .apply_source_toml(dendri_sync::VisualKind::Sfc, &sfc)
+                    .map_err(|e| e.to_string())?;
+                session.assert_sfc_roundtrip().map_err(|e| e.to_string())?;
             }
-            println!("ok: visual sync ladder/sfc ↔ TOML ↔ ASL");
+            println!("ok: visual sync ladder/sfc ↔ ASL (export-only texts)");
             Ok(())
         }
         Cmd::Info { path } => {
             let doc = parse_path(&path).map_err(|e| e.to_string())?;
             match doc {
                 ParsedDocument::Program(p) => {
-                    println!("kind: program (.asl.toml)");
+                    println!("kind: program (.toml)");
                     println!(
                         "project_name: {}",
                         p.program
@@ -330,7 +328,7 @@ fn run(cli: Cli) -> Result<(), String> {
                     println!("grafcet: {}", p.program.grafcet.len());
                 }
                 ParsedDocument::Project(p) => {
-                    println!("kind: project (.dendri.toml)");
+                    println!("kind: project (.toml)");
                     println!(
                         "project_name: {}",
                         p.project
@@ -342,15 +340,6 @@ fn run(cli: Cli) -> Result<(), String> {
                     println!("board: {}", p.project.board.profile);
                     println!("components: {}", p.project.components.len());
                     println!("wiring: {}", p.project.wiring.len());
-                    println!("sources: {}", p.project.sources.len());
-                    for s in &p.project.sources {
-                        println!(
-                            "  source language={} name={:?} bytes={}",
-                            s.language.as_str(),
-                            s.name,
-                            s.text.len()
-                        );
-                    }
                     println!(
                         "asl.project_name: {}",
                         p.project
@@ -360,6 +349,7 @@ fn run(cli: Cli) -> Result<(), String> {
                             .as_deref()
                             .unwrap_or("<missing>")
                     );
+                    println!("asl.hardware: {}", p.project.asl.hardware.len());
                     println!("asl.ladder: {}", p.project.asl.ladder.len());
                     println!("asl.grafcet: {}", p.project.asl.grafcet.len());
                 }
@@ -527,6 +517,54 @@ fn run(cli: Cli) -> Result<(), String> {
     }
 }
 
+fn run_export(path: &Path, out: Option<&Path>, print_project: bool) -> Result<(), String> {
+    let doc = parse_path(path).map_err(|e| e.to_string())?;
+    let program = doc.program().clone();
+    let mut project = match doc {
+        ParsedDocument::Project(p) => p.project,
+        ParsedDocument::Program(p) => wrap_program_as_mvp_project(p.program),
+    };
+    dendri_sync::fill_visual_sources(&mut project);
+
+    let out_dir = out
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            path.parent()
+                .unwrap_or_else(|| Path::new("."))
+                .join("build")
+        });
+    std::fs::create_dir_all(&out_dir).map_err(|e| e.to_string())?;
+
+    let langs = [
+        SourceLanguage::Cpp,
+        SourceLanguage::Micropython,
+        SourceLanguage::St,
+        SourceLanguage::Rust,
+        SourceLanguage::Ladder,
+        SourceLanguage::Sfc,
+    ];
+    for lang in langs {
+        let text = dendri_frontends::emit_source(lang, &program).map_err(|e| e.to_string())?;
+        let hint = PathBuf::from(lang.build_path_hint());
+        // build_path_hint is `build/<backend>/file` — strip leading `build/`
+        let rel = hint
+            .strip_prefix("build")
+            .unwrap_or(hint.as_path());
+        let dest = out_dir.join(rel);
+        if let Some(parent) = dest.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        std::fs::write(&dest, text).map_err(|e| e.to_string())?;
+        println!("wrote {}", dest.display());
+    }
+
+    if print_project {
+        let toml = dendri_emit::emit_project(&project).map_err(|e| e.to_string())?;
+        print!("{toml}");
+    }
+    Ok(())
+}
+
 fn wrap_program_as_mvp_project(program: dendri_ast::Program) -> dendri_ast::SimulationProject {
     dendri_ast::SimulationProject {
         metadata: program.metadata.clone(),
@@ -538,11 +576,13 @@ fn wrap_program_as_mvp_project(program: dendri_ast::Program) -> dendri_ast::Simu
             dendri_ast::ComponentInstance {
                 instance_id: "led1".into(),
                 profile: "led".into(),
+                label: None,
                 params: Default::default(),
             },
             dendri_ast::ComponentInstance {
                 instance_id: "btn_start".into(),
                 profile: "cmd-pushbutton-no-start".into(),
+                label: None,
                 params: Default::default(),
             },
         ],
@@ -553,9 +593,19 @@ fn wrap_program_as_mvp_project(program: dendri_ast::Program) -> dendri_ast::Simu
                 signal: Some("digital".into()),
             },
             dendri_ast::Wire {
+                from: "board.GND".into(),
+                to: "led1.K".into(),
+                signal: Some("gnd".into()),
+            },
+            dendri_ast::Wire {
                 from: "board.D2".into(),
-                to: "btn_start.NO1".into(),
+                to: "btn_start.NO".into(),
                 signal: Some("digital".into()),
+            },
+            dendri_ast::Wire {
+                from: "board.GND".into(),
+                to: "btn_start.COM".into(),
+                signal: Some("gnd".into()),
             },
         ],
         sources: vec![],

@@ -1614,14 +1614,9 @@ fn rewrite_stmt(stmt: Stmt, pins: &HashMap<String, u32>) -> Stmt {
 }
 
 fn rewrite_expr(expr: Expr, pins: &HashMap<String, u32>) -> Expr {
+    let _ = pins; // pin consts declare hardware; logic keeps logical names
     match expr {
-        Expr::Var { name } => {
-            if let Some(&pin) = pins.get(&name) {
-                Expr::Uint { value: pin as u64 }
-            } else {
-                Expr::Var { name }
-            }
-        }
+        Expr::Var { name } => Expr::Var { name },
         Expr::Call { name, args } => Expr::Call {
             name,
             args: args.into_iter().map(|a| rewrite_expr(a, pins)).collect(),
@@ -1644,6 +1639,13 @@ fn refine_hardware_from_setup(hardware: &mut [HardwareEntry], setup: &[Stmt]) {
         if let Stmt::Call { name, args } = stmt {
             let pin = match args.first() {
                 Some(Expr::Uint { value }) => *value as u32,
+                Some(Expr::Var { name }) => {
+                    if let Some(h) = hardware.iter().find(|h| h.label == *name) {
+                        h.pin
+                    } else {
+                        continue;
+                    }
+                }
                 _ => continue,
             };
             if let Some(h) = hardware.iter_mut().find(|h| h.pin == pin) {

@@ -20,31 +20,31 @@ fn load_asl(rel: &str) -> dendri_ast::Program {
 }
 
 fn s01_program() -> dendri_ast::Program {
-    load_asl("content/fixtures/sim/S01-blink-set-bool-wait.asl.toml")
+    load_asl("content/fixtures/sim/S01-blink-set-bool-wait.toml")
 }
 
 fn s02_program() -> dendri_ast::Program {
-    load_asl("content/fixtures/sim/S02-ton-on-delay.asl.toml")
+    load_asl("content/fixtures/sim/S02-ton-on-delay.toml")
 }
 
 fn s03_program() -> dendri_ast::Program {
-    load_asl("content/fixtures/sim/S03-control-flow-get-bool.asl.toml")
+    load_asl("content/fixtures/sim/S03-control-flow-get-bool.toml")
 }
 
 fn s04_program() -> dendri_ast::Program {
-    load_asl("content/fixtures/sim/S04-pwm-adc-map.asl.toml")
+    load_asl("content/fixtures/sim/S04-pwm-adc-map.toml")
 }
 
 fn s05_program() -> dendri_ast::Program {
-    load_asl("content/fixtures/sim/S05-uart-i2c-spi.asl.toml")
+    load_asl("content/fixtures/sim/S05-uart-i2c-spi.toml")
 }
 
 fn s06_program() -> dendri_ast::Program {
-    load_asl("content/fixtures/sim/S06-iec-tof-trig.asl.toml")
+    load_asl("content/fixtures/sim/S06-iec-tof-trig.toml")
 }
 
 fn s07_program() -> dendri_ast::Program {
-    load_asl("content/fixtures/sim/S07-iec-counters.asl.toml")
+    load_asl("content/fixtures/sim/S07-iec-counters.toml")
 }
 
 fn text_langs() -> [SourceLanguage; 4] {

@@ -1,0 +1,332 @@
+# Migrated from core/asl/v010/golden/G16-spi-sd-card-logger.toon
+# Legacy TOON retained under core/asl/v010/ (read-only).
+
+[metadata]
+asl_version = "0.0.1"
+project_name = "G16-spi-sd-card-logger"
+editor = "dendriForge"
+author = "dendriForge Golden Suite"
+notes = "Migrated from legacy v010 TOON — ASL 0.0.1"
+
+[[hardware]]
+pin = 18
+hw_type = "digital"
+io_mode = "DO"
+label = "sckPin"
+target_role = "spi-sck"
+
+[[hardware]]
+pin = 19
+hw_type = "digital"
+io_mode = "DO"
+label = "mosiPin"
+target_role = "spi-mosi"
+
+[[hardware]]
+pin = 20
+hw_type = "digital"
+io_mode = "DI"
+label = "misoPin"
+target_role = "spi-miso"
+
+[[hardware]]
+pin = 21
+hw_type = "digital"
+io_mode = "DO"
+label = "csPin"
+target_role = "spi-cs"
+
+[[hardware]]
+pin = 22
+hw_type = "digital"
+io_mode = "DO"
+label = "csTftPin"
+target_role = "spi-cs"
+
+[[hardware]]
+pin = 23
+hw_type = "digital"
+io_mode = "DO"
+label = "ledWrite"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 24
+hw_type = "digital"
+io_mode = "DO"
+label = "ledError"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 25
+hw_type = "digital"
+io_mode = "DI"
+label = "cardDetect"
+target_role = "digital-int"
+
+[[hardware]]
+pin = 34
+hw_type = "analog"
+io_mode = "DI"
+label = "sensorV"
+target_role = "adc:t"
+
+[[hardware]]
+pin = 35
+hw_type = "analog"
+io_mode = "DI"
+label = "sensorI"
+target_role = "adc:t"
+
+[[hardware]]
+pin = 36
+hw_type = "analog"
+io_mode = "DI"
+label = "sensorT"
+target_role = "adc:t"
+
+[[data]]
+name = "BAUD_RATE"
+type = "DINT"
+scope = "CONST"
+init = "115200"
+unit = "-"
+
+[[data]]
+name = "LOG_INTERVAL"
+type = "TIME"
+scope = "CONST"
+init = "T#500ms"
+unit = "ms"
+
+[[data]]
+name = "SAMPLE_COUNT"
+type = "UINT"
+scope = "CONST"
+init = "4"
+unit = "-"
+
+[[data]]
+name = "V_REF"
+type = "REAL"
+scope = "CONST"
+init = "3.3"
+unit = "V"
+
+[[data]]
+name = "R_SHUNT"
+type = "REAL"
+scope = "CONST"
+init = "0.1"
+unit = "Ohm"
+
+[[data]]
+name = "TEMP_OFFSET"
+type = "REAL"
+scope = "CONST"
+init = "0.5"
+unit = "degC"
+
+[[data]]
+name = "WRITE_LED_PULSE"
+type = "TIME"
+scope = "CONST"
+init = "T#50ms"
+unit = "ms"
+
+[[data]]
+name = "LOG_HEADER"
+type = "STRING"
+scope = "CONST"
+init = "ts_ms,seq,voltage_V,current_A,temp_C"
+unit = "-"
+
+[[data]]
+name = "cardPresent"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "logSeq"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "rawV"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "rawI"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "rawT"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "voltage"
+type = "REAL"
+scope = "VAR"
+init = "0.0"
+unit = "V"
+
+[[data]]
+name = "current"
+type = "REAL"
+scope = "VAR"
+init = "0.0"
+unit = "A"
+
+[[data]]
+name = "tempC"
+type = "REAL"
+scope = "VAR"
+init = "0.0"
+unit = "degC"
+
+[[data]]
+name = "logLine"
+type = "STRING"
+scope = "VAR"
+init = ""
+unit = "-"
+
+[[data]]
+name = "lastLogTime"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "nowMs"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "writeError"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "_i0"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_SERIAL"
+args = [{ kind = "uint", value = 115200 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_SPI"
+args = [{ kind = "uint", value = 0 }, { kind = "uint", value = 19 }, { kind = "uint", value = 20 }, { kind = "uint", value = 18 }, { kind = "uint", value = 21 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ADC_INPUT"
+args = [{ kind = "var", name = "sensorV" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ADC_INPUT"
+args = [{ kind = "var", name = "sensorI" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ADC_INPUT"
+args = [{ kind = "var", name = "sensorT" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "var", name = "ledWrite" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "var", name = "ledError" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT"
+args = [{ kind = "var", name = "cardDetect" }]
+
+[[setup]]
+kind = "assign"
+target = "cardPresent"
+value = { kind = "expr_text", text = "GET_BOOL(25)" }
+
+[[setup]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "var", name = "ledWrite" }, { kind = "bool", value = false }]
+
+[[setup]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "var", name = "ledError" }, { kind = "expr_text", text = "NOT cardPresent" }]
+
+[[setup]]
+kind = "call"
+name = "SERIAL_PRINTLN"
+args = [{ kind = "var", name = "LOG_HEADER" }]
+
+[[setup]]
+kind = "vendor_extension"
+reason = "SD_CARD_INIT:spi_bus=0,cs=21"
+
+[[loop]]
+kind = "assign"
+target = "nowMs"
+value = { kind = "expr_text", text = "GET_SYS_TIME()" }
+
+[[loop]]
+kind = "assign"
+target = "cardPresent"
+value = { kind = "expr_text", text = "GET_BOOL(25)" }
+
+[[loop]]
+kind = "if"
+condition = { kind = "expr_text", text = "NOT cardPresent" }
+then = [{ kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "ledError" }, { kind = "bool", value = true }] }, { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "LOG_INTERVAL" }] }, { kind = "return" }]
+
+[[loop]]
+kind = "if"
+condition = { kind = "expr_text", text = "TIME_DIFF(nowMs, lastLogTime) >= LOG_INTERVAL" }
+then = [{ kind = "assign", target = "rawV", value = { kind = "expr_text", text = "sample_avg(34)" } }, { kind = "assign", target = "rawI", value = { kind = "expr_text", text = "sample_avg(35)" } }, { kind = "assign", target = "rawT", value = { kind = "expr_text", text = "sample_avg(36)" } }, { kind = "assign", target = "voltage", value = { kind = "expr_text", text = "MAP_RANGE(INT_TO_REAL(rawV), 0.0, 65535.0, 0.0, V_REF)" } }, { kind = "assign", target = "current", value = { kind = "expr_text", text = "MAP_RANGE(INT_TO_REAL(rawI), 0.0, 65535.0, 0.0, V_REF) / R_SHUNT" } }, { kind = "assign", target = "tempC", value = { kind = "expr_text", text = "MAP_RANGE(INT_TO_REAL(rawT), 0.0, 65535.0, -40.0, 125.0) + TEMP_OFFSET" } }, { kind = "assign", target = "logSeq", value = { kind = "expr_text", text = "logSeq + 1" } }, { kind = "assign", target = "logLine", value = { kind = "expr_text", text = "CONCAT(TO_STRING(nowMs), \",\", TO_STRING(logSeq), \",\", TO_STRING_FMT(voltage, 4), \",\", TO_STRING_FMT(current, 4), \",\", TO_STRING_FMT(tempC, 2))" } }, { kind = "call", name = "write_log_line", args = [{ kind = "var", name = "logLine" }] }, { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "var", name = "logLine" }] }, { kind = "assign", target = "lastLogTime", value = { kind = "var", name = "nowMs" } }, { kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "ledError" }, { kind = "bool", value = false }] }]
+
+[[functions]]
+name = "sample_avg"
+params = ["pin"]
+body = [{ kind = "assign", target = "acc", value = { kind = "uint", value = 0 } }, { kind = "for", counter = "_i0", to = { kind = "var", name = "SAMPLE_COUNT" }, body = [{ kind = "assign", target = "acc", value = { kind = "expr_text", text = "acc + READ_ADC(pin)" } }, { kind = "return", value = { kind = "expr_text", text = "acc / SAMPLE_COUNT" } }] }]
+
+[[functions]]
+name = "write_log_line"
+params = ["line"]
+body = [{ kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "ledWrite" }, { kind = "bool", value = true }] }, { kind = "vendor_extension", reason = "SD_CARD_WRITE:line" }, { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "WRITE_LED_PULSE" }] }, { kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "ledWrite" }, { kind = "bool", value = false }] }]
+
+[[functions]]
+name = "flush_log"
+params = []
+body = [{ kind = "vendor_extension", reason = "SD_CARD_FLUSH" }]

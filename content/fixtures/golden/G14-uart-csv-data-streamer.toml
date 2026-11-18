@@ -1,0 +1,222 @@
+# Migrated from core/asl/v010/golden/G14-uart-csv-data-streamer.toon
+# Legacy TOON retained under core/asl/v010/ (read-only).
+
+[metadata]
+asl_version = "0.0.1"
+project_name = "G14-uart-csv-data-streamer"
+editor = "dendriForge"
+author = "dendriForge Golden Suite"
+notes = "Migrated from legacy v010 TOON — ASL 0.0.1"
+
+[[hardware]]
+pin = 0
+hw_type = "digital"
+io_mode = "BI"
+label = "uartTxPin"
+target_role = "uart-tx"
+
+[[hardware]]
+pin = 1
+hw_type = "digital"
+io_mode = "BI"
+label = "uartRxPin"
+target_role = "uart-rx"
+
+[[hardware]]
+pin = 34
+hw_type = "analog"
+io_mode = "DI"
+label = "sensorA"
+target_role = "adc:t"
+
+[[hardware]]
+pin = 35
+hw_type = "analog"
+io_mode = "DI"
+label = "sensorB"
+target_role = "adc:t"
+
+[[hardware]]
+pin = 36
+hw_type = "analog"
+io_mode = "DI"
+label = "sensorC"
+target_role = "adc:t"
+
+[[data]]
+name = "BAUD_RATE"
+type = "DINT"
+scope = "CONST"
+init = "115200"
+unit = "-"
+
+[[data]]
+name = "SAMPLE_INTERVAL"
+type = "TIME"
+scope = "CONST"
+init = "T#200ms"
+unit = "ms"
+
+[[data]]
+name = "SAMPLE_COUNT"
+type = "UINT"
+scope = "CONST"
+init = "4"
+unit = "-"
+
+[[data]]
+name = "ADC_REF_V"
+type = "REAL"
+scope = "CONST"
+init = "3.3"
+unit = "V"
+
+[[data]]
+name = "ADC_FULL_SCALE"
+type = "REAL"
+scope = "CONST"
+init = "65535.0"
+unit = "-"
+
+[[data]]
+name = "LOG_HEADER"
+type = "STRING"
+scope = "CONST"
+init = "ts_ms,seq,vA_V,vB_V,vC_V,vA_raw,vB_raw,vC_raw"
+unit = "-"
+
+[[data]]
+name = "CTRL_PAUSE"
+type = "STRING"
+scope = "CONST"
+init = "PAUSE"
+unit = "-"
+
+[[data]]
+name = "CTRL_RESUME"
+type = "STRING"
+scope = "CONST"
+init = "RESUME"
+unit = "-"
+
+[[data]]
+name = "CTRL_HEADER"
+type = "STRING"
+scope = "CONST"
+init = "HEADER"
+unit = "-"
+
+[[data]]
+name = "streaming"
+type = "BOOL"
+scope = "VAR"
+init = "TRUE"
+unit = "-"
+
+[[data]]
+name = "seqNum"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "rawA"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "rawB"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "rawC"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "vA"
+type = "REAL"
+scope = "VAR"
+init = "0.0"
+unit = "V"
+
+[[data]]
+name = "vB"
+type = "REAL"
+scope = "VAR"
+init = "0.0"
+unit = "V"
+
+[[data]]
+name = "vC"
+type = "REAL"
+scope = "VAR"
+init = "0.0"
+unit = "V"
+
+[[data]]
+name = "ctrlCmd"
+type = "STRING"
+scope = "VAR"
+init = ""
+unit = "-"
+
+[[data]]
+name = "_i0"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_SERIAL"
+args = [{ kind = "uint", value = 115200 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ADC_INPUT"
+args = [{ kind = "var", name = "sensorA" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ADC_INPUT"
+args = [{ kind = "var", name = "sensorB" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ADC_INPUT"
+args = [{ kind = "var", name = "sensorC" }]
+
+[[setup]]
+kind = "call"
+name = "SERIAL_PRINTLN"
+args = [{ kind = "var", name = "LOG_HEADER" }]
+
+[[loop]]
+kind = "if"
+condition = { kind = "expr_text", text = "SERIAL_AVAILABLE() > 0" }
+then = [{ kind = "assign", target = "ctrlCmd", value = { kind = "expr_text", text = "SERIAL_READLN()" } }, { kind = "call", name = "SERIAL_FLUSH", args = [] }, { kind = "call", name = "handle_ctrl", args = [{ kind = "var", name = "ctrlCmd" }] }]
+
+[[loop]]
+kind = "if"
+condition = { kind = "var", name = "streaming" }
+then = [{ kind = "assign", target = "rawA", value = { kind = "expr_text", text = "sample_avg(34)" } }, { kind = "assign", target = "rawB", value = { kind = "expr_text", text = "sample_avg(35)" } }, { kind = "assign", target = "rawC", value = { kind = "expr_text", text = "sample_avg(36)" } }, { kind = "assign", target = "vA", value = { kind = "expr_text", text = "MAP_RANGE(INT_TO_REAL(rawA), 0.0, ADC_FULL_SCALE, 0.0, ADC_REF_V)" } }, { kind = "assign", target = "vB", value = { kind = "expr_text", text = "MAP_RANGE(INT_TO_REAL(rawB), 0.0, ADC_FULL_SCALE, 0.0, ADC_REF_V)" } }, { kind = "assign", target = "vC", value = { kind = "expr_text", text = "MAP_RANGE(INT_TO_REAL(rawC), 0.0, ADC_FULL_SCALE, 0.0, ADC_REF_V)" } }, { kind = "assign", target = "seqNum", value = { kind = "expr_text", text = "seqNum + 1" } }, { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "expr_text", text = "CONCAT(TO_STRING(GET_SYS_TIME()), \",\", TO_STRING(seqNum), \",\", TO_STRING_FMT(vA, 4), \",\", TO_STRING_FMT(vB, 4), \",\", TO_STRING_FMT(vC, 4), \",\", TO_STRING(rawA), \",\", TO_STRING(rawB), \",\", TO_STRING(rawC))" }] }, { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "SAMPLE_INTERVAL" }] }]
+
+[[functions]]
+name = "sample_avg"
+params = ["pin"]
+body = [{ kind = "assign", target = "acc", value = { kind = "uint", value = 0 } }, { kind = "for", counter = "_i0", to = { kind = "var", name = "SAMPLE_COUNT" }, body = [{ kind = "assign", target = "acc", value = { kind = "expr_text", text = "acc + READ_ADC(pin)" } }, { kind = "return", value = { kind = "expr_text", text = "acc / SAMPLE_COUNT" } }] }]
+
+[[functions]]
+name = "handle_ctrl"
+params = ["cmd"]
+body = [{ kind = "if", condition = { kind = "expr_text", text = "cmd = CTRL_PAUSE" }, then = [{ kind = "assign", target = "streaming", value = { kind = "bool", value = false } }, { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "string", value = "PAUSED" }] }], elif = [{ condition = { kind = "expr_text", text = "cmd = CTRL_RESUME" }, then = [{ kind = "assign", target = "streaming", value = { kind = "bool", value = true } }, { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "string", value = "RESUMED" }] }] }, { condition = { kind = "expr_text", text = "cmd = CTRL_HEADER" }, then = [{ kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "var", name = "LOG_HEADER" }] }] }], else = [{ kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "expr_text", text = "CONCAT(\"UNKNOWN_CTRL: \", cmd)" }] }] }]

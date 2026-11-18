@@ -1,0 +1,120 @@
+# Migrated from core/asl/v010/examples/dual-button-led-control.toon
+# Legacy TOON retained under core/asl/v010/ (read-only).
+
+[metadata]
+asl_version = "0.0.1"
+project_name = "dual-button-led-control"
+editor = "dendriForge"
+author = "SOGEKING"
+notes = "Migrated from legacy v010 TOON — ASL 0.0.1"
+
+[[hardware]]
+pin = 2
+hw_type = "digital"
+io_mode = "DI"
+label = "btn1Pin"
+target_role = "digital-in"
+
+[[hardware]]
+pin = 3
+hw_type = "digital"
+io_mode = "DI"
+label = "btn2Pin"
+target_role = "digital-in"
+
+[[hardware]]
+pin = 4
+hw_type = "digital"
+io_mode = "DO"
+label = "led1Pin"
+target_role = "digital-out"
+
+[[hardware]]
+pin = 5
+hw_type = "digital"
+io_mode = "DO"
+label = "led2Pin"
+target_role = "digital-out"
+
+[[data]]
+name = "DEBOUNCE_TIME"
+type = "TIME"
+scope = "CONST"
+init = "T#250ms"
+unit = "ms"
+
+[[data]]
+name = "led1State"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "led2State"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "btnRead"
+type = "BOOL"
+scope = "TEMP"
+init = "FALSE"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT_PULLDOWN"
+args = [{ kind = "var", name = "btn1Pin" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT_PULLDOWN"
+args = [{ kind = "var", name = "btn2Pin" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "var", name = "led1Pin" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "var", name = "led2Pin" }]
+
+[[setup]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "var", name = "led1Pin" }, { kind = "bool", value = false }]
+
+[[setup]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "var", name = "led2Pin" }, { kind = "bool", value = false }]
+
+[[loop]]
+kind = "assign"
+target = "btnRead"
+value = { kind = "expr_text", text = "GET_BOOL(2)" }
+
+[[loop]]
+kind = "if"
+condition = { kind = "var", name = "btnRead" }
+then = [{ kind = "assign", target = "led1State", value = { kind = "expr_text", text = "toggle_led1(led1State)" } }, { kind = "assign", target = "btnRead", value = { kind = "expr_text", text = "GET_BOOL(3)" } }]
+
+[[loop]]
+kind = "if"
+condition = { kind = "var", name = "btnRead" }
+then = [{ kind = "assign", target = "led2State", value = { kind = "expr_text", text = "toggle_led2(led2State)" } }, { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "DEBOUNCE_TIME" }] }]
+
+[[functions]]
+name = "toggle_led1"
+params = ["state"]
+body = [{ kind = "assign", target = "state", value = { kind = "expr_text", text = "NOT state" } }, { kind = "if", condition = { kind = "var", name = "state" }, then = [{ kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "led1Pin" }, { kind = "bool", value = true }] }], else = [{ kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "led1Pin" }, { kind = "bool", value = false }] }, { kind = "return", value = { kind = "var", name = "state" } }] }]
+
+[[functions]]
+name = "toggle_led2"
+params = ["state"]
+body = [{ kind = "assign", target = "state", value = { kind = "expr_text", text = "NOT state" } }, { kind = "if", condition = { kind = "var", name = "state" }, then = [{ kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "led2Pin" }, { kind = "bool", value = true }] }], else = [{ kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "led2Pin" }, { kind = "bool", value = false }] }, { kind = "return", value = { kind = "var", name = "state" } }] }]

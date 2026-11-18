@@ -1,0 +1,115 @@
+# Sim snapshot S06 — TOF off-delay + R_TRIG / F_TRIG (scenario 1 edges)
+# btn starts TRUE; each scan ends by clearing btn so scan2 sees falling edge / off-delay.
+
+[metadata]
+asl_version = "0.0.1"
+project_name = "S06-iec-tof-trig"
+editor = "dendriForge"
+author = "dendriForge Priority 2"
+notes = "TOF + R_TRIG + F_TRIG — DEN-11"
+
+[[hardware]]
+pin = 2
+hw_type = "digital"
+io_mode = "DI"
+label = "btnPin"
+target_role = "digital-in"
+
+[[hardware]]
+pin = 13
+hw_type = "digital"
+io_mode = "DO"
+label = "ledPin"
+target_role = "digital-out"
+
+[[data]]
+name = "PT"
+type = "TIME"
+scope = "CONST"
+init = "T#200ms"
+unit = "ms"
+
+[[data]]
+name = "STEP"
+type = "TIME"
+scope = "CONST"
+init = "T#100ms"
+unit = "ms"
+
+[[data]]
+name = "btn"
+type = "BOOL"
+scope = "VAR"
+init = "TRUE"
+unit = "-"
+
+[[data]]
+name = "rise"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "fall"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "q"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT"
+args = [{ kind = "var", name = "btnPin" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "var", name = "ledPin" }]
+
+[[loop]]
+kind = "assign"
+target = "rise"
+value = { kind = "call", name = "R_TRIG", args = [
+  { kind = "string", value = "rt1" },
+  { kind = "var", name = "btn" },
+]}
+
+[[loop]]
+kind = "assign"
+target = "fall"
+value = { kind = "call", name = "F_TRIG", args = [
+  { kind = "string", value = "ft1" },
+  { kind = "var", name = "btn" },
+]}
+
+[[loop]]
+kind = "assign"
+target = "q"
+value = { kind = "call", name = "TOF", args = [
+  { kind = "string", value = "tof1" },
+  { kind = "var", name = "btn" },
+  { kind = "var", name = "PT" },
+]}
+
+[[loop]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "var", name = "ledPin" }, { kind = "var", name = "q" }]
+
+[[loop]]
+kind = "assign"
+target = "btn"
+value = { kind = "bool", value = false }
+
+[[loop]]
+kind = "call"
+name = "WAIT_TIME"
+args = [{ kind = "var", name = "STEP" }]

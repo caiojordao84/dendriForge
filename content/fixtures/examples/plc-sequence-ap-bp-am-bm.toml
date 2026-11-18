@@ -1,0 +1,215 @@
+# Migrated from core/asl/v010/examples/plc-sequence-ap-bp-am-bm.toon
+# Legacy TOON retained under core/asl/v010/ (read-only).
+
+[metadata]
+asl_version = "0.0.1"
+project_name = "plc-sequence-ap-bp-am-bm"
+editor = "dendriForge"
+author = "TJUICE"
+notes = "Migrated from legacy v010 TOON — ASL 0.0.1"
+
+[[hardware]]
+pin = 0
+hw_type = "digital"
+io_mode = "DI"
+label = "startBtn"
+target_role = "btn-start"
+
+[[hardware]]
+pin = 1
+hw_type = "digital"
+io_mode = "DI"
+label = "sensorA0"
+target_role = "sensor-a0"
+
+[[hardware]]
+pin = 2
+hw_type = "digital"
+io_mode = "DI"
+label = "sensorA1"
+target_role = "sensor-a1"
+
+[[hardware]]
+pin = 3
+hw_type = "digital"
+io_mode = "DI"
+label = "sensorB0"
+target_role = "sensor-b0"
+
+[[hardware]]
+pin = 4
+hw_type = "digital"
+io_mode = "DI"
+label = "sensorB1"
+target_role = "sensor-b1"
+
+[[hardware]]
+pin = 14
+hw_type = "digital"
+io_mode = "DO"
+label = "valveAplus"
+target_role = "valve-a-plus"
+
+[[hardware]]
+pin = 15
+hw_type = "digital"
+io_mode = "DO"
+label = "valveAminus"
+target_role = "valve-a-minus"
+
+[[hardware]]
+pin = 16
+hw_type = "digital"
+io_mode = "DO"
+label = "valveBplus"
+target_role = "valve-b-plus"
+
+[[hardware]]
+pin = 17
+hw_type = "digital"
+io_mode = "DO"
+label = "valveBminus"
+target_role = "valve-b-minus"
+
+[[data]]
+name = "LOOP_INTERVAL"
+type = "TIME"
+scope = "CONST"
+init = "T#10ms"
+unit = "ms"
+
+[[data]]
+name = "seqStep"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "startBtn"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "snsA0"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "snsA1"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "snsB0"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "snsB1"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "outA"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "outB"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT"
+args = [{ kind = "var", name = "startBtn" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT"
+args = [{ kind = "var", name = "sensorA0" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT"
+args = [{ kind = "var", name = "sensorA1" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT"
+args = [{ kind = "var", name = "sensorB0" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT"
+args = [{ kind = "var", name = "sensorB1" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "var", name = "valveAplus" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "var", name = "valveAminus" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "var", name = "valveBplus" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "var", name = "valveBminus" }]
+
+[[loop]]
+kind = "call"
+name = "read_inputs"
+args = []
+
+[[loop]]
+kind = "call"
+name = "process_state_machine"
+args = []
+
+[[loop]]
+kind = "call"
+name = "write_outputs"
+args = []
+
+[[loop]]
+kind = "call"
+name = "WAIT_TIME"
+args = [{ kind = "var", name = "LOOP_INTERVAL" }]
+
+[[functions]]
+name = "read_inputs"
+params = []
+body = [{ kind = "assign", target = "startBtn", value = { kind = "expr_text", text = "GET_BOOL(0)" } }, { kind = "assign", target = "snsA0", value = { kind = "expr_text", text = "GET_BOOL(1)" } }, { kind = "assign", target = "snsA1", value = { kind = "expr_text", text = "GET_BOOL(2)" } }, { kind = "assign", target = "snsB0", value = { kind = "expr_text", text = "GET_BOOL(3)" } }, { kind = "assign", target = "snsB1", value = { kind = "expr_text", text = "GET_BOOL(4)" } }]
+
+[[functions]]
+name = "process_state_machine"
+params = []
+body = [{ kind = "if", condition = { kind = "expr_text", text = "seqStep == 0 AND startBtn AND snsA0 AND snsB0" }, then = [{ kind = "assign", target = "seqStep", value = { kind = "uint", value = 1 } }] }, { kind = "if", condition = { kind = "expr_text", text = "seqStep == 1 AND snsA1" }, then = [{ kind = "assign", target = "seqStep", value = { kind = "uint", value = 2 } }] }, { kind = "if", condition = { kind = "expr_text", text = "seqStep == 2 AND snsB1" }, then = [{ kind = "assign", target = "seqStep", value = { kind = "uint", value = 3 } }] }, { kind = "if", condition = { kind = "expr_text", text = "seqStep == 3 AND snsA0" }, then = [{ kind = "assign", target = "seqStep", value = { kind = "uint", value = 4 } }] }, { kind = "if", condition = { kind = "expr_text", text = "seqStep == 4 AND snsB0" }, then = [{ kind = "assign", target = "seqStep", value = { kind = "uint", value = 0 } }] }]
+
+[[functions]]
+name = "write_outputs"
+params = []
+body = [{ kind = "assign", target = "outA", value = { kind = "expr_text", text = "(seqStep == 1) OR (seqStep == 2)" } }, { kind = "assign", target = "outB", value = { kind = "expr_text", text = "(seqStep == 2) OR (seqStep == 3)" } }, { kind = "if", condition = { kind = "var", name = "outA" }, then = [{ kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "valveAplus" }, { kind = "bool", value = true }] }, { kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "valveAminus" }, { kind = "bool", value = false }] }], else = [{ kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "valveAplus" }, { kind = "bool", value = false }] }, { kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "valveAminus" }, { kind = "bool", value = true }] }] }, { kind = "if", condition = { kind = "var", name = "outB" }, then = [{ kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "valveBplus" }, { kind = "bool", value = true }] }, { kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "valveBminus" }, { kind = "bool", value = false }] }], else = [{ kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "valveBplus" }, { kind = "bool", value = false }] }, { kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "valveBminus" }, { kind = "bool", value = true }] }] }]

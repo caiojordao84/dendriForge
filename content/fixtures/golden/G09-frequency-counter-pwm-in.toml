@@ -1,0 +1,201 @@
+# Migrated from core/asl/v010/golden/G09-frequency-counter-pwm-in.toon
+# Legacy TOON retained under core/asl/v010/ (read-only).
+
+[metadata]
+asl_version = "0.0.1"
+project_name = "G09-frequency-counter-pwm-in"
+editor = "dendriForge"
+author = "dendriForge Golden Suite"
+notes = "Migrated from legacy v010 TOON — ASL 0.0.1"
+
+[[hardware]]
+pin = 14
+hw_type = "digital"
+io_mode = "DI"
+label = "signalIn"
+target_role = "int-rising"
+
+[[hardware]]
+pin = 15
+hw_type = "digital"
+io_mode = "DI"
+label = "signalFall"
+target_role = "int-falling"
+
+[[hardware]]
+pin = 16
+hw_type = "digital"
+io_mode = "DO"
+label = "ledGate"
+target_role = "digital-out"
+
+[[data]]
+name = "GATE_WINDOW"
+type = "TIME"
+scope = "CONST"
+init = "T#1000ms"
+unit = "ms"
+
+[[data]]
+name = "SERIAL_BAUD"
+type = "DINT"
+scope = "CONST"
+init = "115200"
+unit = "-"
+
+[[data]]
+name = "LOOP_DELAY"
+type = "TIME"
+scope = "CONST"
+init = "T#10ms"
+unit = "ms"
+
+[[data]]
+name = "pulseCount"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "lastRiseTime"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "lastFallTime"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "gateStart"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "gateReady"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[data]]
+name = "freqHz"
+type = "REAL"
+scope = "VAR"
+init = "0.0"
+unit = "Hz"
+
+[[data]]
+name = "periodUs"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "us"
+
+[[data]]
+name = "highTimeUs"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "us"
+
+[[data]]
+name = "dutyCyclePct"
+type = "REAL"
+scope = "VAR"
+init = "0.0"
+unit = "pct"
+
+[[data]]
+name = "nowMs"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "ms"
+
+[[data]]
+name = "nowUs"
+type = "DWORD"
+scope = "VAR"
+init = "0"
+unit = "us"
+
+[[data]]
+name = "logLine"
+type = "STRING"
+scope = "VAR"
+init = ""
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_SERIAL"
+args = [{ kind = "uint", value = 115200 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT"
+args = [{ kind = "var", name = "signalIn" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT"
+args = [{ kind = "var", name = "signalFall" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "var", name = "ledGate" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ATTACH_INTERRUPT"
+args = [{ kind = "var", name = "signalIn" }, { kind = "var", name = "isr_rise" }, { kind = "string", value = "RISING" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_ATTACH_INTERRUPT"
+args = [{ kind = "var", name = "signalFall" }, { kind = "var", name = "isr_fall" }, { kind = "string", value = "FALLING" }]
+
+[[setup]]
+kind = "assign"
+target = "gateStart"
+value = { kind = "expr_text", text = "GET_SYS_TIME()" }
+
+[[setup]]
+kind = "call"
+name = "SERIAL_PRINTLN"
+args = [{ kind = "string", value = "freq_hz,period_us,duty_pct" }]
+
+[[loop]]
+kind = "assign"
+target = "nowMs"
+value = { kind = "expr_text", text = "GET_SYS_TIME()" }
+
+[[loop]]
+kind = "if"
+condition = { kind = "expr_text", text = "TIME_DIFF(nowMs, gateStart) >= GATE_WINDOW" }
+then = [{ kind = "assign", target = "freqHz", value = { kind = "expr_text", text = "INT_TO_REAL(pulseCount) / (INT_TO_REAL(GATE_WINDOW) / 1000.0)" } }]
+
+[[loop]]
+kind = "if"
+condition = { kind = "expr_text", text = "pulseCount > 0 AND periodUs > 0" }
+then = [{ kind = "assign", target = "dutyCyclePct", value = { kind = "expr_text", text = "MAP_RANGE(INT_TO_REAL(highTimeUs), 0.0, INT_TO_REAL(periodUs), 0.0, 100.0)" } }]
+else = [{ kind = "assign", target = "dutyCyclePct", value = { kind = "real", value = 0.0 } }, { kind = "assign", target = "logLine", value = { kind = "expr_text", text = "CONCAT(TO_STRING_FMT(freqHz, 2), \",\", TO_STRING(periodUs), \",\", TO_STRING_FMT(dutyCyclePct, 1))" } }, { kind = "call", name = "SERIAL_PRINTLN", args = [{ kind = "var", name = "logLine" }] }, { kind = "assign", target = "pulseCount", value = { kind = "uint", value = 0 } }, { kind = "assign", target = "gateStart", value = { kind = "var", name = "nowMs" } }, { kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "ledGate" }, { kind = "var", name = "gateReady" }] }, { kind = "assign", target = "gateReady", value = { kind = "expr_text", text = "NOT gateReady" } }, { kind = "call", name = "WAIT_TIME", args = [{ kind = "var", name = "LOOP_DELAY" }] }]
+
+[[functions]]
+name = "isr_rise"
+params = []
+body = [{ kind = "assign", target = "nowUs", value = { kind = "expr_text", text = "GET_SYS_TIME_US()" } }, { kind = "if", condition = { kind = "expr_text", text = "lastRiseTime > 0" }, then = [{ kind = "assign", target = "periodUs", value = { kind = "expr_text", text = "TIME_DIFF(nowUs, lastRiseTime)" } }] }, { kind = "assign", target = "lastRiseTime", value = { kind = "var", name = "nowUs" } }, { kind = "assign", target = "pulseCount", value = { kind = "expr_text", text = "pulseCount + 1" } }]
+
+[[functions]]
+name = "isr_fall"
+params = []
+body = [{ kind = "assign", target = "nowUs", value = { kind = "expr_text", text = "GET_SYS_TIME_US()" } }, { kind = "if", condition = { kind = "expr_text", text = "lastRiseTime > 0" }, then = [{ kind = "assign", target = "highTimeUs", value = { kind = "expr_text", text = "TIME_DIFF(nowUs, lastRiseTime)" } }] }, { kind = "assign", target = "lastFallTime", value = { kind = "var", name = "nowUs" } }]

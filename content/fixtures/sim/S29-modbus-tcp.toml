@@ -1,0 +1,140 @@
+# Sim S29 — Modbus TCP virtual register map (P2 / DEN-25)
+# CFG_MODBUS_TCP + FC1/3/5/6 singles; FC2/4 via seed. Not a wire MBAP stack.
+
+[metadata]
+asl_version = "0.0.1"
+project_name = "S29-modbus-tcp"
+editor = "dendriForge"
+author = "dendriForge DEN-25"
+notes = "Modbus TCP holding/coil round-trip + seeded input/discrete — virtual map only"
+
+[[hardware]]
+pin = 13
+hw_type = "digital"
+io_mode = "DO"
+label = "mbActiveLed"
+target_role = "digital-out"
+
+[[data]]
+name = "hr"
+type = "WORD"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "coil"
+type = "BOOL"
+scope = "VAR"
+init = "false"
+unit = "-"
+
+[[data]]
+name = "ir"
+type = "WORD"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[data]]
+name = "di"
+type = "BOOL"
+scope = "VAR"
+init = "false"
+unit = "-"
+
+[[data]]
+name = "msg"
+type = "STRING"
+scope = "VAR"
+init = "\"\""
+unit = "-"
+
+[[setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "var", name = "mbActiveLed" }]
+
+[[setup]]
+kind = "call"
+name = "CFG_SERIAL"
+args = [{ kind = "uint", value = 115200 }]
+
+[[setup]]
+kind = "call"
+name = "CFG_MODBUS_TCP"
+args = [
+  { kind = "uint", value = 1 },
+  { kind = "string", value = "server" },
+  { kind = "uint", value = 502 },
+]
+
+[[loop]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "var", name = "mbActiveLed" }, { kind = "bool", value = true }]
+
+[[loop]]
+kind = "call"
+name = "MB_WRITE_HOLDING"
+args = [
+  { kind = "uint", value = 1 },
+  { kind = "uint", value = 100 },
+  { kind = "hex", value = "0x1234" },
+]
+
+[[loop]]
+kind = "assign"
+target = "hr"
+value = { kind = "call", name = "MB_READ_HOLDING", args = [
+  { kind = "uint", value = 1 },
+  { kind = "uint", value = 100 },
+]}
+
+[[loop]]
+kind = "call"
+name = "MB_WRITE_COIL"
+args = [
+  { kind = "uint", value = 1 },
+  { kind = "uint", value = 0 },
+  { kind = "bool", value = true },
+]
+
+[[loop]]
+kind = "assign"
+target = "coil"
+value = { kind = "call", name = "MB_READ_COIL", args = [
+  { kind = "uint", value = 1 },
+  { kind = "uint", value = 0 },
+]}
+
+[[loop]]
+kind = "assign"
+target = "ir"
+value = { kind = "call", name = "MB_READ_INPUT", args = [
+  { kind = "uint", value = 1 },
+  { kind = "uint", value = 10 },
+]}
+
+[[loop]]
+kind = "assign"
+target = "di"
+value = { kind = "call", name = "MB_READ_DISCRETE", args = [
+  { kind = "uint", value = 1 },
+  { kind = "uint", value = 2 },
+]}
+
+[[loop]]
+kind = "assign"
+target = "msg"
+value = { kind = "expr_text", text = "CONCAT(\"hr=\", TO_STRING(hr), \",coil=\", TO_STRING(coil), \",ir=\", TO_STRING(ir), \",di=\", TO_STRING(di))" }
+
+[[loop]]
+kind = "call"
+name = "SERIAL_PRINTLN"
+args = [{ kind = "var", name = "msg" }]
+
+[[loop]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "var", name = "mbActiveLed" }, { kind = "bool", value = false }]

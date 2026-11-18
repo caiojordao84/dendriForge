@@ -3,7 +3,7 @@ name = "dendri-parse"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Parse ASL .asl.toml programs and .dendri.toml simulation projects"
+description = "Parse ASL program and simulation project .toml files"
 
 [dependencies]
 dendri-ast = { workspace = true }
