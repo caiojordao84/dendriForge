@@ -1,0 +1,117 @@
+= "INPUT" => "CFG_DIGITAL_INPUT",
+                _ => "CFG_DIGITAL_OUTPUT",
+            };
+            let opcode = match mode {
+                Some(Expr::Var { name: m }) => match m.as_str() {
+                    "OUTPUT" => "CFG_DIGITAL_OUTPUT",
+                    "INPUT_PULLUP" => "CFG_DIGITAL_INPUT_PULLUP",
+                    "INPUT_PULLDOWN" => "CFG_DIGITAL_INPUT_PULLDOWN",
+                    "INPUT" => "CFG_DIGITAL_INPUT",
+                    _ => opcode,
+                },
+                _ => opcode,
+            };
+            Stmt::Call {
+                name: opcode.into(),
+                args: vec![pin],
+            }
+        }
+        "digitalWrite" | "digital_write" => Stmt::Call {
+            name: "SET_BOOL".into(),
+            args: vec![
+                args.first().cloned().unwrap_or(Expr::Uint { value: 0 }),
+                args.get(1)
+                    .cloned()
+                    .unwrap_or(Expr::Bool { value: false }),
+            ],
+        },
+        "delay" | "delay_ms" => Stmt::Call {
+            name: "WAIT_TIME".into(),
+            args: vec![args.first().cloned().unwrap_or(Expr::Uint { value: 0 })],
+        },
+        "delayMicroseconds" | "delay_us" => Stmt::Call {
+            name: "WAIT_TIME_US".into(),
+            args,
+        },
+        "analogWrite" | "analog_write" => Stmt::Call {
+            name: "SET_PWM_DUTY".into(),
+            args,
+        },
+        "serial_begin" => Stmt::Call {
+            name: "CFG_SERIAL".into(),
+            args,
+        },
+        "serial_print" => Stmt::Call {
+            name: "SERIAL_PRINT".into(),
+            args,
+        },
+        "serial_println" => Stmt::Call {
+            name: "SERIAL_PRINTLN".into(),
+            args,
+        },
+        "serial_flush" => Stmt::Call {
+            name: "SERIAL_FLUSH".into(),
+            args,
+        },
+        "VENDOR_EXTENSION" => {
+            let reason = match args.first() {
+                Some(Expr::String { value }) => value.clone(),
+                Some(other) => format!("{other:?}"),
+                None => String::new(),
+            };
+            Stmt::VendorExtension { reason }
+        }
+        other => Stmt::Call {
+            name: other.into(),
+            args,
+        },
+    }
+}
+
+fn lower_call_expr(name: &str, args: Vec<Expr>) -> Expr {
+    match name {
+        "digitalRead" | "digital_read" => Expr::Call {
+            name: "GET_BOOL".into(),
+            args,
+        },
+        "analogRead" | "analog_read" => Expr::Call {
+            name: "READ_ADC".into(),
+            args,
+        },
+        "millis" => Expr::Call {
+            name: "GET_SYS_TIME".into(),
+            args: vec![],
+        },
+        "micros" => Expr::Call {
+            name: "GET_SYS_TIME_US".into(),
+            args: vec![],
+        },
+        "serial_available" => Expr::Call {
+            name: "SERIAL_AVAILABLE".into(),
+            args,
+        },
+        "serial_read" => Expr::Call {
+            name: "SERIAL_READ".into(),
+            args,
+        },
+        "serial_readln" => Expr::Call {
+            name: "SERIAL_READLN".into(),
+            args: vec![],
+        },
+        other => Expr::Call {
+            name: other.into(),
+            args,
+        },
+    }
+}
+
+fn rewrite_stmts(stmts: Vec<Stmt>, pins: &HashMap<String, u32>) -> Vec<Stmt> {
+    stmts
+        .into_iter()
+        .map(|s| rewrite_stmt(s, pins))
+        .collect()
+}
+
+fn rewrite_stmt(stmt: Stmt, pins: &HashMap<String, u32>) -> Stmt {
+    match stmt {
+  
