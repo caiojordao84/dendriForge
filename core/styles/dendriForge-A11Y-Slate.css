@@ -20,6 +20,11 @@
   --df-bg-editor:   #2b2b2b;
   --df-bg-hover:    #1e293b; /* slate-800 */
   --df-bg-terminal: var(--df-bg-main);
+  /* iced chrome depth (formalized 2026-11-20; mirrored in theme.rs) */
+  --df-bg-lowest:   #060e20;
+  --df-bg-surface:  #0b1326;
+  --df-bg-low:      #131b2e;
+  --df-bg-card:     #171f33;
 
   /* --- Borders & Dividers --- */
   --df-border-main:   var(--df-bg-hover); /* slate-800 */

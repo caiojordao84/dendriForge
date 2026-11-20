@@ -13,8 +13,8 @@
 //! - CSS-only rules (scrollbar, status badge `color-mix`, SVG class selectors,
 //!   `@keyframes`) are behavioural CSS, not palette tokens.
 //!
-//! **Editor chrome extras** (used by iced layout; not in the CSS file):
-//! [`LOWEST`], [`SURFACE`], [`LOW`], [`CARD`], [`SECONDARY`].
+//! Chrome depth tokens [`LOWEST`] / [`SURFACE`] / [`LOW`] / [`CARD`] live in the
+//! CSS SoT as `--df-bg-lowest` … `--df-bg-card`. [`SECONDARY`] = `--df-accent-purple-light`.
 
 #![allow(dead_code)]
 use iced::{
@@ -55,6 +55,14 @@ pub const DF_BG_EDITOR: Color = rgb(0x2b2b2b);
 pub const DF_BG_HOVER: Color = rgb(0x1e293b);
 /// `--df-bg-terminal` → same as main
 pub const DF_BG_TERMINAL: Color = DF_BG_MAIN;
+/// `--df-bg-lowest` — iced chrome depth (formalized into CSS SoT)
+pub const DF_BG_LOWEST: Color = rgb(0x060e20);
+/// `--df-bg-surface`
+pub const DF_BG_SURFACE: Color = rgb(0x0b1326);
+/// `--df-bg-low`
+pub const DF_BG_LOW: Color = rgb(0x131b2e);
+/// `--df-bg-card`
+pub const DF_BG_CARD: Color = rgb(0x171f33);
 
 // ---------------------------------------------------------------------------
 // CSS SoT — Borders (`--df-border-*`)
@@ -209,13 +217,12 @@ pub const POWER: Color = DF_PIN_POWER;
 pub const GROUND: Color = DF_PIN_GND;
 pub const ICSP: Color = DF_PIN_ICSP;
 
-// Editor chrome extras (not in CSS SoT — keep for layout depth).
-pub const LOWEST: Color = rgb(0x060e20);
-pub const SURFACE: Color = rgb(0x0b1326);
-pub const LOW: Color = rgb(0x131b2e);
-pub const CARD: Color = rgb(0x171f33);
-/// Legacy chrome accent (closest CSS: `--df-accent-purple-light` = #e9d5ff).
-pub const SECONDARY: Color = rgb(0xcebdff);
+pub const LOWEST: Color = DF_BG_LOWEST;
+pub const SURFACE: Color = DF_BG_SURFACE;
+pub const LOW: Color = DF_BG_LOW;
+pub const CARD: Color = DF_BG_CARD;
+/// `--df-accent-purple-light` (Caio 2026-11-20: SECONDARY remapped onto SoT).
+pub const SECONDARY: Color = DF_ACCENT_PURPLE_LIGHT;
 
 pub fn slate() -> Theme {
     Theme::custom(
@@ -407,5 +414,11 @@ mod tests {
         assert_eq!(POWER, DF_PIN_POWER);
         assert_eq!(GROUND, DF_PIN_GND);
         assert_eq!(ICSP, DF_PIN_ICSP);
+        assert_eq!(SECONDARY, DF_ACCENT_PURPLE_LIGHT);
+        assert_eq!(SECONDARY, rgb(0xe9d5ff));
+        assert_eq!(LOWEST, DF_BG_LOWEST);
+        assert_eq!(SURFACE, DF_BG_SURFACE);
+        assert_eq!(LOW, DF_BG_LOW);
+        assert_eq!(CARD, DF_BG_CARD);
     }
 }

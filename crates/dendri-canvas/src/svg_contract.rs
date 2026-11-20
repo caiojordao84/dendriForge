@@ -10,7 +10,7 @@
 //! |---|---|---|---|
 //! | LED | `content/assets/svg/components/led.svg` (+ `core/`) | 10 × 10 mm | yes |
 //! | Pushbutton | `…/cmd-pushbutton-no-start.svg` | 24 × 24 mm | yes |
-//! | Arduino Uno R3 | `…/boards/arduino-uno-r3.svg` | ≈74.80 × 53.40 mm | **no** (physical outline; left as-authored — resize not a small fix) |
+//! | Arduino Uno R3 | `…/boards/arduino-uno-r3.svg` | **76 × 54 mm** | yes (padded from ≈74.80 × 53.40; geometry top-left, empty margin R/B) |
 //!
 //! Bodies may still center on the half-module; **terminals** snap only to full
 //! modules (4 mm / 48 px @ 100%).
@@ -72,6 +72,8 @@ mod tests {
         assert_eq!(SVG_SIZE_QUANTUM_PX_AT_100, 24.0);
         assert!(is_half_module_multiple_mm(10.0));
         assert!(is_half_module_multiple_mm(24.0));
+        assert!(is_half_module_multiple_mm(76.0));
+        assert!(is_half_module_multiple_mm(54.0));
         assert!(!is_half_module_multiple_mm(74.801872));
     }
 }
