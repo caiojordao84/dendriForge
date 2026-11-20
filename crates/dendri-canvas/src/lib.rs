@@ -8,12 +8,14 @@
 //! Headless CI uses deterministic [`VisualFrame`] text snapshots; the iced
 //! editor consumes the same binding and rendered SVG strings.
 //!
-//! Simulation view also renders a **logical-grid** live scene ([`grid`],
-//! [`scene`]): 1 u = 4 mm → 48 px @ 100%, terminals on full-module
-//! intersections, zoom via scale (no fixed DPI in source geometry).
+//! Simulation view uses a **world + camera** ([`camera`], [`world`]) with an
+//! infinite line grid under iced: 1 u = 4 mm → 48 px @ 100%, terminals on
+//! full-module intersections. Headless [`scene`] SVG remains for CI snapshots.
 
+pub mod camera;
 pub mod grid;
 pub mod scene;
+pub mod world;
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -23,12 +25,14 @@ use dendri_ast::{SimulationProject, Wire};
 use dendri_profiles::{ProfileStore, SvgHook, VisualMvp};
 use dendri_sim::{SimConfig, Simulator};
 
+pub use camera::{Camera, WorldPoint, WorldRect, WorldSize, ZOOM_DEFAULT, ZOOM_MAX, ZOOM_MIN};
 pub use grid::{
     default_scene_px, grid_to_mm, grid_to_px, mm_to_grid, px_per_grid, px_to_grid,
     snap_half_module, snap_terminal, GRID_UNIT_MM, HALF_MODULE, PX_PER_GRID_AT_100,
     PX_PER_HALF_AT_100,
 };
 pub use scene::{render_live_scene_svg, C01Layout, LiveSceneState};
+pub use world::{LedPlaceholder, PhaseAScene, Terminal, UnoPlaceholder};
 
 /// Canonical asset roots (prefer staged `content/assets/svg/`, fall back to `core/`).
 pub const ASSET_BOARD: &str = "content/assets/svg/boards/arduino-uno-r3.svg";

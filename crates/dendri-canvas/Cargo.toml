@@ -3,7 +3,7 @@ name = "dendri-canvas"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Live SVG simulation canvas binding for MVP visual set (Uno + LED + button)"
+description = "Simulation world canvas (camera + grid units) and SVG binding for MVP visual set"
 
 [dependencies]
 dendri-ast = { workspace = true }

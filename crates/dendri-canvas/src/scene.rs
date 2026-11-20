@@ -111,7 +111,7 @@ pub fn render_live_scene_svg_with_layout(
     zoom: f64,
     layout: &C01Layout,
 ) -> String {
-    let zoom = zoom.clamp(0.25, 4.0);
+    let zoom = zoom.clamp(crate::camera::ZOOM_MIN, crate::camera::ZOOM_MAX);
     let scale = px_per_grid(zoom);
     let (pw, ph) = layout.pixel_size(zoom);
     let led_fill = if state.led_on { "#ef4444" } else { "#7f1d1d" };
