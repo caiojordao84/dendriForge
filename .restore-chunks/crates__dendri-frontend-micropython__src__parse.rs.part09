@@ -1,0 +1,128 @@
+gital,
+            };
+        } else if let Some(v) = part.strip_prefix("mode=") {
+            io_mode = match v {
+                "Di" | "DI" => IoMode::Di,
+                "Bi" | "BI" => IoMode::Bi,
+                _ => IoMode::Do,
+            };
+        } else if let Some(v) = part.strip_prefix("pull=") {
+            pull = PullMode::parse(v).unwrap_or(PullMode::None);
+        }
+    }
+    let pin = pin?;
+    if label.is_empty() {
+        label = format!("pin{pin}");
+    }
+    Some(HwAnno {
+        pin,
+        hw_type,
+        io_mode,
+        label,
+        target_role: role,
+        pull,
+    })
+}
+
+fn parse_asl_data_anno(body: &str) -> Option<(String, DataAnno)> {
+    let mut name = None;
+    let mut data_type = DataType::Uint;
+    let mut scope = Scope::Var;
+    let mut unit = String::from("-");
+    for part in body.split_whitespace() {
+        if let Some(v) = part.strip_prefix("name=") {
+            name = Some(v.to_string());
+        } else if let Some(v) = part.strip_prefix("type=") {
+            data_type = DataType::parse(v)?;
+        } else if let Some(v) = part.strip_prefix("scope=") {
+            scope = match v {
+                "CONST" => Scope::Const,
+                "RETAIN" => Scope::Retain,
+                "PERSISTENT" => Scope::Persistent,
+                "TEMP" => Scope::Temp,
+                "EXTERN" => Scope::Extern,
+                _ => Scope::Var,
+            };
+        } else if let Some(v) = part.strip_prefix("unit=") {
+            unit = v.to_string();
+        }
+    }
+    Some((
+        name?,
+        DataAnno {
+            data_type,
+            scope,
+            unit,
+        },
+    ))
+}
+
+fn snake_to_camel(s: &str) -> String {
+    let lower = s.to_ascii_lowercase();
+    let mut out = String::new();
+    let mut up = false;
+    for (i, c) in lower.chars().enumerate() {
+        if c == '_' {
+            up = true;
+            continue;
+        }
+        if i == 0 {
+            out.push(c);
+        } else if up {
+            out.push(c.to_ascii_uppercase());
+            up = false;
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
+fn to_upper_snake(s: &str) -> String {
+    let mut out = String::new();
+    for (i, c) in s.chars().enumerate() {
+        if c.is_uppercase() && i > 0 {
+            out.push('_');
+        }
+        out.push(c.to_ascii_uppercase());
+    }
+    if out.is_empty() {
+        "PIN".into()
+    } else {
+        out
+    }
+}
+
+/// Prefer hardware label vars (camelCase) over raw pin numbers in ASL actions.
+fn pin_const_to_label(const_name: &str) -> String {
+    // Emit uses `LED_PIN = 13` for label `ledPin`.
+    if const_name
+        .chars()
+        .all(|c| c.is_ascii_uppercase() || c == '_' || c.is_ascii_digit())
+    {
+        snake_to_camel(&const_name.to_ascii_lowercase())
+    } else {
+        const_name.to_string()
+    }
+}
+
+fn pin_to_logical_expr(pin: u32, pin_consts: &HashMap<String, u32>) -> Expr {
+    if let Some((label, _)) = pin_consts.iter().find(|(_, p)| **p == pin) {
+        Expr::Var {
+            name: pin_const_to_label(label),
+        }
+    } else {
+        Expr::Uint {
+            value: pin as u64,
+        }
+    }
+}
+
+fn parse_pin_ctor(rhs: &str) -> Option<(String, String)> {
+    let rest = rhs.strip_prefix("Pin(")?.strip_suffix(')')?;
+    let (pin, mode) = rest.split_once(',')?;
+    Some((pin.trim().to_string(), mode.trim().to_string()))
+}
+
+fn parse_pwm_ctor(rhs: &str) -> Option<(String, String)> {
+    // PWM(Pin(NAME), freq=N) or PWM(Pin(NAME), freq = N)
