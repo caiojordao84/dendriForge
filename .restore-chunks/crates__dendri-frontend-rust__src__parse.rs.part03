@@ -1,0 +1,83 @@
+ | b'u')) {
+                            self.bump();
+                        }
+                    }
+                    return Ok((Tok::Hex(hex), line, col));
+                }
+                let mut num = String::new();
+                let mut is_real = false;
+                while let Some(ch) = self.peek() {
+                    if ch.is_ascii_digit() {
+                        num.push(ch as char);
+                        self.bump();
+                    } else if ch == b'.' && !is_real {
+                        // Do not consume range `..` as a float (e.g. `0..LIMIT`).
+                        if self.peek2() == Some(b'.') {
+                            break;
+                        }
+                        is_real = true;
+                        num.push('.');
+                        self.bump();
+                    } else {
+                        break;
+                    }
+                }
+                // optional C++ UL/ul/L or Rust u32/i32/usize suffixes
+                if matches!(self.peek(), Some(b'U' | b'u' | b'L' | b'l' | b'i' | b'f')) {
+                    // strip letter suffix run (u32, i32, usize, f32, UL, …)
+                    while matches!(
+                        self.peek(),
+                        Some(b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9')
+                    ) {
+                        let ch = self.peek().unwrap();
+                        // stop before eating a following ident that isn't a suffix —
+                        // suffixes are glued: 100u32 / 1.0f32 / 100UL
+                        if ch.is_ascii_alphanumeric() {
+                            self.bump();
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                if is_real {
+                    let v: f64 = num.parse().map_err(|_| RustParseError::At {
+                        line,
+                        col,
+                        message: format!("bad real {num}"),
+                    })?;
+                    Ok((Tok::Real(v), line, col))
+                } else {
+                    let v: u64 = num.parse().map_err(|_| RustParseError::At {
+                        line,
+                        col,
+                        message: format!("bad int {num}"),
+                    })?;
+                    Ok((Tok::Uint(v), line, col))
+                }
+            }
+            b'\'' => {
+                // Char literal → single-char string (SERIAL_READLN sugar uses '\n').
+                self.bump();
+                let ch = match self.bump() {
+                    Some(b'\\') => match self.bump() {
+                        Some(b'n') => '\n',
+                        Some(b't') => '\t',
+                        Some(b'r') => '\r',
+                        Some(b'0') => '\0',
+                        Some(b'\\') => '\\',
+                        Some(b'\'') => '\'',
+                        Some(other) => other as char,
+                        None => {
+                            return Err(RustParseError::At {
+                                line,
+                                col,
+                                message: "unterminated char escape".into(),
+                            });
+                        }
+                    },
+                    Some(c) => c as char,
+                    None => {
+                        return Err(RustParseError::At {
+                            line,
+                            col,
+                            me
