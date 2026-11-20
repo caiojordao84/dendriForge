@@ -3,7 +3,7 @@ name = "dendri-editor"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "DendriForge iced IDE shell — Simulation/Code/Ladder/GRAFCET from canvas mockups"
+description = "DendriForge iced editor — Caio iced 0.13 prototype chrome + dendri-sim"
 default-run = "dendri-editor"
 
 [[bin]]
@@ -13,11 +13,6 @@ path = "src/main.rs"
 [dependencies]
 dendri-ast = { workspace = true }
 dendri-canvas = { workspace = true }
-dendri-emit = { workspace = true }
-dendri-frontend-ladder = { workspace = true }
-dendri-frontend-sfc = { workspace = true }
 dendri-parse = { workspace = true }
 dendri-sim = { workspace = true }
-dendri-sync = { workspace = true }
 iced = { workspace = true }
-toml = { workspace = true }

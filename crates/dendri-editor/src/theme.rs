@@ -1,170 +1,66 @@
-//! A11Y Slate tokens from Caio's canvas mockups (`dendriForge-A11Y-Slate`).
+#![allow(dead_code)]
+use iced::{widget::{button, container}, Background, Border, Color, Theme};
 
-use iced::widget::button;
-use iced::{Background, Border, Color, Theme};
-
-pub const BG_PANEL: Color = Color::from_rgb(0.008, 0.024, 0.090); // #020617
-pub const BG_MAIN: Color = Color::from_rgb(0.059, 0.090, 0.165); // #0f172a
-pub const SURFACE: Color = Color::from_rgb(0.043, 0.075, 0.149); // #0b1326
-pub const SURFACE_LOW: Color = Color::from_rgb(0.075, 0.106, 0.180); // #131b2e
-pub const SURFACE_LOWEST: Color = Color::from_rgb(0.024, 0.055, 0.125); // #060e20
-pub const BORDER: Color = Color::from_rgb(0.118, 0.161, 0.231); // #1e293b
-pub const BORDER_LIGHT: Color = Color::from_rgb(0.200, 0.255, 0.333); // #334155
-pub const TEXT_MAIN: Color = Color::from_rgb(0.886, 0.910, 0.941); // #e2e8f0
-pub const TEXT_MUTED: Color = Color::from_rgb(0.580, 0.639, 0.722); // #94a3b8
-pub const TEXT_HEADING: Color = Color::from_rgb(0.973, 0.980, 0.988); // #f8fafc
-pub const ACCENT_ORANGE: Color = Color::from_rgb(1.0, 0.549, 0.0); // #ff8c00
-pub const ACCENT_EMERALD: Color = Color::from_rgb(0.204, 0.827, 0.600); // #34d399
-pub const ACCENT_SKY: Color = Color::from_rgb(0.220, 0.741, 0.973); // #38bdf8
-pub const ACCENT_CYAN: Color = Color::from_rgb(0.133, 0.827, 0.933); // #22d3ee
-pub const EXPORT_BLUE: Color = Color::from_rgb(0.145, 0.388, 0.922); // #2563eb
-pub const ON_AMBER: Color = Color::from_rgb(0.008, 0.024, 0.090); // slate-950
-
-pub fn panel_bg() -> Background {
-    Background::Color(BG_PANEL)
+pub const fn rgb(hex: u32) -> Color {
+    Color::from_rgb(((hex >> 16) & 255) as f32 / 255.0,
+        ((hex >> 8) & 255) as f32 / 255.0, (hex & 255) as f32 / 255.0)
 }
+pub const PANEL: Color = rgb(0x020617);
+pub const LOWEST: Color = rgb(0x060e20);
+pub const SURFACE: Color = rgb(0x0b1326);
+pub const MAIN: Color = rgb(0x0f172a);
+pub const LOW: Color = rgb(0x131b2e);
+pub const CARD: Color = rgb(0x171f33);
+pub const HOVER: Color = rgb(0x1e293b);
+pub const BORDER: Color = rgb(0x334155);
+pub const MUTED: Color = rgb(0x94a3b8);
+pub const TEXT: Color = rgb(0xe2e8f0);
+pub const HEADING: Color = rgb(0xf8fafc);
+pub const EDITOR: Color = rgb(0x2b2b2b);
+pub const SKY: Color = rgb(0x38bdf8);
+pub const CYAN: Color = rgb(0x22d3ee);
+pub const ORANGE: Color = rgb(0xff8c00);
+pub const EMERALD: Color = rgb(0x34d399);
+pub const ROSE: Color = rgb(0xf43f5e);
+pub const PURPLE: Color = rgb(0xa78bfa);
+pub const SECONDARY: Color = rgb(0xcebdff);
+pub const DIGITAL: Color = rgb(0x00e0ff);
+pub const ANALOG: Color = rgb(0xabe338);
+pub const POWER: Color = rgb(0xfc8181);
+pub const GROUND: Color = rgb(0xa0aec0);
+pub const ICSP: Color = rgb(0x94d2bd);
 
-pub fn main_bg() -> Background {
-    Background::Color(BG_MAIN)
+pub fn slate() -> Theme {
+    Theme::custom("DendriForge Slate".into(), iced::theme::Palette {
+        background: MAIN, text: TEXT, primary: SKY, success: EMERALD, danger: ROSE,
+    })
 }
-
-pub fn surface_bg() -> Background {
-    Background::Color(SURFACE)
+pub fn surface(color: Color) -> container::Style {
+    container::Style { background: Some(Background::Color(color)), text_color: Some(TEXT),
+        ..Default::default() }
 }
-
-pub fn surface_low_bg() -> Background {
-    Background::Color(SURFACE_LOW)
+pub fn panel(_: &Theme) -> container::Style { surface(PANEL) }
+pub fn card(_: &Theme) -> container::Style {
+    container::Style { border: Border { color: BORDER, width: 1.0, radius: 4.0.into() },
+        ..surface(LOW) }
 }
-
-pub fn surface_lowest_bg() -> Background {
-    Background::Color(SURFACE_LOWEST)
-}
-
-fn rounded(radius: f32) -> Border {
-    Border {
-        color: BORDER,
-        width: 1.0,
-        radius: radius.into(),
-    }
-}
-
-pub fn tab_active(_theme: &Theme, _status: button::Status) -> button::Style {
-    button::Style {
-        background: Some(Background::Color(Color::from_rgb(0.090, 0.133, 0.231))), // slate-750
-        text_color: TEXT_HEADING,
-        border: Border {
-            color: BORDER,
-            width: 0.0,
-            radius: 4.0.into(),
-        },
-        ..button::Style::default()
-    }
-}
-
-pub fn tab_idle(_theme: &Theme, status: button::Status) -> button::Style {
-    let text = match status {
-        button::Status::Hovered => TEXT_HEADING,
-        _ => TEXT_MUTED,
+pub fn editor(_: &Theme) -> container::Style { surface(EDITOR) }
+pub fn control(_: &Theme, status: button::Status) -> button::Style {
+    let background = match status {
+        button::Status::Hovered => BORDER,
+        button::Status::Pressed => LOWEST,
+        _ => HOVER,
     };
-    button::Style {
-        background: Some(Background::Color(Color::TRANSPARENT)),
-        text_color: text,
-        border: Border {
-            radius: 4.0.into(),
-            ..Border::default()
-        },
-        ..button::Style::default()
-    }
+    button::Style { background: Some(background.into()),
+        text_color: if status == button::Status::Disabled { MUTED } else { TEXT },
+        border: Border { color: BORDER, width: 1.0, radius: 3.0.into() },
+        ..Default::default() }
 }
-
-pub fn pause_btn(_theme: &Theme, status: button::Status) -> button::Style {
-    let bg = match status {
-        button::Status::Hovered => Color::from_rgb(0.878, 0.482, 0.0), // amberHover
-        _ => ACCENT_ORANGE,
-    };
-    button::Style {
-        background: Some(Background::Color(bg)),
-        text_color: ON_AMBER,
-        border: Border {
-            radius: 4.0.into(),
-            ..Border::default()
-        },
-        ..button::Style::default()
-    }
+pub fn selected(_: &Theme, _: button::Status) -> button::Style {
+    button::Style { background: Some(SKY.into()), text_color: rgb(0x00354a),
+        border: Border { radius: 3.0.into(), ..Default::default() }, ..Default::default() }
 }
-
-pub fn transport_btn(_theme: &Theme, status: button::Status) -> button::Style {
-    let (bg, text) = match status {
-        button::Status::Hovered => (SURFACE_LOW, TEXT_HEADING),
-        _ => (Color::TRANSPARENT, TEXT_MUTED),
-    };
-    button::Style {
-        background: Some(Background::Color(bg)),
-        text_color: text,
-        border: Border {
-            radius: 4.0.into(),
-            ..Border::default()
-        },
-        ..button::Style::default()
-    }
-}
-
-pub fn export_btn(_theme: &Theme, status: button::Status) -> button::Style {
-    let bg = match status {
-        button::Status::Hovered => Color::from_rgb(0.231, 0.510, 0.965),
-        _ => EXPORT_BLUE,
-    };
-    button::Style {
-        background: Some(Background::Color(bg)),
-        text_color: Color::WHITE,
-        border: Border {
-            radius: 4.0.into(),
-            ..Border::default()
-        },
-        ..button::Style::default()
-    }
-}
-
-pub fn chrome_btn(_theme: &Theme, status: button::Status) -> button::Style {
-    let (bg, text) = match status {
-        button::Status::Hovered => (BORDER, TEXT_HEADING),
-        button::Status::Pressed => (BORDER_LIGHT, TEXT_HEADING),
-        _ => (SURFACE_LOW, TEXT_MAIN),
-    };
-    button::Style {
-        background: Some(Background::Color(bg)),
-        text_color: text,
-        border: rounded(4.0),
-        ..button::Style::default()
-    }
-}
-
-pub fn palette_card(_theme: &Theme, status: button::Status) -> button::Style {
-    let border = match status {
-        button::Status::Hovered | button::Status::Pressed => BORDER_LIGHT,
-        _ => BORDER,
-    };
-    button::Style {
-        background: Some(Background::Color(SURFACE_LOWEST)),
-        text_color: TEXT_MAIN,
-        border: Border {
-            color: border,
-            width: 1.0,
-            radius: 4.0.into(),
-        },
-        ..button::Style::default()
-    }
-}
-
-pub fn palette_card_active(_theme: &Theme, _status: button::Status) -> button::Style {
-    button::Style {
-        background: Some(Background::Color(SURFACE_LOWEST)),
-        text_color: TEXT_MAIN,
-        border: Border {
-            color: ACCENT_ORANGE,
-            width: 2.0,
-            radius: 4.0.into(),
-        },
-        ..button::Style::default()
-    }
+pub fn primary(_: &Theme, _: button::Status) -> button::Style {
+    button::Style { background: Some(ORANGE.into()), text_color: PANEL,
+        border: Border { radius: 3.0.into(), ..Default::default() }, ..Default::default() }
 }
