@@ -906,9 +906,13 @@ version = "0.0.0"
 dependencies = [
  "dendri-ast",
  "dendri-canvas",
+ "dendri-emit",
+ "dendri-frontends",
  "dendri-parse",
  "dendri-sim",
+ "dendri-sync",
  "iced",
+ "toml",
 ]
 
 [[package]]
