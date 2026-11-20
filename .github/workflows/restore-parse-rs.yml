@@ -1,0 +1,46 @@
+name: restore-parse-rs
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cursor/pullup-led-hardware-5af6
+      - name: Assemble parse.rs from chunks
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+          import json, hashlib
+          manifest = json.loads(Path('.restore-chunks/manifest.json').read_text())
+          for item in manifest:
+              parts = [Path(p).read_text(encoding='utf-8') for p in item['parts']]
+              content = ''.join(parts)
+              assert len(content) == item['chars'], (item['path'], len(content), item['chars'])
+              assert hashlib.sha256(content.encode()).hexdigest() == item['sha256'], item['path']
+              assert 'strip_prefix("pull=")' in content, item['path']
+              dest = Path(item['path'])
+              dest.parent.mkdir(parents=True, exist_ok=True)
+              dest.write_text(content, encoding='utf-8')
+              print(item['path'], len(content.encode('utf-8')), 'ok')
+          PY
+      - name: Commit restored files and cleanup chunks
+        run: |
+          set -euo pipefail
+          git config user.name "dendriForge restore bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add crates/dendri-frontend-cpp/src/parse.rs \
+                  crates/dendri-frontend-micropython/src/parse.rs \
+                  crates/dendri-frontend-rust/src/parse.rs
+          git rm -r --ignore-unmatch .restore-chunks || true
+          git rm --ignore-unmatch .github/workflows/restore-parse-rs.yml || true
+          if git diff --cached --quiet; then
+            echo "No changes"
+            exit 0
+          fi
+          git commit -m "Restore frontend parse.rs files from chunked disk content"
+          git push origin HEAD:cursor/pullup-led-hardware-5af6

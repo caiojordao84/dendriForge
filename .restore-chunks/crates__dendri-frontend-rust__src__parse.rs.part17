@@ -1,0 +1,5 @@
+uino-style C++ source into the shared ASL [`Program`] AST.
+pub fn parse_rust(src: &str) -> Result<Program, RustParseError> {
+    let mut p = Parser::from_src(src)?;
+    p.parse_translation_unit()
+}

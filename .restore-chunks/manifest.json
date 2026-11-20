@@ -1,0 +1,75 @@
+[
+  {
+    "path": "crates/dendri-frontend-cpp/src/parse.rs",
+    "chars": 56158,
+    "sha256": "d23ccfe895f113bc53509c1a4ced05bc0d9dc57eb09e637956023d4efd0ab954",
+    "parts": [
+      ".restore-chunks/crates__dendri-frontend-cpp__src__parse.rs.part00",
+      ".restore-chunks/crates__dendri-frontend-cpp__src__parse.rs.part01",
+      ".restore-chunks/crates__dendri-frontend-cpp__src__parse.rs.part02",
+      ".restore-chunks/crates__dendri-frontend-cpp__src__parse.rs.part03",
+      ".restore-chunks/crates__dendri-frontend-cpp__src__parse.rs.part04",
+      ".restore-chunks/crates__dendri-frontend-cpp__src__parse.rs.part05",
+      ".restore-chunks/crates__dendri-frontend-cpp__src__parse.rs.part06",
+      ".restore-chunks/crates__dendri-frontend-cpp__src__parse.rs.part07",
+      ".restore-chunks/crates__dendri-frontend-cpp__src__parse.rs.part08",
+      ".restore-chunks/crates__dendri-frontend-cpp__src__parse.rs.part09",
+      ".restore-chunks/crates__dendri-frontend-cpp__src__parse.rs.part10",
+      ".restore-chunks/crates__dendri-frontend-cpp__src__parse.rs.part11",
+      ".restore-chunks/crates__dendri-frontend-cpp__src__parse.rs.part12",
+      ".restore-chunks/crates__dendri-frontend-cpp__src__parse.rs.part13",
+      ".restore-chunks/crates__dendri-frontend-cpp__src__parse.rs.part14",
+      ".restore-chunks/crates__dendri-frontend-cpp__src__parse.rs.part15",
+      ".restore-chunks/crates__dendri-frontend-cpp__src__parse.rs.part16"
+    ]
+  },
+  {
+    "path": "crates/dendri-frontend-micropython/src/parse.rs",
+    "chars": 56612,
+    "sha256": "ee5509b83b659478b5e1bb54c03209b75638b4e0b0b3629891ffbcb63f0d9854",
+    "parts": [
+      ".restore-chunks/crates__dendri-frontend-micropython__src__parse.rs.part00",
+      ".restore-chunks/crates__dendri-frontend-micropython__src__parse.rs.part01",
+      ".restore-chunks/crates__dendri-frontend-micropython__src__parse.rs.part02",
+      ".restore-chunks/crates__dendri-frontend-micropython__src__parse.rs.part03",
+      ".restore-chunks/crates__dendri-frontend-micropython__src__parse.rs.part04",
+      ".restore-chunks/crates__dendri-frontend-micropython__src__parse.rs.part05",
+      ".restore-chunks/crates__dendri-frontend-micropython__src__parse.rs.part06",
+      ".restore-chunks/crates__dendri-frontend-micropython__src__parse.rs.part07",
+      ".restore-chunks/crates__dendri-frontend-micropython__src__parse.rs.part08",
+      ".restore-chunks/crates__dendri-frontend-micropython__src__parse.rs.part09",
+      ".restore-chunks/crates__dendri-frontend-micropython__src__parse.rs.part10",
+      ".restore-chunks/crates__dendri-frontend-micropython__src__parse.rs.part11",
+      ".restore-chunks/crates__dendri-frontend-micropython__src__parse.rs.part12",
+      ".restore-chunks/crates__dendri-frontend-micropython__src__parse.rs.part13",
+      ".restore-chunks/crates__dendri-frontend-micropython__src__parse.rs.part14",
+      ".restore-chunks/crates__dendri-frontend-micropython__src__parse.rs.part15",
+      ".restore-chunks/crates__dendri-frontend-micropython__src__parse.rs.part16"
+    ]
+  },
+  {
+    "path": "crates/dendri-frontend-rust/src/parse.rs",
+    "chars": 59698,
+    "sha256": "26f2c9680b29d0478d3310f21554c6cb4a29d4bde14b48a4ee4263738906d58a",
+    "parts": [
+      ".restore-chunks/crates__dendri-frontend-rust__src__parse.rs.part00",
+      ".restore-chunks/crates__dendri-frontend-rust__src__parse.rs.part01",
+      ".restore-chunks/crates__dendri-frontend-rust__src__parse.rs.part02",
+      ".restore-chunks/crates__dendri-frontend-rust__src__parse.rs.part03",
+      ".restore-chunks/crates__dendri-frontend-rust__src__parse.rs.part04",
+      ".restore-chunks/crates__dendri-frontend-rust__src__parse.rs.part05",
+      ".restore-chunks/crates__dendri-frontend-rust__src__parse.rs.part06",
+      ".restore-chunks/crates__dendri-frontend-rust__src__parse.rs.part07",
+      ".restore-chunks/crates__dendri-frontend-rust__src__parse.rs.part08",
+      ".restore-chunks/crates__dendri-frontend-rust__src__parse.rs.part09",
+      ".restore-chunks/crates__dendri-frontend-rust__src__parse.rs.part10",
+      ".restore-chunks/crates__dendri-frontend-rust__src__parse.rs.part11",
+      ".restore-chunks/crates__dendri-frontend-rust__src__parse.rs.part12",
+      ".restore-chunks/crates__dendri-frontend-rust__src__parse.rs.part13",
+      ".restore-chunks/crates__dendri-frontend-rust__src__parse.rs.part14",
+      ".restore-chunks/crates__dendri-frontend-rust__src__parse.rs.part15",
+      ".restore-chunks/crates__dendri-frontend-rust__src__parse.rs.part16",
+      ".restore-chunks/crates__dendri-frontend-rust__src__parse.rs.part17"
+    ]
+  }
+]
