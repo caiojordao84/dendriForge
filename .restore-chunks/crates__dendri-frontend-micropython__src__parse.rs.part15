@@ -1,0 +1,94 @@
+t pin_to_label: HashMap<u32, String> = pin_consts
+        .iter()
+        .map(|(k, v)| (*v, k.clone()))
+        .collect();
+    match expr {
+        Expr::Var { name } => {
+            if pin_consts.contains_key(&name) {
+                Expr::Var {
+                    name: pin_const_to_label(&name),
+                }
+            } else if let Some(&pin) = obj_to_pin.get(&name) {
+                if let Some(label) = pin_to_label.get(&pin) {
+                    Expr::Var {
+                        name: pin_const_to_label(label),
+                    }
+                } else {
+                    Expr::Var { name }
+                }
+            } else {
+                Expr::Var { name }
+            }
+        }
+        Expr::Call { name, args } => {
+            let args: Vec<_> = args
+                .into_iter()
+                .map(|a| rewrite_expr(a, pin_consts, obj_to_pin))
+                .collect();
+            // Emit uses ticks_ms()/ticks_us() for GET_SYS_TIME*; rehydrate.
+            if name == "ticks_ms" {
+                return Expr::Call {
+                    name: "GET_SYS_TIME".into(),
+                    args: vec![],
+                };
+            }
+            if name == "ticks_us" {
+                return Expr::Call {
+                    name: "GET_SYS_TIME_US".into(),
+                    args: vec![],
+                };
+            }
+            if name == "GET_BOOL" || name == "READ_ADC" || name == "GET_PWM_DUTY" {
+                let pin_arg = match args.first() {
+                    Some(Expr::Var { name }) => Expr::Var {
+                        name: name.clone(),
+                    },
+                    Some(Expr::Uint { value }) => {
+                        if let Some(label) = pin_to_label.get(&(*value as u32)) {
+                            Expr::Var {
+                                name: label.clone(),
+                            }
+                        } else {
+                            Expr::Uint { value: *value }
+                        }
+                    }
+                    Some(other) => other.clone(),
+                    None => Expr::Uint { value: 0 },
+                };
+                return Expr::Call {
+                    name,
+                    args: vec![pin_arg],
+                };
+            }
+            Expr::Call { name, args }
+        }
+        Expr::Unary { op, expr } => Expr::Unary {
+            op,
+            expr: Box::new(rewrite_expr(*expr, pin_consts, obj_to_pin)),
+        },
+        Expr::Binop { op, left, right } => Expr::Binop {
+            op,
+            left: Box::new(rewrite_expr(*left, pin_consts, obj_to_pin)),
+            right: Box::new(rewrite_expr(*right, pin_consts, obj_to_pin)),
+        },
+        other => other,
+    }
+}
+
+fn refine_hardware(hardware: &mut [HardwareEntry], setup: &[Stmt]) {
+    for stmt in setup {
+        if let Stmt::Call { name, args } = stmt {
+            let pin = match args.first() {
+                Some(Expr::Uint { value }) => *value as u32,
+                Some(Expr::Var { name }) => {
+                    if let Some(h) = hardware.iter().find(|h| h.label == *name) {
+                        h.pin
+                    } else {
+                        continue;
+                    }
+                }
+                _ => continue,
+            };
+            if let Some(h) = hardware.iter_mut().find(|h| h.pin == pin) {
+                // Preserve ASL_HW `role=` when present; only refine io_mode from CFG_*.
+                match name.as_st
