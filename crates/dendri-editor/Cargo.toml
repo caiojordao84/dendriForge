@@ -3,7 +3,7 @@ name = "dendri-editor"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Ladder / SFC visual editor with bidirectional TOML sync (iced MVP)"
+description = "DendriForge iced IDE shell — Simulation/Code/Ladder/GRAFCET from canvas mockups"
 default-run = "dendri-editor"
 
 [[bin]]
