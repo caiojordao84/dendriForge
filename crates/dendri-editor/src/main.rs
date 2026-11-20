@@ -6,6 +6,7 @@
 
 mod authoring;
 mod project_io;
+#[allow(dead_code)] // retained C01 reference chrome; Simulation uses logical-grid scene
 mod schematic;
 mod theme;
 
@@ -14,7 +15,7 @@ use std::time::Duration;
 
 use authoring::{AuthoringHub, Placeable};
 use dendri_ast::SourceLanguage;
-use dendri_canvas::SimCanvas;
+use dendri_canvas::{default_scene_px, render_live_scene_svg, LiveSceneState, SimCanvas};
 use dendri_sim::SimConfig;
 use iced::{
     alignment, mouse,
@@ -25,7 +26,6 @@ use iced::{
     Color, Element, Font, Length, Point, Rectangle, Renderer, Size, Subscription, Theme,
 };
 use project_io::{export_project, load_project, save_project};
-use schematic::{SCHEMATIC_OFF, SCHEMATIC_ON};
 use theme as ui;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -129,8 +129,6 @@ struct App {
     right: bool,
     bottom: bool,
     zoom: f32,
-    off: svg::Handle,
-    on: svg::Handle,
     canvas: Option<SimCanvas>,
     hub: Option<AuthoringHub>,
     project_path: PathBuf,
@@ -161,8 +159,6 @@ impl App {
             right: true,
             bottom: true,
             zoom: 1.0,
-            off: svg::Handle::from_memory(SCHEMATIC_OFF.as_bytes()),
-            on: svg::Handle::from_memory(SCHEMATIC_ON.as_bytes()),
             canvas: None,
             hub: None,
             project_path: project_path.clone(),
@@ -922,16 +918,27 @@ impl App {
     }
 
     fn simulation(&self) -> Element<'_, Message> {
-        let handle = if self.led {
-            self.on.clone()
+        let zoom = self.zoom as f64;
+        let (scene_w, scene_h) = default_scene_px(zoom);
+        let svg_bytes = if let Some(canvas) = self.canvas.as_ref() {
+            canvas.rendered_live_scene(zoom)
         } else {
-            self.off.clone()
+            // Fallback when sim assets missing: still show logical grid + live LED/button flags.
+            render_live_scene_svg(
+                &LiveSceneState {
+                    led_on: self.led,
+                    button_pressed: !self.raw,
+                },
+                zoom,
+            )
         };
+        let handle = svg::Handle::from_memory(svg_bytes.into_bytes());
+        // Fixed pixel size so toolbar zoom changes on-screen module size; scroll to pan.
         let picture = widget::mouse_area(
             svg(handle)
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .content_fit(iced::ContentFit::Contain),
+                .width(Length::Fixed(scene_w as f32))
+                .height(Length::Fixed(scene_h as f32))
+                .content_fit(iced::ContentFit::Fill),
         )
         .on_press(Message::Physical(true))
         .on_release(Message::Physical(false))
@@ -942,17 +949,21 @@ impl App {
                 row![
                     caption("CIRCUIT SIMULATION"),
                     Space::with_width(Length::Fill),
-                    text("Place/wire in left palette · SVG chrome is C01 reference")
-                        .size(11)
-                        .color(ui::MUTED)
+                    text(format!(
+                        "Logical grid · 1u=4mm=48px@100% · zoom {:.0}% · live LED/button",
+                        self.zoom * 100.0
+                    ))
+                    .size(11)
+                    .color(ui::MUTED)
                 ]
             )
             .padding(14),
-            picture,
+            scrollable(container(picture).padding(8))
+                .height(Length::Fill),
             container(checkbox("Hold button (active-LOW)", !self.raw).on_toggle(Message::Physical))
                 .padding(14),
             container(
-                text("Hold schematic to press (pull-up). Placed components update project TOML + ASL; Rebuild sim after topology changes.")
+                text("Hold the grid canvas to press (pull-up). Terminals snap to full modules; zoom keeps wire/terminal logic. Place/wire still updates project TOML + ASL.")
                     .size(11)
                     .color(ui::MUTED),
             )

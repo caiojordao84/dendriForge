@@ -7,6 +7,13 @@
 //!
 //! Headless CI uses deterministic [`VisualFrame`] text snapshots; the iced
 //! editor consumes the same binding and rendered SVG strings.
+//!
+//! Simulation view also renders a **logical-grid** live scene ([`grid`],
+//! [`scene`]): 1 u = 4 mm → 48 px @ 100%, terminals on full-module
+//! intersections, zoom via scale (no fixed DPI in source geometry).
+
+pub mod grid;
+pub mod scene;
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -15,6 +22,13 @@ use std::path::{Path, PathBuf};
 use dendri_ast::{SimulationProject, Wire};
 use dendri_profiles::{ProfileStore, SvgHook, VisualMvp};
 use dendri_sim::{SimConfig, Simulator};
+
+pub use grid::{
+    default_scene_px, grid_to_mm, grid_to_px, mm_to_grid, px_per_grid, px_to_grid,
+    snap_half_module, snap_terminal, GRID_UNIT_MM, HALF_MODULE, PX_PER_GRID_AT_100,
+    PX_PER_HALF_AT_100,
+};
+pub use scene::{render_live_scene_svg, C01Layout, LiveSceneState};
 
 /// Canonical asset roots (prefer staged `content/assets/svg/`, fall back to `core/`).
 pub const ASSET_BOARD: &str = "content/assets/svg/boards/arduino-uno-r3.svg";
@@ -452,6 +466,18 @@ impl SimCanvas {
 
     pub fn rendered_board(&self) -> String {
         render_board_svg(&self.svgs.board, self.sim.pin(self.binding.led_pin))
+    }
+
+    /// Live logical-grid scene (Simulation center). Zoom is applied at render.
+    pub fn live_scene_state(&self) -> LiveSceneState {
+        LiveSceneState {
+            led_on: self.sim.pin(self.binding.led_pin),
+            button_pressed: self.button_pressed,
+        }
+    }
+
+    pub fn rendered_live_scene(&self, zoom: f64) -> String {
+        render_live_scene_svg(&self.live_scene_state(), zoom)
     }
 
     /// Concatenate frames for multi-step snapshot files.
