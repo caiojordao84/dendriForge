@@ -1,0 +1,108 @@
+et Some(rest) = t.strip_prefix("// ASL_DATA:") {
+                if let Some((name, anno)) = parse_asl_data_anno(rest.trim()) {
+                    data_annos.insert(name, anno);
+                }
+            }
+        }
+        let mut lex = Lexer::new(src);
+        let mut tokens = Vec::new();
+        loop {
+            let (tok, line, col) = lex.next_tok()?;
+            let done = tok == Tok::Eof;
+            tokens.push((tok, line, col));
+            if done {
+                break;
+            }
+        }
+        Ok(Self {
+            tokens,
+            pos: 0,
+            project_name,
+            pin_consts: HashMap::new(),
+            hw_annos,
+            data_annos,
+        })
+    }
+
+    fn peek(&self) -> &Tok {
+        &self.tokens[self.pos].0
+    }
+
+    fn loc(&self) -> (usize, usize) {
+        (self.tokens[self.pos].1, self.tokens[self.pos].2)
+    }
+
+    fn bump(&mut self) -> Tok {
+        let t = self.tokens[self.pos].0.clone();
+        if self.pos + 1 < self.tokens.len() {
+            self.pos += 1;
+        }
+        t
+    }
+
+    fn err(&self, message: impl Into<String>) -> CppParseError {
+        let (line, col) = self.loc();
+        CppParseError::At {
+            line,
+            col,
+            message: message.into(),
+        }
+    }
+
+    fn check_ident(&self, s: &str) -> bool {
+        matches!(self.peek(), Tok::Ident(id) if id == s)
+    }
+
+    fn parse_translation_unit(&mut self) -> Result<Program, CppParseError> {
+        let mut data = Vec::new();
+        let mut hardware = Vec::new();
+        let mut setup = Vec::new();
+        let mut loop_body = Vec::new();
+        let mut functions = Vec::new();
+
+        while !matches!(self.peek(), Tok::Eof) {
+            // const int ledPin = 13;
+            // const unsigned long ON_TIME = 100UL;
+            // bool ledState = false;
+            // void setup() { ... }
+            // void loop() { ... }
+            // bool foo(...) { ... }
+
+            if self.check_ident("void") || self.check_ident("bool") || self.check_ident("int") {
+                // Could be function or var. Lookahead: type name ( name )
+                let saved = self.pos;
+                let ret_ty = match self.bump() {
+                    Tok::Ident(s) => s,
+                    _ => unreachable!(),
+                };
+                let name = match self.bump() {
+                    Tok::Ident(s) => s,
+                    other => {
+                        self.pos = saved;
+                        return Err(self.err(format!("expected name after type, got {other:?}")));
+                    }
+                };
+                if matches!(self.peek(), Tok::LParen) {
+                    let params = self.parse_param_list()?;
+                    self.expect_lbrace()?;
+                    let body = self.parse_block_body()?;
+                    if name == "setup" {
+                        setup = body;
+                    } else if name == "loop" {
+                        loop_body = body;
+                    } else {
+                        functions.push(FunctionDef {
+                            name,
+                            params,
+                            body,
+                        });
+                    }
+                    let _ = ret_ty;
+                    continue;
+                }
+                // variable: restore and parse as decl starting at type
+                self.pos = saved;
+            }
+
+            if self.check_ident("const")
+                || self.check_ident(
