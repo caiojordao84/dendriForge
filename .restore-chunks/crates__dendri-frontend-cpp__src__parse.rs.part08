@@ -1,0 +1,105 @@
+                value: Some(value),
+            });
+        }
+        if self.check_ident("break") {
+            self.bump();
+            match self.bump() {
+                Tok::Semi => {}
+                _ => return Err(self.err("expected ';'")),
+            }
+            return Ok(Stmt::Exit);
+        }
+        if self.check_ident("continue") {
+            self.bump();
+            match self.bump() {
+                Tok::Semi => {}
+                _ => return Err(self.err("expected ';'")),
+            }
+            return Ok(Stmt::Continue);
+        }
+
+        // int i = ...; local decl → ignore as assign after introducing TEMP — MVP: skip type
+        if self.check_ident("int")
+            || self.check_ident("bool")
+            || self.check_ident("unsigned")
+            || self.check_ident("float")
+        {
+            // local var: treat as assign if form `type name = expr;`
+            let _ = self.bump();
+            if self.check_ident("long") || self.check_ident("int") {
+                self.bump();
+            }
+            let name = match self.bump() {
+                Tok::Ident(s) => s,
+                _ => return Err(self.err("expected local name")),
+            };
+            match self.bump() {
+                Tok::Assign => {}
+                _ => return Err(self.err("expected '='")),
+            }
+            let value = self.parse_expr()?;
+            match self.bump() {
+                Tok::Semi => {}
+                _ => return Err(self.err("expected ';'")),
+            }
+            return Ok(Stmt::Assign {
+                target: name,
+                value,
+            });
+        }
+
+        // assign or call (including Serial.println / Wire.begin member calls)
+        let name = match self.bump() {
+            Tok::Ident(s) => s,
+            other => return Err(self.err(format!("expected statement, got {other:?}"))),
+        };
+
+        if matches!(self.peek(), Tok::Assign) {
+            self.bump();
+            let value = self.parse_expr()?;
+            match self.bump() {
+                Tok::Semi => {}
+                _ => return Err(self.err("expected ';'")),
+            }
+            return Ok(Stmt::Assign {
+                target: name,
+                value,
+            });
+        }
+
+        if matches!(self.peek(), Tok::Dot) {
+            self.bump();
+            let method = match self.bump() {
+                Tok::Ident(m) => m,
+                _ => return Err(self.err("expected method name after '.'")),
+            };
+            let args = self.parse_arg_list()?;
+            match self.bump() {
+                Tok::Semi => {}
+                _ => return Err(self.err("expected ';' after member call")),
+            }
+            return Ok(lower_member_call_stmt(&name, &method, args));
+        }
+
+        if matches!(self.peek(), Tok::LParen) {
+            let args = self.parse_arg_list()?;
+            match self.bump() {
+                Tok::Semi => {}
+                _ => return Err(self.err("expected ';' after call")),
+            }
+            return Ok(lower_call_stmt(&name, args));
+        }
+
+        Err(self.err(format!("unexpected after {name}")))
+    }
+
+    fn parse_if(&mut self) -> Result<Stmt, CppParseError> {
+        self.bump(); // if
+        match self.bump() {
+            Tok::LParen => {}
+            _ => return Err(self.err("expected '(' after if")),
+        }
+        let condition = self.parse_expr()?;
+        match self.bump() {
+            Tok::RParen => {}
+            _ => retur

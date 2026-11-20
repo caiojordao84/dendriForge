@@ -1,0 +1,101 @@
+    match self.bump() {
+            Tok::RParen => Ok(params),
+            _ => Err(self.err("expected ')'")),
+        }
+    }
+
+    fn expect_lbrace(&mut self) -> Result<(), CppParseError> {
+        match self.bump() {
+            Tok::LBrace => Ok(()),
+            _ => Err(self.err("expected '{'")),
+        }
+    }
+
+    fn parse_block_body(&mut self) -> Result<Vec<Stmt>, CppParseError> {
+        let mut body = Vec::new();
+        while !matches!(self.peek(), Tok::RBrace | Tok::Eof) {
+            body.push(self.parse_stmt()?);
+        }
+        match self.bump() {
+            Tok::RBrace => Ok(body),
+            _ => Err(self.err("expected '}'")),
+        }
+    }
+
+    fn parse_decl(&mut self) -> Result<(DataEntry, Option<(String, u32)>), CppParseError> {
+        let mut is_const = false;
+        if self.check_ident("const") {
+            self.bump();
+            is_const = true;
+        }
+        // type: unsigned long | unsigned int | bool | int | float | String
+        let ty_tok = self.bump();
+        let mut type_name = match ty_tok {
+            Tok::Ident(s) => s,
+            _ => return Err(self.err("expected type")),
+        };
+        if type_name == "unsigned" {
+            match self.bump() {
+                Tok::Ident(s) => {
+                    type_name = format!("unsigned {s}");
+                }
+                _ => return Err(self.err("expected long/int after unsigned")),
+            }
+        }
+        let name = match self.bump() {
+            Tok::Ident(s) => s,
+            _ => return Err(self.err("expected declarator name")),
+        };
+        match self.bump() {
+            Tok::Assign => {}
+            _ => return Err(self.err("expected '=' in declaration")),
+        }
+        let init_expr = self.parse_expr()?;
+        match self.bump() {
+            Tok::Semi => {}
+            _ => return Err(self.err("expected ';' after declaration")),
+        }
+
+        // Pin constant: ASL_HW annotation, or legacy `*Pin` const int label.
+        if is_const && (type_name == "int" || type_name == "unsigned int") {
+            if let Expr::Uint { value } = init_expr {
+                let is_pin = self.hw_annos.contains_key(&name) || name.ends_with("Pin");
+                if is_pin {
+                    return Ok((
+                        DataEntry {
+                            name: name.clone(),
+                            data_type: DataType::Uint,
+                            scope: Scope::Const,
+                            init: value.to_string(),
+                            unit: "-".into(),
+                        },
+                        Some((name, value as u32)),
+                    ));
+                }
+            }
+        }
+
+        let mut data_type;
+        let mut init;
+        let mut unit;
+        match type_name.as_str() {
+            "bool" => {
+                let v = match init_expr {
+                    Expr::Bool { value: true } => "TRUE",
+                    _ => "FALSE",
+                };
+                data_type = DataType::Bool;
+                init = v.to_string();
+                unit = "-".into();
+            }
+            "unsigned long" => {
+                let ms = match init_expr {
+                    Expr::Uint { value } => value,
+                    _ => 0,
+                };
+                if is_const {
+                    data_type = DataType::Time;
+                    init = format!("T#{ms}ms");
+                    unit = "ms".into();
+                } else {
+                    dat
