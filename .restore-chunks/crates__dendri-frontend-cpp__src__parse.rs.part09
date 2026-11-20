@@ -1,0 +1,105 @@
+n Err(self.err("expected ')'")),
+        }
+        let then = self.parse_braced_or_single()?;
+        let mut elif = Vec::new();
+        let mut else_body = None;
+        while self.check_ident("else") {
+            self.bump();
+            if self.check_ident("if") {
+                self.bump();
+                match self.bump() {
+                    Tok::LParen => {}
+                    _ => return Err(self.err("expected '('")),
+                }
+                let cond = self.parse_expr()?;
+                match self.bump() {
+                    Tok::RParen => {}
+                    _ => return Err(self.err("expected ')'")),
+                }
+                let body = self.parse_braced_or_single()?;
+                elif.push(ElifArm {
+                    condition: cond,
+                    then: body,
+                });
+            } else {
+                else_body = Some(self.parse_braced_or_single()?);
+                break;
+            }
+        }
+        Ok(Stmt::If {
+            condition,
+            then,
+            elif,
+            else_body,
+        })
+    }
+
+    fn parse_while(&mut self) -> Result<Stmt, CppParseError> {
+        self.bump();
+        match self.bump() {
+            Tok::LParen => {}
+            _ => return Err(self.err("expected '('")),
+        }
+        let condition = self.parse_expr()?;
+        match self.bump() {
+            Tok::RParen => {}
+            _ => return Err(self.err("expected ')'")),
+        }
+        let body = self.parse_braced_or_single()?;
+        Ok(Stmt::While { condition, body })
+    }
+
+    fn parse_for(&mut self) -> Result<Stmt, CppParseError> {
+        // for (int i = 0; i < N; i++) { body }
+        self.bump();
+        match self.bump() {
+            Tok::LParen => {}
+            _ => return Err(self.err("expected '('")),
+        }
+        // init
+        let counter = if self.check_ident("int") {
+            self.bump();
+            let name = match self.bump() {
+                Tok::Ident(s) => s,
+                _ => return Err(self.err("expected counter")),
+            };
+            match self.bump() {
+                Tok::Assign => {}
+                _ => return Err(self.err("expected '='")),
+            }
+            let _ = self.parse_expr()?;
+            match self.bump() {
+                Tok::Semi => {}
+                _ => return Err(self.err("expected ';'")),
+            }
+            Some(name)
+        } else {
+            match self.bump() {
+                Tok::Semi => None,
+                _ => return Err(self.err("MVP for requires int init or empty")),
+            }
+        };
+        // condition: i < expr  (parse add-expr, not full expr — `<` is the for-bound op)
+        let to = if matches!(self.peek(), Tok::Semi) {
+            self.bump();
+            Expr::Uint { value: 0 }
+        } else {
+            let _lhs = self.parse_add()?;
+            let op = self.bump();
+            let bound = self.parse_expr()?;
+            match self.bump() {
+                Tok::Semi => {}
+                _ => return Err(self.err("expected ';'")),
+            }
+            match op {
+                Tok::Lt => bound,
+                Tok::Le => Expr::Binop {
+                    op: BinaryOp::Add,
+                    left: Box::new(bound),
+                    right: Box::new(Expr::Uint { value: 1 }),
+                },
+                _ => return Err(self.err("MVP for condition must use < or <=")),
+            }
+        };
+        // incr
+        while !matches!(self.peek()
