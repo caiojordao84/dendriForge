@@ -5,6 +5,7 @@
 //! TOML, parse → ASL IR → generators (same pipeline as `dendri export`).
 
 mod authoring;
+mod canvas_path;
 mod project_io;
 #[allow(dead_code)] // retained C01 reference chrome; Simulation uses world canvas
 mod schematic;

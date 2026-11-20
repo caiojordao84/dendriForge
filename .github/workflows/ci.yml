@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: "1.86.0"
+          toolchain: "1.100.0"
       - name: cargo test
         run: cargo test --workspace
       - name: golden round-trip (CLI)

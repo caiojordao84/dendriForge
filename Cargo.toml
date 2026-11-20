@@ -51,5 +51,11 @@ dendri-sync = { path = "crates/dendri-sync" }
 dendri-profiles = { path = "crates/dendri-profiles" }
 dendri-sim = { path = "crates/dendri-sim" }
 dendri-canvas = { path = "crates/dendri-canvas" }
-# iced 0.13 needs rustc ≥ 1.86 (wayland/calloop). Workspace toolchain is 1.86.0.
+# iced 0.13 needs rustc ≥ 1.86 (wayland/calloop). arqlet-routing needs ≥ 1.88.
+# Workspace toolchain is 1.100.0 (Caio 2026-11-20).
 iced = { version = "0.13", default-features = true, features = ["canvas", "svg", "tokio"] }
+# Phase B0 canvas foundations (hybrid SVG + Path + orthogonal routing).
+usvg = { version = "0.50.0", default-features = false }
+lilt = "0.8.2"
+arqlet-routing = "0.6.0"
+arqlet-model = "0.6.0"
