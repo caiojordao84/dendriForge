@@ -52,4 +52,4 @@ dendri-profiles = { path = "crates/dendri-profiles" }
 dendri-sim = { path = "crates/dendri-sim" }
 dendri-canvas = { path = "crates/dendri-canvas" }
 # iced 0.13 needs rustc ≥ 1.86 (wayland/calloop). Workspace toolchain is 1.86.0.
-iced = { version = "0.13", default-features = true, features = ["svg", "tokio"] }
+iced = { version = "0.13", default-features = true, features = ["canvas", "svg", "tokio"] }
