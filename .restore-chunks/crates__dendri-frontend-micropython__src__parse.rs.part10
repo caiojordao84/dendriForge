@@ -1,0 +1,110 @@
+    let rest = rhs.strip_prefix("PWM(")?.strip_suffix(')')?;
+    let args = split_args(rest);
+    if args.is_empty() {
+        return None;
+    }
+    let pin = args[0]
+        .strip_prefix("Pin(")?
+        .strip_suffix(')')?
+        .trim()
+        .to_string();
+    let mut freq = "1000".to_string();
+    for a in args.iter().skip(1) {
+        if let Some(v) = a.strip_prefix("freq=") {
+            freq = v.trim().to_string();
+        } else if let Some(v) = a.strip_prefix("freq =") {
+            freq = v.trim().to_string();
+        }
+    }
+    Some((pin, freq))
+}
+
+fn parse_adc_ctor(rhs: &str) -> Option<String> {
+    let rest = rhs.strip_prefix("ADC(")?.strip_suffix(')')?;
+    let pin = rest.strip_prefix("Pin(")?.strip_suffix(')')?;
+    Some(pin.trim().to_string())
+}
+
+fn parse_uart_ctor(rhs: &str) -> Option<String> {
+    let rest = rhs.strip_prefix("UART(")?.strip_suffix(')')?;
+    let args = split_args(rest);
+    for a in &args {
+        if let Some(v) = a.strip_prefix("baudrate=") {
+            return Some(v.trim().to_string());
+        }
+        if let Some(v) = a.strip_prefix("baudrate =") {
+            return Some(v.trim().to_string());
+        }
+    }
+    args.get(1).cloned()
+}
+
+fn parse_kw_pin(args: &[String], key: &str) -> Option<String> {
+    for a in args {
+        let prefix = format!("{key}=");
+        let prefix_sp = format!("{key} =");
+        if let Some(v) = a.strip_prefix(&prefix).or_else(|| a.strip_prefix(&prefix_sp)) {
+            let v = v.trim();
+            if let Some(inner) = v.strip_prefix("Pin(").and_then(|s| s.strip_suffix(')')) {
+                return Some(inner.trim().to_string());
+            }
+            return Some(v.to_string());
+        }
+    }
+    None
+}
+
+fn parse_i2c_ctor(rhs: &str) -> Option<(String, String, String, String)> {
+    let rest = rhs.strip_prefix("I2C(")?.strip_suffix(')')?;
+    let args = split_args(rest);
+    let bus = args.first()?.clone();
+    let sda = parse_kw_pin(&args, "sda")?;
+    let scl = parse_kw_pin(&args, "scl")?;
+    let mut freq = "400000".to_string();
+    for a in &args {
+        if let Some(v) = a.strip_prefix("freq=").or_else(|| a.strip_prefix("freq =")) {
+            freq = v.trim().to_string();
+        }
+    }
+    Some((bus, sda, scl, freq))
+}
+
+fn parse_spi_ctor(rhs: &str) -> Option<(String, String, String, String)> {
+    let rest = rhs.strip_prefix("SPI(")?.strip_suffix(')')?;
+    let args = split_args(rest);
+    let bus = args.first()?.clone();
+    let mosi = parse_kw_pin(&args, "mosi")?;
+    let miso = parse_kw_pin(&args, "miso").unwrap_or_else(|| "-1".into());
+    let sck = parse_kw_pin(&args, "sck")?;
+    Some((bus, mosi, miso, sck))
+}
+
+fn pin_expr_name(pin_expr: &str) -> Option<String> {
+    if pin_expr.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+        Some(pin_expr.to_string())
+    } else {
+        None
+    }
+}
+
+fn resolve_pin_number(pin_expr: &str, consts: &HashMap<String, u32>) -> Option<u32> {
+    if let Ok(n) = pin_expr.parse::<u32>() {
+        return Some(n);
+    }
+    consts.get(pin_expr).copied()
+}
+
+fn parse_obj_method(t: &str) -> Option<(String, String, Vec<String>)> {
+    // obj.method(args)
+    let (left, args) = t.split_once('(')?;
+    let args = args.strip_suffix(')')?;
+    let (obj, method) = left.rsplit_once('.')?;
+    let arg_list = if args.trim().is_empty() {
+        vec![]
+    } else {
+        split_args(args)
+    };
+    Some((obj.to_string(), method.to_string(), arg_list))
+}
+
+fn parse_call(t: &str) -> Option<(String, String)> 
