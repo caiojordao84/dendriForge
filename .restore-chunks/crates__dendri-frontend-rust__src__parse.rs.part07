@@ -1,0 +1,95 @@
+= match self.bump() {
+            Tok::Ident(s) => s,
+            _ => return Err(self.err("expected declarator name")),
+        };
+        match self.bump() {
+            Tok::Colon => {}
+            _ => return Err(self.err("expected ':' in declaration")),
+        }
+        let type_name = match self.bump() {
+            Tok::Ident(s) => s,
+            _ => return Err(self.err("expected type")),
+        };
+
+        match self.bump() {
+            Tok::Assign => {}
+            _ => return Err(self.err("expected '=' in declaration")),
+        }
+        let init_expr = self.parse_expr()?;
+        match self.bump() {
+            Tok::Semi => {}
+            _ => return Err(self.err("expected ';' after declaration")),
+        }
+
+        // Pin constant: ASL_HW annotation, or legacy `*Pin` const label.
+        if is_const
+            && matches!(
+                type_name.as_str(),
+                "u32" | "i32" | "usize" | "u16" | "u8" | "int"
+            )
+        {
+            if let Expr::Uint { value } = &init_expr {
+                let is_pin = self.hw_annos.contains_key(&name) || name.ends_with("Pin");
+                if is_pin {
+                    return Ok((
+                        DataEntry {
+                            name: name.clone(),
+                            data_type: DataType::Uint,
+                            scope: Scope::Const,
+                            init: value.to_string(),
+                            unit: "-".into(),
+                        },
+                        Some((name, *value as u32)),
+                    ));
+                }
+            }
+        }
+
+        let mut data_type;
+        let mut init;
+        let mut unit;
+        match type_name.as_str() {
+            "bool" => {
+                let v = match &init_expr {
+                    Expr::Bool { value: true } => "TRUE",
+                    _ => "FALSE",
+                };
+                data_type = DataType::Bool;
+                init = v.to_string();
+                unit = "-".into();
+            }
+            "u32" | "usize" | "u16" | "u8" => {
+                let n = match &init_expr {
+                    Expr::Uint { value } => *value,
+                    _ => 0,
+                };
+                // Without ASL_DATA, TIME-ish names default to TIME (matches emit of TIME consts).
+                if is_const
+                    && (name.ends_with("TIME")
+                        || name.ends_with("_MS")
+                        || name == "PULSE"
+                        || name == "INTERVAL")
+                {
+                    data_type = DataType::Time;
+                    init = format!("T#{n}ms");
+                    unit = "ms".into();
+                } else {
+                    data_type = DataType::Uint;
+                    init = n.to_string();
+                    unit = "-".into();
+                }
+            }
+            "i32" | "i16" | "i8" | "int" => {
+                data_type = DataType::Int;
+                init = match &init_expr {
+                    Expr::Uint { value } => value.to_string(),
+                    Expr::Int { value } => value.to_string(),
+                    _ => "0".into(),
+                };
+                unit = "-".into();
+            }
+            "f32" | "f64" | "float" => {
+                data_type = DataType::Real;
+                init = match &init_expr {
+                    Expr::Real { value } => format_real_init(*value),
+                    Expr::Uint { value } => format_real_init(*value as

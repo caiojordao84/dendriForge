@@ -1,0 +1,109 @@
+      let loop_body = rewrite_stmts(loop_body, &self.pin_consts);
+        let functions = functions
+            .into_iter()
+            .map(|mut f| {
+                f.body = rewrite_stmts(f.body, &self.pin_consts);
+                f
+            })
+            .collect::<Vec<_>>();
+
+        refine_hardware_from_setup(&mut hardware, &setup);
+
+        if hardware.is_empty() {
+            hardware = infer_hardware_from_calls(&setup);
+        }
+
+        Ok(Program {
+            metadata: Metadata {
+                asl_version: Some(dendri_ast::ASL_VERSION.into()),
+                project_name: self
+                    .project_name
+                    .clone()
+                    .or_else(|| Some("rust-program".into())),
+                editor: Some("dendriForge".into()),
+                author: None,
+                notes: Some("parsed from Rust frontend (P2 Dendri HAL subset)".into()),
+                expect_error: None,
+            },
+            hardware,
+            data,
+            setup,
+            loop_body,
+            functions,
+            ladder: vec![],
+            grafcet: vec![],
+        })
+    }
+
+    fn parse_param_list(&mut self) -> Result<Vec<String>, RustParseError> {
+        match self.bump() {
+            Tok::LParen => {}
+            _ => return Err(self.err("expected '('")),
+        }
+        let mut params = Vec::new();
+        if !matches!(self.peek(), Tok::RParen) {
+            loop {
+                // Rust: name: bool   | C-ish leftover: bool name
+                let first = match self.bump() {
+                    Tok::Ident(s) => s,
+                    _ => return Err(self.err("expected param")),
+                };
+                let name = if matches!(self.peek(), Tok::Colon) {
+                    self.bump();
+                    let _ty = self.bump();
+                    first
+                } else if matches!(self.peek(), Tok::Ident(_)) {
+                    match self.bump() {
+                        Tok::Ident(s) => s,
+                        _ => unreachable!(),
+                    }
+                } else {
+                    first
+                };
+                params.push(name);
+                if matches!(self.peek(), Tok::Comma) {
+                    self.bump();
+                    continue;
+                }
+                break;
+            }
+        }
+        match self.bump() {
+            Tok::RParen => Ok(params),
+            _ => Err(self.err("expected ')'")),
+        }
+    }
+
+    fn expect_lbrace(&mut self) -> Result<(), RustParseError> {
+        match self.bump() {
+            Tok::LBrace => Ok(()),
+            _ => Err(self.err("expected '{'")),
+        }
+    }
+
+    fn parse_block_body(&mut self) -> Result<Vec<Stmt>, RustParseError> {
+        let mut body = Vec::new();
+        while !matches!(self.peek(), Tok::RBrace | Tok::Eof) {
+            body.push(self.parse_stmt()?);
+        }
+        match self.bump() {
+            Tok::RBrace => Ok(body),
+            _ => Err(self.err("expected '}'")),
+        }
+    }
+
+    fn parse_decl(&mut self) -> Result<(DataEntry, Option<(String, u32)>), RustParseError> {
+        let mut is_const = false;
+        if self.check_ident("const") {
+            self.bump();
+            is_const = true;
+        } else if self.check_ident("let") {
+            self.bump();
+            if self.check_ident("mut") {
+                self.bump();
+            }
+        } else {
+            return Err(self.err("expected const or let"));
+        }
+
+        let name 

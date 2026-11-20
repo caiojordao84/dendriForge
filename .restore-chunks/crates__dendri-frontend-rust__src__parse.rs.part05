@@ -1,0 +1,99 @@
+.tokens[self.pos].0
+    }
+
+    fn loc(&self) -> (usize, usize) {
+        (self.tokens[self.pos].1, self.tokens[self.pos].2)
+    }
+
+    fn bump(&mut self) -> Tok {
+        let t = self.tokens[self.pos].0.clone();
+        if self.pos + 1 < self.tokens.len() {
+            self.pos += 1;
+        }
+        t
+    }
+
+    fn err(&self, message: impl Into<String>) -> RustParseError {
+        let (line, col) = self.loc();
+        RustParseError::At {
+            line,
+            col,
+            message: message.into(),
+        }
+    }
+
+    fn check_ident(&self, s: &str) -> bool {
+        matches!(self.peek(), Tok::Ident(id) if id == s)
+    }
+
+    fn parse_translation_unit(&mut self) -> Result<Program, RustParseError> {
+        let mut data = Vec::new();
+        let mut hardware = Vec::new();
+        let mut setup = Vec::new();
+        let mut loop_body = Vec::new();
+        let mut functions = Vec::new();
+
+        while !matches!(self.peek(), Tok::Eof) {
+            // fn setup() / fn loop_() / fn name(...) [-> bool] { ... }
+            if self.check_ident("fn") {
+                self.bump();
+                let name = match self.bump() {
+                    Tok::Ident(s) => s,
+                    _ => return Err(self.err("expected function name after fn")),
+                };
+                let params = self.parse_param_list()?;
+                if matches!(self.peek(), Tok::Arrow) {
+                    self.bump();
+                    let _ret = self.bump(); // type
+                }
+                self.expect_lbrace()?;
+                let body = self.parse_block_body()?;
+                if name == "setup" {
+                    setup = body;
+                } else if name == "loop_" || name == "loop" {
+                    loop_body = body;
+                } else {
+                    functions.push(FunctionDef {
+                        name,
+                        params,
+                        body,
+                    });
+                }
+                continue;
+            }
+
+            // const NAME: ty = expr;  |  let [mut] NAME: ty = expr;
+            if self.check_ident("const") || self.check_ident("let") {
+                let (entry, pin_opt) = self.parse_decl()?;
+                if let Some((label, pin)) = pin_opt {
+                    self.pin_consts.insert(label.clone(), pin);
+                    if let Some(anno) = self.hw_annos.get(&label) {
+                        hardware.push(HardwareEntry {
+                            pin: anno.pin,
+                            hw_type: anno.hw_type,
+                            io_mode: anno.io_mode,
+                            label: anno.label.clone(),
+                            target_role: anno.target_role.clone(),
+                            pull: anno.pull,
+                        });
+                    } else {
+                        hardware.push(HardwareEntry {
+                            pin,
+                            hw_type: HwType::Digital,
+                            io_mode: IoMode::Do,
+                            label,
+                            target_role: "digital-out".into(),
+                            pull: Default::default(),
+                        });
+                    }
+                } else {
+                    data.push(entry);
+                }
+                continue;
+            }
+
+            return Err(self.err(format!("unexpected top-level token {:?}", self.peek())));
+        }
+
+        let setup = rewrite_stmts(setup, &self.pin_consts);
+  
