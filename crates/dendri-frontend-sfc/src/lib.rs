@@ -182,6 +182,7 @@ mod tests {
                 io_mode: IoMode::Do,
                 label: "ledPin".into(),
                 target_role: "digital-out".into(),
+                pull: Default::default(),
             }],
             data: vec![
                 DataEntry {
@@ -671,15 +672,15 @@ mod tests {
             ],
             io_map: vec![],
             hardware: vec![
-                HardwareEntry { pin: 0, hw_type: HwType::Digital, io_mode: IoMode::Di, label: "sensorFloor0".into(), target_role: "sensor-pos".into() },
-                HardwareEntry { pin: 1, hw_type: HwType::Digital, io_mode: IoMode::Di, label: "sensorFloor1".into(), target_role: "sensor-pos".into() },
-                HardwareEntry { pin: 2, hw_type: HwType::Digital, io_mode: IoMode::Di, label: "callBtn0".into(), target_role: "btn-no".into() },
-                HardwareEntry { pin: 3, hw_type: HwType::Digital, io_mode: IoMode::Di, label: "callBtn1".into(), target_role: "btn-no".into() },
-                HardwareEntry { pin: 4, hw_type: HwType::Digital, io_mode: IoMode::Di, label: "irBarrier".into(), target_role: "ir-rx".into() },
-                HardwareEntry { pin: 10, hw_type: HwType::Digital, io_mode: IoMode::Do, label: "motorUp".into(), target_role: "relay-coil".into() },
-                HardwareEntry { pin: 11, hw_type: HwType::Digital, io_mode: IoMode::Do, label: "motorDn".into(), target_role: "relay-coil".into() },
-                HardwareEntry { pin: 12, hw_type: HwType::Digital, io_mode: IoMode::Do, label: "doorOpen".into(), target_role: "relay-coil".into() },
-                HardwareEntry { pin: 13, hw_type: HwType::Digital, io_mode: IoMode::Do, label: "doorClose".into(), target_role: "relay-coil".into() },
+                HardwareEntry { pin: 0, hw_type: HwType::Digital, io_mode: IoMode::Di, label: "sensorFloor0".into(), target_role: "sensor-pos".into(), pull: Default::default() },
+                HardwareEntry { pin: 1, hw_type: HwType::Digital, io_mode: IoMode::Di, label: "sensorFloor1".into(), target_role: "sensor-pos".into(), pull: Default::default() },
+                HardwareEntry { pin: 2, hw_type: HwType::Digital, io_mode: IoMode::Di, label: "callBtn0".into(), target_role: "btn-no".into(), pull: Default::default() },
+                HardwareEntry { pin: 3, hw_type: HwType::Digital, io_mode: IoMode::Di, label: "callBtn1".into(), target_role: "btn-no".into(), pull: Default::default() },
+                HardwareEntry { pin: 4, hw_type: HwType::Digital, io_mode: IoMode::Di, label: "irBarrier".into(), target_role: "ir-rx".into(), pull: Default::default() },
+                HardwareEntry { pin: 10, hw_type: HwType::Digital, io_mode: IoMode::Do, label: "motorUp".into(), target_role: "relay-coil".into(), pull: Default::default() },
+                HardwareEntry { pin: 11, hw_type: HwType::Digital, io_mode: IoMode::Do, label: "motorDn".into(), target_role: "relay-coil".into(), pull: Default::default() },
+                HardwareEntry { pin: 12, hw_type: HwType::Digital, io_mode: IoMode::Do, label: "doorOpen".into(), target_role: "relay-coil".into(), pull: Default::default() },
+                HardwareEntry { pin: 13, hw_type: HwType::Digital, io_mode: IoMode::Do, label: "doorClose".into(), target_role: "relay-coil".into(), pull: Default::default() },
             ],
             data: vec![
                 DataEntry { name: "DOOR_DELAY".into(), data_type: DataType::Time, scope: Scope::Const, init: "T#200ms".into(), unit: "ms".into() },

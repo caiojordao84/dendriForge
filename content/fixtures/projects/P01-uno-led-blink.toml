@@ -1,25 +1,17 @@
-# P01 — UNO + modular LED(+resistor) + start button.
+# P01 — UNO + modular LED (integrated 220Ω) + start button on D2–GND with pull-up.
 # ASL is the sole source of truth; backends emit into build/ on export.
+# Button is active-low: pressed → LOW; ASL uses NOT GET_BOOL (no backend invert).
 
 [metadata]
 asl_version = "0.0.1"
 project_name = "P01-uno-led-blink"
 editor = "dendriForge"
 author = "dendriForge Phase 1"
-notes = "Portable project: board + wiring + ASL only (no embedded sources)"
+notes = "Portable project: board + wiring + ASL only (no embedded sources). Integrated-resistance LED module; button pull-up."
 
 [board]
 profile = "arduino-uno-r3"
 instance_id = "board"
-
-[[components]]
-instance_id = "r_led"
-profile = "resistor"
-label = "LED series resistor"
-
-[components.params]
-resistance = 220
-power_rating = 0.25
 
 [[components]]
 instance_id = "led1"
@@ -28,6 +20,7 @@ label = "Status LED"
 
 [components.params]
 color = "red"
+integrated_resistance = 220
 
 [[components]]
 instance_id = "btn_start"
@@ -36,14 +29,9 @@ label = "Start button"
 
 [components.params]
 
-# D13 → resistor → LED anode; LED cathode → GND
+# D13 → LED anode; LED cathode → GND (series R is integrated in the module)
 [[wiring]]
 from = "board.D13"
-to = "r_led.A"
-signal = "digital"
-
-[[wiring]]
-from = "r_led.B"
 to = "led1.A"
 signal = "digital"
 
@@ -52,7 +40,7 @@ from = "board.GND"
 to = "led1.K"
 signal = "gnd"
 
-# Button: D2 ← NO, COM → GND (INPUT_PULLUP style / active-low or active-high per ASL)
+# Button: D2 ← NO, COM → GND; MCU INPUT_PULLUP (active-low when pressed)
 [[wiring]]
 from = "board.D2"
 to = "btn_start.NO"
@@ -71,7 +59,7 @@ asl_version = "0.0.1"
 project_name = "P01-uno-led-blink"
 editor = "dendriForge"
 author = "dendriForge Phase 1"
-notes = "Logical IO names in actions; pins only via hardware + wiring"
+notes = "Logical IO names in actions; pins only via hardware + wiring; pullup on btnPin"
 
 [[asl.hardware]]
 pin = 13
@@ -86,6 +74,7 @@ hw_type = "digital"
 io_mode = "DI"
 label = "btnPin"
 target_role = "digital-in"
+pull = "pullup"
 
 [[asl.data]]
 name = "INTERVAL"
@@ -96,6 +85,13 @@ unit = "ms"
 
 [[asl.data]]
 name = "ledState"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[asl.data]]
+name = "pressed"
 type = "BOOL"
 scope = "VAR"
 init = "FALSE"
@@ -117,8 +113,21 @@ name = "SET_BOOL"
 args = [{ kind = "var", name = "ledPin" }, { kind = "bool", value = false }]
 
 [[asl.loop]]
+kind = "assign"
+target = "pressed"
+
+[asl.loop.value]
+kind = "unary"
+op = "not"
+
+[asl.loop.value.expr]
+kind = "call"
+name = "GET_BOOL"
+args = [{ kind = "var", name = "btnPin" }]
+
+[[asl.loop]]
 kind = "if"
-condition = { kind = "call", name = "GET_BOOL", args = [{ kind = "var", name = "btnPin" }] }
+condition = { kind = "var", name = "pressed" }
 then = [
   { kind = "assign", target = "ledState", value = { kind = "unary", op = "not", expr = { kind = "var", name = "ledState" } } },
   { kind = "call", name = "SET_BOOL", args = [{ kind = "var", name = "ledPin" }, { kind = "var", name = "ledState" }] },

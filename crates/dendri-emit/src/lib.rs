@@ -53,6 +53,7 @@ mod tests {
                 io_mode: IoMode::Do,
                 label: "led".into(),
                 target_role: "digital-out".into(),
+                pull: Default::default(),
             }],
             data: vec![DataEntry {
                 name: "x".into(),

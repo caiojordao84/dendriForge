@@ -32,6 +32,8 @@ pub const DEFAULT_LED_PIN: u32 = 13;
 pub struct PinBinding {
     pub button_pin: u32,
     pub led_pin: u32,
+    /// True when the button input uses MCU pull-up (pressed reads LOW).
+    pub button_active_low: bool,
 }
 
 impl Default for PinBinding {
@@ -39,6 +41,7 @@ impl Default for PinBinding {
         Self {
             button_pin: DEFAULT_BUTTON_PIN,
             led_pin: DEFAULT_LED_PIN,
+            button_active_low: false,
         }
     }
 }
@@ -68,9 +71,20 @@ impl PinBinding {
             }
             if role.contains("in") || label.contains("btn") || label.contains("button") {
                 binding.button_pin = hw.pin;
+                binding.button_active_low = matches!(hw.pull, dendri_ast::PullMode::Pullup);
             }
         }
         binding
+    }
+
+    /// Electrical level driven onto the DI pin for a logical press/release.
+    /// Pull-up buttons to GND are active-low (pressed → LOW).
+    pub fn button_pin_level(&self, pressed: bool) -> bool {
+        if self.button_active_low {
+            !pressed
+        } else {
+            pressed
+        }
     }
 }
 
@@ -380,17 +394,29 @@ impl SimCanvas {
 
     pub fn boot(&mut self) -> Result<VisualFrame, String> {
         self.sim.ensure_setup()?;
+        // Idle at the released electrical level (HIGH when pull-up / active-low).
+        self.button_pressed = false;
+        let _ = self.sim.set_pin(
+            self.binding.button_pin,
+            self.binding.button_pin_level(false),
+        );
         Ok(self.capture())
     }
 
     pub fn press_button(&mut self) {
         self.button_pressed = true;
-        let _ = self.sim.set_pin(self.binding.button_pin, true);
+        let _ = self.sim.set_pin(
+            self.binding.button_pin,
+            self.binding.button_pin_level(true),
+        );
     }
 
     pub fn release_button(&mut self) {
         self.button_pressed = false;
-        let _ = self.sim.set_pin(self.binding.button_pin, false);
+        let _ = self.sim.set_pin(
+            self.binding.button_pin,
+            self.binding.button_pin_level(false),
+        );
     }
 
     pub fn set_button(&mut self, pressed: bool) {

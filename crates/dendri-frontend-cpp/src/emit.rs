@@ -2,7 +2,7 @@
 
 use dendri_ast::expr::{BinaryOp, Expr, UnaryOp};
 use dendri_ast::stmt::Stmt;
-use dendri_ast::{DataType, Program, Scope};
+use dendri_ast::{DataType, Program, PullMode, Scope};
 use dendri_parse::parse_expr_text;
 use std::collections::HashMap;
 
@@ -13,6 +13,12 @@ pub fn emit_cpp(program: &Program) -> String {
         .iter()
         .map(|h| (h.pin, h.label.clone()))
         .collect();
+    let pin_pulls: HashMap<String, PullMode> = program
+        .hardware
+        .iter()
+        .filter(|h| !h.pull.is_none())
+        .map(|h| (h.label.clone(), h.pull))
+        .collect();
 
     let mut out = String::new();
     out.push_str("// DendriForge C++ frontend — MVP Arduino subset\n");
@@ -22,10 +28,17 @@ pub fn emit_cpp(program: &Program) -> String {
     out.push('\n');
 
     for h in &program.hardware {
-        out.push_str(&format!(
-            "// ASL_HW: pin={} type={:?} mode={:?} label={} role={}\n",
-            h.pin, h.hw_type, h.io_mode, h.label, h.target_role
-        ));
+        if h.pull.is_none() {
+            out.push_str(&format!(
+                "// ASL_HW: pin={} type={:?} mode={:?} label={} role={}\n",
+                h.pin, h.hw_type, h.io_mode, h.label, h.target_role
+            ));
+        } else {
+            out.push_str(&format!(
+                "// ASL_HW: pin={} type={:?} mode={:?} label={} role={} pull={}\n",
+                h.pin, h.hw_type, h.io_mode, h.label, h.target_role, h.pull.as_str()
+            ));
+        }
         out.push_str(&format!("const int {} = {};\n", h.label, h.pin));
     }
     if !program.hardware.is_empty() {
@@ -57,13 +70,13 @@ pub fn emit_cpp(program: &Program) -> String {
 
     out.push_str("void setup() {\n");
     for stmt in &program.setup {
-        emit_stmt(stmt, &mut out, 1, &pin_labels);
+        emit_stmt(stmt, &mut out, 1, &pin_labels, &pin_pulls);
     }
     out.push_str("}\n\n");
 
     out.push_str("void loop() {\n");
     for stmt in &program.loop_body {
-        emit_stmt(stmt, &mut out, 1, &pin_labels);
+        emit_stmt(stmt, &mut out, 1, &pin_labels, &pin_pulls);
     }
     out.push_str("}\n");
 
@@ -76,7 +89,7 @@ pub fn emit_cpp(program: &Program) -> String {
             .join(", ");
         out.push_str(&format!("\nbool {}({params}) {{\n", f.name));
         for stmt in &f.body {
-            emit_stmt(stmt, &mut out, 1, &pin_labels);
+            emit_stmt(stmt, &mut out, 1, &pin_labels, &pin_pulls);
         }
         out.push_str("}\n");
     }
@@ -159,7 +172,25 @@ fn parse_time_ms(init: &str) -> Option<u64> {
     s.parse().ok()
 }
 
-fn resolve_pin(expr: &Expr, labels: &HashMap<u32, String>) -> String {
+
+fn lookup_pull(
+    expr: &Expr,
+    labels: &HashMap<u32, String>,
+    pulls: &HashMap<String, PullMode>,
+) -> PullMode {
+    let label = match expr {
+        Expr::Var { name } => Some(name.as_str()),
+        Expr::Uint { value } => labels.get(&(*value as u32)).map(|s| s.as_str()),
+        _ => None,
+    };
+    label.and_then(|l| pulls.get(l).copied()).unwrap_or(PullMode::None)
+}
+
+fn resolve_pin(
+    expr: &Expr,
+    labels: &HashMap<u32, String>,
+    pulls: &HashMap<String, PullMode>,
+) -> String {
     match expr {
         Expr::Uint { value } => {
             if let Some(l) = labels.get(&(*value as u32)) {
@@ -168,18 +199,24 @@ fn resolve_pin(expr: &Expr, labels: &HashMap<u32, String>) -> String {
                 value.to_string()
             }
         }
-        other => emit_expr(other, labels),
+        other => emit_expr(other, labels, pulls),
     }
 }
 
-fn emit_stmt(stmt: &Stmt, out: &mut String, indent: usize, labels: &HashMap<u32, String>) {
+fn emit_stmt(
+    stmt: &Stmt,
+    out: &mut String,
+    indent: usize,
+    labels: &HashMap<u32, String>,
+    pulls: &HashMap<String, PullMode>,
+) {
     let pad = "  ".repeat(indent);
     match stmt {
         Stmt::Assign { target, value } => {
-            out.push_str(&format!("{pad}{target} = {};\n", emit_expr(value, labels)));
+            out.push_str(&format!("{pad}{target} = {};\n", emit_expr(value, labels, pulls)));
         }
         Stmt::Call { name, args } => {
-            out.push_str(&format!("{pad}{};\n", emit_call(name, args, labels)));
+            out.push_str(&format!("{pad}{};\n", emit_call(name, args, labels, pulls)));
         }
         Stmt::If {
             condition,
@@ -187,34 +224,34 @@ fn emit_stmt(stmt: &Stmt, out: &mut String, indent: usize, labels: &HashMap<u32,
             elif,
             else_body,
         } => {
-            out.push_str(&format!("{pad}if ({}) {{\n", emit_expr(condition, labels)));
+            out.push_str(&format!("{pad}if ({}) {{\n", emit_expr(condition, labels, pulls)));
             for s in then {
-                emit_stmt(s, out, indent + 1, labels);
+                emit_stmt(s, out, indent + 1, labels, pulls);
             }
             out.push_str(&format!("{pad}}}"));
             for arm in elif {
                 out.push_str(&format!(
                     " else if ({}) {{\n",
-                    emit_expr(&arm.condition, labels)
+                    emit_expr(&arm.condition, labels, pulls)
                 ));
                 for s in &arm.then {
-                    emit_stmt(s, out, indent + 1, labels);
+                    emit_stmt(s, out, indent + 1, labels, pulls);
                 }
                 out.push_str(&format!("{pad}}}"));
             }
             if let Some(body) = else_body {
                 out.push_str(" else {\n");
                 for s in body {
-                    emit_stmt(s, out, indent + 1, labels);
+                    emit_stmt(s, out, indent + 1, labels, pulls);
                 }
                 out.push_str(&format!("{pad}}}"));
             }
             out.push('\n');
         }
         Stmt::While { condition, body } => {
-            out.push_str(&format!("{pad}while ({}) {{\n", emit_expr(condition, labels)));
+            out.push_str(&format!("{pad}while ({}) {{\n", emit_expr(condition, labels, pulls)));
             for s in body {
-                emit_stmt(s, out, indent + 1, labels);
+                emit_stmt(s, out, indent + 1, labels, pulls);
             }
             out.push_str(&format!("{pad}}}\n"));
         }
@@ -222,16 +259,16 @@ fn emit_stmt(stmt: &Stmt, out: &mut String, indent: usize, labels: &HashMap<u32,
             let c = counter.as_deref().unwrap_or("_i");
             out.push_str(&format!(
                 "{pad}for (int {c} = 0; {c} < {}; {c}++) {{\n",
-                emit_expr(to, labels)
+                emit_expr(to, labels, pulls)
             ));
             for s in body {
-                emit_stmt(s, out, indent + 1, labels);
+                emit_stmt(s, out, indent + 1, labels, pulls);
             }
             out.push_str(&format!("{pad}}}\n"));
         }
         Stmt::Return { value } => {
             if let Some(v) = value {
-                out.push_str(&format!("{pad}return {};\n", emit_expr(v, labels)));
+                out.push_str(&format!("{pad}return {};\n", emit_expr(v, labels, pulls)));
             } else {
                 out.push_str(&format!("{pad}return;\n"));
             }
@@ -245,79 +282,89 @@ fn emit_stmt(stmt: &Stmt, out: &mut String, indent: usize, labels: &HashMap<u32,
     }
 }
 
-fn emit_call(name: &str, args: &[Expr], labels: &HashMap<u32, String>) -> String {
+fn emit_call(
+    name: &str,
+    args: &[Expr],
+    labels: &HashMap<u32, String>,
+    pulls: &HashMap<String, PullMode>,
+) -> String {
     match name {
         "CFG_DIGITAL_OUTPUT" => {
-            format!("pinMode({}, OUTPUT)", resolve_pin(&args[0], labels))
+            format!("pinMode({}, OUTPUT)", resolve_pin(&args[0], labels, pulls))
         }
         "CFG_DIGITAL_INPUT" => {
-            format!("pinMode({}, INPUT)", resolve_pin(&args[0], labels))
+            let mode = match lookup_pull(&args[0], labels, pulls) {
+                PullMode::Pullup => "INPUT_PULLUP",
+                PullMode::Pulldown => "INPUT_PULLDOWN",
+                PullMode::None => "INPUT",
+            };
+            format!("pinMode({}, {mode})", resolve_pin(&args[0], labels, pulls))
         }
         "CFG_DIGITAL_INPUT_PULLUP" => {
-            format!("pinMode({}, INPUT_PULLUP)", resolve_pin(&args[0], labels))
+            format!("pinMode({}, INPUT_PULLUP)", resolve_pin(&args[0], labels, pulls))
         }
         "CFG_DIGITAL_INPUT_PULLDOWN" => {
-            format!("pinMode({}, INPUT_PULLDOWN)", resolve_pin(&args[0], labels))
+            format!("pinMode({}, INPUT_PULLDOWN)", resolve_pin(&args[0], labels, pulls))
         }
         "SET_BOOL" => {
-            let pin = resolve_pin(&args[0], labels);
+            let pin = resolve_pin(&args[0], labels, pulls);
             let val = match args.get(1) {
                 Some(Expr::Bool { value: true }) => "HIGH".into(),
                 Some(Expr::Bool { value: false }) => "LOW".into(),
-                Some(e) => emit_expr(e, labels),
+                Some(e) => emit_expr(e, labels, pulls),
                 None => "LOW".into(),
             };
             format!("digitalWrite({pin}, {val})")
         }
-        "GET_BOOL" => format!("digitalRead({})", resolve_pin(&args[0], labels)),
+        "GET_BOOL" => format!("digitalRead({})", resolve_pin(&args[0], labels, pulls)),
         "CFG_PWM_OUTPUT" => {
             // Arduino AVR subset: pinMode OUTPUT; freq kept as ASL call arg for round-trip.
-            let pin = resolve_pin(&args[0], labels);
+            let pin = resolve_pin(&args[0], labels, pulls);
             let freq = args
                 .get(1)
-                .map(|e| emit_expr(e, labels))
+                .map(|e| emit_expr(e, labels, pulls))
                 .unwrap_or_else(|| "1000".into());
             format!("CFG_PWM_OUTPUT({pin}, {freq})")
         }
         "SET_PWM_DUTY" => {
-            let pin = resolve_pin(&args[0], labels);
+            let pin = resolve_pin(&args[0], labels, pulls);
             let duty = args
                 .get(1)
-                .map(|e| emit_expr(e, labels))
+                .map(|e| emit_expr(e, labels, pulls))
                 .unwrap_or_else(|| "0".into());
             format!("analogWrite({pin}, {duty})")
         }
         "SET_PWM_FREQ" => {
             let a = args
                 .iter()
-                .map(|e| emit_expr(e, labels))
+                .map(|e| emit_expr(e, labels, pulls))
                 .collect::<Vec<_>>()
                 .join(", ");
             format!("SET_PWM_FREQ({a})")
         }
-        "GET_PWM_DUTY" => format!("GET_PWM_DUTY({})", resolve_pin(&args[0], labels)),
+        "GET_PWM_DUTY" => format!("GET_PWM_DUTY({})", resolve_pin(&args[0], labels, pulls)),
         "CFG_ADC_INPUT" => {
-            format!("CFG_ADC_INPUT({})", resolve_pin(&args[0], labels))
+            format!("CFG_ADC_INPUT({})", resolve_pin(&args[0], labels, pulls))
         }
-        "READ_ADC" => format!("analogRead({})", resolve_pin(&args[0], labels)),
+        "READ_ADC" => format!("analogRead({})", resolve_pin(&args[0], labels, pulls)),
         "CFG_SERIAL" => {
             let baud = args
                 .first()
-                .map(|e| emit_expr(e, labels))
+                .map(|e| emit_expr(e, labels, pulls))
                 .unwrap_or_else(|| "9600".into());
             format!("Serial.begin({baud})")
         }
         "SERIAL_PRINT" => {
             let msg = args
                 .first()
-                .map(|e| emit_expr(e, labels))
+                .map(|e| emit_expr(e, labels, pulls))
                 .unwrap_or_else(|| "\"\"".into());
             format!("Serial.print({msg})")
         }
         "SERIAL_PRINTLN" => {
             let msg = args
                 .first()
-                .map(|e| emit_expr(e, labels))
+                .map(|e| emit_expr(e, labels, pulls))
                 .unwrap_or_else(|| "\"\"".into());
             format!("Serial.println({msg})")
         }
@@ -329,7 +376,7 @@ fn emit_call(name: &str, args: &[Expr], labels: &HashMap<u32, String>) -> String
             // Emit Wire.begin(sda, scl) + keep bus/freq via CFG_I2C for full round-trip.
             let a = args
                 .iter()
-                .map(|e| emit_expr(e, labels))
+                .map(|e| emit_expr(e, labels, pulls))
                 .collect::<Vec<_>>()
                 .join(", ");
             format!("CFG_I2C({a})")
@@ -337,17 +384,17 @@ fn emit_call(name: &str, args: &[Expr], labels: &HashMap<u32, String>) -> String
         "CFG_SPI" => {
             let a = args
                 .iter()
-                .map(|e| emit_expr(e, labels))
+                .map(|e| emit_expr(e, labels, pulls))
                 .collect::<Vec<_>>()
                 .join(", ");
             format!("CFG_SPI({a})")
         }
         "WAIT_TIME" => {
-            let a = args.first().map(|e| emit_expr(e, labels)).unwrap_or_else(|| "0".into());
+            let a = args.first().map(|e| emit_expr(e, labels, pulls)).unwrap_or_else(|| "0".into());
             format!("delay({a})")
         }
         "WAIT_TIME_US" => {
-            let a = args.first().map(|e| emit_expr(e, labels)).unwrap_or_else(|| "0".into());
+            let a = args.first().map(|e| emit_expr(e, labels, pulls)).unwrap_or_else(|| "0".into());
             format!("delayMicroseconds({a})")
         }
         "GET_SYS_TIME" => "millis()".into(),
@@ -355,7 +402,7 @@ fn emit_call(name: &str, args: &[Expr], labels: &HashMap<u32, String>) -> String
         other => {
             let a = args
                 .iter()
-                .map(|e| emit_expr(e, labels))
+                .map(|e| emit_expr(e, labels, pulls))
                 .collect::<Vec<_>>()
                 .join(", ");
             format!("{other}({a})")
@@ -363,7 +410,7 @@ fn emit_call(name: &str, args: &[Expr], labels: &HashMap<u32, String>) -> String
     }
 }
 
-fn emit_expr(expr: &Expr, labels: &HashMap<u32, String>) -> String {
+fn emit_expr(expr: &Expr, labels: &HashMap<u32, String>, pulls: &HashMap<String, PullMode>) -> String {
     match expr {
         Expr::Bool { value } => {
             if *value {
@@ -382,9 +429,9 @@ fn emit_expr(expr: &Expr, labels: &HashMap<u32, String>) -> String {
         Expr::Hex { value } => value.clone(),
         Expr::Var { name } => name.clone(),
         Expr::Lit { value } => format!("{value:?}"),
-        Expr::Call { name, args } => emit_call(name, args, labels),
+        Expr::Call { name, args } => emit_call(name, args, labels, pulls),
         Expr::Unary { op, expr } => {
-            let inner = emit_expr(expr, labels);
+            let inner = emit_expr(expr, labels, pulls);
             match op {
                 UnaryOp::Not => format!("!({inner})"),
                 UnaryOp::Neg => format!("-({inner})"),
@@ -392,8 +439,8 @@ fn emit_expr(expr: &Expr, labels: &HashMap<u32, String>) -> String {
             }
         }
         Expr::Binop { op, left, right } => {
-            let l = emit_expr(left, labels);
-            let r = emit_expr(right, labels);
+            let l = emit_expr(left, labels, pulls);
+            let r = emit_expr(right, labels, pulls);
             let o = match op {
                 BinaryOp::Add => "+",
                 BinaryOp::Sub => "-",
@@ -418,7 +465,7 @@ fn emit_expr(expr: &Expr, labels: &HashMap<u32, String>) -> String {
             format!("({l} {o} {r})")
         }
         Expr::ExprText { text } => match parse_expr_text(text) {
-            Ok(e) => emit_expr(&e, labels),
+            Ok(e) => emit_expr(&e, labels, pulls),
             Err(_) => text.clone(),
         },
     }

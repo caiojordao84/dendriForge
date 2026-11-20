@@ -3,7 +3,7 @@
 use dendri_ast::expr::{BinaryOp, Expr, UnaryOp};
 use dendri_ast::stmt::{ElifArm, Stmt};
 use dendri_ast::{
-    DataEntry, DataType, FunctionDef, HardwareEntry, HwType, IoMode, Metadata, Program, Scope,
+    DataEntry, DataType, FunctionDef, HardwareEntry, HwType, IoMode, PullMode, Metadata, Program, Scope,
 };
 use std::collections::HashMap;
 use thiserror::Error;
@@ -28,6 +28,7 @@ struct HwAnno {
     io_mode: IoMode,
     label: String,
     target_role: String,
+    pull: PullMode,
 }
 
 #[derive(Debug, Clone)]
@@ -216,6 +217,7 @@ impl Parser {
                                 io_mode: anno.io_mode,
                                 label: anno.label.clone(),
                                 target_role: anno.target_role.clone(),
+                                pull: anno.pull,
                             });
                         } else {
                             hardware.push(HardwareEntry {
@@ -224,6 +226,7 @@ impl Parser {
                                 io_mode: IoMode::Do,
                                 label: snake_to_camel(&name),
                                 target_role: "digital-out".into(),
+                                pull: Default::default(),
                             });
                         }
                         continue;
@@ -834,6 +837,7 @@ fn parse_asl_hw_anno(body: &str) -> Option<HwAnno> {
     let mut role = String::from("digital-out");
     let mut io_mode = IoMode::Do;
     let mut hw_type = HwType::Digital;
+    let mut pull = PullMode::None;
     for part in body.split_whitespace() {
         if let Some(v) = part.strip_prefix("pin=") {
             pin = v.parse().ok();
@@ -853,6 +857,8 @@ fn parse_asl_hw_anno(body: &str) -> Option<HwAnno> {
                 "Bi" | "BI" => IoMode::Bi,
                 _ => IoMode::Do,
             };
+        } else if let Some(v) = part.strip_prefix("pull=") {
+            pull = PullMode::parse(v).unwrap_or(PullMode::None);
         }
     }
     let pin = pin?;
@@ -865,6 +871,7 @@ fn parse_asl_hw_anno(body: &str) -> Option<HwAnno> {
         io_mode,
         label,
         target_role: role,
+        pull,
     })
 }
 

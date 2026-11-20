@@ -74,3 +74,81 @@ pub enum IoMode {
     #[serde(rename = "BI", alias = "bi", alias = "BI")]
     Bi,
 }
+
+/// Internal resistor bias for a digital input (`CFG_DIGITAL_INPUT` consults this).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PullMode {
+    Pullup,
+    Pulldown,
+    #[default]
+    None,
+}
+
+impl PullMode {
+    pub fn is_none(&self) -> bool {
+        matches!(self, Self::None)
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Pullup => "pullup",
+            Self::Pulldown => "pulldown",
+            Self::None => "none",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Self> {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "pullup" | "pull-up" | "up" => Some(Self::Pullup),
+            "pulldown" | "pull-down" | "down" => Some(Self::Pulldown),
+            "none" | "" => Some(Self::None),
+            _ => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod pull_mode_tests {
+    use super::*;
+    use crate::program::HardwareEntry;
+
+    #[test]
+    fn hardware_entry_deserializes_pullup() {
+        let toml = r#"
+pin = 2
+hw_type = "digital"
+io_mode = "DI"
+label = "btnPin"
+target_role = "digital-in"
+pull = "pullup"
+"#;
+        let hw: HardwareEntry = toml::from_str(toml).expect("parse hardware");
+        assert_eq!(hw.pull, PullMode::Pullup);
+        assert_eq!(hw.label, "btnPin");
+    }
+
+    #[test]
+    fn hardware_entry_omits_none_pull_on_serialize() {
+        let hw = HardwareEntry {
+            pin: 13,
+            hw_type: HwType::Digital,
+            io_mode: IoMode::Do,
+            label: "ledPin".into(),
+            target_role: "digital-out".into(),
+            pull: PullMode::None,
+        };
+        let text = toml::to_string(&hw).expect("serialize");
+        assert!(
+            !text.contains("pull"),
+            "none pull must skip serialize: {text}"
+        );
+    }
+
+    #[test]
+    fn pull_mode_parses_aliases() {
+        assert_eq!(PullMode::parse("pullup"), Some(PullMode::Pullup));
+        assert_eq!(PullMode::parse("pulldown"), Some(PullMode::Pulldown));
+        assert_eq!(PullMode::parse("none"), Some(PullMode::None));
+    }
+}

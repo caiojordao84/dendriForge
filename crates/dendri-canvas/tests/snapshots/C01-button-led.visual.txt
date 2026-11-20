@@ -1,6 +1,6 @@
 # frame 0
 cycle=0 t_ms=0 button=released led=off
-pin.2=0
+pin.2=1
 pin.13=0
 svg.led-body=off
 svg.actuator=released
@@ -9,7 +9,7 @@ svg.board.led-pin13=off
 
 # frame 1
 cycle=1 t_ms=0 button=released led=off
-pin.2=0
+pin.2=1
 pin.13=0
 svg.led-body=off
 svg.actuator=released
@@ -18,7 +18,7 @@ svg.board.led-pin13=off
 
 # frame 2
 cycle=2 t_ms=0 button=pressed led=on
-pin.2=1
+pin.2=0
 pin.13=1
 svg.led-body=on
 svg.actuator=pressed
@@ -27,7 +27,7 @@ svg.board.led-pin13=on
 
 # frame 3
 cycle=3 t_ms=0 button=released led=off
-pin.2=0
+pin.2=1
 pin.13=0
 svg.led-body=off
 svg.actuator=released

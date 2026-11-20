@@ -3,19 +3,11 @@ asl_version = "0.0.1"
 project_name = "C01-button-led"
 editor = "dendriForge"
 author = "dendriForge Priority 4"
-notes = "Scenario-1 hardware: Uno + modular LED(+resistor) + pushbutton"
+notes = "Uno + LED module with integrated 220-ohm SMD resistor + normally open pushbutton. LED on while button is pressed."
 
 [board]
 profile = "arduino-uno-r3"
 instance_id = "board"
-
-[[components]]
-instance_id = "r_led"
-profile = "resistor"
-label = "LED series resistor"
-
-[components.params]
-resistance = 220
 
 [[components]]
 instance_id = "led1"
@@ -24,6 +16,7 @@ label = "Status LED"
 
 [components.params]
 color = "red"
+integrated_resistance = 220
 
 [[components]]
 instance_id = "btn_start"
@@ -34,11 +27,6 @@ label = "Start button"
 
 [[wiring]]
 from = "board.D13"
-to = "r_led.A"
-signal = "digital"
-
-[[wiring]]
-from = "r_led.B"
 to = "led1.A"
 signal = "digital"
 
@@ -72,6 +60,7 @@ hw_type = "digital"
 io_mode = "DI"
 label = "btnPin"
 target_role = "digital-in"
+pull = "pullup"
 
 [[asl.hardware]]
 pin = 13
@@ -105,7 +94,15 @@ args = [{ kind = "var", name = "ledPin" }, { kind = "bool", value = false }]
 [[asl.loop]]
 kind = "assign"
 target = "pressed"
-value = { kind = "call", name = "GET_BOOL", args = [{ kind = "var", name = "btnPin" }] }
+
+[asl.loop.value]
+kind = "unary"
+op = "not"
+
+[asl.loop.value.expr]
+kind = "call"
+name = "GET_BOOL"
+args = [{ kind = "var", name = "btnPin" }]
 
 [[asl.loop]]
 kind = "call"

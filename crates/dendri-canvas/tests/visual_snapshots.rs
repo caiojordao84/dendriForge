@@ -110,7 +110,8 @@ fn press_propagates_to_pin_and_led_render() {
     let frame = canvas.step().unwrap();
     assert!(frame.button_pressed);
     assert!(frame.led_on);
-    assert_eq!(canvas.sim.pin(2), true);
+    // Pull-up / active-low: pressed drives the DI pin LOW.
+    assert_eq!(canvas.sim.pin(2), false);
     assert_eq!(canvas.sim.pin(13), true);
     let led = canvas.rendered_led();
     assert!(led.contains("on"));

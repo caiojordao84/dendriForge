@@ -42,6 +42,7 @@ mod tests {
                 io_mode: IoMode::Do,
                 label: "ledPin".into(),
                 target_role: "digital-out".into(),
+                pull: Default::default(),
             }],
             data: vec![
                 DataEntry {

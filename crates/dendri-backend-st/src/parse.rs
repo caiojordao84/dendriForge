@@ -1098,6 +1098,7 @@ fn parse_hw_comment(body: &str) -> Option<HardwareEntry> {
             label
         },
         target_role: role,
+        pull: Default::default(),
     })
 }
 
@@ -1138,6 +1139,7 @@ fn infer_hardware(setup: &[Stmt], loop_body: &[Stmt]) -> Vec<HardwareEntry> {
                     io_mode,
                     label: format!("pin{pin}"),
                     target_role: role.into(),
+                    pull: Default::default(),
                 });
             }
         }

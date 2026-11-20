@@ -2,7 +2,7 @@
 
 use dendri_ast::expr::{BinaryOp, Expr, UnaryOp};
 use dendri_ast::stmt::Stmt;
-use dendri_ast::{DataType, Program, Scope};
+use dendri_ast::{DataType, Program, PullMode, Scope};
 use dendri_parse::parse_expr_text;
 use std::collections::HashMap;
 
@@ -40,10 +40,17 @@ pub fn emit_micropython(program: &Program) -> String {
     out.push_str("from time import sleep_ms\n\n");
 
     for h in &program.hardware {
-        out.push_str(&format!(
-            "# ASL_HW: pin={} type={:?} mode={:?} label={} role={}\n",
-            h.pin, h.hw_type, h.io_mode, h.label, h.target_role
-        ));
+        if h.pull.is_none() {
+            out.push_str(&format!(
+                "# ASL_HW: pin={} type={:?} mode={:?} label={} role={}\n",
+                h.pin, h.hw_type, h.io_mode, h.label, h.target_role
+            ));
+        } else {
+            out.push_str(&format!(
+                "# ASL_HW: pin={} type={:?} mode={:?} label={} role={} pull={}\n",
+                h.pin, h.hw_type, h.io_mode, h.label, h.target_role, h.pull.as_str()
+            ));
+        }
         out.push_str(&format!("{} = {}\n", to_upper_snake(&h.label), h.pin));
     }
     if !program.hardware.is_empty() {
@@ -388,6 +395,28 @@ fn resolve_pin_obj(expr: &Expr, labels: &HashMap<u32, String>) -> String {
     }
 }
 
+
+fn lookup_pull_from_program(
+    expr: &Expr,
+    labels: &HashMap<u32, String>,
+    program: &Program,
+) -> PullMode {
+    let label = match expr {
+        Expr::Var { name } => Some(name.clone()),
+        Expr::Uint { value } => labels.get(&(*value as u32)).cloned(),
+        _ => None,
+    };
+    label
+        .and_then(|l| {
+            program
+                .hardware
+                .iter()
+                .find(|h| h.label == l)
+                .map(|h| h.pull)
+        })
+        .unwrap_or(PullMode::None)
+}
+
 fn emit_stmt(
     stmt: &Stmt,
     out: &mut String,
@@ -411,7 +440,11 @@ fn emit_stmt(
                 | "CFG_DIGITAL_INPUT_PULLUP"
                 | "CFG_DIGITAL_INPUT_PULLDOWN" => {
                     let mode = match name.as_str() {
-                        "CFG_DIGITAL_INPUT" => "Pin.IN",
+                        "CFG_DIGITAL_INPUT" => match lookup_pull_from_program(&args[0], labels, program) {
+                            PullMode::Pullup => "Pin.IN, Pin.PULL_UP",
+                            PullMode::Pulldown => "Pin.IN, Pin.PULL_DOWN",
+                            PullMode::None => "Pin.IN",
+                        },
                         "CFG_DIGITAL_INPUT_PULLUP" => "Pin.IN, Pin.PULL_UP",
                         "CFG_DIGITAL_INPUT_PULLDOWN" => "Pin.IN, Pin.PULL_DOWN",
                         _ => "Pin.OUT",
