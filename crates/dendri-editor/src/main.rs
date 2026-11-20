@@ -6,6 +6,7 @@
 //!
 //! Sync logic: `dendri-sync`. Canvas binding: `dendri-canvas`.
 
+mod schematic;
 mod theme;
 
 use std::path::PathBuf;
@@ -19,11 +20,12 @@ use iced::widget::{
     button, column, container, row, scrollable, text, text_editor, text_input, Column, Space,
 };
 use iced::{Color, Element, Fill, Font, Length, Subscription, Task, Theme};
+use schematic::SchematicView;
 use theme::{
     chrome_btn, export_btn, main_bg, palette_card, palette_card_active, panel_bg, pause_btn,
     surface_bg, surface_low_bg, surface_lowest_bg, tab_active, tab_idle, transport_btn,
-    ACCENT_CYAN, ACCENT_EMERALD, ACCENT_ORANGE, ACCENT_SKY, BORDER, SURFACE_LOWEST, TEXT_HEADING,
-    TEXT_MAIN, TEXT_MUTED,
+    ACCENT_AMBER, ACCENT_CYAN, ACCENT_EMERALD, ACCENT_ORANGE, ACCENT_PURPLE, ACCENT_SKY,
+    BG_EDITOR, BORDER, LED_RED, SURFACE_LOWEST, TEXT_HEADING, TEXT_MAIN, TEXT_MUTED,
 };
 
 fn main() -> iced::Result {
@@ -61,6 +63,17 @@ struct Editor {
     palette_filter: String,
     selected_part: Option<&'static str>,
     left_collapsed: bool,
+    right_collapsed: bool,
+    bottom_collapsed: bool,
+    code_tab: CodeTab,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CodeTab {
+    Cpp,
+    St,
+    Py,
+    ProjectToml,
 }
 
 #[derive(Debug, Clone)]
@@ -71,6 +84,9 @@ enum Message {
     PaletteFilter(String),
     SelectPart(&'static str),
     ToggleLeftDock,
+    ToggleRightDock,
+    ToggleBottomDock,
+    SelectCodeTab(CodeTab),
     TogglePause,
     Tick,
     AddContactNo,
@@ -124,6 +140,9 @@ impl Editor {
             palette_filter: String::new(),
             selected_part: Some("Red LED"),
             left_collapsed: false,
+            right_collapsed: false,
+            bottom_collapsed: false,
+            code_tab: CodeTab::Cpp,
         };
         if editor
             .session
@@ -197,6 +216,16 @@ impl Editor {
             }
             Message::ToggleLeftDock => {
                 self.left_collapsed = !self.left_collapsed;
+            }
+            Message::ToggleRightDock => {
+                self.right_collapsed = !self.right_collapsed;
+            }
+            Message::ToggleBottomDock => {
+                self.bottom_collapsed = !self.bottom_collapsed;
+            }
+            Message::SelectCodeTab(tab) => {
+                self.code_tab = tab;
+                self.status = format!("editor tab: {}", code_tab_label(tab));
             }
             Message::TogglePause => {
                 self.running = !self.running;
@@ -452,26 +481,18 @@ impl Editor {
             Message::SimPress => {
                 if let Some(c) = &mut self.canvas {
                     c.press_button();
-                    let level = if c.binding.button_active_low {
-                        "LOW (active-low pull-up)"
-                    } else {
-                        "HIGH"
-                    };
-                    self.canvas_note = format!("button pressed → pin {level}");
+                    if let Ok(frame) = c.step() {
+                        self.canvas_note = frame.to_snapshot().trim().replace('\n', " | ");
+                    }
                     self.status = "sim: button pressed".into();
-                    // Do not rebuild SVG handles here — iced damage sorting panics
-                    // when SVG markup changes under tiny-skia/wgpu on this stack.
                 }
             }
             Message::SimRelease => {
                 if let Some(c) = &mut self.canvas {
                     c.release_button();
-                    let level = if c.binding.button_active_low {
-                        "HIGH (MCU pull-up)"
-                    } else {
-                        "LOW"
-                    };
-                    self.canvas_note = format!("button released → pin {level}");
+                    if let Ok(frame) = c.step() {
+                        self.canvas_note = frame.to_snapshot().trim().replace('\n', " | ");
+                    }
                     self.status = "sim: button released".into();
                 }
             }
@@ -774,13 +795,42 @@ impl Editor {
     }
 
     fn simulation_workspace(&self) -> Element<'_, Message> {
-        let body = if self.left_collapsed {
-            row![self.sim_canvas_pane()].spacing(0).height(Fill)
+        let mut docks = row![].spacing(0).height(Fill);
+        if !self.left_collapsed {
+            docks = docks.push(self.component_palette());
+        }
+        docks = docks.push(self.sim_canvas_pane());
+        if !self.right_collapsed {
+            docks = docks.push(self.properties_inspector());
+        }
+
+        let mut body = Column::new().spacing(0).width(Fill).height(Fill);
+        body = body.push(docks);
+        if !self.bottom_collapsed {
+            body = body.push(self.bottom_sim_panel());
         } else {
-            row![self.component_palette(), self.sim_canvas_pane()]
-                .spacing(0)
-                .height(Fill)
-        };
+            body = body.push(
+                container(
+                    button(
+                        row![
+                            text("▲").size(11),
+                            text("Code & Terminal")
+                                .size(11)
+                                .font(Font::MONOSPACE)
+                                .color(TEXT_MUTED),
+                        ]
+                        .spacing(6)
+                        .align_y(iced::Alignment::Center),
+                    )
+                    .padding([4, 12])
+                    .style(chrome_btn)
+                    .on_press(Message::ToggleBottomDock),
+                )
+                .width(Fill)
+                .center_x(Fill)
+                .padding(4),
+            );
+        }
         container(body).width(Fill).height(Fill).into()
     }
 
@@ -890,34 +940,59 @@ impl Editor {
     }
 
     fn sim_canvas_pane(&self) -> Element<'_, Message> {
-        let mut col = Column::new().spacing(12).padding(16);
+        let mut toolbar_row = row![
+            text("⛶").size(12).color(TEXT_MUTED),
+            text("Wire").size(11).font(Font::MONOSPACE).color(TEXT_MUTED),
+            container(Space::with_width(8).height(8)).style(|_t| container::Style {
+                background: Some(iced::Background::Color(ACCENT_EMERALD)),
+                border: iced::Border {
+                    radius: 999.0.into(),
+                    ..iced::Border::default()
+                },
+                ..container::Style::default()
+            }),
+            text("|").size(11).color(BORDER),
+            text("100%").size(11).font(Font::MONOSPACE).color(TEXT_MUTED),
+            text("+").size(12).color(TEXT_MUTED),
+            text("−").size(12).color(TEXT_MUTED),
+        ]
+        .spacing(8)
+        .align_y(iced::Alignment::Center)
+        .padding([6, 10]);
         if self.left_collapsed {
-            col = col.push(
+            toolbar_row = toolbar_row.push(
                 button(text("» Components").size(11))
-                    .padding([4, 8])
+                    .padding([2, 6])
                     .style(chrome_btn)
                     .on_press(Message::ToggleLeftDock),
             );
         }
-        col = col.push(
-            text("Board canvas — Uno R3 · LED (integrated R) · button D2↔GND")
-                .size(14)
-                .color(TEXT_HEADING),
-        );
-        col = col.push(
-            text("D2 · MCU pull-up  ·  pressed → active-LOW  ·  ASL: pressed = NOT GET_BOOL(btnPin)")
-                .size(11)
-                .font(Font::MONOSPACE)
-                .color(ACCENT_CYAN),
-        );
+        if self.right_collapsed {
+            toolbar_row = toolbar_row.push(
+                button(text("« Props").size(11))
+                    .padding([2, 6])
+                    .style(chrome_btn)
+                    .on_press(Message::ToggleRightDock),
+            );
+        }
+        let toolbar = container(toolbar_row).style(|_t| container::Style {
+            background: Some(iced::Background::Color(Color {
+                a: 0.92,
+                ..SURFACE_LOWEST
+            })),
+            border: iced::Border {
+                color: BORDER,
+                width: 1.0,
+                radius: 6.0.into(),
+            },
+            ..container::Style::default()
+        });
 
-        match &self.canvas {
-            None => {
-                col = col.push(
+        let schematic: Element<'_, Message> = match &self.canvas {
+            None => container(
+                column![
                     text("Canvas not loaded — open C01 or a project with MVP wiring.")
                         .color(TEXT_MUTED),
-                );
-                col = col.push(
                     row![
                         button("Open C01")
                             .style(chrome_btn)
@@ -927,216 +1002,509 @@ impl Editor {
                             .on_press(Message::OpenDefault),
                     ]
                     .spacing(8),
-                );
-            }
+                ]
+                .spacing(12)
+                .padding(24),
+            )
+            .width(Fill)
+            .height(Fill)
+            .center_x(Fill)
+            .center_y(Fill)
+            .into(),
             Some(c) => {
                 let frame = c.current_frame();
-                let pull = if c.binding.button_active_low {
-                    "pullup"
-                } else {
-                    "none"
-                };
-                col = col.push(
-                    text(format!(
-                        "cycle={}  t={}ms  btn=D{} ({})  led=D{}  button={}  led={}",
-                        frame.cycle,
-                        frame.time_ms,
-                        c.binding.button_pin,
-                        pull,
-                        c.binding.led_pin,
-                        if frame.button_pressed {
-                            "pressed"
-                        } else {
-                            "released"
-                        },
-                        if frame.led_on { "ON" } else { "off" },
-                    ))
-                    .size(12)
+                // iced SVG widgets panic on damage-sort; canvas composition
+                // matches the HTML mockup layout with live LED/button state.
+                SchematicView {
+                    led_on: frame.led_on,
+                    button_pressed: frame.button_pressed,
+                    button_pin: c.binding.button_pin,
+                    led_pin: c.binding.led_pin,
+                }
+                .view()
+            }
+        };
+
+        let actuate = container(
+            row![
+                button(text("Press").size(11))
+                    .padding([4, 12])
+                    .style(pause_btn)
+                    .on_press(Message::SimPress),
+                button(text("Release").size(11))
+                    .padding([4, 12])
+                    .style(chrome_btn)
+                    .on_press(Message::SimRelease),
+                button(text("Step").size(11))
+                    .padding([4, 12])
+                    .style(chrome_btn)
+                    .on_press(Message::SimStep),
+                text("click NO button on canvas")
+                    .size(10)
                     .font(Font::MONOSPACE)
                     .color(TEXT_MUTED),
-                );
-                if !self.canvas_note.is_empty() {
-                    col = col.push(text(&self.canvas_note).size(11).color(TEXT_MUTED));
-                }
+            ]
+            .spacing(8)
+            .align_y(iced::Alignment::Center)
+            .padding([6, 10]),
+        )
+        .style(|_t| container::Style {
+            background: Some(iced::Background::Color(Color {
+                a: 0.92,
+                ..SURFACE_LOWEST
+            })),
+            border: iced::Border {
+                color: BORDER,
+                width: 1.0,
+                radius: 6.0.into(),
+            },
+            ..container::Style::default()
+        });
 
-                // iced SVG widgets panic on damage-sort under this stack; show a
-                // schematic board plane + live LED/button indicators instead.
-                // SVG binding remains in dendri-canvas (CI snapshots).
-                let led_lit = frame.led_on;
-                let btn_down = frame.button_pressed;
-                let board_plane = container(
-                    column![
-                        text("Arduino Uno R3").size(16).color(ACCENT_CYAN),
-                        text("ATmega328P · 16MHz")
-                            .size(11)
-                            .font(Font::MONOSPACE)
-                            .color(TEXT_MUTED),
-                        Space::with_height(12),
-                        text(format!(
-                            "D2  btnPin   DI  pull={}  level={}",
-                            if c.binding.button_active_low {
-                                "pullup"
-                            } else {
-                                "none"
-                            },
-                            if c.sim.pin(c.binding.button_pin) {
-                                "HIGH"
-                            } else {
-                                "LOW"
-                            }
-                        ))
-                        .size(12)
-                        .font(Font::MONOSPACE)
-                        .color(ACCENT_CYAN),
-                        text(format!(
-                            "D13 ledPin   DO  {}",
-                            if led_lit { "HIGH · LED_BUILTIN" } else { "LOW" }
-                        ))
-                        .size(12)
+        container(
+            column![
+                container(
+                    row![toolbar, Space::with_width(Fill), actuate]
+                        .spacing(8)
+                        .align_y(iced::Alignment::Center),
+                )
+                .padding([10, 12]),
+                schematic,
+            ]
+            .height(Fill),
+        )
+        .width(Fill)
+        .height(Fill)
+        .style(|_t| container::Style {
+            background: Some(surface_bg()),
+            ..container::Style::default()
+        })
+        .into()
+    }
+
+    fn properties_inspector(&self) -> Element<'_, Message> {
+        let (led_on, btn_down, led_pin, btn_pin, pullup) = match &self.canvas {
+            Some(c) => {
+                let f = c.current_frame();
+                (
+                    f.led_on,
+                    f.button_pressed,
+                    c.binding.led_pin,
+                    c.binding.button_pin,
+                    c.binding.button_active_low,
+                )
+            }
+            None => (false, false, 13, 2, true),
+        };
+        let selected = self.selected_part.unwrap_or("Red LED");
+        let is_led = selected == "Red LED";
+        let badge = if is_led { "LED Selected" } else { selected };
+
+        let header = container(
+            row![
+                text("PROPERTIES").size(12).color(TEXT_HEADING),
+                Space::with_width(Fill),
+                container(
+                    text(badge)
+                        .size(10)
                         .font(Font::MONOSPACE)
                         .color(ACCENT_ORANGE),
-                        Space::with_height(12),
-                        text("Wiring")
-                            .size(12)
-                            .color(TEXT_HEADING),
-                        text("D2 ── btn_start.NO")
-                            .size(12)
-                            .font(Font::MONOSPACE)
-                            .color(ACCENT_EMERALD),
-                        text("GND ── btn_start.COM")
-                            .size(12)
-                            .font(Font::MONOSPACE)
-                            .color(TEXT_MUTED),
-                        text("D13 ── led1.A  (integrated 220Ω)")
-                            .size(12)
-                            .font(Font::MONOSPACE)
-                            .color(ACCENT_SKY),
-                        text("GND ── led1.K")
-                            .size(12)
-                            .font(Font::MONOSPACE)
-                            .color(TEXT_MUTED),
-                        Space::with_height(8),
-                        text("Callout: D2 · MCU pull-up · pressed → active-LOW")
-                            .size(11)
-                            .font(Font::MONOSPACE)
-                            .color(ACCENT_ORANGE),
-                    ]
-                    .spacing(4)
-                    .padding(16),
                 )
-                .width(Length::Fixed(480.0))
-                .height(Length::Fixed(300.0))
+                .padding([2, 6])
                 .style(|_t| container::Style {
-                    background: Some(surface_lowest_bg()),
+                    background: Some(surface_low_bg()),
                     border: iced::Border {
                         color: BORDER,
                         width: 1.0,
                         radius: 4.0.into(),
                     },
                     ..container::Style::default()
-                });
+                }),
+                button(text("»").size(12))
+                    .padding([2, 6])
+                    .style(chrome_btn)
+                    .on_press(Message::ToggleRightDock),
+            ]
+            .spacing(8)
+            .align_y(iced::Alignment::Center),
+        )
+        .padding(12)
+        .style(|_t| container::Style {
+            background: Some(surface_bg()),
+            border: iced::Border {
+                color: BORDER,
+                width: 1.0,
+                radius: 0.0.into(),
+            },
+            ..container::Style::default()
+        });
 
-                let live_led = container(
-                    column![
-                        text("led1").size(11).font(Font::MONOSPACE).color(TEXT_MUTED),
-                        text(if led_lit { "● ON" } else { "○ off" })
-                            .size(22)
-                            .color(if led_lit {
-                                Color::from_rgb(1.0, 0.35, 0.2)
-                            } else {
-                                TEXT_MUTED
+        let card = if is_led {
+            container(
+                column![
+                    row![
+                        container(text("●").size(22).color(if led_on { LED_RED } else { TEXT_MUTED }))
+                            .width(Length::Fixed(40.0))
+                            .height(Length::Fixed(40.0))
+                            .center_x(Fill)
+                            .center_y(Fill)
+                            .style(move |_t| container::Style {
+                                background: Some(iced::Background::Color(if led_on {
+                                    Color::from_rgb(0.35, 0.08, 0.05)
+                                } else {
+                                    SURFACE_LOWEST
+                                })),
+                                border: iced::Border {
+                                    color: if led_on {
+                                        Color::from_rgb(0.725, 0.110, 0.110)
+                                    } else {
+                                        BORDER
+                                    },
+                                    width: 1.0,
+                                    radius: 6.0.into(),
+                                },
+                                ..container::Style::default()
                             }),
-                        text("integrated_resistance=220")
+                        column![
+                            text("Red LED").size(14).color(TEXT_HEADING),
+                            text(format!("External • Pin D{led_pin}"))
+                                .size(11)
+                                .font(Font::MONOSPACE)
+                                .color(TEXT_MUTED),
+                        ]
+                        .spacing(2),
+                    ]
+                    .spacing(12)
+                    .align_y(iced::Alignment::Center),
+                    prop_row("State", if led_on { "HIGH" } else { "LOW" }, led_on),
+                    prop_row("Voltage (Vf)", "2.0 V", false),
+                    prop_row(
+                        "Current",
+                        if led_on { "18.2 mA" } else { "0.0 mA" },
+                        false,
+                    ),
+                    prop_row("Color", "Red (Diffuse)", false),
+                    prop_row("Brightness", if led_on { "85%" } else { "0%" }, false),
+                    prop_row("Integrated R", "220 Ω (on module)", false),
+                ]
+                .spacing(8)
+                .padding(12),
+            )
+            .style(|_t| container::Style {
+                background: Some(surface_bg()),
+                border: iced::Border {
+                    color: BORDER,
+                    width: 1.0,
+                    radius: 4.0.into(),
+                },
+                ..container::Style::default()
+            })
+        } else {
+            container(
+                column![
+                    text(selected).size(14).color(TEXT_HEADING),
+                    text("Palette selection — properties follow Simulation mockup for Red LED.")
+                        .size(11)
+                        .color(TEXT_MUTED),
+                ]
+                .spacing(8)
+                .padding(12),
+            )
+            .style(|_t| container::Style {
+                background: Some(surface_bg()),
+                border: iced::Border {
+                    color: BORDER,
+                    width: 1.0,
+                    radius: 4.0.into(),
+                },
+                ..container::Style::default()
+            })
+        };
+
+        let telemetry = container(
+            column![
+                text("PIN TELEMETRY")
+                    .size(10)
+                    .font(Font::MONOSPACE)
+                    .color(TEXT_MUTED),
+                row![
+                    text(format!("DIGITAL PIN {led_pin}"))
+                        .size(12)
+                        .font(Font::MONOSPACE)
+                        .color(TEXT_MAIN),
+                    Space::with_width(Fill),
+                    container(
+                        text(if led_on { "HIGH (4.91V)" } else { "LOW (0.00V)" })
+                            .size(11)
+                            .font(Font::MONOSPACE)
+                            .color(if led_on { ACCENT_EMERALD } else { TEXT_MUTED }),
+                    )
+                    .padding([2, 6])
+                    .style(move |_t| container::Style {
+                        background: Some(iced::Background::Color(if led_on {
+                            Color::from_rgb(0.02, 0.18, 0.12)
+                        } else {
+                            SURFACE_LOWEST
+                        })),
+                        border: iced::Border {
+                            color: if led_on { ACCENT_EMERALD } else { BORDER },
+                            width: 1.0,
+                            radius: 4.0.into(),
+                        },
+                        ..container::Style::default()
+                    }),
+                ]
+                .align_y(iced::Alignment::Center),
+                text(if led_on {
+                    "Source: 18.2 mA"
+                } else {
+                    "Source: 0.0 mA"
+                })
+                .size(10)
+                .font(Font::MONOSPACE)
+                .color(TEXT_MUTED),
+                Space::with_height(8),
+                text(format!(
+                    "D{btn_pin} DI · {} · {}",
+                    if pullup { "pullup" } else { "none" },
+                    if btn_down { "PRESSED" } else { "released" }
+                ))
+                .size(11)
+                .font(Font::MONOSPACE)
+                .color(ACCENT_CYAN),
+            ]
+            .spacing(6)
+            .padding(12),
+        )
+        .style(|_t| container::Style {
+            background: Some(panel_bg()),
+            border: iced::Border {
+                color: BORDER,
+                width: 1.0,
+                radius: 4.0.into(),
+            },
+            ..container::Style::default()
+        });
+
+        container(
+            column![
+                header,
+                column![
+                        card,
+                        telemetry,
+                        text("Selected component properties. Live LED/button from pull-up + integrated R.")
                             .size(10)
                             .font(Font::MONOSPACE)
                             .color(TEXT_MUTED),
                     ]
-                    .spacing(4)
-                    .align_x(iced::Alignment::Center),
-                )
-                .padding(16)
-                .width(Length::Fixed(160.0))
-                .style(move |_t| container::Style {
-                    background: Some(iced::Background::Color(if led_lit {
-                        Color::from_rgb(0.35, 0.08, 0.05)
-                    } else {
-                        SURFACE_LOWEST
-                    })),
+                    .spacing(12)
+                    .padding(16),
+            ]
+            .height(Fill),
+        )
+        .width(Length::Fixed(300.0))
+        .height(Fill)
+        .style(|_t| container::Style {
+            background: Some(panel_bg()),
+            border: iced::Border {
+                color: BORDER,
+                width: 1.0,
+                radius: 0.0.into(),
+            },
+            ..container::Style::default()
+        })
+        .into()
+    }
+
+    fn bottom_sim_panel(&self) -> Element<'_, Message> {
+        let tabs = row![
+            code_tab_btn("main.cpp", CodeTab::Cpp, self.code_tab),
+            code_tab_btn("main.st", CodeTab::St, self.code_tab),
+            code_tab_btn("main.py", CodeTab::Py, self.code_tab),
+            code_tab_btn("project.toml", CodeTab::ProjectToml, self.code_tab),
+            Space::with_width(Fill),
+            button(text("Format").size(11).font(Font::MONOSPACE))
+                .padding([2, 8])
+                .style(chrome_btn),
+            button(text("Verify").size(11).font(Font::MONOSPACE))
+                .padding([2, 8])
+                .style(chrome_btn),
+            button(text("Flash").size(11).font(Font::MONOSPACE))
+                .padding([2, 8])
+                .style(pause_btn),
+        ]
+        .spacing(4)
+        .align_y(iced::Alignment::Center)
+        .padding([4, 8]);
+
+        let code_body = container(
+            column![
+                container(tabs).style(|_t| container::Style {
+                    background: Some(surface_lowest_bg()),
                     border: iced::Border {
-                        color: if led_lit { ACCENT_ORANGE } else { BORDER },
-                        width: 2.0,
-                        radius: 4.0.into(),
+                        color: BORDER,
+                        width: 1.0,
+                        radius: 0.0.into(),
                     },
                     ..container::Style::default()
-                });
-
-                let live_btn = container(
-                    column![
-                        text("btn_start")
+                }),
+                container(
+                    text(code_tab_content(self.code_tab))
+                        .size(12)
+                        .font(Font::MONOSPACE)
+                        .color(TEXT_MAIN),
+                )
+                .padding([8, 12])
+                .width(Fill)
+                .height(Fill)
+                .style(|_t| container::Style {
+                    background: Some(iced::Background::Color(BG_EDITOR)),
+                    ..container::Style::default()
+                }),
+                container(
+                    row![
+                        text("✓ 0 Errors")
+                            .size(11)
+                            .font(Font::MONOSPACE)
+                            .color(ACCENT_EMERALD),
+                        text("⚠ 0 Warnings")
+                            .size(11)
+                            .font(Font::MONOSPACE)
+                            .color(ACCENT_AMBER),
+                        text("AVR core ready & synchronized")
                             .size(11)
                             .font(Font::MONOSPACE)
                             .color(TEXT_MUTED),
-                        text(if btn_down { "▼ PRESSED" } else { "△ released" })
-                            .size(18)
-                            .color(if btn_down {
-                                ACCENT_EMERALD
-                            } else {
-                                TEXT_MUTED
-                            }),
-                        text("NO · D2–GND")
+                        Space::with_width(Fill),
+                        text("INPUT_PULLUP")
+                            .size(11)
+                            .font(Font::MONOSPACE)
+                            .color(ACCENT_PURPLE),
+                        text("C++11")
+                            .size(11)
+                            .font(Font::MONOSPACE)
+                            .color(ACCENT_SKY),
+                    ]
+                    .spacing(12)
+                    .padding([4, 10]),
+                )
+                .style(|_t| container::Style {
+                    background: Some(surface_low_bg()),
+                    ..container::Style::default()
+                }),
+            ]
+            .height(Fill),
+        )
+        .width(Fill)
+        .height(Fill)
+        .style(|_t| container::Style {
+            background: Some(panel_bg()),
+            border: iced::Border {
+                color: BORDER,
+                width: 1.0,
+                radius: 0.0.into(),
+            },
+            ..container::Style::default()
+        });
+
+        let serial = container(
+            column![
+                container(
+                    row![
+                        text("SERIAL MONITOR [UART]")
+                            .size(11)
+                            .color(TEXT_MAIN),
+                        text("●").size(10).color(ACCENT_EMERALD),
+                        Space::with_width(Fill),
+                        text("Autoscroll")
                             .size(10)
                             .font(Font::MONOSPACE)
                             .color(TEXT_MUTED),
+                        text("Timestamps")
+                            .size(10)
+                            .font(Font::MONOSPACE)
+                            .color(TEXT_MUTED),
+                        text("9600 baud")
+                            .size(10)
+                            .font(Font::MONOSPACE)
+                            .color(TEXT_MUTED),
+                        button(text("Clear").size(10))
+                            .padding([2, 6])
+                            .style(chrome_btn),
+                        button(text("▼").size(11))
+                            .padding([2, 6])
+                            .style(chrome_btn)
+                            .on_press(Message::ToggleBottomDock),
                     ]
-                    .spacing(4)
-                    .align_x(iced::Alignment::Center),
+                    .spacing(10)
+                    .align_y(iced::Alignment::Center)
+                    .padding([6, 10]),
                 )
-                .padding(16)
-                .width(Length::Fixed(160.0))
-                .style(move |_t| container::Style {
-                    background: Some(surface_lowest_bg()),
+                .style(|_t| container::Style {
+                    background: Some(surface_bg()),
                     border: iced::Border {
-                        color: if btn_down { ACCENT_EMERALD } else { BORDER },
-                        width: 2.0,
-                        radius: 4.0.into(),
+                        color: BORDER,
+                        width: 1.0,
+                        radius: 0.0.into(),
                     },
                     ..container::Style::default()
-                });
-
-                col = col.push(
-                    row![
-                        board_plane,
-                        column![
-                            live_led,
-                            live_btn,
-                            text("Actuate").size(11).color(TEXT_MUTED),
-                            button(text("Press").size(12))
-                                .padding([6, 14])
-                                .style(pause_btn)
-                                .on_press(Message::SimPress),
-                            button(text("Release").size(12))
-                                .padding([6, 14])
-                                .style(chrome_btn)
-                                .on_press(Message::SimRelease),
-                            button(text("Step scan").size(12))
-                                .padding([6, 14])
-                                .style(chrome_btn)
-                                .on_press(Message::SimStep),
-                        ]
-                        .spacing(8)
-                        .padding(8),
+                }),
+                column![
+                        text("[00:01.102] << [UART Init OK - 9600 8N1]")
+                            .size(11)
+                            .font(Font::MONOSPACE)
+                            .color(TEXT_MUTED),
+                        text("[00:02.410] off")
+                            .size(11)
+                            .font(Font::MONOSPACE)
+                            .color(TEXT_MAIN),
+                        text("[00:03.012] on")
+                            .size(11)
+                            .font(Font::MONOSPACE)
+                            .color(TEXT_MAIN),
+                        text("[00:03.013] number of button pushes: 44")
+                            .size(11)
+                            .font(Font::MONOSPACE)
+                            .color(TEXT_MAIN),
+                        text("[00:03.420] off")
+                            .size(11)
+                            .font(Font::MONOSPACE)
+                            .color(TEXT_MAIN),
+                        text("[00:04.115] on")
+                            .size(11)
+                            .font(Font::MONOSPACE)
+                            .color(ACCENT_EMERALD),
+                        text("[00:04.116] number of button pushes: 45")
+                            .size(11)
+                            .font(Font::MONOSPACE)
+                            .color(ACCENT_EMERALD),
+                        text("> ▌")
+                            .size(11)
+                            .font(Font::MONOSPACE)
+                            .color(ACCENT_ORANGE),
                     ]
-                    .spacing(16)
-                    .align_y(iced::Alignment::Start),
-                );
-            }
-        }
+                    .spacing(2)
+                    .padding(8),
+            ]
+            .height(Fill),
+        )
+        .width(Fill)
+        .height(Fill)
+        .style(|_t| container::Style {
+            background: Some(panel_bg()),
+            ..container::Style::default()
+        });
 
-        container(scrollable(col))
+        container(row![code_body, serial].spacing(0).height(Fill))
             .width(Fill)
-            .height(Fill)
+            .height(Length::Fixed(220.0))
             .style(|_t| container::Style {
-                background: Some(surface_bg()),
+                background: Some(panel_bg()),
+                border: iced::Border {
+                    color: BORDER,
+                    width: 1.0,
+                    radius: 0.0.into(),
+                },
                 ..container::Style::default()
             })
             .into()
@@ -1292,7 +1660,7 @@ impl Editor {
         }
 
         let right = column![
-            container(scrollable(diagram)).width(Fill).height(Fill),
+            container(scrollable(diagram)).width(Fill),
             container(
                 column![
                     text("Ladder TOML (live sync)").size(12).color(TEXT_MUTED),
@@ -1383,7 +1751,7 @@ impl Editor {
         }
 
         let right = column![
-            container(scrollable(chart)).width(Fill).height(Fill),
+            container(scrollable(chart)).width(Fill),
             container(
                 column![
                     text("SFC TOML (live sync)").size(12).color(TEXT_MUTED),
@@ -1509,6 +1877,100 @@ impl Editor {
         Ok(())
     }
 }
+
+fn prop_row<'a>(label: &'a str, value: &'a str, emphasize: bool) -> Element<'a, Message> {
+    row![
+        text(label).size(12).font(Font::MONOSPACE).color(TEXT_MUTED),
+        Space::with_width(Fill),
+        text(value)
+            .size(12)
+            .font(Font::MONOSPACE)
+            .color(if emphasize { ACCENT_EMERALD } else { TEXT_MAIN }),
+    ]
+    .into()
+}
+
+fn code_tab_btn(label: &'static str, tab: CodeTab, current: CodeTab) -> Element<'static, Message> {
+    let active = tab == current;
+    button(text(label).size(11).font(Font::MONOSPACE))
+        .padding([4, 10])
+        .style(if active { tab_active } else { tab_idle })
+        .on_press(Message::SelectCodeTab(tab))
+        .into()
+}
+
+fn code_tab_label(tab: CodeTab) -> &'static str {
+    match tab {
+        CodeTab::Cpp => "main.cpp",
+        CodeTab::St => "main.st",
+        CodeTab::Py => "main.py",
+        CodeTab::ProjectToml => "project.toml",
+    }
+}
+
+fn code_tab_content(tab: CodeTab) -> &'static str {
+    match tab {
+        CodeTab::Cpp => {
+            "// Arduino sketch (build/arduino/main.cpp)\n\n\
+const int btnPin = 2;\n\
+const int ledPin = 13;\n\n\
+bool pressed = false;\n\n\
+void setup() {\n\
+  pinMode(btnPin, INPUT_PULLUP);\n\
+  pinMode(ledPin, OUTPUT);\n\
+  digitalWrite(ledPin, LOW);\n\
+}\n\n\
+void loop() {\n\
+  pressed = !digitalRead(btnPin);\n\
+  digitalWrite(ledPin, pressed);\n\
+}"
+        }
+        CodeTab::St => {
+            "(* Structured Text — build/st/main.st *)\n\n\
+PROGRAM Main\n\
+  VAR\n\
+    btnPin : BOOL;\n\
+    ledPin : BOOL;\n\
+    pressed : BOOL := FALSE;\n\
+  END_VAR\n\n\
+  btnPin := DIGITAL_IN(2);\n\
+  pressed := NOT btnPin;\n\
+  ledPin := pressed;\n\
+  DIGITAL_OUT(13, ledPin);\n\
+END_PROGRAM"
+        }
+        CodeTab::Py => {
+            "# MicroPython (build/micropython/main.py)\n\n\
+from machine import Pin\n\n\
+btnPin = Pin(2, Pin.IN, Pin.PULL_UP)\n\
+ledPin = Pin(13, Pin.OUT)\n\
+ledPin.value(0)\n\n\
+while True:\n\
+    pressed = not btnPin.value()\n\
+    ledPin.value(pressed)"
+        }
+        CodeTab::ProjectToml => {
+            "[metadata]\n\
+asl_version = \"0.0.1\"\n\
+project_name = \"C01-button-led\"\n\n\
+[board]\n\
+profile = \"arduino-uno-r3\"\n\n\
+[[components]]\n\
+instance_id = \"led1\"\n\
+profile = \"led\"\n\
+[components.params]\n\
+integrated_resistance = 220\n\n\
+[[components]]\n\
+instance_id = \"btn_start\"\n\
+profile = \"cmd-pushbutton-no-start\"\n\n\
+[[asl.hardware]]\n\
+pin = 2\n\
+label = \"btnPin\"\n\
+pull = \"pullup\""
+        }
+    }
+}
+
 
 fn mode_tab(label: &'static str, mode: Mode, current: Mode) -> Element<'static, Message> {
     let active = mode == current;

@@ -19,6 +19,10 @@ pub const ACCENT_SKY: Color = Color::from_rgb(0.220, 0.741, 0.973); // #38bdf8
 pub const ACCENT_CYAN: Color = Color::from_rgb(0.133, 0.827, 0.933); // #22d3ee
 pub const EXPORT_BLUE: Color = Color::from_rgb(0.145, 0.388, 0.922); // #2563eb
 pub const ON_AMBER: Color = Color::from_rgb(0.008, 0.024, 0.090); // slate-950
+pub const ACCENT_AMBER: Color = Color::from_rgb(0.961, 0.620, 0.043); // #f59e0b
+pub const ACCENT_PURPLE: Color = Color::from_rgb(0.655, 0.545, 0.980); // #a78bfa
+pub const LED_RED: Color = Color::from_rgb(0.937, 0.267, 0.267); // #ef4444
+pub const BG_EDITOR: Color = Color::from_rgb(0.169, 0.169, 0.169); // #2b2b2b
 
 pub fn panel_bg() -> Background {
     Background::Color(BG_PANEL)
