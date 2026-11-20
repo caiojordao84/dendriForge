@@ -6,8 +6,9 @@
 
 mod authoring;
 mod project_io;
-#[allow(dead_code)] // retained C01 reference chrome; Simulation uses logical-grid scene
+#[allow(dead_code)] // retained C01 reference chrome; Simulation uses world canvas
 mod schematic;
+mod sim_world;
 mod theme;
 
 use std::path::PathBuf;
@@ -15,17 +16,18 @@ use std::time::Duration;
 
 use authoring::{AuthoringHub, Placeable};
 use dendri_ast::SourceLanguage;
-use dendri_canvas::{default_scene_px, render_live_scene_svg, LiveSceneState, SimCanvas};
+use dendri_canvas::{Camera, PhaseAScene, SimCanvas, ZOOM_MAX, ZOOM_MIN};
 use dendri_sim::SimConfig;
 use iced::{
     alignment, mouse,
     widget::{
-        self, button, canvas, checkbox, column, container, row, scrollable, svg, text, text_editor,
-        text_input, Space,
+        button, canvas, checkbox, column, container, row, scrollable, text, text_editor, text_input,
+        Space,
     },
     Color, Element, Font, Length, Point, Rectangle, Renderer, Size, Subscription, Theme,
 };
 use project_io::{export_project, load_project, save_project};
+use sim_world::WorldCanvas;
 use theme as ui;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -89,6 +91,17 @@ enum Message {
     Right,
     Bottom,
     Zoom(f32),
+    /// Scroll-wheel zoom about a view-space anchor (Simulation world canvas).
+    CameraZoomAt {
+        factor: f32,
+        anchor_x: f32,
+        anchor_y: f32,
+    },
+    /// Middle-mouse pan in view pixels (Simulation world canvas).
+    CameraPanBy {
+        dx_px: f32,
+        dy_px: f32,
+    },
     Copy,
     PathInput(String),
     OpenPath,
@@ -128,7 +141,12 @@ struct App {
     left: bool,
     right: bool,
     bottom: bool,
+    /// Shared zoom readout (Ladder/GRAFCET scale + Simulation camera.zoom).
     zoom: f32,
+    /// Simulation world camera (pan + zoom). Infinite line grid; no page bounds.
+    camera: Camera,
+    /// Phase A placeholders (Uno + LED) in logical grid units.
+    phase_a: PhaseAScene,
     canvas: Option<SimCanvas>,
     hub: Option<AuthoringHub>,
     project_path: PathBuf,
@@ -159,6 +177,8 @@ impl App {
             right: true,
             bottom: true,
             zoom: 1.0,
+            camera: Camera::default(),
+            phase_a: PhaseAScene::default(),
             canvas: None,
             hub: None,
             project_path: project_path.clone(),
@@ -384,7 +404,24 @@ impl App {
             Message::Left => self.left = !self.left,
             Message::Right => self.right = !self.right,
             Message::Bottom => self.bottom = !self.bottom,
-            Message::Zoom(delta) => self.zoom = (self.zoom + delta).clamp(0.7, 1.5),
+            Message::Zoom(delta) => {
+                let z = Camera::clamp_zoom((self.zoom + delta) as f64) as f32;
+                self.zoom = z;
+                self.camera.zoom = z as f64;
+            }
+            Message::CameraZoomAt {
+                factor,
+                anchor_x,
+                anchor_y,
+            } => {
+                self.camera
+                    .zoom_by_at_view(factor as f64, anchor_x as f64, anchor_y as f64);
+                self.zoom = self.camera.zoom as f32;
+            }
+            Message::CameraPanBy { dx_px, dy_px } => {
+                self.camera
+                    .pan_by_view_delta(dx_px as f64, dy_px as f64);
+            }
             Message::Copy => {
                 return iced::clipboard::write(self.code_editor.text());
             }
@@ -918,58 +955,15 @@ impl App {
     }
 
     fn simulation(&self) -> Element<'_, Message> {
-        let zoom = self.zoom as f64;
-        let (scene_w, scene_h) = default_scene_px(zoom);
-        let svg_bytes = if let Some(canvas) = self.canvas.as_ref() {
-            canvas.rendered_live_scene(zoom)
-        } else {
-            // Fallback when sim assets missing: still show logical grid + live LED/button flags.
-            render_live_scene_svg(
-                &LiveSceneState {
-                    led_on: self.led,
-                    button_pressed: !self.raw,
-                },
-                zoom,
-            )
-        };
-        let handle = svg::Handle::from_memory(svg_bytes.into_bytes());
-        // Fixed pixel size so toolbar zoom changes on-screen module size; scroll to pan.
-        let picture = widget::mouse_area(
-            svg(handle)
-                .width(Length::Fixed(scene_w as f32))
-                .height(Length::Fixed(scene_h as f32))
-                .content_fit(iced::ContentFit::Fill),
-        )
-        .on_press(Message::Physical(true))
-        .on_release(Message::Physical(false))
-        .on_exit(Message::Physical(false));
-
-        column![
-            container(
-                row![
-                    caption("CIRCUIT SIMULATION"),
-                    Space::with_width(Length::Fill),
-                    text(format!(
-                        "Logical grid · 1u=4mm=48px@100% · zoom {:.0}% · live LED/button",
-                        self.zoom * 100.0
-                    ))
-                    .size(11)
-                    .color(ui::MUTED)
-                ]
-            )
-            .padding(14),
-            scrollable(container(picture).padding(8))
-                .height(Length::Fill),
-            container(checkbox("Hold button (active-LOW)", !self.raw).on_toggle(Message::Physical))
-                .padding(14),
-            container(
-                text("Hold the grid canvas to press (pull-up). Terminals snap to full modules; zoom keeps wire/terminal logic. Place/wire still updates project TOML + ASL.")
-                    .size(11)
-                    .color(ui::MUTED),
-            )
-            .padding([0, 14]),
-        ]
-        .spacing(8)
+        // Full-bleed world canvas in the Simulation center pane (D1: no world scrollbars).
+        // Scroll = zoom, middle-button = pan (D7). Hold-button lives in the inspector.
+        let _ = (ZOOM_MIN, ZOOM_MAX);
+        canvas(WorldCanvas {
+            camera: self.camera,
+            scene: self.phase_a,
+            led_on: self.led,
+        })
+        .width(Length::Fill)
         .height(Length::Fill)
         .into()
     }
@@ -1085,6 +1079,9 @@ impl App {
                 .color(ui::SKY),
             container(watch).padding(12).style(ui::card),
             checkbox("Physical button pressed", !self.raw).on_toggle(Message::Physical),
+            text("Sim canvas: scroll=zoom · middle-button=pan · line grid 1u=4mm")
+                .size(11)
+                .color(ui::MUTED),
         ]
         .spacing(16);
 
