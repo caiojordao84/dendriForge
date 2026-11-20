@@ -1,0 +1,107 @@
+;
+                if self.check_ident("if") {
+                    self.bump();
+                    let cond = if matches!(self.peek(), Tok::LParen) {
+                        self.bump();
+                        let c = self.parse_expr()?;
+                        match self.bump() {
+                            Tok::RParen => c,
+                            _ => return Err(self.err("expected ')' after else if condition")),
+                        }
+                    } else {
+                        self.parse_expr()?
+                    };
+                    let body = self.parse_braced_or_single()?;
+                    elif.push(ElifArm {
+                        condition: cond,
+                        then: body,
+                    });
+                    continue;
+                }
+                else_body = Some(self.parse_braced_or_single()?);
+            }
+            break;
+        }
+        Ok(Stmt::If {
+            condition,
+            then,
+            elif,
+            else_body,
+        })
+    }
+
+    fn parse_while(&mut self) -> Result<Stmt, RustParseError> {
+        match self.bump() {
+            Tok::Ident(s) if s == "while" => {}
+            _ => return Err(self.err("expected while")),
+        }
+        let condition = if matches!(self.peek(), Tok::LParen) {
+            self.bump();
+            let c = self.parse_expr()?;
+            match self.bump() {
+                Tok::RParen => c,
+                _ => return Err(self.err("expected ')' after while condition")),
+            }
+        } else {
+            self.parse_expr()?
+        };
+        let body = self.parse_braced_or_single()?;
+        Ok(Stmt::While { condition, body })
+    }
+
+    fn parse_for(&mut self) -> Result<Stmt, RustParseError> {
+        // for i in 0..LIMIT { ... }
+        match self.bump() {
+            Tok::Ident(s) if s == "for" => {}
+            _ => return Err(self.err("expected for")),
+        }
+        let counter = match self.bump() {
+            Tok::Ident(s) => Some(s),
+            _ => return Err(self.err("expected for counter")),
+        };
+        if !self.check_ident("in") {
+            return Err(self.err("expected 'in' in for-loop"));
+        }
+        self.bump();
+        let start = self.parse_expr()?;
+        match self.bump() {
+            Tok::DotDot => {}
+            _ => return Err(self.err("expected '..' in for range")),
+        }
+        let to = self.parse_expr()?;
+        // Only 0..N form supported; start must be 0 for ASL For.
+        match start {
+            Expr::Uint { value: 0 } => {}
+            Expr::Int { value: 0 } => {}
+            other => {
+                return Err(self.err(format!(
+                    "only 0..N for-ranges supported, got start {other:?}"
+                )));
+            }
+        }
+        let body = self.parse_braced_or_single()?;
+        Ok(Stmt::For {
+            counter,
+            to,
+            body,
+        })
+    }
+
+    fn parse_braced_or_single(&mut self) -> Result<Vec<Stmt>, RustParseError> {
+        if matches!(self.peek(), Tok::LBrace) {
+            self.bump();
+            self.parse_block_body()
+        } else {
+            Ok(vec![self.parse_stmt()?])
+        }
+    }
+
+    fn parse_arg_list(&mut self) -> Result<Vec<Expr>, RustParseError> {
+        match self.bump() {
+            Tok::LParen => {}
+            _ => return Err(self.err("expected '('")),
+        }
+        let mut args = Vec::new();
+        if !matches!(self.peek(), Tok::RParen) {
+            loop {
+          

@@ -1,0 +1,104 @@
+ f64),
+                    Expr::Int { value } => format_real_init(*value as f64),
+                    Expr::Unary {
+                        op: UnaryOp::Neg,
+                        expr,
+                    } => match expr.as_ref() {
+                        Expr::Real { value } => format_real_init(-value),
+                        Expr::Uint { value } => format_real_init(-(*value as f64)),
+                        Expr::Int { value } => format_real_init(-(*value as f64)),
+                        _ => "0.0".into(),
+                    },
+                    _ => "0.0".into(),
+                };
+                unit = "-".into();
+            }
+            "&str" | "str" | "String" => {
+                data_type = DataType::String;
+                init = match &init_expr {
+                    Expr::String { value } => format!("\"{value}\""),
+                    _ => "\"\"".into(),
+                };
+                unit = "-".into();
+            }
+            _ => {
+                data_type = DataType::Uint;
+                init = "0".into();
+                unit = "-".into();
+            }
+        }
+
+        let mut scope = if is_const { Scope::Const } else { Scope::Var };
+        if let Some(anno) = self.data_annos.get(&name) {
+            data_type = anno.data_type;
+            scope = anno.scope;
+            unit = anno.unit.clone();
+            if data_type == DataType::Time {
+                if let Ok(ms) = init.parse::<u64>() {
+                    init = format!("T#{ms}ms");
+                } else if let Expr::Uint { value } = &init_expr {
+                    init = format!("T#{value}ms");
+                }
+            }
+            if data_type == DataType::Bool {
+                init = match &init_expr {
+                    Expr::Bool { value: true } | Expr::Bool { value: false } => {
+                        if matches!(init_expr, Expr::Bool { value: true }) {
+                            "TRUE".into()
+                        } else {
+                            "FALSE".into()
+                        }
+                    }
+                    _ => init,
+                };
+            }
+        }
+
+        Ok((
+            DataEntry {
+                name,
+                data_type,
+                scope,
+                init,
+                unit,
+            },
+            None,
+        ))
+    }
+
+    fn parse_stmt(&mut self) -> Result<Stmt, RustParseError> {
+        if self.check_ident("if") {
+            return self.parse_if();
+        }
+        if self.check_ident("while") {
+            return self.parse_while();
+        }
+        if self.check_ident("for") {
+            return self.parse_for();
+        }
+        if self.check_ident("return") {
+            self.bump();
+            if matches!(self.peek(), Tok::Semi) {
+                self.bump();
+                return Ok(Stmt::Return { value: None });
+            }
+            let value = self.parse_expr()?;
+            match self.bump() {
+                Tok::Semi => {}
+                _ => return Err(self.err("expected ';'")),
+            }
+            return Ok(Stmt::Return {
+                value: Some(value),
+            });
+        }
+        if self.check_ident("break") {
+            self.bump();
+            match self.bump() {
+                Tok::Semi => {}
+                _ => return Err(self.err("expected ';'")),
+            }
+            return Ok(Stmt::Exit);
+        }
+        if self.check_ident("continue") {
+            self.bump();
+            match self.bump() 
