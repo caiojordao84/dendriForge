@@ -16,13 +16,13 @@ use std::time::Duration;
 
 use authoring::{AuthoringHub, Placeable};
 use dendri_ast::SourceLanguage;
-use dendri_canvas::{Camera, PhaseAScene, SimCanvas, ZOOM_MAX, ZOOM_MIN};
+use dendri_canvas::{Camera, PhaseAScene, SimCanvas};
 use dendri_sim::SimConfig;
 use iced::{
     alignment, mouse,
     widget::{
-        button, canvas, checkbox, column, container, row, scrollable, text, text_editor, text_input,
-        Space,
+        button, canvas, checkbox, column, container, row, scrollable, stack, text, text_editor,
+        text_input, Space,
     },
     Color, Element, Font, Length, Point, Rectangle, Renderer, Size, Subscription, Theme,
 };
@@ -679,6 +679,93 @@ impl App {
         .spacing(8)
         .align_y(alignment::Vertical::Center);
 
+        // Simulation: world canvas is the full-bleed base layer; shell panels
+        // (palette / inspector / dock) are overlays on top (plan z-order).
+        // Hiding a panel reveals canvas that was already underneath — panels
+        // must not be row/column siblings that shrink the canvas layout.
+        // Other views keep a classic sibling workspace (editors need the gap).
+        let workspace: Element<'_, Message> = match self.view {
+            View::Simulation => self.simulation_workspace(),
+            View::Code | View::Ladder | View::Grafcet => self.editor_workspace(),
+        };
+
+        let content = column![
+            container(header)
+                .padding([9, 12])
+                .width(Length::Fill)
+                .style(ui::panel),
+            container(tools)
+                .padding([8, 12])
+                .width(Length::Fill)
+                .style(|_| ui::surface(ui::LOWEST)),
+            workspace,
+            container(
+                row![
+                    text("AVR ATmega328P · 16 MHz target · LOCAL PREVIEW (not flashed)")
+                        .size(11)
+                        .color(ui::EMERALD),
+                    Space::with_width(Length::Fill),
+                    text("D2 INPUT_PULLUP · D13 OUTPUT · integrated 220 Ω")
+                        .size(11)
+                        .color(ui::MUTED)
+                ],
+            )
+            .padding([5, 12])
+            .width(Length::Fill)
+            .style(ui::panel),
+        ]
+        .spacing(1);
+
+        container(content)
+            .height(Length::Fill)
+            .style(|_| ui::surface(ui::MAIN))
+            .into()
+    }
+
+    /// Full-bleed Simulation stack: canvas underneath, chrome panels overlaid.
+    fn simulation_workspace(&self) -> Element<'_, Message> {
+        let canvas_layer = canvas(WorldCanvas {
+            camera: self.camera,
+            scene: self.phase_a,
+            led_on: self.led,
+        })
+        .width(Length::Fill)
+        .height(Length::Fill);
+
+        let mut sides = row![].height(Length::Fill);
+        if self.left {
+            sides = sides.push(
+                container(scrollable(self.palette()))
+                    .padding(12)
+                    .width(230)
+                    .height(Length::Fill)
+                    .style(ui::panel),
+            );
+        }
+        sides = sides.push(Space::with_width(Length::Fill));
+        if self.right {
+            sides = sides.push(
+                container(scrollable(self.inspector()))
+                    .padding(12)
+                    .width(310)
+                    .height(Length::Fill)
+                    .style(ui::panel),
+            );
+        }
+
+        let mut chrome = column![sides].width(Length::Fill).height(Length::Fill);
+        if self.bottom {
+            chrome = chrome.push(self.bottom_dock());
+        }
+
+        stack![canvas_layer, chrome]
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into()
+    }
+
+    /// Code / Ladder / GRAFCET: sibling panes (content between docks).
+    fn editor_workspace(&self) -> Element<'_, Message> {
         let mut workspace = row![].spacing(1).height(Length::Fill);
         if self.left {
             workspace = workspace.push(
@@ -690,9 +777,9 @@ impl App {
             );
         }
         let center = match self.view {
-            View::Simulation => self.simulation(),
             View::Code => self.code(),
             View::Ladder | View::Grafcet => self.diagram(),
+            View::Simulation => unreachable!("Simulation uses simulation_workspace"),
         };
         workspace = workspace.push(
             container(center)
@@ -710,83 +797,53 @@ impl App {
             );
         }
 
-        let mut content = column![
-            container(header)
-                .padding([9, 12])
-                .width(Length::Fill)
-                .style(ui::panel),
-            container(tools)
-                .padding([8, 12])
-                .width(Length::Fill)
-                .style(|_| ui::surface(ui::LOWEST)),
-            workspace,
-        ]
-        .spacing(1);
-
+        let mut body = column![workspace].spacing(1).height(Length::Fill);
         if self.bottom {
-            content = content.push(
-                container(
-                    row![
-                        column![
-                            caption("LOCAL PREVIEW CONSOLE"),
-                            text(format!(
-                                "[{}] btnPin={}   pressed={}   ledPin={}",
-                                self.cycles,
-                                bit(self.raw),
-                                bit(self.pressed),
-                                bit(self.led)
-                            ))
-                            .font(Font::MONOSPACE)
-                            .size(12),
-                            text(if self.status.is_empty() {
-                                "100 ms UI tick · dendri-sim · parse→ASL→emit live".into()
-                            } else {
-                                format!("100 ms UI tick · {}", self.status)
-                            })
-                            .size(11)
-                            .color(ui::MUTED)
-                        ]
-                        .spacing(9)
-                        .width(Length::Fill),
-                        column![
-                            caption("BUILD / MEMORY"),
-                            text("Flash: not compiled   SRAM: not measured").size(12),
-                            text("Honest stubs · Export writes build/ · no upload")
-                                .size(11)
-                                .color(ui::MUTED)
-                        ]
-                        .spacing(9)
-                        .width(Length::Fill),
-                    ]
-                    .spacing(20),
-                )
-                .padding(12)
-                .width(Length::Fill)
-                .style(ui::panel),
-            );
+            body = body.push(self.bottom_dock());
         }
+        body.into()
+    }
 
-        content = content.push(
-            container(
-                row![
-                    text("AVR ATmega328P · 16 MHz target · LOCAL PREVIEW (not flashed)")
-                        .size(11)
-                        .color(ui::EMERALD),
-                    Space::with_width(Length::Fill),
-                    text("D2 INPUT_PULLUP · D13 OUTPUT · integrated 220 Ω")
+    fn bottom_dock(&self) -> Element<'_, Message> {
+        container(
+            row![
+                column![
+                    caption("LOCAL PREVIEW CONSOLE"),
+                    text(format!(
+                        "[{}] btnPin={}   pressed={}   ledPin={}",
+                        self.cycles,
+                        bit(self.raw),
+                        bit(self.pressed),
+                        bit(self.led)
+                    ))
+                    .font(Font::MONOSPACE)
+                    .size(12),
+                    text(if self.status.is_empty() {
+                        "100 ms UI tick · dendri-sim · parse→ASL→emit live".into()
+                    } else {
+                        format!("100 ms UI tick · {}", self.status)
+                    })
+                    .size(11)
+                    .color(ui::MUTED)
+                ]
+                .spacing(9)
+                .width(Length::Fill),
+                column![
+                    caption("BUILD / MEMORY"),
+                    text("Flash: not compiled   SRAM: not measured").size(12),
+                    text("Honest stubs · Export writes build/ · no upload")
                         .size(11)
                         .color(ui::MUTED)
-                ],
-            )
-            .padding([5, 12])
-            .width(Length::Fill)
-            .style(ui::panel),
-        );
-
-        container(content)
-            .height(Length::Fill)
-            .style(|_| ui::surface(ui::MAIN))
-            .into()
+                ]
+                .spacing(9)
+                .width(Length::Fill),
+            ]
+            .spacing(20),
+        )
+        .padding(12)
+        .width(Length::Fill)
+        .style(ui::panel)
+        .into()
     }
 
     fn palette(&self) -> Element<'_, Message> {
@@ -952,20 +1009,6 @@ impl App {
                     .color(ui::ORANGE),
             );
         items.into()
-    }
-
-    fn simulation(&self) -> Element<'_, Message> {
-        // Full-bleed world canvas in the Simulation center pane (D1: no world scrollbars).
-        // Scroll = zoom, middle-button = pan (D7). Hold-button lives in the inspector.
-        let _ = (ZOOM_MIN, ZOOM_MAX);
-        canvas(WorldCanvas {
-            camera: self.camera,
-            scene: self.phase_a,
-            led_on: self.led,
-        })
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .into()
     }
 
     fn code(&self) -> Element<'_, Message> {
