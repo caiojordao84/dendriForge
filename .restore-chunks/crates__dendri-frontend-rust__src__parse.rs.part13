@@ -1,0 +1,102 @@
+ct, method) {
+        ("Serial", "begin") => Stmt::Call {
+            name: "CFG_SERIAL".into(),
+            args,
+        },
+        ("Serial", "print") => Stmt::Call {
+            name: "SERIAL_PRINT".into(),
+            args,
+        },
+        ("Serial", "println") => Stmt::Call {
+            name: "SERIAL_PRINTLN".into(),
+            args,
+        },
+        ("Serial", "flush") => Stmt::Call {
+            name: "SERIAL_FLUSH".into(),
+            args,
+        },
+        ("Wire", "begin") => {
+            // Wire.begin(sda, scl) — bus=0, freq default 100000 when omitted.
+            let mut a = vec![Expr::Uint { value: 0 }];
+            if args.len() >= 2 {
+                a.push(args[0].clone());
+                a.push(args[1].clone());
+                a.push(args.get(2).cloned().unwrap_or(Expr::Int { value: 100_000 }));
+            } else {
+                a.extend([
+                    Expr::Uint { value: 21 },
+                    Expr::Uint { value: 22 },
+                    Expr::Int { value: 100_000 },
+                ]);
+            }
+            Stmt::Call {
+                name: "CFG_I2C".into(),
+                args: a,
+            }
+        }
+        ("SPI", "begin") => {
+            // SPI.begin(sck, miso, mosi, cs) ESP32 order → ASL CFG_SPI(bus,mosi,miso,sck,cs)
+            if args.len() >= 4 {
+                Stmt::Call {
+                    name: "CFG_SPI".into(),
+                    args: vec![
+                        Expr::Uint { value: 1 },
+                        args[2].clone(), // mosi
+                        args[1].clone(), // miso
+                        args[0].clone(), // sck
+                        args[3].clone(), // cs
+                    ],
+                }
+            } else {
+                Stmt::Call {
+                    name: "CFG_SPI".into(),
+                    args: vec![
+                        Expr::Uint { value: 1 },
+                        Expr::Uint { value: 23 },
+                        Expr::Int { value: 19 },
+                        Expr::Uint { value: 18 },
+                        Expr::Uint { value: 5 },
+                    ],
+                }
+            }
+        }
+        _ => Stmt::Call {
+            name: format!("{object}_{method}"),
+            args,
+        },
+    }
+}
+
+fn lower_member_call_expr(object: &str, method: &str, args: Vec<Expr>) -> Expr {
+    match (object, method) {
+        ("Serial", "available") => Expr::Call {
+            name: "SERIAL_AVAILABLE".into(),
+            args,
+        },
+        ("Serial", "read") => Expr::Call {
+            name: "SERIAL_READ".into(),
+            args,
+        },
+        ("Serial", "readStringUntil") => Expr::Call {
+            name: "SERIAL_READLN".into(),
+            args: vec![],
+        },
+        _ => Expr::Call {
+            name: format!("{object}_{method}"),
+            args,
+        },
+    }
+}
+
+fn lower_call_stmt(name: &str, args: Vec<Expr>) -> Stmt {
+    match name {
+        "pinMode" | "pin_mode" => {
+            let pin = args.first().cloned().unwrap_or(Expr::Uint { value: 0 });
+            let mode = args.get(1);
+            let opcode = match mode {
+                Some(Expr::Var { name }) if name == "OUTPUT" => "CFG_DIGITAL_OUTPUT",
+                Some(Expr::Var { name }) if name == "INPUT_PULLUP" => "CFG_DIGITAL_INPUT_PULLUP",
+                Some(Expr::Var { name }) if name == "INPUT_PULLDOWN" => {
+                    "CFG_DIGITAL_INPUT_PULLDOWN"
+                }
+                Some(Expr::Var { name }) if name =
