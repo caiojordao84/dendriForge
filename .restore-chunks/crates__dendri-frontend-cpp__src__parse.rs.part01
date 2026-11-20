@@ -1,0 +1,116 @@
+          Ok((Tok::Not, line, col))
+                }
+            }
+            b'<' => {
+                self.bump();
+                if self.peek() == Some(b'=') {
+                    self.bump();
+                    Ok((Tok::Le, line, col))
+                } else {
+                    Ok((Tok::Lt, line, col))
+                }
+            }
+            b'>' => {
+                self.bump();
+                if self.peek() == Some(b'=') {
+                    self.bump();
+                    Ok((Tok::Ge, line, col))
+                } else {
+                    Ok((Tok::Gt, line, col))
+                }
+            }
+            b'&' => {
+                self.bump();
+                if self.peek() == Some(b'&') {
+                    self.bump();
+                    Ok((Tok::AndAnd, line, col))
+                } else {
+                    Err(CppParseError::At {
+                        line,
+                        col,
+                        message: "bitwise & not in MVP subset".into(),
+                    })
+                }
+            }
+            b'|' => {
+                self.bump();
+                if self.peek() == Some(b'|') {
+                    self.bump();
+                    Ok((Tok::OrOr, line, col))
+                } else {
+                    Err(CppParseError::At {
+                        line,
+                        col,
+                        message: "bitwise | not in MVP subset".into(),
+                    })
+                }
+            }
+            b'+' => {
+                self.bump();
+                if self.peek() == Some(b'+') {
+                    self.bump();
+                    Ok((Tok::PlusPlus, line, col))
+                } else {
+                    Ok((Tok::Plus, line, col))
+                }
+            }
+            b'.' => {
+                self.bump();
+                Ok((Tok::Dot, line, col))
+            }
+            b'-' => {
+                self.bump();
+                Ok((Tok::Minus, line, col))
+            }
+            b'*' => {
+                self.bump();
+                Ok((Tok::Star, line, col))
+            }
+            b'/' => {
+                self.bump();
+                Ok((Tok::Slash, line, col))
+            }
+            b'%' => {
+                self.bump();
+                Ok((Tok::Percent, line, col))
+            }
+            b'~' => {
+                self.bump();
+                Ok((Tok::BitNot, line, col))
+            }
+            b';' => {
+                self.bump();
+                Ok((Tok::Semi, line, col))
+            }
+            b',' => {
+                self.bump();
+                Ok((Tok::Comma, line, col))
+            }
+            b'(' => {
+                self.bump();
+                Ok((Tok::LParen, line, col))
+            }
+            b')' => {
+                self.bump();
+                Ok((Tok::RParen, line, col))
+            }
+            b'{' => {
+                self.bump();
+                Ok((Tok::LBrace, line, col))
+            }
+            b'}' => {
+                self.bump();
+                Ok((Tok::RBrace, line, col))
+            }
+            b'"' => {
+                self.bump();
+                let mut s = String::new();
+                while let Some(ch) = self.peek() {
+                    if ch == b'"' {
+                        self.bump();
+                        break;
+                    }
+                    if ch == b'\\' {
+                        self.bump();
+                        if let Some(n) = self.bump() {
+             

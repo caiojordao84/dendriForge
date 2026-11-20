@@ -1,0 +1,85 @@
+               s.push(n as char);
+                        }
+                        continue;
+                    }
+                    s.push(ch as char);
+                    self.bump();
+                }
+                Ok((Tok::String(s), line, col))
+            }
+            c if c.is_ascii_digit() => {
+                // Hex literals: 0xA5 / 0X3C — keep spelling for Expr::Hex RT.
+                if c == b'0' && matches!(self.peek2(), Some(b'x' | b'X')) {
+                    self.bump(); // 0
+                    let x = self.bump(); // x/X
+                    let mut hex = String::from("0");
+                    hex.push(x.unwrap() as char);
+                    while let Some(ch) = self.peek() {
+                        if ch.is_ascii_hexdigit() {
+                            hex.push(ch as char);
+                            self.bump();
+                        } else {
+                            break;
+                        }
+                    }
+                    if hex.len() <= 2 {
+                        return Err(CppParseError::At {
+                            line,
+                            col,
+                            message: "expected hex digits after 0x".into(),
+                        });
+                    }
+                    // optional UL/ul/L suffix
+                    if matches!(self.peek(), Some(b'U' | b'u' | b'L' | b'l')) {
+                        self.bump();
+                        if matches!(self.peek(), Some(b'L' | b'l' | b'U' | b'u')) {
+                            self.bump();
+                        }
+                    }
+                    return Ok((Tok::Hex(hex), line, col));
+                }
+                let mut num = String::new();
+                let mut is_real = false;
+                while let Some(ch) = self.peek() {
+                    if ch.is_ascii_digit() {
+                        num.push(ch as char);
+                        self.bump();
+                    } else if ch == b'.' && !is_real {
+                        is_real = true;
+                        num.push('.');
+                        self.bump();
+                    } else {
+                        break;
+                    }
+                }
+                // optional UL/ul/L suffix
+                if matches!(self.peek(), Some(b'U' | b'u' | b'L' | b'l')) {
+                    self.bump();
+                    if matches!(self.peek(), Some(b'L' | b'l' | b'U' | b'u')) {
+                        self.bump();
+                    }
+                }
+                if is_real {
+                    let v: f64 = num.parse().map_err(|_| CppParseError::At {
+                        line,
+                        col,
+                        message: format!("bad real {num}"),
+                    })?;
+                    Ok((Tok::Real(v), line, col))
+                } else {
+                    let v: u64 = num.parse().map_err(|_| CppParseError::At {
+                        line,
+                        col,
+                        message: format!("bad int {num}"),
+                    })?;
+                    Ok((Tok::Uint(v), line, col))
+                }
+            }
+            b'\'' => {
+                // Char literal → single-char string (SERIAL_READLN sugar uses '\n').
+                self.bump();
+                let ch = match self.bump() {
+                    Some(b'\\') => match self.bump() {
+                        Some(b'n') => '\n',
+                        Some(b't') => '\t',
+                        Some(b'r
