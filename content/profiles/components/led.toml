@@ -26,6 +26,17 @@ label = "Color"
 options = ["red", "green", "blue", "yellow", "orange", "white", "warm-white", "cool-white", "uv", "ir", "custom"]
 type = "enum"
 
+# Modular LED modules with a built-in series resistor (ohms). When set, no discrete
+# `r_led` series resistor is required in project wiring.
+[params.integrated_resistance]
+default = 0
+editable = true
+label = "Integrated series resistance"
+max = 100000
+min = 0
+type = "int"
+unit = "ohm"
+
 [params.if_max]
 default = 0.03
 editable = false

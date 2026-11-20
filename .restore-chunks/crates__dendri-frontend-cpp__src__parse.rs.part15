@@ -1,0 +1,113 @@
+alue }) => *value as u32,
+                _ => continue,
+            };
+            if !seen.insert(pin) {
+                continue;
+            }
+            let (io_mode, role) = match name.as_str() {
+                "CFG_DIGITAL_OUTPUT" => (IoMode::Do, "digital-out"),
+                "CFG_DIGITAL_INPUT"
+                | "CFG_DIGITAL_INPUT_PULLUP"
+                | "CFG_DIGITAL_INPUT_PULLDOWN" => (IoMode::Di, "digital-in"),
+                _ => continue,
+            };
+            out.push(HardwareEntry {
+                pin,
+                hw_type: HwType::Digital,
+                io_mode,
+                label: format!("pin{pin}"),
+                target_role: role.into(),
+                pull: Default::default(),
+            });
+        }
+    }
+    out
+}
+
+fn parse_asl_hw_anno(body: &str) -> Option<HwAnno> {
+    let mut pin = None;
+    let mut label = String::new();
+    let mut role = String::from("digital-out");
+    let mut io_mode = IoMode::Do;
+    let mut hw_type = HwType::Digital;
+    let mut pull = PullMode::None;
+    for part in body.split_whitespace() {
+        if let Some(v) = part.strip_prefix("pin=") {
+            pin = v.parse().ok();
+        } else if let Some(v) = part.strip_prefix("label=") {
+            label = v.to_string();
+        } else if let Some(v) = part.strip_prefix("role=") {
+            role = v.to_string();
+        } else if let Some(v) = part.strip_prefix("type=") {
+            hw_type = match v {
+                "Analog" | "analog" => HwType::Analog,
+                "Bool" | "bool" | "BOOL" => HwType::Bool,
+                _ => HwType::Digital,
+            };
+        } else if let Some(v) = part.strip_prefix("mode=") {
+            io_mode = match v {
+                "Di" | "DI" => IoMode::Di,
+                "Bi" | "BI" => IoMode::Bi,
+                _ => IoMode::Do,
+            };
+        } else if let Some(v) = part.strip_prefix("pull=") {
+            pull = PullMode::parse(v).unwrap_or(PullMode::None);
+        }
+    }
+    let pin = pin?;
+    if label.is_empty() {
+        label = format!("pin{pin}");
+    }
+    Some(HwAnno {
+        pin,
+        hw_type,
+        io_mode,
+        label,
+        target_role: role,
+        pull,
+    })
+}
+
+fn parse_asl_data_anno(body: &str) -> Option<(String, DataAnno)> {
+    let mut name = None;
+    let mut data_type = DataType::Uint;
+    let mut scope = Scope::Var;
+    let mut unit = String::from("-");
+    for part in body.split_whitespace() {
+        if let Some(v) = part.strip_prefix("name=") {
+            name = Some(v.to_string());
+        } else if let Some(v) = part.strip_prefix("type=") {
+            data_type = DataType::parse(v)?;
+        } else if let Some(v) = part.strip_prefix("scope=") {
+            scope = match v {
+                "CONST" => Scope::Const,
+                "RETAIN" => Scope::Retain,
+                "PERSISTENT" => Scope::Persistent,
+                "TEMP" => Scope::Temp,
+                "EXTERN" => Scope::Extern,
+                _ => Scope::Var,
+            };
+        } else if let Some(v) = part.strip_prefix("unit=") {
+            unit = v.to_string();
+        }
+    }
+    Some((
+        name?,
+        DataAnno {
+            data_type,
+            scope,
+            unit,
+        },
+    ))
+}
+
+fn format_real_init(value: f64) -> String {
+    let s = format!("{value}");
+    if s.contains('.') || s.contains('e') || s.contains('E') {
+        s
+    } else {
+        format!("{value:.1}")
+    }
+}
+
+/// Parse Arduino-style C++ source into the shared 

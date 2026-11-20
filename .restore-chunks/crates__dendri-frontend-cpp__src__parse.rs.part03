@@ -1,0 +1,106 @@
+') => '\r',
+                        Some(b'0') => '\0',
+                        Some(b'\\') => '\\',
+                        Some(b'\'') => '\'',
+                        Some(other) => other as char,
+                        None => {
+                            return Err(CppParseError::At {
+                                line,
+                                col,
+                                message: "unterminated char escape".into(),
+                            });
+                        }
+                    },
+                    Some(c) => c as char,
+                    None => {
+                        return Err(CppParseError::At {
+                            line,
+                            col,
+                            message: "unterminated char literal".into(),
+                        });
+                    }
+                };
+                if self.peek() != Some(b'\'') {
+                    return Err(CppParseError::At {
+                        line,
+                        col,
+                        message: "expected closing ' in char literal".into(),
+                    });
+                }
+                self.bump();
+                Ok((Tok::String(ch.to_string()), line, col))
+            }
+            c if c.is_ascii_alphabetic() || c == b'_' => {
+                let mut id = String::new();
+                while let Some(ch) = self.peek() {
+                    if ch.is_ascii_alphanumeric() || ch == b'_' {
+                        id.push(ch as char);
+                        self.bump();
+                    } else {
+                        break;
+                    }
+                }
+                let tok = match id.as_str() {
+                    "true" => Tok::True,
+                    "false" => Tok::False,
+                    "HIGH" => Tok::High,
+                    "LOW" => Tok::Low,
+                    "OUTPUT" => Tok::Output,
+                    "INPUT" => Tok::Input,
+                    "INPUT_PULLUP" => Tok::InputPullup,
+                    "INPUT_PULLDOWN" => Tok::InputPulldown,
+                    _ => Tok::Ident(id),
+                };
+                Ok((tok, line, col))
+            }
+            other => Err(CppParseError::At {
+                line,
+                col,
+                message: format!("unexpected {:?}", other as char),
+            }),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct HwAnno {
+    pin: u32,
+    hw_type: HwType,
+    io_mode: IoMode,
+    label: String,
+    target_role: String,
+    pull: PullMode,
+}
+
+#[derive(Debug, Clone)]
+struct DataAnno {
+    data_type: DataType,
+    scope: Scope,
+    unit: String,
+}
+
+struct Parser {
+    tokens: Vec<(Tok, usize, usize)>,
+    pos: usize,
+    project_name: Option<String>,
+    pin_consts: HashMap<String, u32>,
+    hw_annos: HashMap<String, HwAnno>,
+    data_annos: HashMap<String, DataAnno>,
+}
+
+impl Parser {
+    fn from_src(src: &str) -> Result<Self, CppParseError> {
+        let mut project_name = None;
+        let mut hw_annos = HashMap::new();
+        let mut data_annos = HashMap::new();
+        for line in src.lines() {
+            let t = line.trim();
+            if let Some(rest) = t.strip_prefix("// project:") {
+                project_name = Some(rest.trim().to_string());
+            }
+            if let Some(rest) = t.strip_prefix("// ASL_HW:") {
+                if let Some(hw) = parse_asl_hw_anno(rest.trim()) {
+                    hw_annos.insert(hw.label.clone(), hw);
+                }
+            }
+            if l

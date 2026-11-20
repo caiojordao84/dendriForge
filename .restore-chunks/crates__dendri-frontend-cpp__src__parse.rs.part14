@@ -1,0 +1,101 @@
+> Stmt::Assign {
+            target,
+            value: rewrite_expr(value, pins),
+        },
+        Stmt::Call { name, args } => Stmt::Call {
+            name,
+            args: args.into_iter().map(|a| rewrite_expr(a, pins)).collect(),
+        },
+        Stmt::If {
+            condition,
+            then,
+            elif,
+            else_body,
+        } => Stmt::If {
+            condition: rewrite_expr(condition, pins),
+            then: rewrite_stmts(then, pins),
+            elif: elif
+                .into_iter()
+                .map(|a| ElifArm {
+                    condition: rewrite_expr(a.condition, pins),
+                    then: rewrite_stmts(a.then, pins),
+                })
+                .collect(),
+            else_body: else_body.map(|b| rewrite_stmts(b, pins)),
+        },
+        Stmt::While { condition, body } => Stmt::While {
+            condition: rewrite_expr(condition, pins),
+            body: rewrite_stmts(body, pins),
+        },
+        Stmt::For { counter, to, body } => Stmt::For {
+            counter,
+            to: rewrite_expr(to, pins),
+            body: rewrite_stmts(body, pins),
+        },
+        Stmt::Return { value } => Stmt::Return {
+            value: value.map(|v| rewrite_expr(v, pins)),
+        },
+        other => other,
+    }
+}
+
+fn rewrite_expr(expr: Expr, pins: &HashMap<String, u32>) -> Expr {
+    let _ = pins; // pin consts declare hardware; logic keeps logical names
+    match expr {
+        Expr::Var { name } => Expr::Var { name },
+        Expr::Call { name, args } => Expr::Call {
+            name,
+            args: args.into_iter().map(|a| rewrite_expr(a, pins)).collect(),
+        },
+        Expr::Unary { op, expr } => Expr::Unary {
+            op,
+            expr: Box::new(rewrite_expr(*expr, pins)),
+        },
+        Expr::Binop { op, left, right } => Expr::Binop {
+            op,
+            left: Box::new(rewrite_expr(*left, pins)),
+            right: Box::new(rewrite_expr(*right, pins)),
+        },
+        other => other,
+    }
+}
+
+fn refine_hardware_from_setup(hardware: &mut [HardwareEntry], setup: &[Stmt]) {
+    for stmt in setup {
+        if let Stmt::Call { name, args } = stmt {
+            let pin = match args.first() {
+                Some(Expr::Uint { value }) => *value as u32,
+                Some(Expr::Var { name }) => {
+                    if let Some(h) = hardware.iter().find(|h| h.label == *name) {
+                        h.pin
+                    } else {
+                        continue;
+                    }
+                }
+                _ => continue,
+            };
+            if let Some(h) = hardware.iter_mut().find(|h| h.pin == pin) {
+                // Preserve ASL_HW `role=` when present; only refine io_mode from CFG_*.
+                match name.as_str() {
+                    "CFG_DIGITAL_INPUT"
+                    | "CFG_DIGITAL_INPUT_PULLUP"
+                    | "CFG_DIGITAL_INPUT_PULLDOWN" => {
+                        h.io_mode = IoMode::Di;
+                    }
+                    "CFG_DIGITAL_OUTPUT" => {
+                        h.io_mode = IoMode::Do;
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+}
+
+fn infer_hardware_from_calls(setup: &[Stmt]) -> Vec<HardwareEntry> {
+    let mut out = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for stmt in setup {
+        if let Stmt::Call { name, args } = stmt {
+            let pin = match args.first() {
+                Some(Expr::Uint { v

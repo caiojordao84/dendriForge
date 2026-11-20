@@ -1,0 +1,154 @@
+//! Dendri HAL Rust subset (P2) → ASL AST.
+
+use dendri_ast::expr::{BinaryOp, Expr, UnaryOp};
+use dendri_ast::stmt::{ElifArm, Stmt};
+use dendri_ast::{
+    DataEntry, DataType, FunctionDef, HardwareEntry, HwType, IoMode, PullMode, Metadata, Program, Scope,
+};
+use std::collections::HashMap;
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum RustParseError {
+    #[error("Rust parse error at {line}:{col}: {message}")]
+    At {
+        line: usize,
+        col: usize,
+        message: String,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum Tok {
+    Ident(String),
+    Uint(u64),
+    /// Preserves ASL `Expr::Hex` spelling (`0x3C`) through C++ round-trip.
+    Hex(String),
+    #[allow(dead_code)]
+    Int(i64),
+    Real(f64),
+    String(String),
+    True,
+    False,
+    High,
+    Low,
+    Output,
+    Input,
+    InputPullup,
+    InputPulldown,
+    Assign,
+    Colon,
+    DotDot,
+    Arrow,
+    Semi,
+    Comma,
+    LParen,
+    RParen,
+    LBrace,
+    RBrace,
+    Plus,
+    Minus,
+    Star,
+    Slash,
+    Percent,
+    Eq,
+    Ne,
+    Lt,
+    Le,
+    Gt,
+    Ge,
+    AndAnd,
+    OrOr,
+    Not,
+    BitNot,
+    PlusPlus,
+    Dot,
+    Eof,
+}
+
+struct Lexer<'a> {
+    src: &'a [u8],
+    i: usize,
+    line: usize,
+    col: usize,
+}
+
+impl<'a> Lexer<'a> {
+    fn new(src: &'a str) -> Self {
+        Self {
+            src: src.as_bytes(),
+            i: 0,
+            line: 1,
+            col: 1,
+        }
+    }
+
+    fn peek(&self) -> Option<u8> {
+        self.src.get(self.i).copied()
+    }
+
+    fn peek2(&self) -> Option<u8> {
+        self.src.get(self.i + 1).copied()
+    }
+
+    fn bump(&mut self) -> Option<u8> {
+        let c = self.peek()?;
+        self.i += 1;
+        if c == b'\n' {
+            self.line += 1;
+            self.col = 1;
+        } else {
+            self.col += 1;
+        }
+        Some(c)
+    }
+
+    fn skip_ws_comments(&mut self) {
+        loop {
+            while matches!(self.peek(), Some(b' ' | b'\t' | b'\r' | b'\n')) {
+                self.bump();
+            }
+            if self.peek() == Some(b'/') && self.peek2() == Some(b'/') {
+                while self.peek().is_some() && self.peek() != Some(b'\n') {
+                    self.bump();
+                }
+                continue;
+            }
+            if self.peek() == Some(b'/') && self.peek2() == Some(b'*') {
+                self.bump();
+                self.bump();
+                while self.i + 1 < self.src.len() {
+                    if self.src[self.i] == b'*' && self.src[self.i + 1] == b'/' {
+                        self.bump();
+                        self.bump();
+                        break;
+                    }
+                    self.bump();
+                }
+                continue;
+            }
+            break;
+        }
+    }
+
+    fn next_tok(&mut self) -> Result<(Tok, usize, usize), RustParseError> {
+        self.skip_ws_comments();
+        let line = self.line;
+        let col = self.col;
+        let Some(c) = self.peek() else {
+            return Ok((Tok::Eof, line, col));
+        };
+        match c {
+            b':' => {
+                self.bump();
+                if self.peek() == Some(b':') {
+                    // path sep `::` — treat as noise for Dendri HAL (no modules yet)
+                    self.bump();
+                    return self.next_tok();
+                }
+                Ok((Tok::Colon, line, col))
+            }
+            b'.' => {
+                self.bump();
+                if self.peek() == Some(b'.') {
+                    self

@@ -1,0 +1,96 @@
+.bump();
+                    Ok((Tok::DotDot, line, col))
+                } else {
+                    Ok((Tok::Dot, line, col))
+                }
+            }
+            b'-' => {
+                self.bump();
+                if self.peek() == Some(b'>') {
+                    self.bump();
+                    Ok((Tok::Arrow, line, col))
+                } else if self.peek() == Some(b'-') {
+                    self.bump();
+                    // `--` not used; treat as error later via MinusMinus absence — emit Minus then Minus
+                    // Actually C++ had no -- alone as token pair; keep single Minus
+                    Ok((Tok::Minus, line, col))
+                } else {
+                    Ok((Tok::Minus, line, col))
+                }
+            }
+            b'=' => {
+                self.bump();
+                if self.peek() == Some(b'=') {
+                    self.bump();
+                    Ok((Tok::Eq, line, col))
+                } else {
+                    Ok((Tok::Assign, line, col))
+                }
+            }
+            b'!' => {
+                self.bump();
+                if self.peek() == Some(b'=') {
+                    self.bump();
+                    Ok((Tok::Ne, line, col))
+                } else {
+                    Ok((Tok::Not, line, col))
+                }
+            }
+            b'<' => {
+                self.bump();
+                if self.peek() == Some(b'=') {
+                    self.bump();
+                    Ok((Tok::Le, line, col))
+                } else {
+                    Ok((Tok::Lt, line, col))
+                }
+            }
+            b'>' => {
+                self.bump();
+                if self.peek() == Some(b'=') {
+                    self.bump();
+                    Ok((Tok::Ge, line, col))
+                } else {
+                    Ok((Tok::Gt, line, col))
+                }
+            }
+            b'&' => {
+                self.bump();
+                if self.peek() == Some(b'&') {
+                    self.bump();
+                    Ok((Tok::AndAnd, line, col))
+                } else {
+                    // `&str` type token for declarations
+                    self.skip_ws_comments();
+                    if self.peek() == Some(b's') {
+                        let start_i = self.i;
+                        let start_line = self.line;
+                        let start_col = self.col;
+                        let mut ident = String::new();
+                        while matches!(
+                            self.peek(),
+                            Some(b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'_')
+                        ) {
+                            ident.push(self.bump().unwrap() as char);
+                        }
+                        if ident == "str" {
+                            return Ok((Tok::Ident("&str".into()), line, col));
+                        }
+                        self.i = start_i;
+                        self.line = start_line;
+                        self.col = start_col;
+                    }
+                    Err(RustParseError::At {
+                        line,
+                        col,
+                        message: "bitwise & not in Dendri HAL subset".into(),
+                    })
+                }
+            }
+            b'|' => {
+                self.bump();
+                if self.peek() == Some(b'|') {
+                    self.bump();
+                    Ok((Tok::OrOr, line, col))
+                } else {
+                 

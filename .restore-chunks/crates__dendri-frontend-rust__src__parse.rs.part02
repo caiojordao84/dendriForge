@@ -1,0 +1,102 @@
+   Err(RustParseError::At {
+                        line,
+                        col,
+                        message: "bitwise | not in MVP subset".into(),
+                    })
+                }
+            }
+            b'+' => {
+                self.bump();
+                if self.peek() == Some(b'+') {
+                    self.bump();
+                    Ok((Tok::PlusPlus, line, col))
+                } else {
+                    Ok((Tok::Plus, line, col))
+                }
+            }
+            b'*' => {
+                self.bump();
+                Ok((Tok::Star, line, col))
+            }
+            b'/' => {
+                self.bump();
+                Ok((Tok::Slash, line, col))
+            }
+            b'%' => {
+                self.bump();
+                Ok((Tok::Percent, line, col))
+            }
+            b'~' => {
+                self.bump();
+                Ok((Tok::BitNot, line, col))
+            }
+            b';' => {
+                self.bump();
+                Ok((Tok::Semi, line, col))
+            }
+            b',' => {
+                self.bump();
+                Ok((Tok::Comma, line, col))
+            }
+            b'(' => {
+                self.bump();
+                Ok((Tok::LParen, line, col))
+            }
+            b')' => {
+                self.bump();
+                Ok((Tok::RParen, line, col))
+            }
+            b'{' => {
+                self.bump();
+                Ok((Tok::LBrace, line, col))
+            }
+            b'}' => {
+                self.bump();
+                Ok((Tok::RBrace, line, col))
+            }
+            b'"' => {
+                self.bump();
+                let mut s = String::new();
+                while let Some(ch) = self.peek() {
+                    if ch == b'"' {
+                        self.bump();
+                        break;
+                    }
+                    if ch == b'\\' {
+                        self.bump();
+                        if let Some(n) = self.bump() {
+                            s.push(n as char);
+                        }
+                        continue;
+                    }
+                    s.push(ch as char);
+                    self.bump();
+                }
+                Ok((Tok::String(s), line, col))
+            }
+            c if c.is_ascii_digit() => {
+                // Hex literals: 0xA5 / 0X3C — keep spelling for Expr::Hex RT.
+                if c == b'0' && matches!(self.peek2(), Some(b'x' | b'X')) {
+                    self.bump(); // 0
+                    let x = self.bump(); // x/X
+                    let mut hex = String::from("0");
+                    hex.push(x.unwrap() as char);
+                    while let Some(ch) = self.peek() {
+                        if ch.is_ascii_hexdigit() {
+                            hex.push(ch as char);
+                            self.bump();
+                        } else {
+                            break;
+                        }
+                    }
+                    if hex.len() <= 2 {
+                        return Err(RustParseError::At {
+                            line,
+                            col,
+                            message: "expected hex digits after 0x".into(),
+                        });
+                    }
+                    // optional UL/ul/L suffix
+                    if matches!(self.peek(), Some(b'U' | b'u' | b'L' | b'l')) {
+                        self.bump();
+                        if matches!(self.peek(), Some(b'L' | b'l' | b'U'

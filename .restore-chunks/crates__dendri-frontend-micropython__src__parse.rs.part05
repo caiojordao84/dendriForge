@@ -1,0 +1,72 @@
+ Parser {
+        Parser {
+            lines: vec![],
+            pos: 0,
+            project_name: self.project_name.clone(),
+            pin_consts: self.pin_consts.clone(),
+            pin_objs: self.pin_objs.clone(),
+            obj_to_pin: self.obj_to_pin.clone(),
+            pin_placeholders: self.pin_placeholders.clone(),
+            hw_annos: self.hw_annos.clone(),
+            data_annos: self.data_annos.clone(),
+        }
+    }
+
+    fn lower_simple_stmt(&mut self, t: &str, line: usize) -> Result<Stmt, MpyParseError> {
+        if let Some((lhs, rhs)) = split_assign(t) {
+            // led_pin = Pin(LED_PIN, Pin.OUT)
+            if let Some(pin_call) = parse_pin_ctor(&rhs) {
+                let (pin_expr, mode) = pin_call;
+                let pin = resolve_pin_number(&pin_expr, &self.pin_consts).unwrap_or(0);
+                self.obj_to_pin.insert(lhs.clone(), pin);
+                if let Some(const_name) = pin_expr_name(&pin_expr) {
+                    self.pin_objs.insert(lhs.clone(), const_name);
+                }
+                let opcode = match mode.as_str() {
+                    "Pin.IN" => "CFG_DIGITAL_INPUT",
+                    "Pin.IN, Pin.PULL_UP" | "Pin.IN,Pin.PULL_UP" => "CFG_DIGITAL_INPUT_PULLUP",
+                    "Pin.IN, Pin.PULL_DOWN" | "Pin.IN,Pin.PULL_DOWN" => {
+                        "CFG_DIGITAL_INPUT_PULLDOWN"
+                    }
+                    _ => "CFG_DIGITAL_OUTPUT",
+                };
+                return Ok(Stmt::Call {
+                    name: opcode.into(),
+                    args: vec![pin_to_logical_expr(pin, &self.pin_consts)],
+                });
+            }
+            // fan_pwm_pwm = PWM(Pin(FAN_PWM), freq=5000)
+            if let Some((pin, freq)) = parse_pwm_ctor(&rhs) {
+                let pin_n = resolve_pin_number(&pin, &self.pin_consts).unwrap_or(0);
+                self.obj_to_pin.insert(lhs.clone(), pin_n);
+                let freq_e = parse_expr(&freq).unwrap_or(Expr::Uint { value: 1000 });
+                let freq_e = rewrite_expr(freq_e, &self.pin_consts, &self.obj_to_pin);
+                return Ok(Stmt::Call {
+                    name: "CFG_PWM_OUTPUT".into(),
+                    args: vec![pin_to_logical_expr(pin_n, &self.pin_consts), freq_e],
+                });
+            }
+            // pot_pin_adc = ADC(Pin(POT_PIN))
+            if let Some(pin) = parse_adc_ctor(&rhs) {
+                let pin_n = resolve_pin_number(&pin, &self.pin_consts).unwrap_or(0);
+                self.obj_to_pin.insert(lhs.clone(), pin_n);
+                return Ok(Stmt::Call {
+                    name: "CFG_ADC_INPUT".into(),
+                    args: vec![pin_to_logical_expr(pin_n, &self.pin_consts)],
+                });
+            }
+            // uart_0 = UART(0, baudrate=115200)
+            if let Some(baud) = parse_uart_ctor(&rhs) {
+                let baud_e = parse_expr(&baud).unwrap_or(Expr::Int { value: 9600 });
+                return Ok(Stmt::Call {
+                    name: "CFG_SERIAL".into(),
+                    args: vec![rewrite_expr(baud_e, &self.pin_consts, &self.obj_to_pin)],
+                });
+            }
+            // i2c_0 = I2C(0, sda=Pin(SDA_PIN), scl=Pin(SCL_PIN), freq=400000)
+            if let Some((bus, sda, scl, freq)) = parse_i2c_ctor(&rhs) {
+                return Ok(Stmt::Call {
+                    name: "CFG_I2C".into(),
+                    args: vec![
+                        parse_expr(&bus).unwrap_or(Expr::Uint { value: 0 }),
+                 

@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::stmt::Stmt;
-use crate::types::{DataType, HwType, IoMode};
+use crate::types::{DataType, HwType, IoMode, PullMode};
 
 /// File extension for program IR: `.toml` (shape distinguishes program vs project).
 pub const PROGRAM_EXTENSION: &str = "toml";
@@ -93,6 +93,10 @@ pub struct HardwareEntry {
     /// Role string (e.g. `digital-out`, `pwm-out`, `adc:t`, `i2c-sda`).
     /// Kept as text in Phase 0; Phase 1 may tighten to [`TargetRole`].
     pub target_role: String,
+    /// Optional MCU pull bias (`pullup` / `pulldown` / `none`).
+    /// When set, `CFG_DIGITAL_INPUT` emitters select `INPUT_PULLUP` / equivalent.
+    #[serde(default, skip_serializing_if = "PullMode::is_none")]
+    pub pull: PullMode,
 }
 
 /// Known hardware target roles (documentation / future enum tightening).

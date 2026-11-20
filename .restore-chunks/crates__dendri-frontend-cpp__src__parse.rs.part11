@@ -1,0 +1,93 @@
+t op = match self.peek() {
+                Tok::Star => BinaryOp::Mul,
+                Tok::Slash => BinaryOp::Div,
+                Tok::Percent => BinaryOp::Mod,
+                _ => break,
+            };
+            self.bump();
+            let right = self.parse_unary()?;
+            left = Expr::Binop {
+                op,
+                left: Box::new(left),
+                right: Box::new(right),
+            };
+        }
+        Ok(left)
+    }
+
+    fn parse_unary(&mut self) -> Result<Expr, CppParseError> {
+        match self.peek() {
+            Tok::Not => {
+                self.bump();
+                Ok(Expr::Unary {
+                    op: UnaryOp::Not,
+                    expr: Box::new(self.parse_unary()?),
+                })
+            }
+            Tok::Minus => {
+                self.bump();
+                let inner = self.parse_unary()?;
+                // Fold numeric literals so `CFG_TFT(..., -1, ...)` and
+                // `const float TEMP_OFFSET = -40.0` round-trip cleanly.
+                match inner {
+                    Expr::Uint { value } if value <= i64::MAX as u64 => Ok(Expr::Int {
+                        value: -(value as i64),
+                    }),
+                    Expr::Int { value } => Ok(Expr::Int { value: -value }),
+                    Expr::Real { value } => Ok(Expr::Real { value: -value }),
+                    other => Ok(Expr::Unary {
+                        op: UnaryOp::Neg,
+                        expr: Box::new(other),
+                    }),
+                }
+            }
+            Tok::BitNot => {
+                self.bump();
+                Ok(Expr::Unary {
+                    op: UnaryOp::BitNot,
+                    expr: Box::new(self.parse_unary()?),
+                })
+            }
+            _ => self.parse_primary(),
+        }
+    }
+
+    fn parse_primary(&mut self) -> Result<Expr, CppParseError> {
+        match self.bump() {
+            Tok::True | Tok::High => Ok(Expr::Bool { value: true }),
+            Tok::False | Tok::Low => Ok(Expr::Bool { value: false }),
+            Tok::Output => Ok(Expr::Var {
+                name: "OUTPUT".into(),
+            }),
+            Tok::Input => Ok(Expr::Var {
+                name: "INPUT".into(),
+            }),
+            Tok::InputPullup => Ok(Expr::Var {
+                name: "INPUT_PULLUP".into(),
+            }),
+            Tok::InputPulldown => Ok(Expr::Var {
+                name: "INPUT_PULLDOWN".into(),
+            }),
+            Tok::Uint(v) => Ok(Expr::Uint { value: v }),
+            Tok::Hex(v) => Ok(Expr::Hex { value: v }),
+            Tok::Int(v) => Ok(Expr::Int { value: v }),
+            Tok::Real(v) => Ok(Expr::Real { value: v }),
+            Tok::String(v) => Ok(Expr::String { value: v }),
+            Tok::LParen => {
+                // ternary: (cond) ? HIGH : LOW  — or grouping
+                let e = self.parse_expr()?;
+                match self.bump() {
+                    Tok::RParen => {
+                        if self.check_ident("") {
+                            // no
+                        }
+                        // ternary after (expr) ?
+                        // Actually `(` expr `)` already done. Check for `?`
+                        // Our lexer doesn't have `?` — handle in rewrite of digitalWrite args.
+                        Ok(e)
+                    }
+                    _ => Err(self.err("expected ')'")),
+                }
+            }
+            Tok::Ident(name) => {
+                if matches!(s

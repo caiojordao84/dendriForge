@@ -277,9 +277,9 @@ fn project_sim_runs() {
         ..SimConfig::default()
     };
     let mut sim = Simulator::from_project(&parsed.project, &cfg);
-    // P01 blinks only while the start button is held.
+    // P01 blinks only while the start button is held (pull-up / active-low → pin LOW).
     sim.ensure_setup().unwrap();
-    sim.set_pin(2, true).unwrap();
+    sim.set_pin(2, false).unwrap();
     sim.run(2).unwrap();
     let text = sim.trace_text();
     assert!(text.contains("PIN_WRITE"));

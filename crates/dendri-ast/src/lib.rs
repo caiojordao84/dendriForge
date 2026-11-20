@@ -36,4 +36,4 @@ pub use toon::{
     convert_program, is_protected, migrate_v010, AslToonError, MigrateOptions, MigrateReport,
     PROTECTED,
 };
-pub use types::{DataType, HwType, IoMode};
+pub use types::{DataType, HwType, IoMode, PullMode};

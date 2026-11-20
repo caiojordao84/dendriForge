@@ -1,0 +1,21 @@
+r() {
+                    "CFG_DIGITAL_INPUT"
+                    | "CFG_DIGITAL_INPUT_PULLUP"
+                    | "CFG_DIGITAL_INPUT_PULLDOWN" => {
+                        h.io_mode = IoMode::Di;
+                    }
+                    "CFG_DIGITAL_OUTPUT" => {
+                        h.io_mode = IoMode::Do;
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+}
+
+/// Parse MicroPython source into the shared ASL [`Program`] AST.
+pub fn parse_micropython(src: &str) -> Result<Program, MpyParseError> {
+    let mut p = Parser::new(src);
+    p.parse_program()
+}

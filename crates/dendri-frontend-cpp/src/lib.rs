@@ -43,6 +43,7 @@ mod tests {
                 io_mode: IoMode::Do,
                 label: "ledPin".into(),
                 target_role: "digital-out".into(),
+                pull: Default::default(),
             }],
             data: vec![
                 DataEntry {
@@ -107,6 +108,39 @@ mod tests {
         assert_eq!(again.loop_body, p.loop_body);
         assert_eq!(again.data, p.data);
         assert_eq!(again.hardware, p.hardware);
+    }
+
+    #[test]
+    fn cfg_digital_input_consults_pullup() {
+        use dendri_ast::{HardwareEntry, HwType, IoMode, PullMode};
+
+        let mut p = blink_program();
+        p.hardware.push(HardwareEntry {
+            pin: 2,
+            hw_type: HwType::Digital,
+            io_mode: IoMode::Di,
+            label: "btnPin".into(),
+            target_role: "digital-in".into(),
+            pull: PullMode::Pullup,
+        });
+        p.setup.insert(
+            0,
+            Stmt::Call {
+                name: "CFG_DIGITAL_INPUT".into(),
+                args: vec![Expr::Var {
+                    name: "btnPin".into(),
+                }],
+            },
+        );
+        let text = emit_cpp(&p);
+        assert!(
+            text.contains("pinMode(btnPin, INPUT_PULLUP)"),
+            "CFG_DIGITAL_INPUT with pull=pullup must emit INPUT_PULLUP:\n{text}"
+        );
+        assert!(
+            text.contains("pull=pullup"),
+            "ASL_HW annotation should retain pull:\n{text}"
+        );
     }
 
     #[test]

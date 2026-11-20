@@ -1,0 +1,89 @@
+          {
+                            hardware.push(HardwareEntry {
+                                pin: anno.pin,
+                                hw_type: anno.hw_type,
+                                io_mode: anno.io_mode,
+                                label: anno.label.clone(),
+                                target_role: anno.target_role.clone(),
+                                pull: anno.pull,
+                            });
+                        } else {
+                            hardware.push(HardwareEntry {
+                                pin,
+                                hw_type: HwType::Digital,
+                                io_mode: IoMode::Do,
+                                label: snake_to_camel(&name),
+                                target_role: "digital-out".into(),
+                                pull: Default::default(),
+                            });
+                        }
+                        continue;
+                    }
+                }
+                if let Some(anno) = self.data_annos.get(&name) {
+                    let mut init = rhs.clone();
+                    if anno.data_type == DataType::Time {
+                        if let Ok(ms) = rhs.parse::<u64>() {
+                            init = format!("T#{ms}ms");
+                        }
+                    } else if anno.data_type == DataType::Bool {
+                        init = if rhs == "True" {
+                            "TRUE".into()
+                        } else {
+                            "FALSE".into()
+                        };
+                    }
+                    data.push(DataEntry {
+                        name,
+                        data_type: anno.data_type,
+                        scope: anno.scope,
+                        init,
+                        unit: anno.unit.clone(),
+                    });
+                    continue;
+                }
+                let (data_type, init, scope) = classify_global(&name, &rhs);
+                data.push(DataEntry {
+                    name,
+                    data_type,
+                    scope,
+                    init,
+                    unit: if data_type == DataType::Time {
+                        "ms".into()
+                    } else {
+                        "-".into()
+                    },
+                });
+                continue;
+            }
+            return Err(self.err(line.number, format!("unsupported top-level: {}", line.text)));
+        }
+
+        // Lower Pin(...) / .value() using known maps built during block parse.
+        // Re-parse setup/loop with lowering — already done in parse_block via helpers.
+        // After setup parse, extract pin object bindings from CFG-like calls.
+        refine_hardware(&mut hardware, &setup);
+
+        Ok(Program {
+            metadata: Metadata {
+                asl_version: Some(dendri_ast::ASL_VERSION.into()),
+                project_name: self
+                    .project_name
+                    .clone()
+                    .or_else(|| Some("micropython-program".into())),
+                editor: Some("dendriForge".into()),
+                author: None,
+                notes: Some("parsed from MicroPython frontend (MVP subset)".into()),
+                expect_error: None,
+            },
+            hardware,
+            data,
+            setup,
+            loop_body,
+            functions,
+            ladder: vec![],
+            grafcet: vec![],
+        })
+    }
+
+    fn collect_block(&mut self, min
