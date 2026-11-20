@@ -1,66 +1,87 @@
-//! DendriForge visual editor MVP — Ladder / SFC ↔ TOML + live SVG sim canvas.
+//! DendriForge visual editor — iced shell matching Caio HTML canvas mockups.
 //!
-//! # Editor choice
+//! Shared chrome: brand, breadcrumb, Pause/Step/Reset, tabs
+//! Simulation | Code | Ladder | GRAFCET, Export, status footer.
+//! Simulation is the priority content (Uno + LED + pull-up button).
 //!
-//! **iced 0.13** (pure Rust, Elm architecture). Requires **rustc ≥ 1.86** because
-//! the Wayland clipboard stack (`calloop` / `wayland-protocols`) raised its MSRV.
-//! The workspace toolchain is pinned to **1.86.0** for this reason.
-//!
-//! Sync logic lives in `dendri-sync` (headless, CI-tested). Canvas binding lives
-//! in `dendri-canvas` (scan-cycle ↔ SVG class hooks). This binary is the
-//! interactive shell: diagram palette, sim canvas, live TOML pane.
+//! Sync logic: `dendri-sync`. Canvas binding: `dendri-canvas`.
+
+mod theme;
 
 use std::path::PathBuf;
+use std::time::Duration;
 
 use dendri_ast::{LadderCell, SourceLanguage};
 use dendri_canvas::SimCanvas;
 use dendri_sim::SimConfig;
 use dendri_sync::{SyncOrigin, SyncSession, VisualKind};
 use iced::widget::{
-    button, column, container, row, scrollable, svg, text, text_editor, Column, Space,
+    button, column, container, row, scrollable, text, text_editor, text_input, Column, Space,
 };
-use iced::{Element, Fill, Font, Length, Task, Theme};
+use iced::{Color, Element, Fill, Font, Length, Subscription, Task, Theme};
+use theme::{
+    chrome_btn, export_btn, main_bg, palette_card, palette_card_active, panel_bg, pause_btn,
+    surface_bg, surface_low_bg, surface_lowest_bg, tab_active, tab_idle, transport_btn,
+    ACCENT_CYAN, ACCENT_EMERALD, ACCENT_ORANGE, ACCENT_SKY, BORDER, SURFACE_LOWEST, TEXT_HEADING,
+    TEXT_MAIN, TEXT_MUTED,
+};
 
 fn main() -> iced::Result {
-    iced::application("DendriForge — Ladder / SFC / Sim", Editor::update, Editor::view)
-        .theme(|_| Theme::Dark)
-        .window_size((1200.0, 780.0))
-        .run_with(Editor::boot)
+    iced::application(
+        "DendriForge — Simulation / Code / Ladder / GRAFCET",
+        Editor::update,
+        Editor::view,
+    )
+    .theme(|_| Theme::Dark)
+    .subscription(Editor::subscription)
+    .window_size((1280.0, 820.0))
+    .run_with(Editor::boot)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Pane {
+enum Mode {
+    Simulation,
+    Code,
     Ladder,
-    Sfc,
-    Sim,
+    Grafcet,
 }
 
 struct Editor {
     session: SyncSession,
     kind: VisualKind,
-    pane: Pane,
+    mode: Mode,
     toml_content: text_editor::Content,
+    project_toml: text_editor::Content,
     status: String,
     path: Option<PathBuf>,
     canvas: Option<SimCanvas>,
     canvas_note: String,
+    running: bool,
+    elapsed_ms: u64,
+    palette_filter: String,
+    selected_part: Option<&'static str>,
+    left_collapsed: bool,
 }
 
 #[derive(Debug, Clone)]
 enum Message {
-    SwitchLadder,
-    SwitchSfc,
-    SwitchSim,
+    SwitchMode(Mode),
     TomlAction(text_editor::Action),
+    ProjectTomlAction(text_editor::Action),
+    PaletteFilter(String),
+    SelectPart(&'static str),
+    ToggleLeftDock,
+    TogglePause,
+    Tick,
     AddContactNo,
     AddCoil,
     AddActionSetBool,
     AddParallelOr,
     AddTon,
     AddRTrig,
+    RemoveLastLadderCell,
     AddSfcStep,
     AddSfcTransition,
-    RemoveLastLadderCell,
     ReloadFromAsl,
     Save,
     OpenDefault,
@@ -69,30 +90,40 @@ enum Message {
     SimRelease,
     SimStep,
     SimReset,
+    Export,
 }
 
 impl Editor {
     fn boot() -> (Self, Task<Message>) {
-        let path = default_project_path();
+        let path = canvas_demo_path();
         let session = load_session(&path).unwrap_or_else(|e| {
             let mut s = SyncSession::new(empty_project());
             s.project.metadata.notes = Some(format!("load failed: {e}"));
             s
         });
         let kind = VisualKind::Ladder;
-        let initial = session
+        let ladder_text = session
             .source_text(SourceLanguage::Ladder)
             .unwrap_or("")
             .to_string();
+        let project_text = session
+            .emit_project_toml()
+            .unwrap_or_else(|_| String::new());
         let mut editor = Self {
             session,
             kind,
-            pane: Pane::Ladder,
-            toml_content: text_editor::Content::with_text(&initial),
+            mode: Mode::Simulation,
+            toml_content: text_editor::Content::with_text(&ladder_text),
+            project_toml: text_editor::Content::with_text(&project_text),
             status: format!("loaded {}", path.display()),
             path: Some(path),
             canvas: None,
             canvas_note: String::new(),
+            running: true,
+            elapsed_ms: 0,
+            palette_filter: String::new(),
+            selected_part: Some("Red LED"),
+            left_collapsed: false,
         };
         if editor
             .session
@@ -103,30 +134,42 @@ impl Editor {
             let _ = editor.session.sync_visual_sources_from_asl();
             editor.refresh_toml_from_session();
         }
+        editor.refresh_project_toml();
         editor.boot_canvas_from_session();
         (editor, Task::none())
     }
 
+    fn subscription(&self) -> Subscription<Message> {
+        if self.running {
+            iced::time::every(Duration::from_millis(100)).map(|_| Message::Tick)
+        } else {
+            Subscription::none()
+        }
+    }
+
     fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::SwitchLadder => {
-                self.kind = VisualKind::Ladder;
-                self.pane = Pane::Ladder;
-                self.refresh_toml_from_session();
-                self.status = "view: Ladder".into();
-            }
-            Message::SwitchSfc => {
-                self.kind = VisualKind::Sfc;
-                self.pane = Pane::Sfc;
-                self.refresh_toml_from_session();
-                self.status = "view: SFC/GRAFCET".into();
-            }
-            Message::SwitchSim => {
-                self.pane = Pane::Sim;
-                if self.canvas.is_none() {
-                    self.boot_canvas_from_session();
+            Message::SwitchMode(mode) => {
+                self.mode = mode;
+                match mode {
+                    Mode::Ladder => {
+                        self.kind = VisualKind::Ladder;
+                        self.refresh_toml_from_session();
+                    }
+                    Mode::Grafcet => {
+                        self.kind = VisualKind::Sfc;
+                        self.refresh_toml_from_session();
+                    }
+                    Mode::Code => {
+                        self.refresh_project_toml();
+                    }
+                    Mode::Simulation => {
+                        if self.canvas.is_none() {
+                            self.boot_canvas_from_session();
+                        }
+                    }
                 }
-                self.status = "view: SVG sim canvas".into();
+                self.status = format!("view: {}", mode_label(mode));
             }
             Message::TomlAction(action) => {
                 self.toml_content.perform(action);
@@ -143,12 +186,39 @@ impl Editor {
                     }
                 }
             }
+            Message::ProjectTomlAction(action) => {
+                self.project_toml.perform(action);
+                self.status = "project.toml edited (save to persist)".into();
+            }
+            Message::PaletteFilter(s) => self.palette_filter = s,
+            Message::SelectPart(name) => {
+                self.selected_part = Some(name);
+                self.status = format!("palette: {name}");
+            }
+            Message::ToggleLeftDock => {
+                self.left_collapsed = !self.left_collapsed;
+            }
+            Message::TogglePause => {
+                self.running = !self.running;
+                self.status = if self.running {
+                    "sim: running".into()
+                } else {
+                    "sim: paused".into()
+                };
+            }
+            Message::Tick => {
+                // Advance wall-clock only. Auto-stepping + rebuilding SVGs every
+                // tick trips iced damage sorting panics on some backends.
+                if self.running {
+                    self.elapsed_ms = self.elapsed_ms.saturating_add(100);
+                }
+            }
             Message::AddContactNo => {
                 if let Err(e) = self.mutate_ladder(|doc| {
                     if let Some(rung) = doc.rungs.first_mut() {
                         let col = rung.cells.len() as u32;
                         rung.cells.push(LadderCell::ContactNo {
-                            operand: "btn".into(),
+                            operand: "pressed".into(),
                             col,
                         });
                     }
@@ -163,7 +233,7 @@ impl Editor {
                     if let Some(rung) = doc.rungs.first_mut() {
                         let col = rung.cells.len() as u32;
                         rung.cells.push(LadderCell::Coil {
-                            operand: "led".into(),
+                            operand: "ledPin".into(),
                             col,
                         });
                     }
@@ -184,9 +254,11 @@ impl Editor {
                             stmts: vec![Stmt::Call {
                                 name: "SET_BOOL".into(),
                                 args: vec![
-                                    Expr::Uint { value: 13 },
                                     Expr::Var {
-                                        name: "led".into(),
+                                        name: "ledPin".into(),
+                                    },
+                                    Expr::Var {
+                                        name: "pressed".into(),
                                     },
                                 ],
                             }],
@@ -330,6 +402,7 @@ impl Editor {
             Message::ReloadFromAsl => match self.session.sync_visual_sources_from_asl() {
                 Ok(()) => {
                     self.refresh_toml_from_session();
+                    self.refresh_project_toml();
                     self.status = "projected ASL → diagram/TOML".into();
                 }
                 Err(e) => self.status = format!("ASL sync error: {e}"),
@@ -354,6 +427,7 @@ impl Editor {
                         self.session = session;
                         self.path = Some(path.clone());
                         self.refresh_toml_from_session();
+                        self.refresh_project_toml();
                         self.boot_canvas_from_session();
                         self.status = format!("opened {}", path.display());
                     }
@@ -366,8 +440,9 @@ impl Editor {
                     Ok(session) => {
                         self.session = session;
                         self.path = Some(path.clone());
-                        self.pane = Pane::Sim;
+                        self.mode = Mode::Simulation;
                         self.refresh_toml_from_session();
+                        self.refresh_project_toml();
                         self.boot_canvas_from_session();
                         self.status = format!("opened canvas demo {}", path.display());
                     }
@@ -377,14 +452,26 @@ impl Editor {
             Message::SimPress => {
                 if let Some(c) = &mut self.canvas {
                     c.press_button();
-                    self.canvas_note = "button pressed (pin high)".into();
+                    let level = if c.binding.button_active_low {
+                        "LOW (active-low pull-up)"
+                    } else {
+                        "HIGH"
+                    };
+                    self.canvas_note = format!("button pressed → pin {level}");
                     self.status = "sim: button pressed".into();
+                    // Do not rebuild SVG handles here — iced damage sorting panics
+                    // when SVG markup changes under tiny-skia/wgpu on this stack.
                 }
             }
             Message::SimRelease => {
                 if let Some(c) = &mut self.canvas {
                     c.release_button();
-                    self.canvas_note = "button released (pin low)".into();
+                    let level = if c.binding.button_active_low {
+                        "HIGH (MCU pull-up)"
+                    } else {
+                        "LOW"
+                    };
+                    self.canvas_note = format!("button released → pin {level}");
                     self.status = "sim: button released".into();
                 }
             }
@@ -393,6 +480,7 @@ impl Editor {
                     match c.step() {
                         Ok(frame) => {
                             self.canvas_note = frame.to_snapshot().trim().replace('\n', " | ");
+                            self.elapsed_ms = self.elapsed_ms.saturating_add(1);
                             self.status = format!(
                                 "sim: scan {}  led={}  btn={}",
                                 frame.cycle,
@@ -409,225 +497,927 @@ impl Editor {
                 }
             }
             Message::SimReset => {
+                self.elapsed_ms = 0;
                 self.boot_canvas_from_session();
                 self.status = "sim: reset canvas from project ASL".into();
             }
+            Message::Export => match self.session.emit_project_toml() {
+                Ok(toml) => {
+                    let out = export_path();
+                    match std::fs::write(&out, toml) {
+                        Ok(()) => self.status = format!("exported {}", out.display()),
+                        Err(e) => self.status = format!("export error: {e}"),
+                    }
+                }
+                Err(e) => self.status = format!("export emit error: {e}"),
+            },
         }
         Task::none()
     }
 
     fn view(&self) -> Element<'_, Message> {
-        let toolbar = row![
-            button("Ladder").on_press(Message::SwitchLadder),
-            button("SFC").on_press(Message::SwitchSfc),
-            button("Sim SVG").on_press(Message::SwitchSim),
-            Space::with_width(12),
-            button("Open P01").on_press(Message::OpenDefault),
-            button("Open C01").on_press(Message::OpenCanvasDemo),
-            button("ASL → views").on_press(Message::ReloadFromAsl),
-            button("Save").on_press(Message::Save),
+        let shell = column![
+            self.top_bar(),
+            self.workspace(),
+            self.status_footer(),
         ]
-        .spacing(8);
+        .spacing(0)
+        .width(Fill)
+        .height(Fill);
 
-        let palette = match self.pane {
-            Pane::Ladder => row![
-                button("+ NO contact").on_press(Message::AddContactNo),
-                button("+ Coil").on_press(Message::AddCoil),
-                button("+ SET_BOOL").on_press(Message::AddActionSetBool),
-                button("+ Parallel OR").on_press(Message::AddParallelOr),
-                button("+ TON").on_press(Message::AddTon),
-                button("+ R_TRIG").on_press(Message::AddRTrig),
-                button("- Cell").on_press(Message::RemoveLastLadderCell),
-            ]
-            .spacing(8),
-            Pane::Sfc => row![
-                button("+ Step").on_press(Message::AddSfcStep),
-                button("+ Transition").on_press(Message::AddSfcTransition),
-            ]
-            .spacing(8),
-            Pane::Sim => row![
-                button("Press").on_press(Message::SimPress),
-                button("Release").on_press(Message::SimRelease),
-                button("Step scan").on_press(Message::SimStep),
-                button("Reset sim").on_press(Message::SimReset),
-            ]
-            .spacing(8),
-        };
-
-        let diagram = container(scrollable(self.diagram_view()))
-            .padding(12)
-            .width(Fill)
-            .height(Fill);
-
-        let right_pane: Element<'_, Message> = match self.pane {
-            Pane::Sim => self.sim_detail_pane(),
-            _ => column![
-                text("TOML source (live sync)").size(16),
-                text_editor(&self.toml_content)
-                    .height(Fill)
-                    .on_action(Message::TomlAction),
-            ]
-            .spacing(8)
+        container(shell)
             .width(Fill)
             .height(Fill)
-            .into(),
-        };
-
-        let body = row![diagram, right_pane].spacing(12).height(Fill);
-        let status = text(&self.status).size(14);
-
-        column![toolbar, palette, body, status]
-            .spacing(10)
-            .padding(12)
+            .style(|_t| container::Style {
+                background: Some(main_bg()),
+                ..container::Style::default()
+            })
             .into()
     }
 
-    fn diagram_view(&self) -> Element<'_, Message> {
-        match self.pane {
-            Pane::Sim => self.sim_canvas_view(),
-            Pane::Ladder => {
-                let mut col = Column::new().spacing(8);
-                col = col.push(text("Ladder rungs").size(18));
-                if let Some(block) = self.session.ladder_model() {
-                    for rung in &block.rungs {
-                        let mut line = String::from("|");
-                        for cell in &rung.cells {
-                            line.push_str(&format!("-[{}]-", cell_label(cell)));
-                        }
-                        line.push('|');
-                        col = col.push(text(line).font(Font::MONOSPACE));
-                        if let Some(c) = &rung.comment {
-                            col = col.push(text(format!("  // {c}")).size(12));
-                        }
-                    }
-                } else {
-                    col = col.push(text("(empty — edit TOML or use palette)"));
-                }
-                col.into()
-            }
-            Pane::Sfc => {
-                let mut col = Column::new().spacing(8);
-                col = col.push(text("GRAFCET / SFC").size(18));
-                if let Some(block) = self.session.sfc_model() {
-                    for step in &block.steps {
-                        let mark = if step.initial { "[*]" } else { "[ ]" };
-                        col = col.push(text(format!(
-                            "{mark} {}  ({:.0},{:.0})  actions={}",
-                            step.id,
-                            step.x,
-                            step.y,
-                            step.actions.len()
-                        )));
-                    }
-                    for tr in &block.transitions {
-                        col = col.push(text(format!(
-                            "  -- {} -> {:?} -> {:?}",
-                            tr.id, tr.from, tr.to
-                        )));
-                    }
-                } else {
-                    col = col.push(text("(empty chart)"));
-                }
-                col.into()
-            }
+    fn top_bar(&self) -> Element<'_, Message> {
+        let brand = row![
+            container(text("Δ").size(16))
+                .padding([4, 8])
+                .style(|_t| container::Style {
+                    background: Some(iced::Background::Color(ACCENT_ORANGE)),
+                    text_color: Some(Color::from_rgb(0.008, 0.024, 0.090)),
+                    border: iced::Border {
+                        radius: 4.0.into(),
+                        ..iced::Border::default()
+                    },
+                    ..container::Style::default()
+                }),
+            text("DendriForge").size(18).color(TEXT_HEADING),
+            container(text("v0.6.0").size(10).font(Font::MONOSPACE).color(TEXT_MUTED))
+                .padding([2, 6])
+                .style(|_t| container::Style {
+                    background: Some(surface_low_bg()),
+                    border: iced::Border {
+                        color: BORDER,
+                        width: 1.0,
+                        radius: 4.0.into(),
+                    },
+                    ..container::Style::default()
+                }),
+        ]
+        .spacing(8)
+        .align_y(iced::Alignment::Center);
+
+        let project_name = self
+            .session
+            .project
+            .metadata
+            .project_name
+            .as_deref()
+            .unwrap_or("BUTTON_STATE_CHANGE");
+        let breadcrumb = row![
+            text("PROJECTS").size(11).font(Font::MONOSPACE).color(TEXT_MUTED),
+            text(" / ").size(11).font(Font::MONOSPACE).color(BORDER),
+            text("ARDUINO_UNO_R3")
+                .size(11)
+                .font(Font::MONOSPACE)
+                .color(TEXT_MUTED),
+            text(" / ").size(11).font(Font::MONOSPACE).color(BORDER),
+            text(project_name.to_ascii_uppercase())
+                .size(11)
+                .font(Font::MONOSPACE)
+                .color(ACCENT_ORANGE),
+        ]
+        .spacing(2)
+        .align_y(iced::Alignment::Center);
+
+        let left = row![brand, Space::with_width(12), breadcrumb]
+            .spacing(8)
+            .align_y(iced::Alignment::Center);
+
+        let run_label = if self.running {
+            "RUNNING (16MHz)"
+        } else {
+            "PAUSED (16MHz)"
+        };
+        let run_color = if self.running {
+            ACCENT_EMERALD
+        } else {
+            TEXT_MUTED
+        };
+        let clock = container(
+            row![
+                text("●").size(10).color(run_color),
+                text(run_label)
+                    .size(11)
+                    .font(Font::MONOSPACE)
+                    .color(run_color),
+                text("|").size(10).color(TEXT_MUTED),
+                text(format!("T: {}", format_elapsed(self.elapsed_ms)))
+                    .size(11)
+                    .font(Font::MONOSPACE)
+                    .color(TEXT_MUTED),
+            ]
+            .spacing(8)
+            .align_y(iced::Alignment::Center),
+        )
+        .padding([4, 10])
+        .style(|_t| container::Style {
+            background: Some(surface_lowest_bg()),
+            border: iced::Border {
+                color: BORDER,
+                width: 1.0,
+                radius: 999.0.into(),
+            },
+            ..container::Style::default()
+        });
+
+        let pause_label = if self.running { "PAUSE" } else { "RESUME" };
+        let transport = row![
+            button(text(pause_label).size(12))
+                .padding([4, 10])
+                .style(pause_btn)
+                .on_press(Message::TogglePause),
+            button(text("STEP 1ms").size(11).font(Font::MONOSPACE))
+                .padding([4, 8])
+                .style(transport_btn)
+                .on_press(Message::SimStep),
+            button(text("RESET").size(11).font(Font::MONOSPACE))
+                .padding([4, 8])
+                .style(transport_btn)
+                .on_press(Message::SimReset),
+        ]
+        .spacing(4)
+        .align_y(iced::Alignment::Center);
+
+        let center = row![clock, transport]
+            .spacing(8)
+            .align_y(iced::Alignment::Center);
+
+        let tabs = container(
+            row![
+                mode_tab("Simulation", Mode::Simulation, self.mode),
+                mode_tab("Code", Mode::Code, self.mode),
+                mode_tab("Ladder", Mode::Ladder, self.mode),
+                mode_tab("GRAFCET", Mode::Grafcet, self.mode),
+            ]
+            .spacing(2),
+        )
+        .padding(2)
+        .style(|_t| container::Style {
+            background: Some(surface_lowest_bg()),
+            border: iced::Border {
+                color: BORDER,
+                width: 1.0,
+                radius: 4.0.into(),
+            },
+            ..container::Style::default()
+        });
+
+        let right = row![
+            tabs,
+            button(text("Export").size(12))
+                .padding([4, 10])
+                .style(export_btn)
+                .on_press(Message::Export),
+        ]
+        .spacing(8)
+        .align_y(iced::Alignment::Center);
+
+        container(
+            row![
+                container(left).width(Length::FillPortion(3)),
+                container(center)
+                    .width(Length::FillPortion(2))
+                    .center_x(Fill),
+                container(right)
+                    .width(Length::FillPortion(2))
+                    .align_right(Fill),
+            ]
+            .spacing(8)
+            .align_y(iced::Alignment::Center)
+            .width(Fill),
+        )
+        .padding([8, 12])
+        .width(Fill)
+        .style(|_t| container::Style {
+            background: Some(panel_bg()),
+            border: iced::Border {
+                color: BORDER,
+                width: 0.0,
+                radius: 0.0.into(),
+            },
+            ..container::Style::default()
+        })
+        .into()
+    }
+
+    fn status_footer(&self) -> Element<'_, Message> {
+        let left = row![
+            text("●").size(10).color(ACCENT_EMERALD),
+            text("AVR Core: Normal")
+                .size(11)
+                .font(Font::MONOSPACE)
+                .color(TEXT_MAIN),
+            text("SRAM: 184 / 2048 B (8.9%)")
+                .size(11)
+                .font(Font::MONOSPACE)
+                .color(TEXT_MUTED),
+            text("Flash: 1,842 / 32,256 B (5.7%)")
+                .size(11)
+                .font(Font::MONOSPACE)
+                .color(TEXT_MUTED),
+            text(&self.status)
+                .size(11)
+                .font(Font::MONOSPACE)
+                .color(ACCENT_SKY),
+        ]
+        .spacing(16)
+        .align_y(iced::Alignment::Center);
+
+        let right = row![
+            text("Grid: 10mm Snap")
+                .size(11)
+                .font(Font::MONOSPACE)
+                .color(TEXT_MUTED),
+            text("|").size(11).color(BORDER),
+            text("Help & Pinout Docs")
+                .size(11)
+                .font(Font::MONOSPACE)
+                .color(ACCENT_ORANGE),
+        ]
+        .spacing(8)
+        .align_y(iced::Alignment::Center);
+
+        container(
+            row![left, Space::with_width(Fill), right]
+                .align_y(iced::Alignment::Center)
+                .width(Fill),
+        )
+        .padding([4, 12])
+        .width(Fill)
+        .style(|_t| container::Style {
+            background: Some(panel_bg()),
+            border: iced::Border {
+                color: BORDER,
+                width: 1.0,
+                radius: 0.0.into(),
+            },
+            ..container::Style::default()
+        })
+        .into()
+    }
+
+    fn workspace(&self) -> Element<'_, Message> {
+        match self.mode {
+            Mode::Simulation => self.simulation_workspace(),
+            Mode::Code => self.code_workspace(),
+            Mode::Ladder => self.ladder_workspace(),
+            Mode::Grafcet => self.grafcet_workspace(),
         }
     }
 
-    fn sim_canvas_view(&self) -> Element<'_, Message> {
-        let mut col = Column::new().spacing(10);
-        col = col.push(text("Live SVG sim — Uno + LED + button").size(18));
+    fn simulation_workspace(&self) -> Element<'_, Message> {
+        let body = if self.left_collapsed {
+            row![self.sim_canvas_pane()].spacing(0).height(Fill)
+        } else {
+            row![self.component_palette(), self.sim_canvas_pane()]
+                .spacing(0)
+                .height(Fill)
+        };
+        container(body).width(Fill).height(Fill).into()
+    }
+
+    fn component_palette(&self) -> Element<'_, Message> {
+        let header = column![
+            row![
+                text("COMPONENTS & PARTS")
+                    .size(12)
+                    .color(TEXT_HEADING),
+                Space::with_width(Fill),
+                text("7 items").size(10).font(Font::MONOSPACE).color(TEXT_MUTED),
+                button(text("«").size(12))
+                    .padding([2, 6])
+                    .style(chrome_btn)
+                    .on_press(Message::ToggleLeftDock),
+            ]
+            .spacing(8)
+            .align_y(iced::Alignment::Center),
+            text_input("Search components...", &self.palette_filter)
+                .on_input(Message::PaletteFilter)
+                .padding(6)
+                .size(12),
+            row![
+                chip("All", true),
+                chip("Basic", false),
+                chip("Sensors", false),
+                chip("Integrated", false),
+            ]
+            .spacing(4),
+        ]
+        .spacing(8)
+        .padding(12);
+
+        let parts = [
+            ("Resistor", "Axial THT (catalog)", "PASSIVE"),
+            ("Red LED", "5mm diffuse · int. 220Ω", "OUTPUT"),
+            ("Tactile Switch", "4-pin momentary", "INPUT"),
+            ("Capacitor", "100nF / 10μF", "PASSIVE"),
+            ("Uno R3", "ATmega328P 16MHz", "MCU"),
+            ("Piezo Buzzer", "5V active sounder", "OUTPUT"),
+            ("Slide Switch", "SPDT 3-pin toggle", "SWITCH"),
+        ];
+
+        let filter = self.palette_filter.to_ascii_lowercase();
+        let mut grid: Column<'_, Message> = Column::new().spacing(8);
+        let mut row_buf: Vec<Element<'_, Message>> = Vec::new();
+        for (name, desc, kind) in parts {
+            if !filter.is_empty()
+                && !name.to_ascii_lowercase().contains(&filter)
+                && !desc.to_ascii_lowercase().contains(&filter)
+            {
+                continue;
+            }
+            let active = self.selected_part == Some(name);
+            let style = if active {
+                palette_card_active
+            } else {
+                palette_card
+            };
+            let card = button(
+                column![
+                    row![
+                        text(name).size(12).color(TEXT_MAIN),
+                        Space::with_width(Fill),
+                        text(kind).size(9).font(Font::MONOSPACE).color(TEXT_MUTED),
+                    ]
+                    .width(Fill),
+                    text(desc).size(10).font(Font::MONOSPACE).color(TEXT_MUTED),
+                ]
+                .spacing(4)
+                .width(Fill),
+            )
+            .padding(10)
+            .width(Fill)
+            .style(style)
+            .on_press(Message::SelectPart(name));
+            row_buf.push(card.into());
+            if row_buf.len() == 2 {
+                let a = row_buf.remove(0);
+                let b = row_buf.remove(0);
+                grid = grid.push(row![a, b].spacing(8));
+            }
+        }
+        if let Some(last) = row_buf.pop() {
+            grid = grid.push(row![last, Space::with_width(Fill)].spacing(8));
+        }
+
+        container(
+            column![
+                header,
+                scrollable(container(grid).padding(12)).height(Fill),
+            ]
+            .height(Fill),
+        )
+        .width(Length::Fixed(280.0))
+        .height(Fill)
+        .style(|_t| container::Style {
+            background: Some(panel_bg()),
+            border: iced::Border {
+                color: BORDER,
+                width: 1.0,
+                radius: 0.0.into(),
+            },
+            ..container::Style::default()
+        })
+        .into()
+    }
+
+    fn sim_canvas_pane(&self) -> Element<'_, Message> {
+        let mut col = Column::new().spacing(12).padding(16);
+        if self.left_collapsed {
+            col = col.push(
+                button(text("» Components").size(11))
+                    .padding([4, 8])
+                    .style(chrome_btn)
+                    .on_press(Message::ToggleLeftDock),
+            );
+        }
+        col = col.push(
+            text("Board canvas — Uno R3 · LED (integrated R) · button D2↔GND")
+                .size(14)
+                .color(TEXT_HEADING),
+        );
+        col = col.push(
+            text("D2 · MCU pull-up  ·  pressed → active-LOW  ·  ASL: pressed = NOT GET_BOOL(btnPin)")
+                .size(11)
+                .font(Font::MONOSPACE)
+                .color(ACCENT_CYAN),
+        );
+
         match &self.canvas {
             None => {
-                col = col.push(text(
-                    "Canvas not loaded — open C01 or a project with MVP wiring.",
-                ));
+                col = col.push(
+                    text("Canvas not loaded — open C01 or a project with MVP wiring.")
+                        .color(TEXT_MUTED),
+                );
+                col = col.push(
+                    row![
+                        button("Open C01")
+                            .style(chrome_btn)
+                            .on_press(Message::OpenCanvasDemo),
+                        button("Open P01")
+                            .style(chrome_btn)
+                            .on_press(Message::OpenDefault),
+                    ]
+                    .spacing(8),
+                );
             }
             Some(c) => {
                 let frame = c.current_frame();
+                let pull = if c.binding.button_active_low {
+                    "pullup"
+                } else {
+                    "none"
+                };
                 col = col.push(
                     text(format!(
-                        "cycle={}  t={}ms  btn_pin={}  led_pin={}",
-                        frame.cycle, frame.time_ms, c.binding.button_pin, c.binding.led_pin
-                    ))
-                    .font(Font::MONOSPACE),
-                );
-                col = col.push(
-                    text(format!(
-                        "button={}  led={}  pins={:?}",
+                        "cycle={}  t={}ms  btn=D{} ({})  led=D{}  button={}  led={}",
+                        frame.cycle,
+                        frame.time_ms,
+                        c.binding.button_pin,
+                        pull,
+                        c.binding.led_pin,
                         if frame.button_pressed {
                             "pressed"
                         } else {
                             "released"
                         },
                         if frame.led_on { "ON" } else { "off" },
-                        frame.pins
                     ))
-                    .font(Font::MONOSPACE),
+                    .size(12)
+                    .font(Font::MONOSPACE)
+                    .color(TEXT_MUTED),
                 );
                 if !self.canvas_note.is_empty() {
-                    col = col.push(text(&self.canvas_note).size(12));
+                    col = col.push(text(&self.canvas_note).size(11).color(TEXT_MUTED));
                 }
 
-                let board = svg(svg::Handle::from_memory(c.rendered_board().into_bytes()))
-                    .width(Length::Fixed(420.0))
-                    .height(Length::Fixed(280.0));
-                let led = svg(svg::Handle::from_memory(c.rendered_led().into_bytes()))
-                    .width(Length::Fixed(96.0))
-                    .height(Length::Fixed(96.0));
-                let btn = svg(svg::Handle::from_memory(c.rendered_button().into_bytes()))
-                    .width(Length::Fixed(120.0))
-                    .height(Length::Fixed(120.0));
+                // iced SVG widgets panic on damage-sort under this stack; show a
+                // schematic board plane + live LED/button indicators instead.
+                // SVG binding remains in dendri-canvas (CI snapshots).
+                let led_lit = frame.led_on;
+                let btn_down = frame.button_pressed;
+                let board_plane = container(
+                    column![
+                        text("Arduino Uno R3").size(16).color(ACCENT_CYAN),
+                        text("ATmega328P · 16MHz")
+                            .size(11)
+                            .font(Font::MONOSPACE)
+                            .color(TEXT_MUTED),
+                        Space::with_height(12),
+                        text(format!(
+                            "D2  btnPin   DI  pull={}  level={}",
+                            if c.binding.button_active_low {
+                                "pullup"
+                            } else {
+                                "none"
+                            },
+                            if c.sim.pin(c.binding.button_pin) {
+                                "HIGH"
+                            } else {
+                                "LOW"
+                            }
+                        ))
+                        .size(12)
+                        .font(Font::MONOSPACE)
+                        .color(ACCENT_CYAN),
+                        text(format!(
+                            "D13 ledPin   DO  {}",
+                            if led_lit { "HIGH · LED_BUILTIN" } else { "LOW" }
+                        ))
+                        .size(12)
+                        .font(Font::MONOSPACE)
+                        .color(ACCENT_ORANGE),
+                        Space::with_height(12),
+                        text("Wiring")
+                            .size(12)
+                            .color(TEXT_HEADING),
+                        text("D2 ── btn_start.NO")
+                            .size(12)
+                            .font(Font::MONOSPACE)
+                            .color(ACCENT_EMERALD),
+                        text("GND ── btn_start.COM")
+                            .size(12)
+                            .font(Font::MONOSPACE)
+                            .color(TEXT_MUTED),
+                        text("D13 ── led1.A  (integrated 220Ω)")
+                            .size(12)
+                            .font(Font::MONOSPACE)
+                            .color(ACCENT_SKY),
+                        text("GND ── led1.K")
+                            .size(12)
+                            .font(Font::MONOSPACE)
+                            .color(TEXT_MUTED),
+                        Space::with_height(8),
+                        text("Callout: D2 · MCU pull-up · pressed → active-LOW")
+                            .size(11)
+                            .font(Font::MONOSPACE)
+                            .color(ACCENT_ORANGE),
+                    ]
+                    .spacing(4)
+                    .padding(16),
+                )
+                .width(Length::Fixed(480.0))
+                .height(Length::Fixed(300.0))
+                .style(|_t| container::Style {
+                    background: Some(surface_lowest_bg()),
+                    border: iced::Border {
+                        color: BORDER,
+                        width: 1.0,
+                        radius: 4.0.into(),
+                    },
+                    ..container::Style::default()
+                });
 
-                col = col.push(text("Board (D13 status LED bound)").size(14));
-                col = col.push(board);
+                let live_led = container(
+                    column![
+                        text("led1").size(11).font(Font::MONOSPACE).color(TEXT_MUTED),
+                        text(if led_lit { "● ON" } else { "○ off" })
+                            .size(22)
+                            .color(if led_lit {
+                                Color::from_rgb(1.0, 0.35, 0.2)
+                            } else {
+                                TEXT_MUTED
+                            }),
+                        text("integrated_resistance=220")
+                            .size(10)
+                            .font(Font::MONOSPACE)
+                            .color(TEXT_MUTED),
+                    ]
+                    .spacing(4)
+                    .align_x(iced::Alignment::Center),
+                )
+                .padding(16)
+                .width(Length::Fixed(160.0))
+                .style(move |_t| container::Style {
+                    background: Some(iced::Background::Color(if led_lit {
+                        Color::from_rgb(0.35, 0.08, 0.05)
+                    } else {
+                        SURFACE_LOWEST
+                    })),
+                    border: iced::Border {
+                        color: if led_lit { ACCENT_ORANGE } else { BORDER },
+                        width: 2.0,
+                        radius: 4.0.into(),
+                    },
+                    ..container::Style::default()
+                });
+
+                let live_btn = container(
+                    column![
+                        text("btn_start")
+                            .size(11)
+                            .font(Font::MONOSPACE)
+                            .color(TEXT_MUTED),
+                        text(if btn_down { "▼ PRESSED" } else { "△ released" })
+                            .size(18)
+                            .color(if btn_down {
+                                ACCENT_EMERALD
+                            } else {
+                                TEXT_MUTED
+                            }),
+                        text("NO · D2–GND")
+                            .size(10)
+                            .font(Font::MONOSPACE)
+                            .color(TEXT_MUTED),
+                    ]
+                    .spacing(4)
+                    .align_x(iced::Alignment::Center),
+                )
+                .padding(16)
+                .width(Length::Fixed(160.0))
+                .style(move |_t| container::Style {
+                    background: Some(surface_lowest_bg()),
+                    border: iced::Border {
+                        color: if btn_down { ACCENT_EMERALD } else { BORDER },
+                        width: 2.0,
+                        radius: 4.0.into(),
+                    },
+                    ..container::Style::default()
+                });
+
                 col = col.push(
                     row![
-                        column![text("LED #led-body"), led].spacing(4),
-                        column![text("Button #actuator"), btn].spacing(4),
+                        board_plane,
+                        column![
+                            live_led,
+                            live_btn,
+                            text("Actuate").size(11).color(TEXT_MUTED),
+                            button(text("Press").size(12))
+                                .padding([6, 14])
+                                .style(pause_btn)
+                                .on_press(Message::SimPress),
+                            button(text("Release").size(12))
+                                .padding([6, 14])
+                                .style(chrome_btn)
+                                .on_press(Message::SimRelease),
+                            button(text("Step scan").size(12))
+                                .padding([6, 14])
+                                .style(chrome_btn)
+                                .on_press(Message::SimStep),
+                        ]
+                        .spacing(8)
+                        .padding(8),
                     ]
-                    .spacing(24),
+                    .spacing(16)
+                    .align_y(iced::Alignment::Start),
                 );
             }
         }
-        col.into()
+
+        container(scrollable(col))
+            .width(Fill)
+            .height(Fill)
+            .style(|_t| container::Style {
+                background: Some(surface_bg()),
+                ..container::Style::default()
+            })
+            .into()
     }
 
-    fn sim_detail_pane(&self) -> Element<'_, Message> {
-        let mut col = Column::new().spacing(8).width(Fill).height(Fill);
-        col = col.push(text("Sim binding / snapshot").size(16));
-        if let Some(c) = &self.canvas {
-            let snap = c.current_frame().to_snapshot();
-            col = col.push(text(snap).font(Font::MONOSPACE).size(13));
-            col = col.push(text(format!(
-                "assets:\n  board: {}\n  led: {}\n  button: {}",
-                c.svgs.board_path.display(),
-                c.svgs.led_path.display(),
-                c.svgs.button_path.display()
-            )));
-            col = col.push(text(
-                "Press → sets DI pin; Step scan runs ASL loop; LED SVG follows DO pin.",
-            ));
+    fn code_workspace(&self) -> Element<'_, Message> {
+        let tree = container(
+            column![
+                text("EXPLORER").size(12).color(TEXT_HEADING),
+                text("projects/button_state_change")
+                    .size(10)
+                    .font(Font::MONOSPACE)
+                    .color(TEXT_MUTED),
+                Space::with_height(8),
+                text("project.toml")
+                    .size(12)
+                    .font(Font::MONOSPACE)
+                    .color(ACCENT_ORANGE),
+                text("build/").size(12).font(Font::MONOSPACE).color(TEXT_MUTED),
+                text("  arduino/main.cpp")
+                    .size(11)
+                    .font(Font::MONOSPACE)
+                    .color(TEXT_MUTED),
+                text("  st/main.st")
+                    .size(11)
+                    .font(Font::MONOSPACE)
+                    .color(TEXT_MUTED),
+                text("  micropython/main.py")
+                    .size(11)
+                    .font(Font::MONOSPACE)
+                    .color(TEXT_MUTED),
+                Space::with_height(12),
+                text("ASL SYMBOLS").size(11).color(TEXT_MUTED),
+                text("pin  btnPin  D2 · DI · pullup")
+                    .size(11)
+                    .font(Font::MONOSPACE)
+                    .color(ACCENT_CYAN),
+                text("pin  ledPin  D13 · DO")
+                    .size(11)
+                    .font(Font::MONOSPACE)
+                    .color(ACCENT_SKY),
+                text("var  pressed  BOOL")
+                    .size(11)
+                    .font(Font::MONOSPACE)
+                    .color(TEXT_MAIN),
+                Space::with_height(12),
+                button("ASL → views")
+                    .style(chrome_btn)
+                    .on_press(Message::ReloadFromAsl),
+                button("Save")
+                    .style(chrome_btn)
+                    .on_press(Message::Save),
+            ]
+            .spacing(4)
+            .padding(12),
+        )
+        .width(Length::Fixed(240.0))
+        .height(Fill)
+        .style(|_t| container::Style {
+            background: Some(surface_lowest_bg()),
+            border: iced::Border {
+                color: BORDER,
+                width: 1.0,
+                radius: 0.0.into(),
+            },
+            ..container::Style::default()
+        });
+
+        let editor = column![
+            text("project.toml — sole source of truth")
+                .size(14)
+                .color(TEXT_HEADING),
+            text("Hardware pull=pullup · LED integrated_resistance · ASL NOT GET_BOOL")
+                .size(11)
+                .font(Font::MONOSPACE)
+                .color(TEXT_MUTED),
+            text_editor(&self.project_toml)
+                .height(Fill)
+                .on_action(Message::ProjectTomlAction),
+        ]
+        .spacing(8)
+        .padding(12)
+        .width(Fill)
+        .height(Fill);
+
+        row![tree, editor].height(Fill).into()
+    }
+
+    fn ladder_workspace(&self) -> Element<'_, Message> {
+        let palette = container(
+            column![
+                text("INSTRUCTIONS · IEC 61131-3")
+                    .size(12)
+                    .color(TEXT_HEADING),
+                Space::with_height(8),
+                button("+ NO contact")
+                    .style(chrome_btn)
+                    .on_press(Message::AddContactNo),
+                button("+ Coil")
+                    .style(chrome_btn)
+                    .on_press(Message::AddCoil),
+                button("+ SET_BOOL")
+                    .style(chrome_btn)
+                    .on_press(Message::AddActionSetBool),
+                button("+ Parallel OR")
+                    .style(chrome_btn)
+                    .on_press(Message::AddParallelOr),
+                button("+ TON")
+                    .style(chrome_btn)
+                    .on_press(Message::AddTon),
+                button("+ R_TRIG")
+                    .style(chrome_btn)
+                    .on_press(Message::AddRTrig),
+                button("- Cell")
+                    .style(chrome_btn)
+                    .on_press(Message::RemoveLastLadderCell),
+            ]
+            .spacing(6)
+            .padding(12),
+        )
+        .width(Length::Fixed(220.0))
+        .height(Fill)
+        .style(|_t| container::Style {
+            background: Some(surface_low_bg()),
+            border: iced::Border {
+                color: BORDER,
+                width: 1.0,
+                radius: 0.0.into(),
+            },
+            ..container::Style::default()
+        });
+
+        let mut diagram = Column::new().spacing(8).padding(12);
+        diagram = diagram.push(text("Ladder rungs").size(16).color(TEXT_HEADING));
+        if let Some(block) = self.session.ladder_model() {
+            for rung in &block.rungs {
+                let mut line = String::from("|");
+                for cell in &rung.cells {
+                    line.push_str(&format!("-[{}]-", cell_label(cell)));
+                }
+                line.push('|');
+                diagram = diagram.push(text(line).font(Font::MONOSPACE).color(TEXT_MAIN));
+                if let Some(c) = &rung.comment {
+                    diagram = diagram.push(
+                        text(format!("  // {c}"))
+                            .size(12)
+                            .color(TEXT_MUTED),
+                    );
+                }
+            }
         } else {
-            col = col.push(text("(no canvas)"));
+            diagram = diagram.push(text("(empty — use palette)").color(TEXT_MUTED));
         }
-        col.into()
+
+        let right = column![
+            container(scrollable(diagram)).width(Fill).height(Fill),
+            container(
+                column![
+                    text("Ladder TOML (live sync)").size(12).color(TEXT_MUTED),
+                    text_editor(&self.toml_content)
+                        .height(Length::Fixed(180.0))
+                        .on_action(Message::TomlAction),
+                ]
+                .spacing(4)
+                .padding(8),
+            )
+            .style(|_t| container::Style {
+                background: Some(surface_lowest_bg()),
+                ..container::Style::default()
+            }),
+        ]
+        .width(Fill)
+        .height(Fill);
+
+        row![palette, right].height(Fill).into()
+    }
+
+    fn grafcet_workspace(&self) -> Element<'_, Message> {
+        let palette = container(
+            column![
+                text("GRAFCET · IEC 60848").size(12).color(TEXT_HEADING),
+                Space::with_height(8),
+                button("+ Step")
+                    .style(chrome_btn)
+                    .on_press(Message::AddSfcStep),
+                button("+ Transition")
+                    .style(chrome_btn)
+                    .on_press(Message::AddSfcTransition),
+                Space::with_height(8),
+                button("ASL → views")
+                    .style(chrome_btn)
+                    .on_press(Message::ReloadFromAsl),
+            ]
+            .spacing(6)
+            .padding(12),
+        )
+        .width(Length::Fixed(220.0))
+        .height(Fill)
+        .style(|_t| container::Style {
+            background: Some(surface_low_bg()),
+            border: iced::Border {
+                color: BORDER,
+                width: 1.0,
+                radius: 0.0.into(),
+            },
+            ..container::Style::default()
+        });
+
+        let mut chart = Column::new().spacing(8).padding(12);
+        chart = chart.push(
+            text("C01-button-led.GRAFCET")
+                .size(16)
+                .color(TEXT_HEADING),
+        );
+        if let Some(block) = self.session.sfc_model() {
+            chart = chart.push(
+                text(format!(
+                    "{} INITIAL STEP · {} TRANSITIONS",
+                    block.steps.iter().filter(|s| s.initial).count(),
+                    block.transitions.len()
+                ))
+                .size(11)
+                .font(Font::MONOSPACE)
+                .color(ACCENT_EMERALD),
+            );
+            for step in &block.steps {
+                let mark = if step.initial { "[*]" } else { "[ ]" };
+                chart = chart.push(text(format!(
+                    "{mark} {}  ({:.0},{:.0})  actions={}",
+                    step.id,
+                    step.x,
+                    step.y,
+                    step.actions.len()
+                )));
+            }
+            for tr in &block.transitions {
+                chart = chart.push(text(format!(
+                    "  -- {} -> {:?} -> {:?}",
+                    tr.id, tr.from, tr.to
+                )));
+            }
+        } else {
+            chart = chart.push(text("(empty chart — use palette)").color(TEXT_MUTED));
+        }
+
+        let right = column![
+            container(scrollable(chart)).width(Fill).height(Fill),
+            container(
+                column![
+                    text("SFC TOML (live sync)").size(12).color(TEXT_MUTED),
+                    text_editor(&self.toml_content)
+                        .height(Length::Fixed(180.0))
+                        .on_action(Message::TomlAction),
+                ]
+                .spacing(4)
+                .padding(8),
+            )
+            .style(|_t| container::Style {
+                background: Some(surface_lowest_bg()),
+                ..container::Style::default()
+            }),
+        ]
+        .width(Fill)
+        .height(Fill);
+
+        row![palette, right].height(Fill).into()
     }
 
     fn boot_canvas_from_session(&mut self) {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
         match SimCanvas::from_project(&self.session.project, &root, &SimConfig::default()) {
-            Ok(mut c) => {
-                match c.boot() {
-                    Ok(frame) => {
-                        self.canvas_note = frame.to_snapshot().trim().replace('\n', " | ");
-                        self.canvas = Some(c);
-                    }
-                    Err(e) => {
-                        self.canvas = None;
-                        self.canvas_note = format!("boot failed: {e}");
-                    }
+            Ok(mut c) => match c.boot() {
+                Ok(frame) => {
+                    self.canvas_note = frame.to_snapshot().trim().replace('\n', " | ");
+                    self.canvas = Some(c);
                 }
-            }
+                Err(e) => {
+                    self.canvas = None;
+                    self.canvas_note = format!("boot failed: {e}");
+                }
+            },
             Err(e) => {
                 self.canvas = None;
                 self.canvas_note = format!("canvas load failed: {e}");
@@ -642,6 +1432,14 @@ impl Editor {
             .unwrap_or("")
             .to_string();
         self.toml_content = text_editor::Content::with_text(&text);
+    }
+
+    fn refresh_project_toml(&mut self) {
+        let text = self
+            .session
+            .emit_project_toml()
+            .unwrap_or_else(|_| String::new());
+        self.project_toml = text_editor::Content::with_text(&text);
     }
 
     fn mutate_ladder(
@@ -674,7 +1472,7 @@ impl Editor {
             .apply_ladder_document(doc)
             .map_err(|e| e.to_string())?;
         self.kind = VisualKind::Ladder;
-        self.pane = Pane::Ladder;
+        self.mode = Mode::Ladder;
         self.refresh_toml_from_session();
         Ok(())
     }
@@ -706,10 +1504,56 @@ impl Editor {
             .apply_sfc_document(doc)
             .map_err(|e| e.to_string())?;
         self.kind = VisualKind::Sfc;
-        self.pane = Pane::Sfc;
+        self.mode = Mode::Grafcet;
         self.refresh_toml_from_session();
         Ok(())
     }
+}
+
+fn mode_tab(label: &'static str, mode: Mode, current: Mode) -> Element<'static, Message> {
+    let active = mode == current;
+    button(text(label).size(12).font(Font::MONOSPACE))
+        .padding([4, 10])
+        .style(if active { tab_active } else { tab_idle })
+        .on_press(Message::SwitchMode(mode))
+        .into()
+}
+
+fn chip(label: &'static str, active: bool) -> Element<'static, Message> {
+    let color = if active { ACCENT_ORANGE } else { TEXT_MUTED };
+    container(text(label).size(11).font(Font::MONOSPACE).color(color))
+        .padding([2, 8])
+        .style(move |_t| container::Style {
+            background: Some(if active {
+                surface_low_bg()
+            } else {
+                iced::Background::Color(Color::TRANSPARENT)
+            }),
+            border: iced::Border {
+                color: BORDER,
+                width: if active { 1.0 } else { 0.0 },
+                radius: 4.0.into(),
+            },
+            ..container::Style::default()
+        })
+        .into()
+}
+
+fn mode_label(mode: Mode) -> &'static str {
+    match mode {
+        Mode::Simulation => "Simulation",
+        Mode::Code => "Code",
+        Mode::Ladder => "Ladder",
+        Mode::Grafcet => "GRAFCET",
+    }
+}
+
+fn format_elapsed(ms: u64) -> String {
+    let total_s = ms / 1000;
+    let m = total_s / 60;
+    let s = total_s % 60;
+    let frac = ms % 1000;
+    format!("{m:02}:{s:02}.{frac:03}s")
 }
 
 fn cell_label(cell: &LadderCell) -> String {
@@ -746,6 +1590,10 @@ fn default_project_path() -> PathBuf {
 fn canvas_demo_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../content/fixtures/canvas/C01-button-led.toml")
+}
+
+fn export_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../build/export-project.toml")
 }
 
 fn load_session(path: &std::path::Path) -> Result<SyncSession, String> {
