@@ -1,0 +1,103 @@
+_indent: usize) -> Result<Vec<Line>, MpyParseError> {
+        let mut out = Vec::new();
+        while let Some(line) = self.peek() {
+            if line.indent < min_indent {
+                break;
+            }
+            out.push(self.bump().unwrap());
+        }
+        Ok(out)
+    }
+
+    fn parse_block(&mut self, lines: &[Line]) -> Result<Vec<Stmt>, MpyParseError> {
+        let mut stmts = Vec::new();
+        let mut i = 0;
+        while i < lines.len() {
+            let line = &lines[i];
+            let t = line.text.trim();
+            if t.starts_with("global ") {
+                i += 1;
+                continue;
+            }
+            if t.starts_with("if ") && t.ends_with(':') {
+                let (stmt, next) = self.parse_if_at(lines, i)?;
+                stmts.push(stmt);
+                i = next;
+                continue;
+            }
+            if t.starts_with("while ") && t.ends_with(':') {
+                let (stmt, next) = self.parse_while_at(lines, i)?;
+                stmts.push(stmt);
+                i = next;
+                continue;
+            }
+            if t.starts_with("for ") && t.ends_with(':') {
+                let (stmt, next) = self.parse_for_at(lines, i)?;
+                stmts.push(stmt);
+                i = next;
+                continue;
+            }
+            if t == "pass" {
+                i += 1;
+                continue;
+            }
+            if t == "break" {
+                stmts.push(Stmt::Exit);
+                i += 1;
+                continue;
+            }
+            if t == "continue" {
+                stmts.push(Stmt::Continue);
+                i += 1;
+                continue;
+            }
+            if t.starts_with("return") {
+                let rest = t["return".len()..].trim();
+                if rest.is_empty() {
+                    stmts.push(Stmt::Return { value: None });
+                } else {
+                    stmts.push(Stmt::Return {
+                        value: Some(parse_expr(rest)?),
+                    });
+                }
+                i += 1;
+                continue;
+            }
+            stmts.push(self.lower_simple_stmt(t, line.number)?);
+            i += 1;
+        }
+        Ok(stmts)
+    }
+
+    fn parse_if_at(&self, lines: &[Line], start: usize) -> Result<(Stmt, usize), MpyParseError> {
+        let base = lines[start].indent;
+        let cond_txt = lines[start].text.trim();
+        let cond = cond_txt
+            .strip_prefix("if ")
+            .and_then(|s| s.strip_suffix(':'))
+            .ok_or_else(|| self.err(lines[start].number, "bad if"))?;
+        let condition = rewrite_expr(
+            parse_expr(cond.trim())?,
+            &self.pin_consts,
+            &self.obj_to_pin,
+        );
+        let mut i = start + 1;
+        let mut then_lines = Vec::new();
+        while i < lines.len() && lines[i].indent > base {
+            then_lines.push(lines[i].clone());
+            i += 1;
+        }
+        // dedent relative
+        let then = self.parse_block_relative(&then_lines, base + 1)?;
+
+        let mut elif = Vec::new();
+        let mut else_body = None;
+        while i < lines.len() && lines[i].indent == base {
+            let t = lines[i].text.trim();
+            if t.starts_with("elif ") && t.ends_with(':') {
+                let c = t
+                    .strip_prefix("elif ")
+                    .and_then(|s| s.strip_suffix(':'))
+                    .unwrap();
+                let condition = rewrite_expr(
+                    
