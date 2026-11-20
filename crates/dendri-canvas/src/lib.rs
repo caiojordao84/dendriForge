@@ -11,10 +11,23 @@
 //! Simulation view uses a **world + camera** ([`camera`], [`world`]) with an
 //! infinite line grid under iced: 1 u = 4 mm → 48 px @ 100%, terminals on
 //! full-module intersections. Headless [`scene`] SVG remains for CI snapshots.
+//!
+//! ## Phase B0 foundations
+//! - [`svg_dyn`] — **usvg** parse + filter by stable `id`
+//! - [`interpolate`] — **lilt** Instant/springs wrapper
+//! - [`routing`] — **arqlet-routing** orthogonal channel smoke
+//! - [`svg_contract`] — 2 mm / 24 px size rule + dynamic-layer ids
+//!
+//! Lyon path conversion uses iced’s re-export
+//! `iced::widget::canvas::path::lyon_path` in `dendri-editor` (canvas feature).
 
 pub mod camera;
 pub mod grid;
+pub mod interpolate;
+pub mod routing;
 pub mod scene;
+pub mod svg_contract;
+pub mod svg_dyn;
 pub mod world;
 
 use std::collections::BTreeMap;

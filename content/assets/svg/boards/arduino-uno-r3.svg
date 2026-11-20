@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- df: outer size 76×54 mm (2 mm multiples; content top-left, pad R/B) -->
 <svg
-   width="74.801872mm"
-   height="53.399998mm"
-   viewBox="0 0 282.71574 201.82676"
+   width="76mm"
+   height="54mm"
+   viewBox="0 0 287.24409 204.09449"
    version="1.1"
    xml:space="preserve"
    style="clip-rule:evenodd;fill-rule:evenodd"

@@ -10,6 +10,10 @@ dendri-ast = { workspace = true }
 dendri-parse = { workspace = true }
 dendri-profiles = { workspace = true }
 dendri-sim = { workspace = true }
+usvg = { workspace = true }
+lilt = { workspace = true }
+arqlet-routing = { workspace = true }
+arqlet-model = { workspace = true }
 
 [dev-dependencies]
 toml = { workspace = true }
