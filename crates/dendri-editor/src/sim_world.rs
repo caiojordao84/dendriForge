@@ -1,28 +1,37 @@
-//! Phase B2/C1 Simulation world: parts + wires, trilayer cache, pin snap,
-//! dynamic LED/button Paths (D-C3 / D-C4).
+//! Phase B2/C1/C2 Simulation world: parts + wires, trilayer cache, pin snap,
+//! dynamic LED/button Paths (D-C3 / D-C4) + wire logical activity (C2).
 //!
 //! Input: LMB select/drag parts, LMB pin→pin wire, click wire select / waypoint,
 //! MMB pan, scroll zoom, R rotate. While Running: LMB button press / Shift+LMB latch.
 //! Canvas stays full-bleed under overlays.
 //!
-//! Caches (plan §6 / C1):
+//! Invalidation domains (C2):
+//! - **layout** — part poses → scene + world routes (`static_gen`)
+//! - **wiring** — topology / waypoints → world routes (`static_gen`)
+//! - **logic** — runtime scan / actuation → snapshot (no route rebuild)
+//! - **presentation** — `present_gen` / frames → **dynamic** layer only
+//!
+//! Caches (plan §6 / C1/C2):
 //! - **background** — grid (invalidate on pan/zoom)
 //! - **static** — SVG bodies + committed wires (invalidate on layout/wire commit)
-//! - **dynamic** — LED glow/burned, button press/latch, rubber-band, pin glow,
+//! - **dynamic** — LED/button, rubber-band, pin glow, **wire activity dash/pulse**,
 //!   status (invalidate on present_gen / input / CursorMoved — not mouse-only)
+//!
+//! World-space routes are cached and reused across pan/zoom and animation frames
+//! (acceptance §5.9 — no per-frame routing / SVG parse / projection regen).
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::f32::consts::PI;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use dendri_ast::Wire;
 use dendri_canvas::{
-    parse_svg_str, pick_wire, prepare_hook, route_wires, rubber_band, waypoint_from_click, Camera,
-    MvpProfile, PreparedHook, RoutedWire, RuntimeAvailability, RuntimeSnapshot, Scene, ScenePart,
-    SimRunState, TerminalRef, TerminalRole, WireColorKind, WorldPoint, PIN_SNAP_SCREEN_PX,
-    WIRE_BASE_WIDTH_PX, WIRE_COLOR_WIDTH_PX, WIRE_FILLET_SCREEN_PX, WIRE_HIT_SCREEN_PX, ZOOM_MAX,
-    ZOOM_MIN,
+    parse_svg_str, pick_wire, prepare_hook, route_wires, rubber_band, waypoint_from_click,
+    wire_logical_activity, Camera, MvpProfile, PreparedHook, RoutedWire, RuntimeAvailability,
+    RuntimeSnapshot, Scene, ScenePart, SimRunState, TerminalRef, TerminalRole, WireColorKind,
+    WireLogicalActivity, WorldPoint, PIN_SNAP_SCREEN_PX, WIRE_BASE_WIDTH_PX, WIRE_COLOR_WIDTH_PX,
+    WIRE_FILLET_SCREEN_PX, WIRE_HIT_SCREEN_PX, ZOOM_MAX, ZOOM_MIN,
 };
 use iced::{
     mouse,
@@ -64,6 +73,13 @@ impl CanvasSelection {
     }
 }
 
+/// Cached world-space routes keyed by geometry generation (`static_gen`).
+#[derive(Debug, Default)]
+struct RouteCache {
+    static_gen: u64,
+    routes: Vec<RoutedWire>,
+}
+
 /// Drag / pan / wire state living in the iced canvas Program state.
 #[derive(Debug, Default)]
 pub struct WorldCanvasState {
@@ -74,12 +90,25 @@ pub struct WorldCanvasState {
     bg_cache: canvas::Cache,
     static_cache: canvas::Cache,
     dynamic_cache: canvas::Cache,
+    /// World-coord routes — recalc only when `static_gen` changes (not per frame).
+    route_cache: RefCell<RouteCache>,
     cached_zoom: Cell<f64>,
     cached_pan_x: Cell<f64>,
     cached_pan_y: Cell<f64>,
     cached_static_gen: Cell<u64>,
     /// Last consumed runtime present_gen (invalidates **dynamic** layer only).
     cached_present_gen: Cell<u64>,
+}
+
+impl WorldCanvasState {
+    fn routes_for(&self, static_gen: u64, scene: &Scene, wiring: &[Wire]) -> Vec<RoutedWire> {
+        let mut cache = self.route_cache.borrow_mut();
+        if cache.static_gen != static_gen || cache.routes.len() != wiring.len() {
+            cache.static_gen = static_gen;
+            cache.routes = route_wires(scene, wiring);
+        }
+        cache.routes.clone()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -163,6 +192,8 @@ pub struct WorldCanvas<'a> {
     pub shift_held: bool,
     /// Bumped whenever static geometry must redraw (layout / wire commit).
     pub static_gen: u64,
+    /// Wire activity anim phase while Running/Paused; `None` after Stop (D-C2).
+    pub wire_activity_phase: Option<f32>,
 }
 
 impl canvas::Program<Message> for WorldCanvas<'_> {
@@ -264,7 +295,7 @@ impl canvas::Program<Message> for WorldCanvas<'_> {
                 }
 
                 // 2) Wire hit → select or insert waypoint when already selected.
-                let routed = route_wires(self.scene, self.wiring);
+                let routed = state.routes_for(self.static_gen, self.scene, self.wiring);
                 if let Some((idx, closest, seg)) = pick_wire(
                     &self.camera,
                     &routed,
@@ -563,15 +594,18 @@ impl canvas::Program<Message> for WorldCanvas<'_> {
         if state.cached_static_gen.get() != self.static_gen {
             state.static_cache.clear();
             state.cached_static_gen.set(self.static_gen);
+            // Drop world routes so the next ensure recomputes (layout/wiring).
+            state.route_cache.borrow_mut().static_gen = u64::MAX;
         }
         if state.cached_present_gen.get() != self.snapshot.present_gen {
-            // C1: LED/button live on the dynamic layer — do not clear static.
+            // C1/C2: LED/button + wire activity on the dynamic layer — do not clear static.
             state.dynamic_cache.clear();
             state.cached_present_gen.set(self.snapshot.present_gen);
         }
 
         let size = bounds.size();
-        let routed = route_wires(self.scene, self.wiring);
+        // World-space routes: reuse across pan/zoom and animation frames (C2 / §5.9).
+        let routed = state.routes_for(self.static_gen, self.scene, self.wiring);
 
         let bg = state.bg_cache.draw(renderer, size, |frame| {
             frame.fill_rectangle(Point::ORIGIN, size, ui::SURFACE);
@@ -598,6 +632,16 @@ impl canvas::Program<Message> for WorldCanvas<'_> {
             // Dynamic component overlays (LED current/burned, button press/latch).
             for part in &self.scene.parts {
                 draw_dynamic_part(frame, &self.camera, part, self.svgs, self.snapshot);
+            }
+
+            // C2: logical activity dash/pulse on the dynamic layer only.
+            if let Some(phase) = self.wire_activity_phase {
+                for w in &routed {
+                    let activity = wire_logical_activity(w, self.snapshot);
+                    if activity.is_active() {
+                        draw_wire_activity(frame, &self.camera, w, activity, phase);
+                    }
+                }
             }
 
             draw_runtime_status(frame, self.snapshot, size);
@@ -652,6 +696,94 @@ fn draw_routed_wire(frame: &mut Frame, camera: &Camera, wire: &RoutedWire, selec
     }
     let color = wire_draw_color(wire);
     draw_polyline_dual(frame, camera, &wire.points, color, selected);
+}
+
+/// Undirected logical-activity overlay (dash + opacity pulse). No current direction.
+fn draw_wire_activity(
+    frame: &mut Frame,
+    camera: &Camera,
+    wire: &RoutedWire,
+    activity: WireLogicalActivity,
+    phase_secs: f32,
+) {
+    if wire.points.len() < 2 {
+        return;
+    }
+    let WireLogicalActivity::Active { level } = activity else {
+        return;
+    };
+    // Undirected pulse: opacity only (no marching that implies from→to current).
+    let pulse = 0.5 + 0.5 * (phase_secs * std::f32::consts::TAU * 1.2).sin();
+    let alpha = 0.28 + 0.42 * pulse;
+    // HIGH slightly brighter; LOW still visible (LOW ≠ inactive).
+    let base = if level {
+        Color::from_rgba(0.98, 0.78, 0.22, alpha)
+    } else {
+        Color::from_rgba(0.45, 0.72, 0.95, alpha * 0.9)
+    };
+    draw_dashed_polyline(frame, camera, &wire.points, base, 2.0, 10.0, 8.0);
+}
+
+/// Manual dashes in view space — avoids inventing iced LineDash dependency.
+fn draw_dashed_polyline(
+    frame: &mut Frame,
+    camera: &Camera,
+    points: &[WorldPoint],
+    color: Color,
+    width: f32,
+    dash_px: f32,
+    gap_px: f32,
+) {
+    let view: Vec<Point> = points
+        .iter()
+        .map(|p| {
+            let (x, y) = camera.world_to_view(*p);
+            Point::new(x as f32, y as f32)
+        })
+        .collect();
+    if view.len() < 2 {
+        return;
+    }
+    let mut carry = 0.0_f32;
+    let mut drawing = true;
+    for win in view.windows(2) {
+        let a = win[0];
+        let b = win[1];
+        let dx = b.x - a.x;
+        let dy = b.y - a.y;
+        let seg_len = (dx * dx + dy * dy).sqrt();
+        if seg_len < 1e-3 {
+            continue;
+        }
+        let ux = dx / seg_len;
+        let uy = dy / seg_len;
+        let mut dist = 0.0_f32;
+        let mut cursor = a;
+        while dist < seg_len - 1e-3 {
+            let remain = if drawing {
+                dash_px - carry
+            } else {
+                gap_px - carry
+            };
+            let step = remain.min(seg_len - dist);
+            let next = Point::new(cursor.x + ux * step, cursor.y + uy * step);
+            if drawing && step > 0.5 {
+                let path = Path::line(cursor, next);
+                frame.stroke(
+                    &path,
+                    Stroke::default().with_color(color).with_width(width),
+                );
+            }
+            dist += step;
+            cursor = next;
+            carry += step;
+            let limit = if drawing { dash_px } else { gap_px };
+            if carry + 1e-3 >= limit {
+                carry = 0.0;
+                drawing = !drawing;
+            }
+        }
+    }
 }
 
 fn wire_draw_color(wire: &RoutedWire) -> Color {
@@ -1120,7 +1252,7 @@ fn draw_overlay(frame: &mut Frame, camera: &Camera, width_px: f32, wiring: bool)
     let mode = if wiring {
         "WIRING · release on pin to connect"
     } else {
-        "WORLD · C1 live · Shift+LMB latch while Running · Pause to edit"
+        "WORLD · C2 live · Shift+LMB latch while Running · Pause to edit"
     };
     fill_label(
         frame,

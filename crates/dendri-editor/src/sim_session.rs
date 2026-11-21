@@ -1,17 +1,19 @@
-//! Phase C0/C1 editor runtime session — single control path + snapshot for WorldCanvas.
+//! Phase C0–C2 editor runtime session — single control path + snapshot for WorldCanvas.
 //!
 //! Toolbar and context menus share [`SimSession::apply_command`]. No fabricated
 //! scan when the runtime is missing (D-C0 / plan §3).
 //! C1: LED DC current/burned in snapshot; canvas button actuation (D-C4).
+//! C2: wire logical-activity phase via Instant deltas (D-C2 / D-C6).
 
 use std::collections::BTreeMap;
 use std::path::Path;
+use std::time::Instant;
 
 use dendri_ast::SimulationProject;
 use dendri_canvas::{
-    apply_sim_command, build_runtime_snapshot_ex, resolve_terminal_bindings, update_led_burn_state,
-    LedElectricalParams, RuntimeAvailability, RuntimeSnapshot, SimCanvas, SimCommand, SimRunState,
-    SnapshotExtras, TerminalKind,
+    activity_animation_enabled, apply_sim_command, build_runtime_snapshot_ex,
+    resolve_terminal_bindings, update_led_burn_state, LedElectricalParams, RuntimeAvailability,
+    RuntimeSnapshot, SimCanvas, SimCommand, SimRunState, SnapshotExtras, TerminalKind,
 };
 use dendri_profiles::ProfileStore;
 use dendri_sim::SimConfig;
@@ -32,6 +34,11 @@ pub struct SimSession {
     pub led_burned: BTreeMap<String, bool>,
     /// Profile defaults + board V_high for LED DC model.
     pub led_params_base: LedElectricalParams,
+    /// Wire activity animation phase (radians-ish seconds accumulator).
+    /// Advanced only while Running via Instant deltas; frozen on Pause; cleared on Stop.
+    pub wire_anim_phase: f32,
+    /// Last visual-clock Instant used for phase deltas (`None` when not advancing).
+    wire_anim_last: Option<Instant>,
     present_gen: u64,
 }
 
@@ -52,7 +59,18 @@ impl SimSession {
             momentary: None,
             led_burned: BTreeMap::new(),
             led_params_base: LedElectricalParams::PROFILE_DEFAULTS,
+            wire_anim_phase: 0.0,
+            wire_anim_last: None,
             present_gen: 0,
+        }
+    }
+
+    /// Activity overlay phase while Running/Paused; `None` after Stop/Idle (D-C2).
+    pub fn wire_activity_phase(&self) -> Option<f32> {
+        if activity_animation_enabled(self.run_state) {
+            Some(self.wire_anim_phase)
+        } else {
+            None
         }
     }
 
@@ -128,6 +146,24 @@ impl SimSession {
         let outcome = apply_sim_command(self.run_state, cmd);
         self.run_state = outcome.run_state;
 
+        // Wire activity animation (D-C2 / D-C6): Pause freezes phase; Stop/Reset clear.
+        match cmd {
+            SimCommand::Play => {
+                self.wire_anim_last = None; // next SimFrame starts a fresh delta
+            }
+            SimCommand::Pause => {
+                self.wire_anim_last = None; // freeze phase; keep wire_anim_phase
+            }
+            SimCommand::Stop | SimCommand::Reset => {
+                self.wire_anim_phase = 0.0;
+                self.wire_anim_last = None;
+            }
+            SimCommand::Step => {
+                // Step lands in Paused — freeze phase (no continuous anim loop).
+                self.wire_anim_last = None;
+            }
+        }
+
         if outcome.clear_momentary {
             self.momentary = None;
             self.recompute_button_map();
@@ -144,6 +180,8 @@ impl SimSession {
                     Ok(()) => {
                         // Preserve the run mode Reset was issued under (D-C2).
                         self.run_state = outcome.run_state;
+                        self.wire_anim_phase = 0.0;
+                        self.wire_anim_last = None;
                     }
                     Err(e) => {
                         self.run_state = outcome.run_state;
@@ -216,7 +254,20 @@ impl SimSession {
     }
 
     /// Visual-only tick while Running (D-C6). Does **not** advance scans.
-    pub fn present_frame(&mut self, project: Option<&SimulationProject>) {
+    ///
+    /// Advances wire activity phase from `at` Instant deltas (never frame counts).
+    pub fn present_frame(&mut self, project: Option<&SimulationProject>, at: Instant) {
+        if self.run_state.is_running() {
+            if let Some(prev) = self.wire_anim_last {
+                let dt = at.saturating_duration_since(prev).as_secs_f32();
+                // Cap runaway deltas (tab background / hitch) so phase stays smooth.
+                let dt = dt.min(0.05);
+                self.wire_anim_phase = self.wire_anim_phase + dt;
+            }
+            self.wire_anim_last = Some(at);
+        } else {
+            self.wire_anim_last = None;
+        }
         self.bump_present();
         self.refresh_snapshot(project);
     }
@@ -713,5 +764,31 @@ mod tests {
         let i = st.led_current_a().unwrap();
         assert!(i > 0.01 && i < 0.02, "I={i}");
         assert_eq!(st.led_on, Some(true));
+    }
+
+    #[test]
+    fn wire_activity_phase_advances_freezes_on_pause_clears_on_stop() {
+        use std::time::Duration;
+        let project = load_c01();
+        let mut session = SimSession::new();
+        session.boot_from_project(&project, &repo()).unwrap();
+        assert!(session.wire_activity_phase().is_none());
+
+        session.apply_command(SimCommand::Play, Some(&project), &repo());
+        let t0 = Instant::now();
+        session.present_frame(Some(&project), t0);
+        session.present_frame(Some(&project), t0 + Duration::from_millis(20));
+        let phase_running = session.wire_activity_phase().unwrap();
+        assert!(phase_running > 0.0);
+
+        session.apply_command(SimCommand::Pause, Some(&project), &repo());
+        let frozen = session.wire_activity_phase().unwrap();
+        // Pause keeps phase; present_frame while not Running must not advance.
+        session.present_frame(Some(&project), t0 + Duration::from_millis(80));
+        assert_eq!(session.wire_activity_phase(), Some(frozen));
+
+        session.apply_command(SimCommand::Stop, Some(&project), &repo());
+        assert!(session.wire_activity_phase().is_none());
+        assert_eq!(session.wire_anim_phase, 0.0);
     }
 }
