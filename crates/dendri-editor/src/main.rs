@@ -9,18 +9,18 @@ mod canvas_path;
 mod project_io;
 #[allow(dead_code)] // retained C01 reference chrome; Simulation uses world canvas
 mod schematic;
+mod sim_session;
 mod sim_world;
 mod theme;
 
 use std::path::PathBuf;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use authoring::{AuthoringHub, Placeable};
 use dendri_ast::SourceLanguage;
-use dendri_canvas::{Camera, Scene, SimCanvas};
-use dendri_sim::SimConfig;
+use dendri_canvas::{Camera, Scene, SimCommand, SimRunState};
 use iced::{
-    alignment, event, keyboard, mouse,
+    alignment, event, keyboard, mouse, window,
     widget::{
         button, canvas, checkbox, column, container, row, scrollable, stack, text, text_editor,
         text_input, Space,
@@ -28,6 +28,7 @@ use iced::{
     Color, Element, Event, Font, Length, Point, Rectangle, Renderer, Size, Subscription, Theme,
 };
 use project_io::{export_project, load_project, save_project};
+use sim_session::SimSession;
 use sim_world::{CanvasSelection, SceneSvgHandles, WorldCanvas};
 use theme as ui;
 
@@ -91,7 +92,11 @@ enum Message {
     Run,
     Step,
     Reset,
-    Tick,
+    Stop,
+    /// Runtime clock while Running — advances exactly one scan (not a visual frame).
+    SimScan,
+    /// Visual clock while Running (`window::frames`) — presentation only (D-C6).
+    SimFrame(Instant),
     Raw(bool),
     Physical(bool),
     ToggleRaw,
@@ -190,7 +195,7 @@ enum Message {
         screen_y: f32,
     },
     DismissContextMenu,
-    /// Stub sim transport actions from empty-canvas RMB menu.
+    /// Empty-canvas RMB menu — same handlers as toolbar (C0 single control path).
     ContextPlay,
     ContextPause,
     ContextStop,
@@ -214,11 +219,8 @@ enum KeyChord {
 struct App {
     view: View,
     source: Source,
-    running: bool,
-    cycles: u64,
-    raw: bool,
-    pressed: bool,
-    led: bool,
+    /// C0 runtime bridge (Idle | Running | Paused) + snapshot for WorldCanvas.
+    sim: SimSession,
     left: bool,
     right: bool,
     bottom: bool,
@@ -234,7 +236,6 @@ struct App {
     static_gen: u64,
     /// MVP SVG handles (Uno / LED / button).
     scene_svgs: SceneSvgHandles,
-    canvas: Option<SimCanvas>,
     hub: Option<AuthoringHub>,
     project_path: PathBuf,
     path_input: String,
@@ -257,11 +258,7 @@ impl App {
         let mut app = Self {
             view: View::Simulation,
             source: Source::Cpp,
-            running: true,
-            cycles: 0,
-            raw: true,
-            pressed: false,
-            led: false,
+            sim: SimSession::new(),
             left: true,
             right: true,
             bottom: true,
@@ -271,7 +268,6 @@ impl App {
             selection: CanvasSelection::None,
             static_gen: 0,
             scene_svgs: SceneSvgHandles::load(repo_root()),
-            canvas: None,
             hub: None,
             project_path: project_path.clone(),
             path_input: project_path.display().to_string(),
@@ -331,11 +327,42 @@ impl App {
             }
             Err(e) => {
                 self.hub = None;
-                self.canvas = None;
+                self.sim.clear_runtime();
                 self.scene = Scene::default();
                 self.status = format!("project load failed: {e}");
             }
         }
+    }
+
+    fn project_ref(&self) -> Option<&dendri_ast::SimulationProject> {
+        self.hub.as_ref().map(|h| h.project())
+    }
+
+    /// D-C1: block layout/component/wire mutations while Running.
+    fn reject_if_running(&mut self, action: &str) -> bool {
+        if self.sim.edits_allowed() {
+            return false;
+        }
+        self.status = format!("{action} blocked while Running — Pause to edit");
+        true
+    }
+
+    fn ui_raw(&self) -> bool {
+        self.sim.primary_raw_high()
+    }
+
+    fn ui_pressed(&self) -> bool {
+        // Prefer ASL `pressed` var when present; else actuation / snapshot.
+        if let Some(canvas) = self.sim.canvas.as_ref() {
+            if let Some(dendri_sim::Value::Bool(v)) = canvas.sim.var("pressed") {
+                return *v;
+            }
+        }
+        self.sim.primary_pressed_logic(self.project_ref())
+    }
+
+    fn ui_led(&self) -> bool {
+        self.sim.primary_led_on()
     }
 
     fn sync_editors_from_hub(&mut self) {
@@ -360,31 +387,24 @@ impl App {
 
     fn boot_canvas_from_hub(&mut self) {
         let Some(hub) = self.hub.as_ref() else {
-            self.canvas = None;
+            self.sim.clear_runtime();
             return;
         };
+        let project = hub.project().clone();
         let root = repo_root();
-        match SimCanvas::from_project(hub.project(), &root, &SimConfig::default()) {
-            Ok(mut canvas) => match canvas.boot() {
-                Ok(_) => {
-                    self.raw = canvas.sim.pin(canvas.binding.button_pin);
-                    self.pressed = false;
-                    self.led = false;
-                    self.cycles = 0;
-                    self.canvas = Some(canvas);
-                    self.status = format!(
-                        "loaded {} · dendri-sim · parsers/generators live · no AVR/serial",
-                        self.project_path.display()
-                    );
-                }
-                Err(e) => {
-                    self.canvas = None;
-                    self.status = format!("sim boot failed: {e}");
-                }
-            },
+        match self.sim.boot_from_project(&project, &root) {
+            Ok(()) => {
+                // Preview starts Running after a successful boot (prior UX).
+                self.sim.run_state = SimRunState::Running;
+                self.sim.refresh_snapshot(Some(&project));
+                self.status = format!(
+                    "loaded {} · dendri-sim · {}",
+                    self.project_path.display(),
+                    self.sim.status_line()
+                );
+            }
             Err(e) => {
-                self.canvas = None;
-                self.status = format!("canvas load failed: {e} (project still editable)");
+                self.status = format!("{e} (project still editable; no fabricated sim)");
             }
         }
     }
@@ -401,61 +421,31 @@ impl App {
         self.status = note.into();
     }
 
-    fn scan(&mut self) {
-        let Some(canvas) = self.canvas.as_mut() else {
-            self.pressed = !self.raw;
-            self.led = self.pressed;
-            self.cycles = self.cycles.saturating_add(1);
-            return;
-        };
-        match canvas.step() {
-            Ok(frame) => {
-                let raw = canvas.sim.pin(canvas.binding.button_pin);
-                let pressed = match canvas.sim.var("pressed") {
-                    Some(dendri_sim::Value::Bool(v)) => *v,
-                    _ => frame.button_pressed,
-                };
-                self.cycles = frame.cycle;
-                self.led = frame.led_on;
-                self.raw = raw;
-                self.pressed = pressed;
-                self.status = format!(
-                    "scan {} · btnPin={} pressed={} ledPin={}",
-                    self.cycles,
-                    bit(self.raw),
-                    bit(self.pressed),
-                    bit(self.led)
-                );
-            }
-            Err(e) => self.status = format!("scan error: {e}"),
-        }
+    fn apply_sim(&mut self, cmd: SimCommand) {
+        let root = repo_root();
+        let project = self.hub.as_ref().map(|h| h.project().clone());
+        self.status = self
+            .sim
+            .apply_command(cmd, project.as_ref(), &root);
     }
 
     fn apply_physical(&mut self, down: bool) {
-        self.raw = !down;
-        if let Some(canvas) = self.canvas.as_mut() {
-            canvas.set_button(down);
-            self.raw = canvas.sim.pin(canvas.binding.button_pin);
+        let project = self.hub.as_ref().map(|h| h.project().clone());
+        self.sim.set_primary_button(down, project.as_ref());
+        if self.sim.is_running() {
+            let _ = self.sim.scan_once(project.as_ref());
         }
-        if self.running {
-            self.scan();
-        }
+        self.status = self.sim.status_line();
     }
 
     fn apply_raw(&mut self, raw: bool) {
-        self.raw = raw;
-        if let Some(canvas) = self.canvas.as_mut() {
-            let pressed = if canvas.binding.button_active_low {
-                !raw
-            } else {
-                raw
-            };
-            canvas.set_button(pressed);
-            self.raw = canvas.sim.pin(canvas.binding.button_pin);
+        let project = self.hub.as_ref().map(|h| h.project().clone());
+        self.sim
+            .set_primary_raw_level(raw, project.as_ref());
+        if self.sim.is_running() {
+            let _ = self.sim.scan_once(project.as_ref());
         }
-        if self.running {
-            self.scan();
-        }
+        self.status = self.sim.status_line();
     }
 
     fn apply_code(&mut self) {
@@ -511,24 +501,33 @@ impl App {
                 self.source = source;
                 self.sync_editors_from_hub();
             }
-            Message::Run => self.running = !self.running,
-            Message::Step => {
-                self.running = false;
-                self.scan();
+            Message::Run => {
+                let root = repo_root();
+                let project = self.hub.as_ref().map(|h| h.project().clone());
+                self.status = self.sim.toggle_run(project.as_ref(), &root);
             }
-            Message::Reset => {
-                let was = self.running;
-                self.boot_canvas_from_hub();
-                self.running = was;
+            Message::Step => self.apply_sim(SimCommand::Step),
+            Message::Reset => self.apply_sim(SimCommand::Reset),
+            Message::Stop => self.apply_sim(SimCommand::Stop),
+            Message::SimScan => {
+                if self.sim.is_running() {
+                    let project = self.hub.as_ref().map(|h| h.project().clone());
+                    match self.sim.scan_once(project.as_ref()) {
+                        Ok(()) => self.status = self.sim.status_line(),
+                        Err(e) => self.status = e,
+                    }
+                }
             }
-            Message::Tick => {
-                if self.running {
-                    self.scan();
+            Message::SimFrame(_at) => {
+                // Visual clock only — never auto-scan per presented frame (D-C6).
+                if self.sim.is_running() {
+                    let project = self.hub.as_ref().map(|h| h.project().clone());
+                    self.sim.present_frame(project.as_ref());
                 }
             }
             Message::Raw(raw) => self.apply_raw(raw),
             Message::Physical(down) => self.apply_physical(down),
-            Message::ToggleRaw => self.apply_raw(!self.raw),
+            Message::ToggleRaw => self.apply_raw(!self.sim.primary_raw_high()),
             Message::Left => self.left = !self.left,
             Message::Right => self.right = !self.right,
             Message::Bottom => self.bottom = !self.bottom,
@@ -611,6 +610,9 @@ impl App {
                 }
             }
             Message::Place(kind) => {
+                if self.reject_if_running("place") {
+                    return iced::Task::none();
+                }
                 if let Some(hub) = self.hub.as_mut() {
                     match hub.place(kind) {
                         Ok(note) => self.refresh_after_authoring(note),
@@ -622,6 +624,9 @@ impl App {
             Message::WireTo(s) => self.wire_to = s,
             Message::WireSignal(s) => self.wire_signal = s,
             Message::AddWire => {
+                if self.reject_if_running("add wire") {
+                    return iced::Task::none();
+                }
                 if let Some(hub) = self.hub.as_mut() {
                     match hub.add_wire(&self.wire_from, &self.wire_to, Some(&self.wire_signal)) {
                         Ok(()) => self.refresh_after_authoring(format!(
@@ -633,6 +638,9 @@ impl App {
                 }
             }
             Message::RemoveComponent(id) => {
+                if self.reject_if_running("remove component") {
+                    return iced::Task::none();
+                }
                 if let Some(hub) = self.hub.as_mut() {
                     match hub.remove_component(&id) {
                         Ok(()) => self.refresh_after_authoring(format!("removed {id}")),
@@ -641,6 +649,9 @@ impl App {
                 }
             }
             Message::RemoveWire(i) => {
+                if self.reject_if_running("remove wire") {
+                    return iced::Task::none();
+                }
                 if let Some(hub) = self.hub.as_mut() {
                     match hub.remove_wire_at(i) {
                         Ok(()) => self.refresh_after_authoring(format!("removed wire #{i}")),
@@ -734,6 +745,9 @@ impl App {
                 }
             }
             Message::CreateWire { from, to } => {
+                if self.reject_if_running("create wire") {
+                    return iced::Task::none();
+                }
                 if let Some(hub) = self.hub.as_mut() {
                     let signal = if from.to_ascii_lowercase().contains("gnd")
                         || to.to_ascii_lowercase().contains("gnd")
@@ -760,6 +774,9 @@ impl App {
                 at,
                 after_segment,
             } => {
+                if self.reject_if_running("insert waypoint") {
+                    return iced::Task::none();
+                }
                 if let Some(hub) = self.hub.as_mut() {
                     match hub.insert_wire_waypoint(index, at, after_segment) {
                         Ok(()) => {
@@ -779,6 +796,9 @@ impl App {
                 y,
                 begin_undo,
             } => {
+                if self.reject_if_running("drag part") {
+                    return iced::Task::none();
+                }
                 if let Some(hub) = self.hub.as_mut() {
                     if begin_undo {
                         hub.begin_layout_edit();
@@ -795,9 +815,15 @@ impl App {
                 }
             }
             Message::DragPartEnd { id } => {
+                if self.reject_if_running("drag part") {
+                    return iced::Task::none();
+                }
                 self.status = format!("moved {id} (snapped)");
             }
             Message::RotateSelection => {
+                if self.reject_if_running("rotate") {
+                    return iced::Task::none();
+                }
                 if let Some(id) = self.selection.part_id().map(str::to_string) {
                     if let Some(hub) = self.hub.as_mut() {
                         match hub.rotate_part_cw(&id) {
@@ -808,6 +834,10 @@ impl App {
                 }
             }
             Message::MirrorSelectionX => {
+                if self.reject_if_running("mirror") {
+                    self.context_menu = None;
+                    return iced::Task::none();
+                }
                 if let Some(id) = self.selection.part_id().map(str::to_string) {
                     if let Some(hub) = self.hub.as_mut() {
                         match hub.mirror_part_x(&id) {
@@ -819,6 +849,10 @@ impl App {
                 self.context_menu = None;
             }
             Message::MirrorSelectionY => {
+                if self.reject_if_running("mirror") {
+                    self.context_menu = None;
+                    return iced::Task::none();
+                }
                 if let Some(id) = self.selection.part_id().map(str::to_string) {
                     if let Some(hub) = self.hub.as_mut() {
                         match hub.mirror_part_y(&id) {
@@ -830,6 +864,10 @@ impl App {
                 self.context_menu = None;
             }
             Message::DeleteSelection => {
+                if self.reject_if_running("delete") {
+                    self.context_menu = None;
+                    return iced::Task::none();
+                }
                 match self.selection.clone() {
                     CanvasSelection::Part(id) => {
                         if let Some(hub) = self.hub.as_mut() {
@@ -862,6 +900,7 @@ impl App {
                 self.context_menu = None;
             }
             Message::CanvasCopy => {
+                // Copy is non-destructive — allowed while Running.
                 if let Some(id) = self.selection.part_id().map(str::to_string) {
                     if let Some(hub) = self.hub.as_mut() {
                         hub.copy_parts(&[id.clone()]);
@@ -871,6 +910,10 @@ impl App {
                 self.context_menu = None;
             }
             Message::CanvasCut => {
+                if self.reject_if_running("cut") {
+                    self.context_menu = None;
+                    return iced::Task::none();
+                }
                 if let Some(id) = self.selection.part_id().map(str::to_string) {
                     if let Some(hub) = self.hub.as_mut() {
                         match hub.cut_parts(&[id.clone()]) {
@@ -885,6 +928,10 @@ impl App {
                 self.context_menu = None;
             }
             Message::CanvasPaste => {
+                if self.reject_if_running("paste") {
+                    self.context_menu = None;
+                    return iced::Task::none();
+                }
                 if let Some(hub) = self.hub.as_mut() {
                     match hub.paste_clipboard() {
                         Ok(ids) => {
@@ -901,6 +948,10 @@ impl App {
                 self.context_menu = None;
             }
             Message::CanvasDuplicate => {
+                if self.reject_if_running("duplicate") {
+                    self.context_menu = None;
+                    return iced::Task::none();
+                }
                 if let Some(id) = self.selection.part_id().map(str::to_string) {
                     if let Some(hub) = self.hub.as_mut() {
                         match hub.duplicate_parts(&[id]) {
@@ -922,6 +973,9 @@ impl App {
                 self.context_menu = None;
             }
             Message::CanvasUndo => {
+                if self.reject_if_running("undo") {
+                    return iced::Task::none();
+                }
                 if let Some(hub) = self.hub.as_mut() {
                     match hub.undo() {
                         Ok(()) => self.refresh_after_authoring("undo"),
@@ -930,6 +984,9 @@ impl App {
                 }
             }
             Message::CanvasRedo => {
+                if self.reject_if_running("redo") {
+                    return iced::Task::none();
+                }
                 if let Some(hub) = self.hub.as_mut() {
                     match hub.redo() {
                         Ok(()) => self.refresh_after_authoring("redo"),
@@ -976,32 +1033,24 @@ impl App {
             }
             Message::DismissContextMenu => self.context_menu = None,
             Message::ContextPlay => {
-                self.running = true;
                 self.context_menu = None;
-                self.status = "play (stub)".into();
+                self.apply_sim(SimCommand::Play);
             }
             Message::ContextPause => {
-                self.running = false;
                 self.context_menu = None;
-                self.status = "pause (stub)".into();
+                self.apply_sim(SimCommand::Pause);
             }
             Message::ContextStop => {
-                self.running = false;
                 self.context_menu = None;
-                self.status = "stop (stub)".into();
+                self.apply_sim(SimCommand::Stop);
             }
             Message::ContextReset => {
                 self.context_menu = None;
-                let was = self.running;
-                self.boot_canvas_from_hub();
-                self.running = was;
-                self.status = "reset".into();
+                self.apply_sim(SimCommand::Reset);
             }
             Message::ContextStep => {
                 self.context_menu = None;
-                self.running = false;
-                self.scan();
-                self.status = "step".into();
+                self.apply_sim(SimCommand::Step);
             }
             Message::KeyChord(chord) => {
                 if self.view != View::Simulation {
@@ -1037,8 +1086,14 @@ impl App {
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        let tick = if self.running {
-            iced::time::every(Duration::from_millis(100)).map(|_| Message::Tick)
+        // Runtime clock ≠ visual clock (D-C6). Scans on a timer; frames only present.
+        let scan = if self.sim.is_running() {
+            iced::time::every(Duration::from_millis(100)).map(|_| Message::SimScan)
+        } else {
+            Subscription::none()
+        };
+        let frames = if self.sim.is_running() {
+            window::frames().map(Message::SimFrame)
         } else {
             Subscription::none()
         };
@@ -1076,7 +1131,7 @@ impl App {
                 _ => None,
             }
         });
-        Subscription::batch([tick, keys])
+        Subscription::batch([scan, frames, keys])
     }
 
     fn view(&self) -> Element<'_, Message> {
@@ -1107,22 +1162,30 @@ impl App {
         .spacing(9)
         .align_y(alignment::Vertical::Center);
 
+        let run_label = match self.sim.run_state {
+            SimRunState::Running => "● RUNNING",
+            SimRunState::Paused => "● PAUSED",
+            SimRunState::Idle => "● IDLE",
+        };
+        let run_color = match self.sim.run_state {
+            SimRunState::Running => ui::EMERALD,
+            SimRunState::Paused => ui::ORANGE,
+            SimRunState::Idle => ui::MUTED,
+        };
         let tools = row![
-            action(if self.running { "PAUSE" } else { "RUN" }, Message::Run),
-            action("STEP CYCLE", Message::Step),
+            action(
+                if self.sim.is_running() {
+                    "PAUSE"
+                } else {
+                    "PLAY"
+                },
+                Message::Run
+            ),
+            action("STOP", Message::Stop),
+            action("STEP", Message::Step),
             action("RESET", Message::Reset),
-            text(if self.running {
-                "● PREVIEW RUNNING"
-            } else {
-                "● PREVIEW PAUSED"
-            })
-            .size(12)
-            .color(if self.running {
-                ui::EMERALD
-            } else {
-                ui::ORANGE
-            }),
-            text(format!("Cycle: {}", self.cycles))
+            text(run_label).size(12).color(run_color),
+            text(format!("Cycle: {}", self.sim.cycles()))
                 .size(12)
                 .color(ui::CYAN),
             Space::with_width(8),
@@ -1218,7 +1281,8 @@ impl App {
             wiring,
             selection: &self.selection,
             svgs: &self.scene_svgs,
-            led_on: self.led,
+            snapshot: &self.sim.snapshot,
+            edits_allowed: self.sim.edits_allowed(),
             static_gen: self.static_gen,
         })
         .width(Length::Fill)
@@ -1382,18 +1446,23 @@ impl App {
                 column![
                     caption("LOCAL PREVIEW CONSOLE"),
                     text(format!(
-                        "[{}] btnPin={}   pressed={}   ledPin={}",
-                        self.cycles,
-                        bit(self.raw),
-                        bit(self.pressed),
-                        bit(self.led)
+                        "[{}] btnPin={}   pressed={}   ledPin={}   {}",
+                        self.sim.cycles(),
+                        bit(self.ui_raw()),
+                        bit(self.ui_pressed()),
+                        bit(self.ui_led()),
+                        match self.sim.run_state {
+                            SimRunState::Running => "Running",
+                            SimRunState::Paused => "Paused",
+                            SimRunState::Idle => "Idle",
+                        }
                     ))
                     .font(Font::MONOSPACE)
                     .size(12),
                     text(if self.status.is_empty() {
-                        "100 ms UI tick · dendri-sim · parse→ASL→emit live".into()
+                        "scan≠frame · dendri-sim · parse→ASL→emit live".into()
                     } else {
-                        format!("100 ms UI tick · {}", self.status)
+                        self.status.clone()
                     })
                     .size(11)
                     .color(ui::MUTED)
@@ -1644,9 +1713,9 @@ impl App {
             container(caption(title)).padding(10),
             canvas(Diagram {
                 view: self.view,
-                raw: self.raw,
-                pressed: self.pressed,
-                led: self.led,
+                raw: self.ui_raw(),
+                pressed: self.ui_pressed(),
+                led: self.ui_led(),
                 zoom: self.zoom,
             })
             .width(Length::Fill)
@@ -1654,9 +1723,10 @@ impl App {
             container(
                 row![
                     if is_ladder {
-                        checkbox("btnPin / D2 = HIGH (released)", self.raw).on_toggle(Message::Raw)
+                        checkbox("btnPin / D2 = HIGH (released)", self.ui_raw())
+                            .on_toggle(Message::Raw)
                     } else {
-                        checkbox("Physical button pressed", !self.raw)
+                        checkbox("Physical button pressed", self.ui_pressed())
                             .on_toggle(Message::Physical)
                     },
                     Space::with_width(Length::Fill),
@@ -1682,9 +1752,9 @@ impl App {
     fn inspector(&self) -> Element<'_, Message> {
         let watch = column![
             caption("LIVE TAG WATCH"),
-            tag("btnPin", "D2 / DI", self.raw, ui::CYAN),
-            tag("pressed", "BOOL", self.pressed, ui::SECONDARY),
-            tag("ledPin", "D13 / DO", self.led, ui::ORANGE),
+            tag("btnPin", "D2 / DI", self.ui_raw(), ui::CYAN),
+            tag("pressed", "BOOL", self.ui_pressed(), ui::SECONDARY),
+            tag("ledPin", "D13 / DO", self.ui_led(), ui::ORANGE),
         ]
         .spacing(12);
 
@@ -1693,10 +1763,22 @@ impl App {
                 .size(12)
                 .color(ui::SKY),
             container(watch).padding(12).style(ui::card),
-            checkbox("Physical button pressed", !self.raw).on_toggle(Message::Physical),
+            checkbox("Physical button pressed", self.ui_pressed())
+                .on_toggle(Message::Physical),
             text("Sim canvas: scroll=zoom · middle-button=pan · line grid 1u=4mm")
                 .size(11)
                 .color(ui::MUTED),
+            text(format!(
+                "Bridge: {} · present_gen={}",
+                match self.sim.run_state {
+                    SimRunState::Running => "Running",
+                    SimRunState::Paused => "Paused",
+                    SimRunState::Idle => "Idle",
+                },
+                self.sim.snapshot.present_gen
+            ))
+            .size(11)
+            .color(ui::MUTED),
         ]
         .spacing(16);
 

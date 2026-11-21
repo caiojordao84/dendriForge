@@ -16,9 +16,9 @@ use std::time::{Duration, Instant};
 use dendri_ast::Wire;
 use dendri_canvas::{
     pick_wire, route_wires, rubber_band, waypoint_from_click, Camera, MvpProfile, RoutedWire,
-    Scene, ScenePart, TerminalRef, TerminalRole, WireColorKind, WorldPoint, PIN_SNAP_SCREEN_PX,
-    WIRE_BASE_WIDTH_PX, WIRE_COLOR_WIDTH_PX, WIRE_FILLET_SCREEN_PX, WIRE_HIT_SCREEN_PX, ZOOM_MAX,
-    ZOOM_MIN,
+    RuntimeAvailability, RuntimeSnapshot, Scene, ScenePart, TerminalRef, TerminalRole,
+    WireColorKind, WorldPoint, PIN_SNAP_SCREEN_PX, WIRE_BASE_WIDTH_PX, WIRE_COLOR_WIDTH_PX,
+    WIRE_FILLET_SCREEN_PX, WIRE_HIT_SCREEN_PX, ZOOM_MAX, ZOOM_MIN,
 };
 use iced::{
     mouse,
@@ -73,6 +73,8 @@ pub struct WorldCanvasState {
     cached_pan_x: Cell<f64>,
     cached_pan_y: Cell<f64>,
     cached_static_gen: Cell<u64>,
+    /// Last consumed runtime present_gen (invalidates static LED crude glow).
+    cached_present_gen: Cell<u64>,
 }
 
 #[derive(Debug, Clone)]
@@ -134,7 +136,10 @@ pub struct WorldCanvas<'a> {
     pub wiring: &'a [Wire],
     pub selection: &'a CanvasSelection,
     pub svgs: &'a SceneSvgHandles,
-    pub led_on: bool,
+    /// C0 runtime snapshot (per-instance bindings + run status).
+    pub snapshot: &'a RuntimeSnapshot,
+    /// D-C1: when false, block layout/wire mutations (pan/zoom/select still ok).
+    pub edits_allowed: bool,
     /// Bumped whenever static geometry must redraw (layout / wire commit).
     pub static_gen: u64,
 }
@@ -211,6 +216,12 @@ impl canvas::Program<Message> for WorldCanvas<'_> {
                     pos.y as f64,
                     PIN_SNAP_SCREEN_PX,
                 ) {
+                    if !self.edits_allowed {
+                        // Still allow selection/inspection while Running.
+                        state.wire_drag = None;
+                        state.drag = None;
+                        return (canvas::event::Status::Captured, None);
+                    }
                     if let Some(drag) = state.wire_drag.take() {
                         if drag.from.endpoint != term.endpoint {
                             state.dynamic_cache.clear();
@@ -241,6 +252,9 @@ impl canvas::Program<Message> for WorldCanvas<'_> {
                     WIRE_HIT_SCREEN_PX,
                 ) {
                     if matches!(self.selection, CanvasSelection::Wire(i) if *i == idx) {
+                        if !self.edits_allowed {
+                            return (canvas::event::Status::Captured, None);
+                        }
                         let wp = waypoint_from_click(closest);
                         // after_segment maps to waypoint insert index
                         // (segment 0 = before first waypoint).
@@ -286,12 +300,16 @@ impl canvas::Program<Message> for WorldCanvas<'_> {
                         );
                     }
                     state.wire_drag = None;
-                    state.drag = Some(DragState {
-                        id: part.id.clone(),
-                        grab_dx: world.x - part.pose.x,
-                        grab_dy: world.y - part.pose.y,
-                        started: false,
-                    });
+                    if self.edits_allowed {
+                        state.drag = Some(DragState {
+                            id: part.id.clone(),
+                            grab_dx: world.x - part.pose.x,
+                            grab_dy: world.y - part.pose.y,
+                            started: false,
+                        });
+                    } else {
+                        state.drag = None;
+                    }
                     (
                         canvas::event::Status::Captured,
                         Some(Message::SelectPart {
@@ -404,6 +422,10 @@ impl canvas::Program<Message> for WorldCanvas<'_> {
                     );
                 }
                 if let Some(drag) = state.drag.as_mut() {
+                    if !self.edits_allowed {
+                        state.drag = None;
+                        return (canvas::event::Status::Captured, None);
+                    }
                     let Some(pos) = cursor.position_in(bounds) else {
                         return (canvas::event::Status::Ignored, None);
                     };
@@ -482,6 +504,13 @@ impl canvas::Program<Message> for WorldCanvas<'_> {
             state.static_cache.clear();
             state.cached_static_gen.set(self.static_gen);
         }
+        if state.cached_present_gen.get() != self.snapshot.present_gen {
+            // C0: crude LED glow still lives in the static layer; bump clears it.
+            // C1 will move LED Path fully into dynamic.
+            state.static_cache.clear();
+            state.dynamic_cache.clear();
+            state.cached_present_gen.set(self.snapshot.present_gen);
+        }
 
         let size = bounds.size();
         let routed = route_wires(self.scene, self.wiring);
@@ -496,16 +525,23 @@ impl canvas::Program<Message> for WorldCanvas<'_> {
             );
         });
 
+        let led_on = self.snapshot.any_led_on();
         let static_geo = state.static_cache.draw(renderer, size, |frame| {
             for part in &self.scene.parts {
                 let selected = self.selection.part_id() == Some(part.id.as_str());
+                let part_led = self
+                    .snapshot
+                    .components
+                    .get(&part.id)
+                    .and_then(|c| c.led_on)
+                    .unwrap_or(led_on && part.profile == MvpProfile::Led);
                 draw_part(
                     frame,
                     &self.camera,
                     part,
                     self.svgs,
                     selected,
-                    self.led_on,
+                    part_led,
                 );
             }
             for w in &routed {
@@ -515,6 +551,8 @@ impl canvas::Program<Message> for WorldCanvas<'_> {
         });
 
         let dynamic = state.dynamic_cache.draw(renderer, size, |frame| {
+            draw_runtime_status(frame, self.snapshot, size);
+
             let cursor_pos = cursor.position_in(bounds);
             let snap = cursor_pos.and_then(|pos| {
                 self.scene.nearest_terminal_screen(
@@ -529,25 +567,27 @@ impl canvas::Program<Message> for WorldCanvas<'_> {
                 draw_pin_glow(frame, &self.camera, term.world);
             }
 
-            if let Some(drag) = state.wire_drag.as_ref() {
-                let end = snap
-                    .as_ref()
-                    .map(|t| t.world)
-                    .or_else(|| {
-                        cursor_pos.map(|pos| {
-                            self.camera.view_to_world(pos.x as f64, pos.y as f64)
+            if self.edits_allowed {
+                if let Some(drag) = state.wire_drag.as_ref() {
+                    let end = snap
+                        .as_ref()
+                        .map(|t| t.world)
+                        .or_else(|| {
+                            cursor_pos.map(|pos| {
+                                self.camera.view_to_world(pos.x as f64, pos.y as f64)
+                            })
                         })
-                    })
-                    .unwrap_or(drag.from.world);
-                let pts = rubber_band(drag.from.world, end);
-                draw_polyline_dual(
-                    frame,
-                    &self.camera,
-                    &pts,
-                    ui::wire_color(ui::WireRole::Default),
-                    false,
-                );
-                draw_pin_glow(frame, &self.camera, drag.from.world);
+                        .unwrap_or(drag.from.world);
+                    let pts = rubber_band(drag.from.world, end);
+                    draw_polyline_dual(
+                        frame,
+                        &self.camera,
+                        &pts,
+                        ui::wire_color(ui::WireRole::Default),
+                        false,
+                    );
+                    draw_pin_glow(frame, &self.camera, drag.from.world);
+                }
             }
 
             draw_overlay(frame, &self.camera, size.width, state.wire_drag.is_some());
@@ -876,13 +916,45 @@ fn fill_view_hline(
     frame.fill_rectangle(Point::new(0.0, y), Size::new(width_px, thickness), color);
 }
 
+/// C0 proof that WorldCanvas consumes the runtime snapshot (tick / status).
+fn draw_runtime_status(frame: &mut Frame, snapshot: &RuntimeSnapshot, size: Size) {
+    let state = match snapshot.run_state {
+        dendri_canvas::SimRunState::Idle => "Idle",
+        dendri_canvas::SimRunState::Running => "Running",
+        dendri_canvas::SimRunState::Paused => "Paused",
+    };
+    let avail = match &snapshot.availability {
+        RuntimeAvailability::Available => "ok",
+        RuntimeAvailability::Unavailable => "unavailable",
+        RuntimeAvailability::Error(_) => "error",
+    };
+    let line = format!(
+        "SIM {state} · scan {} · led={} · {avail} · gen={}",
+        snapshot.cycle,
+        if snapshot.any_led_on() { 1 } else { 0 },
+        snapshot.present_gen
+    );
+    let color = match &snapshot.availability {
+        RuntimeAvailability::Available => ui::EMERALD,
+        RuntimeAvailability::Unavailable => ui::ORANGE,
+        RuntimeAvailability::Error(_) => ui::ROSE,
+    };
+    fill_label(
+        frame,
+        Point::new(12.0, size.height - 28.0),
+        &line,
+        color,
+        12.0,
+    );
+}
+
 fn draw_overlay(frame: &mut Frame, camera: &Camera, width_px: f32, wiring: bool) {
     let zoom_pct = (camera.zoom * 100.0).round();
     let _ = camera.zoom >= ZOOM_MIN - 1e-9 && camera.zoom <= ZOOM_MAX + 1e-9;
     let mode = if wiring {
         "WIRING · release on pin to connect"
     } else {
-        "WORLD · B2 wires · pin snap 6px · click wire=select · zoom"
+        "WORLD · C0 bridge · pin snap 6px · Pause to edit"
     };
     fill_label(
         frame,

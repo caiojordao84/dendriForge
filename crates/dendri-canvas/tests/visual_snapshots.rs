@@ -58,15 +58,16 @@ fn load_canvas(rel: &str) -> SimCanvas {
 fn c01_button_led_visual_frames() {
     let mut canvas = load_canvas("content/fixtures/canvas/C01-button-led.toml");
     canvas.boot().unwrap();
+    canvas.record_frame(canvas.current_frame());
     // released → LED off
     canvas.release_button();
-    canvas.step().unwrap();
+    canvas.step_and_record().unwrap();
     // pressed → LED on
     canvas.press_button();
-    canvas.step().unwrap();
+    canvas.step_and_record().unwrap();
     // released → LED off
     canvas.release_button();
-    canvas.step().unwrap();
+    canvas.step_and_record().unwrap();
 
     let got = canvas.frames_snapshot();
     let snap_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
