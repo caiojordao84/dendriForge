@@ -1,12 +1,15 @@
-//! Phase B2 Simulation world: parts + wires, trilayer cache, pin snap.
+//! Phase B2/C1 Simulation world: parts + wires, trilayer cache, pin snap,
+//! dynamic LED/button Paths (D-C3 / D-C4).
 //!
 //! Input: LMB select/drag parts, LMB pin→pin wire, click wire select / waypoint,
-//! MMB pan, scroll zoom, R rotate. Canvas stays full-bleed under overlays.
+//! MMB pan, scroll zoom, R rotate. While Running: LMB button press / Shift+LMB latch.
+//! Canvas stays full-bleed under overlays.
 //!
-//! Caches (plan §6):
+//! Caches (plan §6 / C1):
 //! - **background** — grid (invalidate on pan/zoom)
-//! - **static** — parts + committed wires (invalidate on layout/wire commit)
-//! - **dynamic** — rubber-band, pin glow, hover (invalidate on CursorMoved)
+//! - **static** — SVG bodies + committed wires (invalidate on layout/wire commit)
+//! - **dynamic** — LED glow/burned, button press/latch, rubber-band, pin glow,
+//!   status (invalidate on present_gen / input / CursorMoved — not mouse-only)
 
 use std::cell::Cell;
 use std::f32::consts::PI;
@@ -15,10 +18,11 @@ use std::time::{Duration, Instant};
 
 use dendri_ast::Wire;
 use dendri_canvas::{
-    pick_wire, route_wires, rubber_band, waypoint_from_click, Camera, MvpProfile, RoutedWire,
-    RuntimeAvailability, RuntimeSnapshot, Scene, ScenePart, TerminalRef, TerminalRole,
-    WireColorKind, WorldPoint, PIN_SNAP_SCREEN_PX, WIRE_BASE_WIDTH_PX, WIRE_COLOR_WIDTH_PX,
-    WIRE_FILLET_SCREEN_PX, WIRE_HIT_SCREEN_PX, ZOOM_MAX, ZOOM_MIN,
+    parse_svg_str, pick_wire, prepare_hook, route_wires, rubber_band, waypoint_from_click, Camera,
+    MvpProfile, PreparedHook, RoutedWire, RuntimeAvailability, RuntimeSnapshot, Scene, ScenePart,
+    SimRunState, TerminalRef, TerminalRole, WireColorKind, WorldPoint, PIN_SNAP_SCREEN_PX,
+    WIRE_BASE_WIDTH_PX, WIRE_COLOR_WIDTH_PX, WIRE_FILLET_SCREEN_PX, WIRE_HIT_SCREEN_PX, ZOOM_MAX,
+    ZOOM_MIN,
 };
 use iced::{
     mouse,
@@ -26,6 +30,7 @@ use iced::{
     Color, Point, Rectangle, Renderer, Size, Theme, Vector,
 };
 
+use crate::canvas_path::{hook_circle_path, hook_path_svg_units};
 use crate::theme as ui;
 use crate::Message;
 
@@ -73,7 +78,7 @@ pub struct WorldCanvasState {
     cached_pan_x: Cell<f64>,
     cached_pan_y: Cell<f64>,
     cached_static_gen: Cell<u64>,
-    /// Last consumed runtime present_gen (invalidates static LED crude glow).
+    /// Last consumed runtime present_gen (invalidates **dynamic** layer only).
     cached_present_gen: Cell<u64>,
 }
 
@@ -90,12 +95,16 @@ struct WireDragState {
     from: TerminalRef,
 }
 
-/// SVG handles for MVP parts (loaded once at app boot).
+/// SVG handles + prepared hook geometry for MVP parts (loaded once at app boot).
 #[derive(Debug, Clone)]
 pub struct SceneSvgHandles {
     pub uno: iced::widget::svg::Handle,
     pub led: iced::widget::svg::Handle,
     pub button: iced::widget::svg::Handle,
+    /// `led-body` hook — prepared once; reused every dynamic frame.
+    pub led_body: Option<PreparedHook>,
+    /// `actuator` hook — prepared once; reused every dynamic frame.
+    pub button_actuator: Option<PreparedHook>,
 }
 
 impl SceneSvgHandles {
@@ -104,10 +113,20 @@ impl SceneSvgHandles {
         let uno = resolve(&root, dendri_canvas::ASSET_BOARD, dendri_canvas::CORE_BOARD);
         let led = resolve(&root, dendri_canvas::ASSET_LED, dendri_canvas::CORE_LED);
         let button = resolve(&root, dendri_canvas::ASSET_BUTTON, dendri_canvas::CORE_BUTTON);
+        let led_body = std::fs::read_to_string(&led)
+            .ok()
+            .and_then(|s| parse_svg_str(&s).ok())
+            .and_then(|t| prepare_hook(&t, "led-body"));
+        let button_actuator = std::fs::read_to_string(&button)
+            .ok()
+            .and_then(|s| parse_svg_str(&s).ok())
+            .and_then(|t| prepare_hook(&t, "actuator"));
         Self {
             uno: iced::widget::svg::Handle::from_path(uno),
             led: iced::widget::svg::Handle::from_path(led),
             button: iced::widget::svg::Handle::from_path(button),
+            led_body,
+            button_actuator,
         }
     }
 
@@ -136,10 +155,12 @@ pub struct WorldCanvas<'a> {
     pub wiring: &'a [Wire],
     pub selection: &'a CanvasSelection,
     pub svgs: &'a SceneSvgHandles,
-    /// C0 runtime snapshot (per-instance bindings + run status).
+    /// C0/C1 runtime snapshot (per-instance bindings + LED current/burned).
     pub snapshot: &'a RuntimeSnapshot,
     /// D-C1: when false, block layout/wire mutations (pan/zoom/select still ok).
     pub edits_allowed: bool,
+    /// Shift modifier held (Running → button latch; else → multi-select stub).
+    pub shift_held: bool,
     /// Bumped whenever static geometry must redraw (layout / wire commit).
     pub static_gen: u64,
 }
@@ -289,9 +310,9 @@ impl canvas::Program<Message> for WorldCanvas<'_> {
                     );
                 }
 
-                // 3) Part hit → select / drag / double-click properties.
+                // 3) Part hit → Running button actuation (D-C4) or select / drag.
                 if let Some(part) = self.scene.pick(world) {
-                    if is_double {
+                    if is_double && self.edits_allowed {
                         return (
                             canvas::event::Status::Captured,
                             Some(Message::OpenProperties {
@@ -300,6 +321,31 @@ impl canvas::Program<Message> for WorldCanvas<'_> {
                         );
                     }
                     state.wire_drag = None;
+
+                    // While Running: actionable button body → press / Shift latch.
+                    if self.snapshot.run_state == SimRunState::Running
+                        && part.profile == MvpProfile::Pushbutton
+                    {
+                        state.drag = None;
+                        state.dynamic_cache.clear();
+                        if self.shift_held {
+                            return (
+                                canvas::event::Status::Captured,
+                                Some(Message::CanvasButtonLatchToggle {
+                                    id: part.id.clone(),
+                                }),
+                            );
+                        }
+                        return (
+                            canvas::event::Status::Captured,
+                            Some(Message::CanvasButtonPress {
+                                id: part.id.clone(),
+                            }),
+                        );
+                    }
+
+                    // Outside Running: Shift+LMB is multi-select (stub: select part,
+                    // never treat as latch).
                     if self.edits_allowed {
                         state.drag = Some(DragState {
                             id: part.id.clone(),
@@ -310,6 +356,9 @@ impl canvas::Program<Message> for WorldCanvas<'_> {
                     } else {
                         state.drag = None;
                     }
+                    // Shift outside Running: multi-select stub (select only; never latch).
+                    let _shift_multiselect_stub = self.shift_held && self.edits_allowed;
+                    let _ = _shift_multiselect_stub;
                     (
                         canvas::event::Status::Captured,
                         Some(Message::SelectPart {
@@ -335,9 +384,16 @@ impl canvas::Program<Message> for WorldCanvas<'_> {
                         );
                     }
                 }
+                // Running: LMB up releases momentary button hold (latches stay).
+                if self.snapshot.run_state == SimRunState::Running {
+                    state.dynamic_cache.clear();
+                    return (
+                        canvas::event::Status::Captured,
+                        Some(Message::CanvasButtonRelease),
+                    );
+                }
                 // Wire drag completes on press of target terminal; release alone
                 // cancels if cursor is not on a pin (handled on next press).
-                // Cancel rubber-band on empty release.
                 if state.wire_drag.is_some() {
                     if let Some(pos) = cursor.position_in(bounds) {
                         if self
@@ -350,10 +406,7 @@ impl canvas::Program<Message> for WorldCanvas<'_> {
                             )
                             .is_none()
                         {
-                            // Keep drag active until second press or escape via
-                            // empty click — do not cancel on release so user can
-                            // pan with MMB mid-drag. Cancel only if released far
-                            // without having moved? Keep until press elsewhere.
+                            // Keep drag active until second press — allow MMB pan.
                         }
                     }
                 }
@@ -457,6 +510,13 @@ impl canvas::Program<Message> for WorldCanvas<'_> {
             canvas::Event::Mouse(mouse::Event::CursorLeft) => {
                 state.pan_last = None;
                 state.dynamic_cache.clear();
+                // Release momentary on focus/cursor loss; latches independent (D-C4).
+                if self.snapshot.run_state == SimRunState::Running {
+                    return (
+                        canvas::event::Status::Ignored,
+                        Some(Message::CanvasButtonCancelMomentary),
+                    );
+                }
                 (canvas::event::Status::Ignored, None)
             }
             _ => (canvas::event::Status::Ignored, None),
@@ -505,9 +565,7 @@ impl canvas::Program<Message> for WorldCanvas<'_> {
             state.cached_static_gen.set(self.static_gen);
         }
         if state.cached_present_gen.get() != self.snapshot.present_gen {
-            // C0: crude LED glow still lives in the static layer; bump clears it.
-            // C1 will move LED Path fully into dynamic.
-            state.static_cache.clear();
+            // C1: LED/button live on the dynamic layer — do not clear static.
             state.dynamic_cache.clear();
             state.cached_present_gen.set(self.snapshot.present_gen);
         }
@@ -525,24 +583,10 @@ impl canvas::Program<Message> for WorldCanvas<'_> {
             );
         });
 
-        let led_on = self.snapshot.any_led_on();
         let static_geo = state.static_cache.draw(renderer, size, |frame| {
             for part in &self.scene.parts {
                 let selected = self.selection.part_id() == Some(part.id.as_str());
-                let part_led = self
-                    .snapshot
-                    .components
-                    .get(&part.id)
-                    .and_then(|c| c.led_on)
-                    .unwrap_or(led_on && part.profile == MvpProfile::Led);
-                draw_part(
-                    frame,
-                    &self.camera,
-                    part,
-                    self.svgs,
-                    selected,
-                    part_led,
-                );
+                draw_part(frame, &self.camera, part, self.svgs, selected);
             }
             for w in &routed {
                 let selected = self.selection.wire_index() == Some(w.index);
@@ -551,6 +595,11 @@ impl canvas::Program<Message> for WorldCanvas<'_> {
         });
 
         let dynamic = state.dynamic_cache.draw(renderer, size, |frame| {
+            // Dynamic component overlays (LED current/burned, button press/latch).
+            for part in &self.scene.parts {
+                draw_dynamic_part(frame, &self.camera, part, self.svgs, self.snapshot);
+            }
+
             draw_runtime_status(frame, self.snapshot, size);
 
             let cursor_pos = cursor.position_in(bounds);
@@ -738,7 +787,6 @@ fn draw_part(
     part: &ScenePart,
     svgs: &SceneSvgHandles,
     selected: bool,
-    led_on: bool,
 ) {
     let scale = camera.scale() as f32;
     let (vx, vy) = camera.world_to_view(WorldPoint::new(part.pose.x, part.pose.y));
@@ -750,28 +798,12 @@ fn draw_part(
     let handle = svgs.for_profile(part.profile);
 
     frame.with_save(|frame| {
-        frame.translate(Vector::new(cx, cy));
-        let sx = if part.pose.mirror_x { -1.0 } else { 1.0 };
-        let sy = if part.pose.mirror_y { -1.0 } else { 1.0 };
-        if sx != 1.0 || sy != 1.0 {
-            frame.scale_nonuniform(Vector::new(sx, sy));
-        }
-        if part.pose.rotation % 360 != 0 {
-            let rad = (part.pose.rotation as f32) * PI / 180.0;
-            frame.rotate(rad);
-        }
+        apply_part_pose(frame, part, cx, cy);
         frame.draw_svg(
             Rectangle::new(Point::new(-w * 0.5, -h * 0.5), Size::new(w, h)),
             handle,
         );
     });
-
-    if part.profile == MvpProfile::Led && led_on {
-        frame.fill(
-            &Path::circle(Point::new(cx, cy), (0.7 * scale).max(6.0)),
-            Color::from_rgba(0.94, 0.27, 0.27, 0.55),
-        );
-    }
 
     if selected {
         let aabb = part.world_aabb();
@@ -801,6 +833,139 @@ fn draw_part(
         ui::MUTED,
         (0.28 * scale).clamp(9.0, 14.0),
     );
+}
+
+fn apply_part_pose(frame: &mut Frame, part: &ScenePart, cx: f32, cy: f32) {
+    frame.translate(Vector::new(cx, cy));
+    let sx = if part.pose.mirror_x { -1.0 } else { 1.0 };
+    let sy = if part.pose.mirror_y { -1.0 } else { 1.0 };
+    if sx != 1.0 || sy != 1.0 {
+        frame.scale_nonuniform(Vector::new(sx, sy));
+    }
+    if part.pose.rotation % 360 != 0 {
+        let rad = (part.pose.rotation as f32) * PI / 180.0;
+        frame.rotate(rad);
+    }
+}
+
+/// Map SVG user-unit hook geometry into the same local space as `draw_svg`.
+fn with_hook_space(
+    frame: &mut Frame,
+    camera: &Camera,
+    part: &ScenePart,
+    view_w: f32,
+    view_h: f32,
+    f: impl FnOnce(&mut Frame),
+) {
+    let (vx, vy) = camera.world_to_view(WorldPoint::new(part.pose.x, part.pose.y));
+    let w = (part.size.w * camera.scale()) as f32;
+    let h = (part.size.h * camera.scale()) as f32;
+    let cx = vx as f32 + w * 0.5;
+    let cy = vy as f32 + h * 0.5;
+    frame.with_save(|frame| {
+        apply_part_pose(frame, part, cx, cy);
+        // SVG draw maps viewBox → (-w/2,-h/2)-(w,h); scale SVG units the same way.
+        let sx = if view_w > 0.0 { w / view_w } else { 1.0 };
+        let sy = if view_h > 0.0 { h / view_h } else { 1.0 };
+        frame.translate(Vector::new(-w * 0.5, -h * 0.5));
+        frame.scale_nonuniform(Vector::new(sx, sy));
+        f(frame);
+    });
+}
+
+fn draw_dynamic_part(
+    frame: &mut Frame,
+    camera: &Camera,
+    part: &ScenePart,
+    svgs: &SceneSvgHandles,
+    snapshot: &RuntimeSnapshot,
+) {
+    let Some(st) = snapshot.components.get(&part.id) else {
+        return;
+    };
+    match part.profile {
+        MvpProfile::Led => {
+            let Some(hook) = svgs.led_body.as_ref() else {
+                return;
+            };
+            let burned = st.led_burned == Some(true);
+            let on = st.led_on == Some(true);
+            if !burned && !on {
+                return;
+            }
+            with_hook_space(frame, camera, part, hook.view_w, hook.view_h, |frame| {
+                let path = hook_circle_path(hook).unwrap_or_else(|| hook_path_svg_units(hook));
+                if burned {
+                    // Dark centre + orange glow from led-body geometry (no new SVG tags).
+                    frame.fill(&path, ui::DF_LED_OFF_BASE);
+                    if let Some(c) = hook.circle {
+                        frame.fill(
+                            &Path::circle(Point::new(c.cx, c.cy), c.r * 1.35),
+                            Color {
+                                r: ui::DF_LED_GLOW_ORANGE.r,
+                                g: ui::DF_LED_GLOW_ORANGE.g,
+                                b: ui::DF_LED_GLOW_ORANGE.b,
+                                a: 0.45,
+                            },
+                        );
+                        frame.fill(&path, ui::DF_LED_OFF_BASE);
+                    }
+                } else {
+                    // Digital indication: apply directly (no ramp / spring).
+                    let alpha = brightness_from_current(st.led_current_a().unwrap_or(0.0));
+                    frame.fill(
+                        &path,
+                        Color {
+                            r: ui::DF_LED_GLOW_RED.r,
+                            g: ui::DF_LED_GLOW_RED.g,
+                            b: ui::DF_LED_GLOW_RED.b,
+                            a: alpha,
+                        },
+                    );
+                }
+            });
+        }
+        MvpProfile::Pushbutton => {
+            let pressed = st.button_pressed == Some(true);
+            let latched = st.button_latched == Some(true);
+            if !pressed && !latched {
+                return;
+            }
+            let Some(hook) = svgs.button_actuator.as_ref() else {
+                return;
+            };
+            with_hook_space(frame, camera, part, hook.view_w, hook.view_h, |frame| {
+                let path = hook_circle_path(hook).unwrap_or_else(|| hook_path_svg_units(hook));
+                // Pressed fill; unambiguous user-held ring when latched.
+                frame.fill(
+                    &path,
+                    Color::from_rgba(0.12, 0.55, 0.35, if pressed { 0.55 } else { 0.25 }),
+                );
+                if latched {
+                    if let Some(c) = hook.circle {
+                        frame.stroke(
+                            &Path::circle(Point::new(c.cx, c.cy), c.r * 1.15),
+                            Stroke::default()
+                                .with_color(Color::from_rgba(1.0, 0.85, 0.2, 0.95))
+                                .with_width(3.0),
+                        );
+                    }
+                }
+            });
+        }
+        MvpProfile::UnoR3 => {}
+    }
+}
+
+/// Map forward current to fill alpha. Digital on/off uses direct presentation;
+/// continuous targets (PWM) would use lilt later — not in C1.
+fn brightness_from_current(current_a: f64) -> f32 {
+    if current_a <= 0.0 {
+        return 0.0;
+    }
+    // Soft clip around typical ~20 mA rated current without hardcoding burn.
+    let norm = (current_a / 0.02).clamp(0.0, 1.5);
+    (0.35 + 0.55 * norm as f32).clamp(0.35, 0.95)
 }
 
 fn draw_terminal(
@@ -928,8 +1093,9 @@ fn draw_runtime_status(frame: &mut Frame, snapshot: &RuntimeSnapshot, size: Size
         RuntimeAvailability::Unavailable => "unavailable",
         RuntimeAvailability::Error(_) => "error",
     };
+    let burned = if snapshot.any_led_burned() { "BURN" } else { "ok" };
     let line = format!(
-        "SIM {state} · scan {} · led={} · {avail} · gen={}",
+        "SIM {state} · scan {} · led={} · {burned} · {avail} · gen={}",
         snapshot.cycle,
         if snapshot.any_led_on() { 1 } else { 0 },
         snapshot.present_gen
@@ -954,7 +1120,7 @@ fn draw_overlay(frame: &mut Frame, camera: &Camera, width_px: f32, wiring: bool)
     let mode = if wiring {
         "WIRING · release on pin to connect"
     } else {
-        "WORLD · C0 bridge · pin snap 6px · Pause to edit"
+        "WORLD · C1 live · Shift+LMB latch while Running · Pause to edit"
     };
     fill_label(
         frame,

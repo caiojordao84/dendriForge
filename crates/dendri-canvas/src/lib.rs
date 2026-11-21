@@ -24,6 +24,7 @@
 pub mod camera;
 pub mod grid;
 pub mod interpolate;
+pub mod led_model;
 pub mod routing;
 pub mod scene;
 pub mod sim_bridge;
@@ -53,10 +54,17 @@ pub use wires::{
     WireColorKind, PIN_SNAP_SCREEN_PX, WIRE_BASE_WIDTH_PX, WIRE_COLOR_WIDTH_PX,
     WIRE_FILLET_SCREEN_PX, WIRE_HIT_SCREEN_PX,
 };
+pub use led_model::{
+    amperes_to_ua, defaults_from_profile_params, evaluate_led, ua_to_amperes, LedElectricalParams,
+    LedElectricalState,
+};
 pub use sim_bridge::{
-    apply_sim_command, build_runtime_snapshot, resolve_terminal_bindings, ComponentRuntimeState,
-    ControlOutcome, RuntimeAvailability, RuntimeSnapshot, SimCommand, SimRunState,
-    TerminalBinding, TerminalKind,
+    apply_sim_command, build_runtime_snapshot, build_runtime_snapshot_ex, resolve_terminal_bindings,
+    update_led_burn_state, ComponentRuntimeState, ControlOutcome, RuntimeAvailability,
+    RuntimeSnapshot, SimCommand, SimRunState, SnapshotExtras, TerminalBinding, TerminalKind,
+};
+pub use svg_dyn::{
+    parse_svg_str, prepare_hook, HookCircle, HookSeg, PreparedHook,
 };
 pub use world::{
     LedPlaceholder, LocalTerminal, MvpProfile, PartKind, PhaseAScene, Scene, ScenePart,
@@ -524,6 +532,24 @@ impl SimCanvas {
             Some(&self.sim),
             Some(project),
             button_pressed_by_instance,
+            present_gen,
+        )
+    }
+
+    /// C1 snapshot with latch / burn / LED params.
+    pub fn runtime_snapshot_ex(
+        &self,
+        project: &SimulationProject,
+        run_state: SimRunState,
+        extras: SnapshotExtras<'_>,
+        present_gen: u64,
+    ) -> RuntimeSnapshot {
+        build_runtime_snapshot_ex(
+            run_state,
+            RuntimeAvailability::Available,
+            Some(&self.sim),
+            Some(project),
+            extras,
             present_gen,
         )
     }
