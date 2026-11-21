@@ -14,6 +14,4 @@ usvg = { workspace = true }
 lilt = { workspace = true }
 arqlet-routing = { workspace = true }
 arqlet-model = { workspace = true }
-
-[dev-dependencies]
 toml = { workspace = true }

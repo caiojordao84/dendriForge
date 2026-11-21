@@ -1,16 +1,19 @@
-//! Phase C0 editor runtime session — single control path + snapshot for WorldCanvas.
+//! Phase C0/C1 editor runtime session — single control path + snapshot for WorldCanvas.
 //!
 //! Toolbar and context menus share [`SimSession::apply_command`]. No fabricated
 //! scan when the runtime is missing (D-C0 / plan §3).
+//! C1: LED DC current/burned in snapshot; canvas button actuation (D-C4).
 
 use std::collections::BTreeMap;
 use std::path::Path;
 
 use dendri_ast::SimulationProject;
 use dendri_canvas::{
-    apply_sim_command, build_runtime_snapshot, RuntimeAvailability, RuntimeSnapshot, SimCanvas,
-    SimCommand, SimRunState,
+    apply_sim_command, build_runtime_snapshot_ex, resolve_terminal_bindings, update_led_burn_state,
+    LedElectricalParams, RuntimeAvailability, RuntimeSnapshot, SimCanvas, SimCommand, SimRunState,
+    SnapshotExtras, TerminalKind,
 };
+use dendri_profiles::ProfileStore;
 use dendri_sim::SimConfig;
 
 /// Live simulation session bound to the open project.
@@ -19,12 +22,16 @@ pub struct SimSession {
     pub run_state: SimRunState,
     pub canvas: Option<SimCanvas>,
     pub snapshot: RuntimeSnapshot,
-    /// Per-instance button actuation (momentary ∪ latches). Prepared for C1.
+    /// Per-instance button actuation (momentary ∪ latches).
     pub button_pressed: BTreeMap<String, bool>,
-    /// Ctrl+LMB latches (cleared on Stop/Reset; kept on Pause). C1 UX may polish.
+    /// Shift+LMB latches (cleared on Stop/Reset; kept on Pause). UI-only.
     pub latched: BTreeMap<String, bool>,
     /// Instance currently held by momentary LMB (cleared on Pause/Stop/Reset/focus loss).
     pub momentary: Option<String>,
+    /// LED burned flags — persist across Stop; cleared on Reset.
+    pub led_burned: BTreeMap<String, bool>,
+    /// Profile defaults + board V_high for LED DC model.
+    pub led_params_base: LedElectricalParams,
     present_gen: u64,
 }
 
@@ -43,6 +50,8 @@ impl SimSession {
             button_pressed: BTreeMap::new(),
             latched: BTreeMap::new(),
             momentary: None,
+            led_burned: BTreeMap::new(),
+            led_params_base: LedElectricalParams::PROFILE_DEFAULTS,
             present_gen: 0,
         }
     }
@@ -68,13 +77,15 @@ impl SimSession {
         self.button_pressed.clear();
         self.latched.clear();
         self.momentary = None;
+        self.led_burned.clear();
+        self.led_params_base = load_led_params_base(repo_root, project);
         match SimCanvas::from_project(project, repo_root, &SimConfig::default()) {
             Ok(mut canvas) => match canvas.boot() {
                 Ok(_) => {
                     // Live path must not retain capture history.
                     canvas.clear_frame_history();
                     self.canvas = Some(canvas);
-                    self.sync_primary_button_from_map(Some(project));
+                    self.sync_buttons_to_sim(Some(project));
                     self.bump_present();
                     self.refresh_snapshot(Some(project));
                     Ok(())
@@ -102,6 +113,7 @@ impl SimSession {
         self.button_pressed.clear();
         self.latched.clear();
         self.momentary = None;
+        self.led_burned.clear();
         self.bump_present();
         self.snapshot = RuntimeSnapshot::unavailable(self.run_state);
     }
@@ -119,12 +131,12 @@ impl SimSession {
         if outcome.clear_momentary {
             self.momentary = None;
             self.recompute_button_map();
-            self.sync_primary_button_from_map(project);
+            self.sync_buttons_to_sim(project);
         }
         if outcome.clear_latches {
             self.latched.clear();
             self.recompute_button_map();
-            self.sync_primary_button_from_map(project);
+            self.sync_buttons_to_sim(project);
         }
         if outcome.reboot_runtime {
             if let Some(project) = project {
@@ -218,14 +230,29 @@ impl SimSession {
                 _ => RuntimeAvailability::Unavailable,
             }
         };
-        self.snapshot = build_runtime_snapshot(
+        self.snapshot = build_runtime_snapshot_ex(
             self.run_state,
             availability,
             self.canvas.as_ref().map(|c| &c.sim),
             project,
-            &self.button_pressed,
+            SnapshotExtras {
+                button_pressed: &self.button_pressed,
+                button_latched: &self.latched,
+                led_burned: &self.led_burned,
+                led_params_base: self.led_params_base,
+            },
             self.present_gen,
         );
+        // Persist burns after the burn-scan snapshot has been published (I≠0 that frame).
+        if let Some(project) = project {
+            let pins = self.snapshot.pins.clone();
+            update_led_burn_state(
+                project,
+                &pins,
+                &mut self.led_burned,
+                self.led_params_base,
+            );
+        }
     }
 
     /// Inspector / primary MVP button actuation (active-low aware via SimCanvas).
@@ -243,10 +270,7 @@ impl SimSession {
                 }
             }
         }
-        let held = pressed || self.any_primary_held(project);
-        if let Some(canvas) = self.canvas.as_mut() {
-            canvas.set_button(held);
-        }
+        self.sync_buttons_to_sim(project);
         self.bump_present();
         self.refresh_snapshot(project);
     }
@@ -268,13 +292,57 @@ impl SimSession {
         self.set_primary_button(pressed, project);
     }
 
-    fn any_primary_held(&self, project: Option<&SimulationProject>) -> bool {
-        let Some(project) = project else {
-            return self.button_pressed.values().any(|v| *v);
-        };
-        primary_button_id(project)
-            .and_then(|id| self.button_pressed.get(&id).copied())
-            .unwrap_or(false)
+    /// Canvas LMB down on button body while Running (momentary press).
+    pub fn canvas_button_press(
+        &mut self,
+        instance_id: &str,
+        project: Option<&SimulationProject>,
+    ) {
+        if !self.is_running() {
+            return;
+        }
+        self.momentary = Some(instance_id.to_string());
+        self.recompute_button_map();
+        self.sync_buttons_to_sim(project);
+        self.bump_present();
+        self.refresh_snapshot(project);
+    }
+
+    /// Canvas LMB up — release momentary only (latches stay).
+    pub fn canvas_button_release(&mut self, project: Option<&SimulationProject>) {
+        if self.momentary.take().is_some() {
+            self.recompute_button_map();
+            self.sync_buttons_to_sim(project);
+            self.bump_present();
+            self.refresh_snapshot(project);
+        }
+    }
+
+    /// Focus loss / interaction cancel — drop momentary; latches independent.
+    pub fn cancel_momentary(&mut self, project: Option<&SimulationProject>) {
+        self.canvas_button_release(project);
+    }
+
+    /// Shift+LMB toggle latch while Running (D-C4). UI-only — no profile/ASL/wiring change.
+    pub fn canvas_button_latch_toggle(
+        &mut self,
+        instance_id: &str,
+        project: Option<&SimulationProject>,
+    ) {
+        if !self.is_running() {
+            return;
+        }
+        if self.latched.remove(instance_id).is_none() {
+            self.latched.insert(instance_id.to_string(), true);
+        }
+        // Latch toggle also clears momentary on that button so state is unambiguous.
+        if self.momentary.as_deref() == Some(instance_id) {
+            self.momentary = None;
+        }
+        self.recompute_button_map();
+        self.sync_buttons_to_sim(project);
+        self.bump_present();
+        self.refresh_snapshot(project);
     }
 
     fn recompute_button_map(&mut self) {
@@ -289,11 +357,62 @@ impl SimSession {
         }
     }
 
-    fn sync_primary_button_from_map(&mut self, project: Option<&SimulationProject>) {
-        let pressed = self.any_primary_held(project);
-        if let Some(canvas) = self.canvas.as_mut() {
-            canvas.set_button(pressed);
+    /// Drive every button instance pin from the actuation map (multi-button).
+    fn sync_buttons_to_sim(&mut self, project: Option<&SimulationProject>) {
+        let Some(project) = project else {
+            // Fall back to primary-only SimCanvas flag.
+            let pressed = self.button_pressed.values().any(|v| *v);
+            if let Some(canvas) = self.canvas.as_mut() {
+                canvas.set_button(pressed);
+            }
+            return;
+        };
+        let bindings = resolve_terminal_bindings(project);
+        let active_low = self
+            .canvas
+            .as_ref()
+            .map(|c| c.binding.button_active_low)
+            .unwrap_or(true);
+        let Some(canvas) = self.canvas.as_mut() else {
+            return;
+        };
+        let mut any_primary = false;
+        for comp in &project.components {
+            let is_btn = comp.profile.contains("button") || comp.profile.contains("push");
+            if !is_btn {
+                continue;
+            }
+            let pressed = self
+                .button_pressed
+                .get(&comp.instance_id)
+                .copied()
+                .unwrap_or(false);
+            if primary_button_id(project).as_deref() == Some(comp.instance_id.as_str()) {
+                any_primary = pressed;
+            }
+            // Prefer NO contact pin; fall back to any button contact binding.
+            let pin = bindings
+                .iter()
+                .find(|b| {
+                    b.instance_id == comp.instance_id
+                        && b.kind == TerminalKind::ButtonContact
+                        && b.terminal == "NO"
+                })
+                .or_else(|| {
+                    bindings.iter().find(|b| {
+                        b.instance_id == comp.instance_id
+                            && b.kind == TerminalKind::ButtonContact
+                            && b.board_pin.is_some()
+                    })
+                })
+                .and_then(|b| b.board_pin);
+            if let Some(pin) = pin {
+                let level = if active_low { !pressed } else { pressed };
+                let _ = canvas.sim.set_pin(pin, level);
+            }
         }
+        canvas.button_pressed = any_primary
+            || self.button_pressed.values().any(|v| *v);
     }
 
     pub fn primary_raw_high(&self) -> bool {
@@ -335,13 +454,21 @@ impl SimSession {
                 "sim {} · runtime unavailable (no fabricated cycles)",
                 run_label(self.run_state)
             ),
-            RuntimeAvailability::Available => format!(
-                "sim {} · scan {} · led={} · present_gen={}",
-                run_label(self.run_state),
-                self.snapshot.cycle,
-                if self.snapshot.any_led_on() { 1 } else { 0 },
-                self.snapshot.present_gen
-            ),
+            RuntimeAvailability::Available => {
+                let burned = if self.snapshot.any_led_burned() {
+                    " · burned"
+                } else {
+                    ""
+                };
+                format!(
+                    "sim {} · scan {} · led={}{} · present_gen={}",
+                    run_label(self.run_state),
+                    self.snapshot.cycle,
+                    if self.snapshot.any_led_on() { 1 } else { 0 },
+                    burned,
+                    self.snapshot.present_gen
+                )
+            }
         }
     }
 }
@@ -360,6 +487,62 @@ fn primary_button_id(project: &SimulationProject) -> Option<String> {
         .iter()
         .find(|c| c.profile.contains("button") || c.profile.contains("push"))
         .map(|c| c.instance_id.clone())
+}
+
+fn load_led_params_base(repo_root: &Path, project: &SimulationProject) -> LedElectricalParams {
+    let content = repo_root.join("content");
+    let store = ProfileStore::new(&content);
+    let mut base = LedElectricalParams::PROFILE_DEFAULTS;
+    // Board logic-high voltage (Uno = 5 V).
+    if let Ok(board) = store.load_board(&project.board.profile) {
+        if let Some(v) = board_logic_high_v(&board.rest) {
+            base.v_high = v;
+        }
+    }
+    if let Ok(led) = store.load_component("led") {
+        if let Some(params) = led.rest.get("params").and_then(|v| v.as_table()) {
+            base = dendri_canvas::defaults_from_profile_params(params, base.v_high);
+        }
+    }
+    base
+}
+
+fn board_logic_high_v(rest: &toml::map::Map<String, toml::Value>) -> Option<f64> {
+    // Prefer an explicit simulation / power rail hint when present.
+    if let Some(sim) = rest.get("simulation").and_then(|v| v.as_table()) {
+        for key in ["vcc", "logic_high", "voltage"] {
+            if let Some(v) = sim.get(key) {
+                if let Some(f) = value_as_volts(v) {
+                    return Some(f);
+                }
+            }
+        }
+    }
+    // Ports often list `voltage = "5V"` on digital pins.
+    if let Some(ports) = rest.get("ports").and_then(|v| v.as_array()) {
+        for p in ports {
+            if let Some(t) = p.as_table() {
+                if let Some(v) = t.get("voltage").and_then(value_as_volts) {
+                    if (v - 5.0).abs() < 0.01 || (v - 3.3).abs() < 0.01 {
+                        return Some(v);
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+fn value_as_volts(v: &toml::Value) -> Option<f64> {
+    match v {
+        toml::Value::Float(f) => Some(*f),
+        toml::Value::Integer(i) => Some(*i as f64),
+        toml::Value::String(s) => {
+            let s = s.trim().trim_end_matches('V').trim_end_matches('v');
+            s.parse().ok()
+        }
+        _ => None,
+    }
 }
 
 #[cfg(test)]
@@ -424,6 +607,7 @@ mod tests {
         session.apply_command(SimCommand::Reset, Some(&project), &repo());
         assert_eq!(session.cycles(), 0);
         assert!(session.latched.is_empty());
+        assert!(session.led_burned.is_empty());
     }
 
     #[test]
@@ -458,5 +642,76 @@ mod tests {
         assert!(!session.edits_allowed());
         session.run_state = SimRunState::Paused;
         assert!(session.edits_allowed());
+    }
+
+    #[test]
+    fn shift_latch_only_while_running_pause_keeps_stop_clears() {
+        let project = load_c01();
+        let mut session = SimSession::new();
+        session.boot_from_project(&project, &repo()).unwrap();
+        let btn = primary_button_id(&project).unwrap();
+
+        // Outside Running: latch toggle is a no-op.
+        session.canvas_button_latch_toggle(&btn, Some(&project));
+        assert!(session.latched.is_empty());
+
+        session.apply_command(SimCommand::Play, Some(&project), &repo());
+        session.canvas_button_latch_toggle(&btn, Some(&project));
+        assert!(session.latched.get(&btn).copied().unwrap_or(false));
+        assert_eq!(session.button_pressed.get(&btn), Some(&true));
+        // Active-low: pressed → D2 low.
+        assert!(!session.primary_raw_high());
+
+        session.apply_command(SimCommand::Pause, Some(&project), &repo());
+        assert!(session.latched.contains_key(&btn));
+        // Pause cancels momentary only; latch remains → still pressed.
+        assert_eq!(session.button_pressed.get(&btn), Some(&true));
+
+        session.apply_command(SimCommand::Stop, Some(&project), &repo());
+        assert!(session.latched.is_empty());
+        assert!(session.button_pressed.is_empty());
+    }
+
+    #[test]
+    fn canvas_momentary_press_release_and_c01_led_follow() {
+        let project = load_c01();
+        let mut session = SimSession::new();
+        session.boot_from_project(&project, &repo()).unwrap();
+        let btn = primary_button_id(&project).unwrap();
+        session.apply_command(SimCommand::Play, Some(&project), &repo());
+
+        // Released: pull-up → D2 high.
+        assert!(session.primary_raw_high());
+        session.canvas_button_press(&btn, Some(&project));
+        assert!(!session.primary_raw_high());
+        session.scan_once(Some(&project)).unwrap();
+        assert!(session.primary_led_on(), "ASL should drive LED from pressed");
+
+        session.canvas_button_release(Some(&project));
+        assert!(session.primary_raw_high());
+        session.scan_once(Some(&project)).unwrap();
+        assert!(!session.primary_led_on());
+    }
+
+    #[test]
+    fn led_current_in_snapshot_from_profile_r220() {
+        let project = load_c01();
+        let mut session = SimSession::new();
+        session.boot_from_project(&project, &repo()).unwrap();
+        let btn = primary_button_id(&project).unwrap();
+        session.apply_command(SimCommand::Play, Some(&project), &repo());
+        session.canvas_button_press(&btn, Some(&project));
+        session.scan_once(Some(&project)).unwrap();
+        let led = project
+            .components
+            .iter()
+            .find(|c| c.profile == "led")
+            .unwrap();
+        let st = session.snapshot.components.get(&led.instance_id).unwrap();
+        assert_eq!(st.led_burned, Some(false));
+        // C01 uses profile vf=2.1 default + R=220 → I=(5-2.1)/220 ≈ 13.18 mA
+        let i = st.led_current_a().unwrap();
+        assert!(i > 0.01 && i < 0.02, "I={i}");
+        assert_eq!(st.led_on, Some(true));
     }
 }

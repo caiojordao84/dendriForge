@@ -16,6 +16,7 @@ dendri-canvas = { workspace = true }
 dendri-emit = { workspace = true }
 dendri-frontends = { workspace = true }
 dendri-parse = { workspace = true }
+dendri-profiles = { workspace = true }
 dendri-sim = { workspace = true }
 dendri-sync = { workspace = true }
 iced = { workspace = true }

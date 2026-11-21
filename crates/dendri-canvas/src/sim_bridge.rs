@@ -1,4 +1,4 @@
-//! Phase C0 — runtime bridge contract shared by WorldCanvas and headless consumers.
+//! Phase C0/C1 — runtime bridge contract shared by WorldCanvas and headless consumers.
 //!
 //! ```text
 //! Runtime / snapshot
@@ -8,12 +8,16 @@
 //!
 //! Control semantics follow plan D-C2. Per-instance / terminal bindings avoid
 //! sole `button_pin` / `led_pin` coupling (GPIO high ≠ correctly wired).
+//! C1: LED DC current + burned (D-C3) live in the snapshot; canvas only presents.
 
 use std::collections::BTreeMap;
 
 use dendri_ast::{SimulationProject, Wire};
 use dendri_sim::Simulator;
 
+use crate::led_model::{
+    amperes_to_ua, evaluate_led, ua_to_amperes, LedElectricalParams,
+};
 use crate::PinBinding;
 
 /// Editor / bridge run mode (D-C2).
@@ -24,7 +28,7 @@ pub enum SimRunState {
     Idle,
     /// Continuously advancing scans on the runtime clock.
     Running,
-    /// Suspended; state preserved (including Ctrl+LMB latches when present).
+    /// Suspended; state preserved (including Shift+LMB latches when present).
     Paused,
 }
 
@@ -78,7 +82,7 @@ pub struct ControlOutcome {
     pub run_state: SimRunState,
     /// Cancel momentary button press (Pause / Stop / Reset).
     pub clear_momentary: bool,
-    /// Clear all Ctrl+LMB interaction latches (Stop / Reset).
+    /// Clear all Shift+LMB interaction latches (Stop / Reset).
     pub clear_latches: bool,
     /// Reboot runtime from project (Reset only).
     pub reboot_runtime: bool,
@@ -155,12 +159,25 @@ pub struct TerminalBinding {
 pub struct ComponentRuntimeState {
     pub instance_id: String,
     pub profile: String,
-    /// Crude LED driven state for C0 (full current/burned lands in C1).
+    /// Lit when forward current > 0 and not burned (presentation helper).
     pub led_on: Option<bool>,
-    /// Button actuation (UI press), not GPIO high alone.
+    /// Forward current in microamperes (µA). Canvas presents; never recomputes.
+    pub led_current_ua: Option<i64>,
+    /// Burned until Reset (open circuit after burn scan).
+    pub led_burned: Option<bool>,
+    /// Button actuation (UI press / latch), not GPIO high alone.
     pub button_pressed: Option<bool>,
+    /// True when this button is Shift+LMB latched (UI-only hold indicator).
+    pub button_latched: Option<bool>,
     /// Terminal port → logical pin level when bound to a board GPIO.
     pub terminals: BTreeMap<String, Option<bool>>,
+}
+
+impl ComponentRuntimeState {
+    /// Forward current in amperes (LED only).
+    pub fn led_current_a(&self) -> Option<f64> {
+        self.led_current_ua.map(ua_to_amperes)
+    }
 }
 
 /// Snapshot consumed by WorldCanvas and (optionally) headless CI.
@@ -204,11 +221,18 @@ impl RuntimeSnapshot {
         }
     }
 
-    /// First LED instance driven-on flag (C0 WorldCanvas crude glow).
+    /// Any LED with non-zero forward current and not burned.
     pub fn any_led_on(&self) -> bool {
         self.components
             .values()
             .any(|c| c.led_on == Some(true))
+    }
+
+    /// Any LED marked burned in the snapshot.
+    pub fn any_led_burned(&self) -> bool {
+        self.components
+            .values()
+            .any(|c| c.led_burned == Some(true))
     }
 
     /// Any button currently marked pressed in the snapshot.
@@ -350,17 +374,55 @@ fn parse_board_digital_from_endpoint(endpoint: &str) -> Option<u32> {
     digits.parse().ok()
 }
 
+/// Optional inputs that refine the snapshot beyond raw pin levels.
+#[derive(Debug, Clone)]
+pub struct SnapshotExtras<'a> {
+    /// Pushbutton instance id → user actuation (momentary ∪ latches).
+    pub button_pressed: &'a BTreeMap<String, bool>,
+    /// Pushbutton instance id → Shift+LMB latch (UI-only hold).
+    pub button_latched: &'a BTreeMap<String, bool>,
+    /// LED instance id → burned (persists until Reset).
+    pub led_burned: &'a BTreeMap<String, bool>,
+    /// Base electrical params (profile defaults + board V_high). Instance overrides apply on top.
+    pub led_params_base: LedElectricalParams,
+}
+
 /// Build a runtime snapshot from simulator + project bindings + actuation map.
 ///
-/// `button_pressed_by_instance` maps pushbutton instance id → user actuation.
-/// LED on/off comes from the **wired anode pin** when bound; unbound LEDs stay off
-/// (GPIO high alone does not light an unwired LED).
+/// LED electrical state (current / burned) is computed here from profile params —
+/// never by the canvas. Unbound LEDs stay off (GPIO high alone does not light them).
 pub fn build_runtime_snapshot(
     run_state: SimRunState,
     availability: RuntimeAvailability,
     sim: Option<&Simulator>,
     project: Option<&SimulationProject>,
     button_pressed_by_instance: &BTreeMap<String, bool>,
+    present_gen: u64,
+) -> RuntimeSnapshot {
+    let empty_latched = BTreeMap::new();
+    let empty_burned = BTreeMap::new();
+    build_runtime_snapshot_ex(
+        run_state,
+        availability,
+        sim,
+        project,
+        SnapshotExtras {
+            button_pressed: button_pressed_by_instance,
+            button_latched: &empty_latched,
+            led_burned: &empty_burned,
+            led_params_base: LedElectricalParams::PROFILE_DEFAULTS,
+        },
+        present_gen,
+    )
+}
+
+/// Full snapshot builder with latch / burn / LED params (C1).
+pub fn build_runtime_snapshot_ex(
+    run_state: SimRunState,
+    availability: RuntimeAvailability,
+    sim: Option<&Simulator>,
+    project: Option<&SimulationProject>,
+    extras: SnapshotExtras<'_>,
     present_gen: u64,
 ) -> RuntimeSnapshot {
     let Some(project) = project else {
@@ -384,12 +446,23 @@ pub fn build_runtime_snapshot(
     for comp in &project.components {
         let mut terminals = BTreeMap::new();
         let mut led_on = None;
+        let mut led_current_ua = None;
+        let mut led_burned = None;
         let mut button_pressed = None;
+        let mut button_latched = None;
         let is_led = comp.profile == "led";
         let is_btn = comp.profile.contains("button") || comp.profile.contains("push");
         if is_btn {
             button_pressed = Some(
-                button_pressed_by_instance
+                extras
+                    .button_pressed
+                    .get(&comp.instance_id)
+                    .copied()
+                    .unwrap_or(false),
+            );
+            button_latched = Some(
+                extras
+                    .button_latched
                     .get(&comp.instance_id)
                     .copied()
                     .unwrap_or(false),
@@ -397,7 +470,17 @@ pub fn build_runtime_snapshot(
         }
         if is_led {
             led_on = Some(false);
+            led_current_ua = Some(0);
+            led_burned = Some(
+                extras
+                    .led_burned
+                    .get(&comp.instance_id)
+                    .copied()
+                    .unwrap_or(false),
+            );
         }
+        let mut anode_high: Option<bool> = None;
+        let mut anode_wired = false;
         for b in bindings
             .iter()
             .filter(|b| b.instance_id == comp.instance_id && !b.terminal.is_empty())
@@ -405,8 +488,35 @@ pub fn build_runtime_snapshot(
             let level = b.board_pin.and_then(|p| pins.get(&p).copied());
             terminals.insert(b.terminal.clone(), level);
             if b.kind == TerminalKind::LedAnode {
-                // Only lit when actually wired to a driven-high pin.
-                led_on = Some(level == Some(true));
+                anode_wired = b.board_pin.is_some();
+                anode_high = level;
+            }
+        }
+        if is_led {
+            let already = extras
+                .led_burned
+                .get(&comp.instance_id)
+                .copied()
+                .unwrap_or(false);
+            let params = LedElectricalParams::resolve(comp, extras.led_params_base);
+            // Unwired LED: no anode drive → V_pin = 0 (GPIO high alone does not light).
+            let v_pin = if anode_wired {
+                params.v_pin(anode_high == Some(true))
+            } else {
+                0.0
+            };
+            let elec = evaluate_led(&params, v_pin, already);
+            // Snapshot of the burn scan reports burned=true with the non-zero I;
+            // later scans (already burned) report I=0.
+            let report_burned = already || elec.burned;
+            led_burned = Some(report_burned);
+            led_current_ua = Some(amperes_to_ua(elec.current));
+            // Presentation: lit only when current > 0 and not showing burned-dark.
+            // Burn scan still has I>0 but must present burned (not overexposed).
+            led_on = Some(elec.current > 0.0 && !report_burned);
+            if report_burned && elec.current > 0.0 && !already {
+                // Burn scan: force presentation to burned (dark), keep current for diagnostics.
+                led_on = Some(false);
             }
         }
         components.insert(
@@ -415,7 +525,10 @@ pub fn build_runtime_snapshot(
                 instance_id: comp.instance_id.clone(),
                 profile: comp.profile.clone(),
                 led_on,
+                led_current_ua,
+                led_burned,
                 button_pressed,
+                button_latched,
                 terminals,
             },
         );
@@ -428,7 +541,10 @@ pub fn build_runtime_snapshot(
             instance_id: project.board.instance_id.clone(),
             profile: project.board.profile.clone(),
             led_on: None,
+            led_current_ua: None,
+            led_burned: None,
             button_pressed: None,
+            button_latched: None,
             terminals: bindings
                 .iter()
                 .filter(|b| b.instance_id == project.board.instance_id)
@@ -452,6 +568,42 @@ pub fn build_runtime_snapshot(
     }
 }
 
+/// Advance LED burn state from the current pin levels (call after each scan).
+///
+/// Returns the updated burned map. Burn scan keeps non-zero I in the snapshot;
+/// subsequent calls see `already_burned` and force I=0.
+pub fn update_led_burn_state(
+    project: &SimulationProject,
+    pins: &BTreeMap<u32, bool>,
+    burned: &mut BTreeMap<String, bool>,
+    params_base: LedElectricalParams,
+) {
+    let bindings = resolve_terminal_bindings(project);
+    for comp in &project.components {
+        if comp.profile != "led" {
+            continue;
+        }
+        let already = burned.get(&comp.instance_id).copied().unwrap_or(false);
+        if already {
+            continue;
+        }
+        let anode = bindings.iter().find(|b| {
+            b.instance_id == comp.instance_id && b.kind == TerminalKind::LedAnode
+        });
+        let wired = anode.and_then(|b| b.board_pin).is_some();
+        let high = anode
+            .and_then(|b| b.board_pin)
+            .and_then(|p| pins.get(&p).copied())
+            .unwrap_or(false);
+        let params = LedElectricalParams::resolve(comp, params_base);
+        let v_pin = if wired { params.v_pin(high) } else { 0.0 };
+        let elec = evaluate_led(&params, v_pin, false);
+        if elec.burned {
+            burned.insert(comp.instance_id.clone(), true);
+        }
+    }
+}
+
 /// Legacy single-pin helpers still used by headless SVG hooks.
 pub fn legacy_led_pin_high(sim: &Simulator, binding: &PinBinding) -> bool {
     sim.pin(binding.led_pin)
@@ -460,6 +612,7 @@ pub fn legacy_led_pin_high(sim: &Simulator, binding: &PinBinding) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::led_model::LedElectricalParams;
     use dendri_ast::{ComponentInstance, SimulationProject, Wire};
     use dendri_parse::{parse_path, ParsedDocument};
     use dendri_sim::SimConfig;
@@ -642,5 +795,115 @@ mod tests {
         let wires = vec![Wire::new("board.D13", "led1.A")];
         assert_eq!(find_board_pin_for_endpoint(&wires, "led1.A"), Some(13));
         assert_eq!(find_board_pin_for_endpoint(&wires, "led1.K"), None);
+    }
+
+    #[test]
+    fn led_dc_current_from_profile_params_c01() {
+        // R=220, Vf=2.0 override, Vpin=5 → ≈13.6 mA, not burned.
+        let mut project = load_c01();
+        let led = project
+            .components
+            .iter_mut()
+            .find(|c| c.profile == "led")
+            .unwrap();
+        led.params
+            .insert("vf".into(), toml::Value::Float(2.0));
+        let mut canvas =
+            crate::SimCanvas::from_project(&project, repo(), &SimConfig::default()).unwrap();
+        canvas.boot().unwrap();
+        let _ = canvas.sim.set_pin(13, true);
+        let empty = BTreeMap::new();
+        let snap = build_runtime_snapshot_ex(
+            SimRunState::Idle,
+            RuntimeAvailability::Available,
+            Some(&canvas.sim),
+            Some(&project),
+            SnapshotExtras {
+                button_pressed: &empty,
+                button_latched: &empty,
+                led_burned: &empty,
+                led_params_base: LedElectricalParams::PROFILE_DEFAULTS,
+            },
+            1,
+        );
+        let led_id = project
+            .components
+            .iter()
+            .find(|c| c.profile == "led")
+            .unwrap()
+            .instance_id
+            .clone();
+        let st = snap.components.get(&led_id).unwrap();
+        assert_eq!(st.led_burned, Some(false));
+        assert_eq!(st.led_on, Some(true));
+        let i = st.led_current_a().unwrap();
+        assert!((i - 0.013636363636).abs() < 1e-6, "I={i}");
+    }
+
+    #[test]
+    fn led_burn_persists_and_opens_circuit_until_reset() {
+        let mut project = load_c01();
+        let led = project
+            .components
+            .iter_mut()
+            .find(|c| c.profile == "led")
+            .unwrap();
+        // Low R → I > if_max (0.03 A).
+        led.params
+            .insert("integrated_resistance".into(), toml::Value::Integer(10));
+        led.params
+            .insert("vf".into(), toml::Value::Float(2.0));
+        let mut canvas =
+            crate::SimCanvas::from_project(&project, repo(), &SimConfig::default()).unwrap();
+        canvas.boot().unwrap();
+        let _ = canvas.sim.set_pin(13, true);
+        let led_id = project
+            .components
+            .iter()
+            .find(|c| c.profile == "led")
+            .unwrap()
+            .instance_id
+            .clone();
+        let empty = BTreeMap::new();
+        let mut burned = BTreeMap::new();
+
+        // Burn scan: I > 0, burned=true, presentation not "on"/overexposed.
+        let snap = build_runtime_snapshot_ex(
+            SimRunState::Running,
+            RuntimeAvailability::Available,
+            Some(&canvas.sim),
+            Some(&project),
+            SnapshotExtras {
+                button_pressed: &empty,
+                button_latched: &empty,
+                led_burned: &burned,
+                led_params_base: LedElectricalParams::PROFILE_DEFAULTS,
+            },
+            1,
+        );
+        let st = snap.components.get(&led_id).unwrap();
+        assert_eq!(st.led_burned, Some(true));
+        assert!(st.led_current_a().unwrap() > 0.0);
+        assert_eq!(st.led_on, Some(false));
+        burned.insert(led_id.clone(), true);
+
+        // Later scans: I=0, still burned; pin high does not re-light.
+        let snap2 = build_runtime_snapshot_ex(
+            SimRunState::Running,
+            RuntimeAvailability::Available,
+            Some(&canvas.sim),
+            Some(&project),
+            SnapshotExtras {
+                button_pressed: &empty,
+                button_latched: &empty,
+                led_burned: &burned,
+                led_params_base: LedElectricalParams::PROFILE_DEFAULTS,
+            },
+            2,
+        );
+        let st2 = snap2.components.get(&led_id).unwrap();
+        assert_eq!(st2.led_burned, Some(true));
+        assert_eq!(st2.led_current_ua, Some(0));
+        assert_eq!(st2.led_on, Some(false));
     }
 }

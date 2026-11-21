@@ -933,6 +933,7 @@ dependencies = [
  "dendri-emit",
  "dendri-frontends",
  "dendri-parse",
+ "dendri-profiles",
  "dendri-sim",
  "dendri-sync",
  "iced",

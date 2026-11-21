@@ -146,6 +146,20 @@ enum Message {
     SelectPart {
         id: Option<String>,
     },
+    /// Canvas LMB down on button while Running (momentary).
+    CanvasButtonPress {
+        id: String,
+    },
+    /// Canvas LMB up while Running — release momentary.
+    CanvasButtonRelease,
+    /// Shift+LMB toggle latch while Running (D-C4).
+    CanvasButtonLatchToggle {
+        id: String,
+    },
+    /// Focus / cursor loss — cancel momentary only.
+    CanvasButtonCancelMomentary,
+    /// Track Shift for Running latch vs outside multi-select stub.
+    ShiftHeld(bool),
     SelectWire {
         index: Option<usize>,
     },
@@ -234,8 +248,10 @@ struct App {
     selection: CanvasSelection,
     /// Bumped on layout / wiring commits so the static canvas cache redraws.
     static_gen: u64,
-    /// MVP SVG handles (Uno / LED / button).
+    /// MVP SVG handles + prepared hook geometry (Uno / LED / button).
     scene_svgs: SceneSvgHandles,
+    /// Shift modifier — Running latch vs outside multi-select stub (D-C4).
+    shift_held: bool,
     hub: Option<AuthoringHub>,
     project_path: PathBuf,
     path_input: String,
@@ -268,6 +284,7 @@ impl App {
             selection: CanvasSelection::None,
             static_gen: 0,
             scene_svgs: SceneSvgHandles::load(repo_root()),
+            shift_held: false,
             hub: None,
             project_path: project_path.clone(),
             path_input: project_path.display().to_string(),
@@ -734,6 +751,37 @@ impl App {
                 };
                 self.context_menu = None;
             }
+            Message::CanvasButtonPress { id } => {
+                if let Some(hub) = self.hub.as_ref() {
+                    let project = hub.project().clone();
+                    self.sim.canvas_button_press(&id, Some(&project));
+                    self.status = self.sim.status_line();
+                }
+            }
+            Message::CanvasButtonRelease => {
+                if let Some(hub) = self.hub.as_ref() {
+                    let project = hub.project().clone();
+                    self.sim.canvas_button_release(Some(&project));
+                    self.status = self.sim.status_line();
+                }
+            }
+            Message::CanvasButtonLatchToggle { id } => {
+                if let Some(hub) = self.hub.as_ref() {
+                    let project = hub.project().clone();
+                    self.sim.canvas_button_latch_toggle(&id, Some(&project));
+                    self.status = self.sim.status_line();
+                }
+            }
+            Message::CanvasButtonCancelMomentary => {
+                if let Some(hub) = self.hub.as_ref() {
+                    let project = hub.project().clone();
+                    self.sim.cancel_momentary(Some(&project));
+                    self.status = self.sim.status_line();
+                }
+            }
+            Message::ShiftHeld(held) => {
+                self.shift_held = held;
+            }
             Message::SelectWire { index } => {
                 self.selection = match index {
                     Some(i) => CanvasSelection::Wire(i),
@@ -1098,35 +1146,52 @@ impl App {
             Subscription::none()
         };
         let keys = event::listen_with(|event, status, _id| {
-            if status == event::Status::Captured {
-                return None;
-            }
-            let Event::Keyboard(keyboard::Event::KeyPressed { key, modifiers, .. }) = event else {
-                return None;
-            };
             use keyboard::key::Named;
             use keyboard::Key;
-            match key {
-                Key::Character(c) if c.eq_ignore_ascii_case("r") && !modifiers.control() => {
-                    Some(Message::KeyChord(KeyChord::Rotate))
+            match event {
+                Event::Keyboard(keyboard::Event::KeyPressed { key, modifiers, .. }) => {
+                    // Always track Shift for canvas latch / multi-select stub.
+                    if matches!(key, Key::Named(Named::Shift)) {
+                        return Some(Message::ShiftHeld(true));
+                    }
+                    if status == event::Status::Captured {
+                        return None;
+                    }
+                    match key {
+                        Key::Character(c) if c.eq_ignore_ascii_case("r") && !modifiers.control() => {
+                            Some(Message::KeyChord(KeyChord::Rotate))
+                        }
+                        Key::Named(Named::Delete) | Key::Named(Named::Backspace) => {
+                            Some(Message::KeyChord(KeyChord::Delete))
+                        }
+                        Key::Character(c) if modifiers.control() && c.eq_ignore_ascii_case("c") => {
+                            Some(Message::KeyChord(KeyChord::Copy))
+                        }
+                        Key::Character(c) if modifiers.control() && c.eq_ignore_ascii_case("x") => {
+                            Some(Message::KeyChord(KeyChord::Cut))
+                        }
+                        Key::Character(c) if modifiers.control() && c.eq_ignore_ascii_case("v") => {
+                            Some(Message::KeyChord(KeyChord::Paste))
+                        }
+                        Key::Character(c) if modifiers.control() && c.eq_ignore_ascii_case("z") => {
+                            Some(Message::KeyChord(KeyChord::Undo))
+                        }
+                        Key::Character(c) if modifiers.control() && c.eq_ignore_ascii_case("y") => {
+                            Some(Message::KeyChord(KeyChord::Redo))
+                        }
+                        _ => None,
+                    }
                 }
-                Key::Named(Named::Delete) | Key::Named(Named::Backspace) => {
-                    Some(Message::KeyChord(KeyChord::Delete))
+                Event::Keyboard(keyboard::Event::KeyReleased { key, .. }) => {
+                    if matches!(key, Key::Named(Named::Shift)) {
+                        Some(Message::ShiftHeld(false))
+                    } else {
+                        None
+                    }
                 }
-                Key::Character(c) if modifiers.control() && c.eq_ignore_ascii_case("c") => {
-                    Some(Message::KeyChord(KeyChord::Copy))
-                }
-                Key::Character(c) if modifiers.control() && c.eq_ignore_ascii_case("x") => {
-                    Some(Message::KeyChord(KeyChord::Cut))
-                }
-                Key::Character(c) if modifiers.control() && c.eq_ignore_ascii_case("v") => {
-                    Some(Message::KeyChord(KeyChord::Paste))
-                }
-                Key::Character(c) if modifiers.control() && c.eq_ignore_ascii_case("z") => {
-                    Some(Message::KeyChord(KeyChord::Undo))
-                }
-                Key::Character(c) if modifiers.control() && c.eq_ignore_ascii_case("y") => {
-                    Some(Message::KeyChord(KeyChord::Redo))
+                Event::Keyboard(keyboard::Event::ModifiersChanged(modifiers)) => {
+                    // Keep Shift in sync even when chorded with other keys.
+                    Some(Message::ShiftHeld(modifiers.shift()))
                 }
                 _ => None,
             }
@@ -1283,6 +1348,7 @@ impl App {
             svgs: &self.scene_svgs,
             snapshot: &self.sim.snapshot,
             edits_allowed: self.sim.edits_allowed(),
+            shift_held: self.shift_held,
             static_gen: self.static_gen,
         })
         .width(Length::Fill)
