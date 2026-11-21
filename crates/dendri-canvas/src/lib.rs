@@ -26,6 +26,7 @@ pub mod grid;
 pub mod interpolate;
 pub mod routing;
 pub mod scene;
+pub mod sim_bridge;
 pub mod svg_contract;
 pub mod svg_dyn;
 pub mod wires;
@@ -51,6 +52,11 @@ pub use wires::{
     pick_wire, route_wires, waypoint_from_click, wire_color_kind, RoutedWire, TerminalRef,
     WireColorKind, PIN_SNAP_SCREEN_PX, WIRE_BASE_WIDTH_PX, WIRE_COLOR_WIDTH_PX,
     WIRE_FILLET_SCREEN_PX, WIRE_HIT_SCREEN_PX,
+};
+pub use sim_bridge::{
+    apply_sim_command, build_runtime_snapshot, resolve_terminal_bindings, ComponentRuntimeState,
+    ControlOutcome, RuntimeAvailability, RuntimeSnapshot, SimCommand, SimRunState,
+    TerminalBinding, TerminalKind,
 };
 pub use world::{
     LedPlaceholder, LocalTerminal, MvpProfile, PartKind, PhaseAScene, Scene, ScenePart,
@@ -441,7 +447,9 @@ impl SimCanvas {
             self.binding.button_pin,
             self.binding.button_pin_level(false),
         );
-        Ok(self.capture())
+        // Live sessions must not accumulate unbounded frames (C0).
+        // Tests that need a history call [`Self::record_frame`] / [`Self::step_and_record`].
+        Ok(self.current_frame())
     }
 
     pub fn press_button(&mut self) {
@@ -468,19 +476,56 @@ impl SimCanvas {
         }
     }
 
+    /// Advance one scan cycle. Does **not** append to [`Self::frames`] (live-safe).
     pub fn step(&mut self) -> Result<VisualFrame, String> {
         self.sim.step()?;
-        Ok(self.capture())
+        Ok(self.current_frame())
     }
 
+    /// Like [`Self::step`], then append to the explicit capture history (tests / CLI).
+    pub fn step_and_record(&mut self) -> Result<VisualFrame, String> {
+        let frame = self.step()?;
+        self.record_frame(frame.clone());
+        Ok(frame)
+    }
+
+    /// Append a frame to the explicit history (tests / CLI capture only).
+    pub fn record_frame(&mut self, frame: VisualFrame) {
+        self.frames.push(frame);
+    }
+
+    /// Capture current state into the history buffer (explicit; not used by live editor).
     pub fn capture(&mut self) -> VisualFrame {
-        let frame = VisualFrame::from_sim(&self.sim, &self.binding, self.button_pressed);
-        self.frames.push(frame.clone());
+        let frame = self.current_frame();
+        self.record_frame(frame.clone());
         frame
+    }
+
+    /// Clear the optional capture history (keeps runtime state).
+    pub fn clear_frame_history(&mut self) {
+        self.frames.clear();
     }
 
     pub fn current_frame(&self) -> VisualFrame {
         VisualFrame::from_sim(&self.sim, &self.binding, self.button_pressed)
+    }
+
+    /// Shared runtime snapshot for WorldCanvas / headless consumers (D-C7).
+    pub fn runtime_snapshot(
+        &self,
+        project: &SimulationProject,
+        run_state: SimRunState,
+        button_pressed_by_instance: &BTreeMap<String, bool>,
+        present_gen: u64,
+    ) -> RuntimeSnapshot {
+        build_runtime_snapshot(
+            run_state,
+            RuntimeAvailability::Available,
+            Some(&self.sim),
+            Some(project),
+            button_pressed_by_instance,
+            present_gen,
+        )
     }
 
     pub fn rendered_led(&self) -> String {

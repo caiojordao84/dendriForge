@@ -502,6 +502,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 dendri_canvas::SimCanvas::from_project(&project, &root, &cfg)
                     .map_err(|e| e.to_string())?;
             canvas.boot().map_err(|e| e.to_string())?;
+            canvas.record_frame(canvas.current_frame());
             for token in sequence.split(',') {
                 let pressed = match token.trim() {
                     "1" | "true" | "pressed" | "on" => true,
@@ -509,7 +510,7 @@ fn run(cli: Cli) -> Result<(), String> {
                     other => return Err(format!("bad sequence token: {other}")),
                 };
                 canvas.set_button(pressed);
-                canvas.step().map_err(|e| e.to_string())?;
+                canvas.step_and_record().map_err(|e| e.to_string())?;
             }
             print!("{}", canvas.frames_snapshot());
             Ok(())
