@@ -31,16 +31,88 @@ pub struct SimulationProject {
     pub asl: Program,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// Canvas layout pose in **grid units** (1 u = 4 mm). Phase B1.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct LayoutPose {
+    /// Origin X (top-left of unrotated body AABB), grid units.
+    #[serde(default)]
+    pub x: f64,
+    /// Origin Y (top-left of unrotated body AABB), grid units.
+    #[serde(default)]
+    pub y: f64,
+    /// Rotation in degrees: `0 | 90 | 180 | 270`.
+    #[serde(default, deserialize_with = "deserialize_rotation")]
+    pub rotation: u16,
+    #[serde(default)]
+    pub mirror_x: bool,
+    #[serde(default)]
+    pub mirror_y: bool,
+}
+
+impl Default for LayoutPose {
+    fn default() -> Self {
+        Self {
+            x: 0.0,
+            y: 0.0,
+            rotation: 0,
+            mirror_x: false,
+            mirror_y: false,
+        }
+    }
+}
+
+impl LayoutPose {
+    pub fn with_xy(x: f64, y: f64) -> Self {
+        Self {
+            x,
+            y,
+            ..Self::default()
+        }
+    }
+
+    /// Normalize to the nearest quadrant (`0/90/180/270`).
+    pub fn normalize_rotation(deg: u16) -> u16 {
+        let d = (deg as u32) % 360;
+        let q = ((d as f64) / 90.0).round() as u32 % 4;
+        (q * 90) as u16
+    }
+
+    pub fn rotate_cw_90(&mut self) {
+        self.rotation = Self::normalize_rotation(self.rotation.wrapping_add(90));
+    }
+}
+
+fn deserialize_rotation<'de, D>(deserializer: D) -> Result<u16, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let v = u16::deserialize(deserializer)?;
+    Ok(LayoutPose::normalize_rotation(v))
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BoardInstance {
     /// Profile id, e.g. `arduino-uno-r3`.
     pub profile: String,
     #[serde(default = "default_board_id")]
     pub instance_id: String,
+    /// Layout in grid units (Phase B1).
+    #[serde(flatten)]
+    pub layout: LayoutPose,
 }
 
 fn default_board_id() -> String {
     "board".into()
+}
+
+impl Default for BoardInstance {
+    fn default() -> Self {
+        Self {
+            profile: "arduino-uno-r3".into(),
+            instance_id: default_board_id(),
+            layout: LayoutPose::default(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -54,6 +126,9 @@ pub struct ComponentInstance {
     /// Free-form param overrides (color, etc.).
     #[serde(default)]
     pub params: toml::map::Map<String, toml::Value>,
+    /// Layout in grid units (Phase B1).
+    #[serde(flatten)]
+    pub layout: LayoutPose,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -124,5 +199,41 @@ impl SourceLanguage {
             Self::Sfc => "build/sfc/sfc.toml",
             Self::Asl => "build/asl/program.toml",
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn layout_roundtrip_toml() {
+        let board = BoardInstance {
+            profile: "arduino-uno-r3".into(),
+            instance_id: "board".into(),
+            layout: LayoutPose {
+                x: 1.0,
+                y: 2.0,
+                rotation: 90,
+                mirror_x: true,
+                mirror_y: false,
+            },
+        };
+        let text = toml::to_string(&board).unwrap();
+        assert!(text.contains("x = 1.0") || text.contains("x = 1"));
+        assert!(text.contains("rotation = 90"));
+        assert!(text.contains("mirror_x = true"));
+        let back: BoardInstance = toml::from_str(&text).unwrap();
+        assert_eq!(back.layout.rotation, 90);
+        assert!(back.layout.mirror_x);
+        assert!((back.layout.x - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn rotation_snaps_to_quadrant() {
+        assert_eq!(LayoutPose::normalize_rotation(45), 90);
+        assert_eq!(LayoutPose::normalize_rotation(0), 0);
+        assert_eq!(LayoutPose::normalize_rotation(270), 270);
+        assert_eq!(LayoutPose::normalize_rotation(360), 0);
     }
 }

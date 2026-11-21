@@ -314,6 +314,7 @@ mod tests {
             board: BoardInstance {
                 profile: "arduino-uno-r3".into(),
                 instance_id: "board".into(),
+                layout: Default::default(),
             },
             components: vec![],
             wiring: vec![],
