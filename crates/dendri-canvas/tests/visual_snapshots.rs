@@ -41,26 +41,10 @@ fn load_canvas(rel: &str) -> SimCanvas {
                     },
                 ],
                 wiring: vec![
-                    dendri_ast::Wire {
-                        from: "board.D13".into(),
-                        to: "led1.A".into(),
-                        signal: Some("digital".into()),
-                    },
-                    dendri_ast::Wire {
-                        from: "board.GND".into(),
-                        to: "led1.K".into(),
-                        signal: Some("gnd".into()),
-                    },
-                    dendri_ast::Wire {
-                        from: "board.D2".into(),
-                        to: "btn_start.NO".into(),
-                        signal: Some("digital".into()),
-                    },
-                    dendri_ast::Wire {
-                        from: "board.GND".into(),
-                        to: "btn_start.COM".into(),
-                        signal: Some("gnd".into()),
-                    },
+                    dendri_ast::Wire::new("board.D13", "led1.A").with_signal("digital"),
+                    dendri_ast::Wire::new("board.GND", "led1.K").with_signal("gnd"),
+                    dendri_ast::Wire::new("board.D2", "btn_start.NO").with_signal("digital"),
+                    dendri_ast::Wire::new("board.GND", "btn_start.COM").with_signal("gnd"),
                 ],
                 sources: vec![],
                 asl: p.program,

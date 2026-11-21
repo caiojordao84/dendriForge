@@ -1,14 +1,24 @@
-//! Phase B1 Simulation world: scene from project, SVG bodies, pick/drag/snap.
+//! Phase B2 Simulation world: parts + wires, trilayer cache, pin snap.
 //!
-//! Input: LMB select/drag (grid snap), MMB pan, scroll zoom, R rotate,
-//! RMB context menus (via messages). Canvas stays full-bleed under overlays.
+//! Input: LMB select/drag parts, LMB pin→pin wire, click wire select / waypoint,
+//! MMB pan, scroll zoom, R rotate. Canvas stays full-bleed under overlays.
+//!
+//! Caches (plan §6):
+//! - **background** — grid (invalidate on pan/zoom)
+//! - **static** — parts + committed wires (invalidate on layout/wire commit)
+//! - **dynamic** — rubber-band, pin glow, hover (invalidate on CursorMoved)
 
+use std::cell::Cell;
 use std::f32::consts::PI;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
+use dendri_ast::Wire;
 use dendri_canvas::{
-    Camera, MvpProfile, Scene, ScenePart, TerminalRole, WorldPoint, ZOOM_MAX, ZOOM_MIN,
+    pick_wire, route_wires, rubber_band, waypoint_from_click, Camera, MvpProfile, RoutedWire,
+    Scene, ScenePart, TerminalRef, TerminalRole, WireColorKind, WorldPoint, PIN_SNAP_SCREEN_PX,
+    WIRE_BASE_WIDTH_PX, WIRE_COLOR_WIDTH_PX, WIRE_FILLET_SCREEN_PX, WIRE_HIT_SCREEN_PX, ZOOM_MAX,
+    ZOOM_MIN,
 };
 use iced::{
     mouse,
@@ -19,22 +29,63 @@ use iced::{
 use crate::theme as ui;
 use crate::Message;
 
-/// Drag / pan state living in the iced canvas Program state.
-#[derive(Debug, Default, Clone)]
+/// Canvas selection: a part instance or a wiring index.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CanvasSelection {
+    None,
+    Part(String),
+    Wire(usize),
+}
+
+impl Default for CanvasSelection {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
+impl CanvasSelection {
+    pub fn part_id(&self) -> Option<&str> {
+        match self {
+            Self::Part(id) => Some(id.as_str()),
+            _ => None,
+        }
+    }
+
+    pub fn wire_index(&self) -> Option<usize> {
+        match self {
+            Self::Wire(i) => Some(*i),
+            _ => None,
+        }
+    }
+}
+
+/// Drag / pan / wire state living in the iced canvas Program state.
+#[derive(Debug, Default)]
 pub struct WorldCanvasState {
     pan_last: Option<Point>,
-    /// LMB drag in progress.
     drag: Option<DragState>,
+    wire_drag: Option<WireDragState>,
     last_click: Option<(Instant, Point)>,
+    bg_cache: canvas::Cache,
+    static_cache: canvas::Cache,
+    dynamic_cache: canvas::Cache,
+    cached_zoom: Cell<f64>,
+    cached_pan_x: Cell<f64>,
+    cached_pan_y: Cell<f64>,
+    cached_static_gen: Cell<u64>,
 }
 
 #[derive(Debug, Clone)]
 struct DragState {
     id: String,
-    /// World-space offset from part origin to grab point.
     grab_dx: f64,
     grab_dy: f64,
     started: bool,
+}
+
+#[derive(Debug, Clone)]
+struct WireDragState {
+    from: TerminalRef,
 }
 
 /// SVG handles for MVP parts (loaded once at app boot).
@@ -80,9 +131,12 @@ fn resolve(root: &std::path::Path, preferred: &str, fallback: &str) -> PathBuf {
 pub struct WorldCanvas<'a> {
     pub camera: Camera,
     pub scene: &'a Scene,
-    pub selection: Option<&'a str>,
+    pub wiring: &'a [Wire],
+    pub selection: &'a CanvasSelection,
     pub svgs: &'a SceneSvgHandles,
     pub led_on: bool,
+    /// Bumped whenever static geometry must redraw (layout / wire commit).
+    pub static_gen: u64,
 }
 
 impl canvas::Program<Message> for WorldCanvas<'_> {
@@ -136,7 +190,6 @@ impl canvas::Program<Message> for WorldCanvas<'_> {
                 let Some(pos) = cursor.position_in(bounds) else {
                     return (canvas::event::Status::Ignored, None);
                 };
-                // Double-click → open properties hook.
                 let now = Instant::now();
                 let is_double = state
                     .last_click
@@ -150,6 +203,79 @@ impl canvas::Program<Message> for WorldCanvas<'_> {
                 state.last_click = Some((now, pos));
 
                 let world = self.camera.view_to_world(pos.x as f64, pos.y as f64);
+
+                // 1) Terminal hit → start wire (or complete if already dragging).
+                if let Some(term) = self.scene.nearest_terminal_screen(
+                    &self.camera,
+                    pos.x as f64,
+                    pos.y as f64,
+                    PIN_SNAP_SCREEN_PX,
+                ) {
+                    if let Some(drag) = state.wire_drag.take() {
+                        if drag.from.endpoint != term.endpoint {
+                            state.dynamic_cache.clear();
+                            return (
+                                canvas::event::Status::Captured,
+                                Some(Message::CreateWire {
+                                    from: drag.from.endpoint,
+                                    to: term.endpoint,
+                                }),
+                            );
+                        }
+                        state.dynamic_cache.clear();
+                        return (canvas::event::Status::Captured, None);
+                    }
+                    state.wire_drag = Some(WireDragState { from: term });
+                    state.drag = None;
+                    state.dynamic_cache.clear();
+                    return (canvas::event::Status::Captured, None);
+                }
+
+                // 2) Wire hit → select or insert waypoint when already selected.
+                let routed = route_wires(self.scene, self.wiring);
+                if let Some((idx, closest, seg)) = pick_wire(
+                    &self.camera,
+                    &routed,
+                    pos.x as f64,
+                    pos.y as f64,
+                    WIRE_HIT_SCREEN_PX,
+                ) {
+                    if matches!(self.selection, CanvasSelection::Wire(i) if *i == idx) {
+                        let wp = waypoint_from_click(closest);
+                        // after_segment maps to waypoint insert index
+                        // (segment 0 = before first waypoint).
+                        let after = seg.saturating_sub(0);
+                        // Insert after the first point of the segment relative to
+                        // auto-route corners: use segment index among polyline
+                        // minus endpoints — clamp into waypoints list.
+                        let insert_after = {
+                            let n_wp = self.wiring.get(idx).map(|w| w.waypoints.len()).unwrap_or(0);
+                            // Prefer inserting after the waypoint that precedes this
+                            // segment; for auto routes (0 waypoints) insert at 0.
+                            if n_wp == 0 {
+                                0
+                            } else {
+                                after.min(n_wp)
+                            }
+                        };
+                        return (
+                            canvas::event::Status::Captured,
+                            Some(Message::InsertWireWaypoint {
+                                index: idx,
+                                at: wp,
+                                after_segment: insert_after,
+                            }),
+                        );
+                    }
+                    state.drag = None;
+                    state.wire_drag = None;
+                    return (
+                        canvas::event::Status::Captured,
+                        Some(Message::SelectWire { index: Some(idx) }),
+                    );
+                }
+
+                // 3) Part hit → select / drag / double-click properties.
                 if let Some(part) = self.scene.pick(world) {
                     if is_double {
                         return (
@@ -159,6 +285,7 @@ impl canvas::Program<Message> for WorldCanvas<'_> {
                             }),
                         );
                     }
+                    state.wire_drag = None;
                     state.drag = Some(DragState {
                         id: part.id.clone(),
                         grab_dx: world.x - part.pose.x,
@@ -173,6 +300,8 @@ impl canvas::Program<Message> for WorldCanvas<'_> {
                     )
                 } else {
                     state.drag = None;
+                    state.wire_drag = None;
+                    state.dynamic_cache.clear();
                     (
                         canvas::event::Status::Captured,
                         Some(Message::SelectPart { id: None }),
@@ -186,6 +315,28 @@ impl canvas::Program<Message> for WorldCanvas<'_> {
                             canvas::event::Status::Captured,
                             Some(Message::DragPartEnd { id: drag.id }),
                         );
+                    }
+                }
+                // Wire drag completes on press of target terminal; release alone
+                // cancels if cursor is not on a pin (handled on next press).
+                // Cancel rubber-band on empty release.
+                if state.wire_drag.is_some() {
+                    if let Some(pos) = cursor.position_in(bounds) {
+                        if self
+                            .scene
+                            .nearest_terminal_screen(
+                                &self.camera,
+                                pos.x as f64,
+                                pos.y as f64,
+                                PIN_SNAP_SCREEN_PX,
+                            )
+                            .is_none()
+                        {
+                            // Keep drag active until second press or escape via
+                            // empty click — do not cancel on release so user can
+                            // pan with MMB mid-drag. Cancel only if released far
+                            // without having moved? Keep until press elsewhere.
+                        }
                     }
                 }
                 (canvas::event::Status::Captured, None)
@@ -205,16 +356,35 @@ impl canvas::Program<Message> for WorldCanvas<'_> {
                         }),
                     )
                 } else {
-                    (
-                        canvas::event::Status::Captured,
-                        Some(Message::ShowEmptyContextMenu {
-                            screen_x: bounds.x + pos.x,
-                            screen_y: bounds.y + pos.y,
-                        }),
-                    )
+                    let routed = route_wires(self.scene, self.wiring);
+                    if let Some((idx, _, _)) = pick_wire(
+                        &self.camera,
+                        &routed,
+                        pos.x as f64,
+                        pos.y as f64,
+                        WIRE_HIT_SCREEN_PX,
+                    ) {
+                        (
+                            canvas::event::Status::Captured,
+                            Some(Message::ShowWireContextMenu {
+                                index: idx,
+                                screen_x: bounds.x + pos.x,
+                                screen_y: bounds.y + pos.y,
+                            }),
+                        )
+                    } else {
+                        (
+                            canvas::event::Status::Captured,
+                            Some(Message::ShowEmptyContextMenu {
+                                screen_x: bounds.x + pos.x,
+                                screen_y: bounds.y + pos.y,
+                            }),
+                        )
+                    }
                 }
             }
             canvas::Event::Mouse(mouse::Event::CursorMoved { .. }) => {
+                state.dynamic_cache.clear();
                 if let Some(last) = state.pan_last {
                     let Some(pos) = cursor.position_in(bounds) else {
                         return (canvas::event::Status::Ignored, None);
@@ -253,10 +423,18 @@ impl canvas::Program<Message> for WorldCanvas<'_> {
                         }),
                     );
                 }
+                if state.wire_drag.is_some() {
+                    return (canvas::event::Status::Captured, None);
+                }
+                // Hover near pins still needs a redraw (dynamic cache cleared).
+                if cursor.position_in(bounds).is_some() {
+                    return (canvas::event::Status::Captured, None);
+                }
                 (canvas::event::Status::Ignored, None)
             }
             canvas::Event::Mouse(mouse::Event::CursorLeft) => {
                 state.pan_last = None;
+                state.dynamic_cache.clear();
                 (canvas::event::Status::Ignored, None)
             }
             _ => (canvas::event::Status::Ignored, None),
@@ -273,6 +451,8 @@ impl canvas::Program<Message> for WorldCanvas<'_> {
             mouse::Interaction::Grabbing
         } else if state.drag.is_some() {
             mouse::Interaction::Grabbing
+        } else if state.wire_drag.is_some() {
+            mouse::Interaction::Crosshair
         } else if cursor.is_over(bounds) {
             mouse::Interaction::Crosshair
         } else {
@@ -282,31 +462,234 @@ impl canvas::Program<Message> for WorldCanvas<'_> {
 
     fn draw(
         &self,
-        _state: &WorldCanvasState,
+        state: &WorldCanvasState,
         renderer: &Renderer,
         _theme: &Theme,
         bounds: Rectangle,
-        _cursor: mouse::Cursor,
+        cursor: mouse::Cursor,
     ) -> Vec<Geometry> {
-        let mut frame = Frame::new(renderer, bounds.size());
-        frame.fill_rectangle(Point::ORIGIN, bounds.size(), ui::SURFACE);
-
-        draw_line_grid(
-            &mut frame,
-            &self.camera,
-            bounds.size().width,
-            bounds.size().height,
-        );
-
-        for part in &self.scene.parts {
-            let selected = self.selection == Some(part.id.as_str());
-            draw_part(&mut frame, &self.camera, part, self.svgs, selected, self.led_on);
+        if (state.cached_zoom.get() - self.camera.zoom).abs() > 1e-12
+            || (state.cached_pan_x.get() - self.camera.pan.x).abs() > 1e-12
+            || (state.cached_pan_y.get() - self.camera.pan.y).abs() > 1e-12
+        {
+            state.bg_cache.clear();
+            state.static_cache.clear();
+            state.cached_zoom.set(self.camera.zoom);
+            state.cached_pan_x.set(self.camera.pan.x);
+            state.cached_pan_y.set(self.camera.pan.y);
+        }
+        if state.cached_static_gen.get() != self.static_gen {
+            state.static_cache.clear();
+            state.cached_static_gen.set(self.static_gen);
         }
 
-        draw_overlay(&mut frame, &self.camera, bounds.size().width);
+        let size = bounds.size();
+        let routed = route_wires(self.scene, self.wiring);
 
-        vec![frame.into_geometry()]
+        let bg = state.bg_cache.draw(renderer, size, |frame| {
+            frame.fill_rectangle(Point::ORIGIN, size, ui::SURFACE);
+            draw_line_grid(
+                frame,
+                &self.camera,
+                size.width,
+                size.height,
+            );
+        });
+
+        let static_geo = state.static_cache.draw(renderer, size, |frame| {
+            for part in &self.scene.parts {
+                let selected = self.selection.part_id() == Some(part.id.as_str());
+                draw_part(
+                    frame,
+                    &self.camera,
+                    part,
+                    self.svgs,
+                    selected,
+                    self.led_on,
+                );
+            }
+            for w in &routed {
+                let selected = self.selection.wire_index() == Some(w.index);
+                draw_routed_wire(frame, &self.camera, w, selected);
+            }
+        });
+
+        let dynamic = state.dynamic_cache.draw(renderer, size, |frame| {
+            let cursor_pos = cursor.position_in(bounds);
+            let snap = cursor_pos.and_then(|pos| {
+                self.scene.nearest_terminal_screen(
+                    &self.camera,
+                    pos.x as f64,
+                    pos.y as f64,
+                    PIN_SNAP_SCREEN_PX,
+                )
+            });
+
+            if let Some(term) = snap.as_ref() {
+                draw_pin_glow(frame, &self.camera, term.world);
+            }
+
+            if let Some(drag) = state.wire_drag.as_ref() {
+                let end = snap
+                    .as_ref()
+                    .map(|t| t.world)
+                    .or_else(|| {
+                        cursor_pos.map(|pos| {
+                            self.camera.view_to_world(pos.x as f64, pos.y as f64)
+                        })
+                    })
+                    .unwrap_or(drag.from.world);
+                let pts = rubber_band(drag.from.world, end);
+                draw_polyline_dual(
+                    frame,
+                    &self.camera,
+                    &pts,
+                    ui::wire_color(ui::WireRole::Default),
+                    false,
+                );
+                draw_pin_glow(frame, &self.camera, drag.from.world);
+            }
+
+            draw_overlay(frame, &self.camera, size.width, state.wire_drag.is_some());
+        });
+
+        vec![bg, static_geo, dynamic]
     }
+}
+
+fn draw_routed_wire(frame: &mut Frame, camera: &Camera, wire: &RoutedWire, selected: bool) {
+    if wire.points.len() < 2 {
+        return;
+    }
+    let color = wire_draw_color(wire);
+    draw_polyline_dual(frame, camera, &wire.points, color, selected);
+}
+
+fn wire_draw_color(wire: &RoutedWire) -> Color {
+    match dendri_canvas::wire_color_kind(
+        wire.signal.as_deref(),
+        wire.from_role,
+        wire.to_role,
+        wire.sequence,
+    ) {
+        WireColorKind::Gnd => ui::wire_color(ui::WireRole::Gnd),
+        WireColorKind::Vcc => ui::wire_color(ui::WireRole::Vcc),
+        WireColorKind::Signal { sequence, from } => {
+            let base = ui::wire_color(ui::WireRole::InheritPin(terminal_to_pin(from)));
+            sequential_tint(base, sequence)
+        }
+    }
+}
+
+fn terminal_to_pin(role: TerminalRole) -> ui::PinRole {
+    match role {
+        TerminalRole::Digital => ui::PinRole::Digital,
+        TerminalRole::Analog => ui::PinRole::Analog,
+        TerminalRole::Power => ui::PinRole::Power,
+        TerminalRole::Gnd => ui::PinRole::Gnd,
+        TerminalRole::Reset => ui::PinRole::Reset,
+        TerminalRole::Nc => ui::PinRole::Nc,
+    }
+}
+
+fn sequential_tint(base: Color, sequence: usize) -> Color {
+    // Cycle lightness slightly so parallel digital wires remain distinct.
+    let f = ((sequence % 5) as f32) * 0.04;
+    Color {
+        r: (base.r * (1.0 - f) + f * 0.9).clamp(0.0, 1.0),
+        g: (base.g * (1.0 - f * 0.5)).clamp(0.0, 1.0),
+        b: (base.b * (1.0 + f * 0.2)).clamp(0.0, 1.0),
+        a: base.a,
+    }
+}
+
+fn draw_polyline_dual(
+    frame: &mut Frame,
+    camera: &Camera,
+    points: &[WorldPoint],
+    color: Color,
+    selected: bool,
+) {
+    let path = filleted_path(camera, points, WIRE_FILLET_SCREEN_PX);
+    let base = Color {
+        r: 0.05,
+        g: 0.07,
+        b: 0.12,
+        a: 0.55,
+    };
+    frame.stroke(
+        &path,
+        Stroke::default()
+            .with_color(base)
+            .with_width(if selected {
+                WIRE_BASE_WIDTH_PX + 2.0
+            } else {
+                WIRE_BASE_WIDTH_PX
+            }),
+    );
+    frame.stroke(
+        &path,
+        Stroke::default()
+            .with_color(if selected { ui::SKY } else { color })
+            .with_width(WIRE_COLOR_WIDTH_PX),
+    );
+}
+
+fn filleted_path(camera: &Camera, points: &[WorldPoint], radius_px: f32) -> Path {
+    let view: Vec<Point> = points
+        .iter()
+        .map(|p| {
+            let (x, y) = camera.world_to_view(*p);
+            Point::new(x as f32, y as f32)
+        })
+        .collect();
+    if view.len() < 2 {
+        return Path::new(|_| {});
+    }
+    Path::new(|b| {
+        b.move_to(view[0]);
+        if view.len() == 2 {
+            b.line_to(view[1]);
+            return;
+        }
+        for i in 1..view.len() - 1 {
+            let prev = view[i - 1];
+            let curr = view[i];
+            let next = view[i + 1];
+            let (p1, p2) = fillet_cut(prev, curr, next, radius_px);
+            b.line_to(p1);
+            b.arc_to(curr, p2, radius_px);
+        }
+        b.line_to(*view.last().unwrap());
+    })
+}
+
+fn fillet_cut(prev: Point, curr: Point, next: Point, radius: f32) -> (Point, Point) {
+    let d1x = curr.x - prev.x;
+    let d1y = curr.y - prev.y;
+    let d2x = next.x - curr.x;
+    let d2y = next.y - curr.y;
+    let len1 = (d1x * d1x + d1y * d1y).sqrt().max(1e-3);
+    let len2 = (d2x * d2x + d2y * d2y).sqrt().max(1e-3);
+    let r = radius.min(len1 * 0.45).min(len2 * 0.45);
+    let p1 = Point::new(curr.x - d1x / len1 * r, curr.y - d1y / len1 * r);
+    let p2 = Point::new(curr.x + d2x / len2 * r, curr.y + d2y / len2 * r);
+    (p1, p2)
+}
+
+fn draw_pin_glow(frame: &mut Frame, camera: &Camera, world: WorldPoint) {
+    let p = view_pt(camera, world);
+    let r = (0.18 * camera.scale()).clamp(6.0, 14.0) as f32;
+    frame.fill(
+        &Path::circle(p, r + 4.0),
+        Color::from_rgba(0.22, 0.75, 1.0, 0.22),
+    );
+    frame.stroke(
+        &Path::circle(p, r),
+        Stroke::default()
+            .with_color(Color::from_rgba(0.45, 0.9, 1.0, 0.95))
+            .with_width(2.0),
+    );
 }
 
 fn draw_part(
@@ -324,7 +707,6 @@ fn draw_part(
     let cx = vx as f32 + w * 0.5;
     let cy = vy as f32 + h * 0.5;
 
-    // Camada A: SVG body with bounds ∝ zoom (anti-pixelization).
     let handle = svgs.for_profile(part.profile);
 
     frame.with_save(|frame| {
@@ -338,14 +720,12 @@ fn draw_part(
             let rad = (part.pose.rotation as f32) * PI / 180.0;
             frame.rotate(rad);
         }
-        // Draw in local space centered; bounds size = world size × scale (∝ zoom).
         frame.draw_svg(
             Rectangle::new(Point::new(-w * 0.5, -h * 0.5), Size::new(w, h)),
             handle,
         );
     });
 
-    // Phase C will animate LED body; B1 uses a simple on-glow overlay.
     if part.profile == MvpProfile::Led && led_on {
         frame.fill(
             &Path::circle(Point::new(cx, cy), (0.7 * scale).max(6.0)),
@@ -369,7 +749,6 @@ fn draw_part(
         draw_terminal(frame, camera, world, &t.label, t.role);
     }
 
-    // Part id label under body.
     let aabb = part.world_aabb();
     let (lx, ly) = camera.world_to_view(WorldPoint::new(
         (aabb.min.x + aabb.max.x) * 0.5,
@@ -497,15 +876,18 @@ fn fill_view_hline(
     frame.fill_rectangle(Point::new(0.0, y), Size::new(width_px, thickness), color);
 }
 
-fn draw_overlay(frame: &mut Frame, camera: &Camera, width_px: f32) {
+fn draw_overlay(frame: &mut Frame, camera: &Camera, width_px: f32, wiring: bool) {
     let zoom_pct = (camera.zoom * 100.0).round();
     let _ = camera.zoom >= ZOOM_MIN - 1e-9 && camera.zoom <= ZOOM_MAX + 1e-9;
+    let mode = if wiring {
+        "WIRING · release on pin to connect"
+    } else {
+        "WORLD · B2 wires · pin snap 6px · click wire=select · zoom"
+    };
     fill_label(
         frame,
         Point::new(12.0, 14.0),
-        &format!(
-            "WORLD · B1 scene · snap · R=rotate · zoom {zoom_pct:.0}% · scroll=zoom · middle=pan"
-        ),
+        &format!("{mode} {zoom_pct:.0}% · scroll=zoom · middle=pan"),
         ui::MUTED,
         12.0,
     );
