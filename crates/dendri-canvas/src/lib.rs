@@ -28,6 +28,7 @@ pub mod routing;
 pub mod scene;
 pub mod svg_contract;
 pub mod svg_dyn;
+pub mod wires;
 pub mod world;
 
 use std::collections::BTreeMap;
@@ -45,6 +46,12 @@ pub use grid::{
     PX_PER_HALF_AT_100,
 };
 pub use scene::{render_live_scene_svg, C01Layout, LiveSceneState};
+pub use routing::{manhattan_l, manhattan_via, route_pin_to_pin, rubber_band};
+pub use wires::{
+    pick_wire, route_wires, waypoint_from_click, wire_color_kind, RoutedWire, TerminalRef,
+    WireColorKind, PIN_SNAP_SCREEN_PX, WIRE_BASE_WIDTH_PX, WIRE_COLOR_WIDTH_PX,
+    WIRE_FILLET_SCREEN_PX, WIRE_HIT_SCREEN_PX,
+};
 pub use world::{
     LedPlaceholder, LocalTerminal, MvpProfile, PartKind, PhaseAScene, Scene, ScenePart,
     Terminal, TerminalRole, UnoPlaceholder,

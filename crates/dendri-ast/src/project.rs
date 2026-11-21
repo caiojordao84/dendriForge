@@ -131,13 +131,32 @@ pub struct ComponentInstance {
     pub layout: LayoutPose,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Wire {
     /// Endpoint, e.g. `board.D13` or `led1.A`.
     pub from: String,
     pub to: String,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub signal: Option<String>,
+    /// Intermediate waypoints in **grid units** (Manhattan). Phase B2.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub waypoints: Vec<[f64; 2]>,
+}
+
+impl Wire {
+    pub fn new(from: impl Into<String>, to: impl Into<String>) -> Self {
+        Self {
+            from: from.into(),
+            to: to.into(),
+            signal: None,
+            waypoints: Vec::new(),
+        }
+    }
+
+    pub fn with_signal(mut self, signal: impl Into<String>) -> Self {
+        self.signal = Some(signal.into());
+        self
+    }
 }
 
 /// Generated source / diagram artifact (export only — not stored in project TOML).
@@ -235,5 +254,34 @@ mod tests {
         assert_eq!(LayoutPose::normalize_rotation(0), 0);
         assert_eq!(LayoutPose::normalize_rotation(270), 270);
         assert_eq!(LayoutPose::normalize_rotation(360), 0);
+    }
+
+    #[test]
+    fn wire_waypoints_roundtrip_toml() {
+        let w = Wire {
+            from: "board.D13".into(),
+            to: "led1.A".into(),
+            signal: Some("digital".into()),
+            waypoints: vec![[8.0, 0.0], [8.0, 2.0]],
+        };
+        let text = toml::to_string(&w).unwrap();
+        assert!(text.contains("waypoints"));
+        let back: Wire = toml::from_str(&text).unwrap();
+        assert_eq!(back.waypoints.len(), 2);
+        assert!((back.waypoints[0][0] - 8.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn wire_without_waypoints_loads() {
+        let w: Wire = toml::from_str(
+            r#"
+from = "board.D13"
+to = "led1.A"
+signal = "digital"
+"#,
+        )
+        .unwrap();
+        assert!(w.waypoints.is_empty());
+        assert_eq!(w.signal.as_deref(), Some("digital"));
     }
 }

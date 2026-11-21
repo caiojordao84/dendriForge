@@ -28,12 +28,13 @@ use iced::{
     Color, Element, Event, Font, Length, Point, Rectangle, Renderer, Size, Subscription, Theme,
 };
 use project_io::{export_project, load_project, save_project};
-use sim_world::{SceneSvgHandles, WorldCanvas};
+use sim_world::{CanvasSelection, SceneSvgHandles, WorldCanvas};
 use theme as ui;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ContextMenuKind {
     Object,
+    Wire,
     Empty,
 }
 
@@ -136,9 +137,21 @@ enum Message {
     LadderRemoveLast,
     SfcAddStep,
     SfcAddTransition,
-    // --- Phase B1 scene ---
+    // --- Phase B1/B2 scene ---
     SelectPart {
         id: Option<String>,
+    },
+    SelectWire {
+        index: Option<usize>,
+    },
+    CreateWire {
+        from: String,
+        to: String,
+    },
+    InsertWireWaypoint {
+        index: usize,
+        at: [f64; 2],
+        after_segment: usize,
     },
     DragPartTo {
         id: String,
@@ -164,6 +177,11 @@ enum Message {
     },
     ShowObjectContextMenu {
         id: String,
+        screen_x: f32,
+        screen_y: f32,
+    },
+    ShowWireContextMenu {
+        index: usize,
         screen_x: f32,
         screen_y: f32,
     },
@@ -210,8 +228,10 @@ struct App {
     camera: Camera,
     /// Scene graph built from the open project (B1).
     scene: Scene,
-    /// Selected part instance id (board or component).
-    selection: Option<String>,
+    /// Selected part or wire (B1/B2).
+    selection: CanvasSelection,
+    /// Bumped on layout / wiring commits so the static canvas cache redraws.
+    static_gen: u64,
     /// MVP SVG handles (Uno / LED / button).
     scene_svgs: SceneSvgHandles,
     canvas: Option<SimCanvas>,
@@ -248,7 +268,8 @@ impl App {
             zoom: 1.0,
             camera: Camera::default(),
             scene: Scene::default(),
-            selection: None,
+            selection: CanvasSelection::None,
+            static_gen: 0,
             scene_svgs: SceneSvgHandles::load(repo_root()),
             canvas: None,
             hub: None,
@@ -275,10 +296,22 @@ impl App {
         } else {
             self.scene = Scene::default();
         }
-        if let Some(id) = self.selection.clone() {
-            if self.scene.part(&id).is_none() {
-                self.selection = None;
+        self.static_gen = self.static_gen.wrapping_add(1);
+        match &self.selection {
+            CanvasSelection::Part(id) if self.scene.part(id).is_none() => {
+                self.selection = CanvasSelection::None;
             }
+            CanvasSelection::Wire(i) => {
+                let n = self
+                    .hub
+                    .as_ref()
+                    .map(|h| h.project().wiring.len())
+                    .unwrap_or(0);
+                if *i >= n {
+                    self.selection = CanvasSelection::None;
+                }
+            }
+            _ => {}
         }
     }
 
@@ -290,7 +323,7 @@ impl App {
                 self.project_path = path.clone();
                 self.path_input = path.display().to_string();
                 self.hub = Some(hub);
-                self.selection = None;
+                self.selection = CanvasSelection::None;
                 self.context_menu = None;
                 self.sync_editors_from_hub();
                 self.rebuild_scene_from_hub();
@@ -537,7 +570,7 @@ impl App {
                 self.path_input = path.display().to_string();
                 self.project_label = "untitled".into();
                 self.hub = Some(hub);
-                self.selection = None;
+                self.selection = CanvasSelection::None;
                 self.context_menu = None;
                 self.sync_editors_from_hub();
                 self.rebuild_scene_from_hub();
@@ -684,8 +717,61 @@ impl App {
                 }
             }
             Message::SelectPart { id } => {
-                self.selection = id;
+                self.selection = match id {
+                    Some(id) => CanvasSelection::Part(id),
+                    None => CanvasSelection::None,
+                };
                 self.context_menu = None;
+            }
+            Message::SelectWire { index } => {
+                self.selection = match index {
+                    Some(i) => CanvasSelection::Wire(i),
+                    None => CanvasSelection::None,
+                };
+                self.context_menu = None;
+                if let Some(i) = index {
+                    self.status = format!("selected wire #{i}");
+                }
+            }
+            Message::CreateWire { from, to } => {
+                if let Some(hub) = self.hub.as_mut() {
+                    let signal = if from.to_ascii_lowercase().contains("gnd")
+                        || to.to_ascii_lowercase().contains("gnd")
+                    {
+                        Some("gnd")
+                    } else if from.to_ascii_lowercase().contains("5v")
+                        || to.to_ascii_lowercase().contains("5v")
+                    {
+                        Some("vcc")
+                    } else {
+                        Some("digital")
+                    };
+                    match hub.add_canvas_wire(&from, &to, signal, Vec::new()) {
+                        Ok(idx) => {
+                            self.selection = CanvasSelection::Wire(idx);
+                            self.refresh_after_authoring(format!("wired {from} → {to}"));
+                        }
+                        Err(e) => self.status = e,
+                    }
+                }
+            }
+            Message::InsertWireWaypoint {
+                index,
+                at,
+                after_segment,
+            } => {
+                if let Some(hub) = self.hub.as_mut() {
+                    match hub.insert_wire_waypoint(index, at, after_segment) {
+                        Ok(()) => {
+                            self.selection = CanvasSelection::Wire(index);
+                            self.refresh_after_authoring(format!(
+                                "waypoint ({:.1},{:.1}) on wire #{index}",
+                                at[0], at[1]
+                            ));
+                        }
+                        Err(e) => self.status = e,
+                    }
+                }
             }
             Message::DragPartTo {
                 id,
@@ -712,7 +798,7 @@ impl App {
                 self.status = format!("moved {id} (snapped)");
             }
             Message::RotateSelection => {
-                if let Some(id) = self.selection.clone() {
+                if let Some(id) = self.selection.part_id().map(str::to_string) {
                     if let Some(hub) = self.hub.as_mut() {
                         match hub.rotate_part_cw(&id) {
                             Ok(()) => self.refresh_scene_only(format!("rotated {id} +90°")),
@@ -722,7 +808,7 @@ impl App {
                 }
             }
             Message::MirrorSelectionX => {
-                if let Some(id) = self.selection.clone() {
+                if let Some(id) = self.selection.part_id().map(str::to_string) {
                     if let Some(hub) = self.hub.as_mut() {
                         match hub.mirror_part_x(&id) {
                             Ok(()) => self.refresh_scene_only(format!("mirror X {id}")),
@@ -733,7 +819,7 @@ impl App {
                 self.context_menu = None;
             }
             Message::MirrorSelectionY => {
-                if let Some(id) = self.selection.clone() {
+                if let Some(id) = self.selection.part_id().map(str::to_string) {
                     if let Some(hub) = self.hub.as_mut() {
                         match hub.mirror_part_y(&id) {
                             Ok(()) => self.refresh_scene_only(format!("mirror Y {id}")),
@@ -744,25 +830,39 @@ impl App {
                 self.context_menu = None;
             }
             Message::DeleteSelection => {
-                if let Some(id) = self.selection.clone() {
-                    if let Some(hub) = self.hub.as_mut() {
-                        if hub.project().board.instance_id == id {
-                            self.status = "cannot delete board".into();
-                        } else {
-                            match hub.remove_component(&id) {
+                match self.selection.clone() {
+                    CanvasSelection::Part(id) => {
+                        if let Some(hub) = self.hub.as_mut() {
+                            if hub.project().board.instance_id == id {
+                                self.status = "cannot delete board".into();
+                            } else {
+                                match hub.remove_component(&id) {
+                                    Ok(()) => {
+                                        self.selection = CanvasSelection::None;
+                                        self.refresh_after_authoring(format!("deleted {id}"));
+                                    }
+                                    Err(e) => self.status = e,
+                                }
+                            }
+                        }
+                    }
+                    CanvasSelection::Wire(i) => {
+                        if let Some(hub) = self.hub.as_mut() {
+                            match hub.remove_wire_at(i) {
                                 Ok(()) => {
-                                    self.selection = None;
-                                    self.refresh_after_authoring(format!("deleted {id}"));
+                                    self.selection = CanvasSelection::None;
+                                    self.refresh_after_authoring(format!("deleted wire #{i}"));
                                 }
                                 Err(e) => self.status = e,
                             }
                         }
                     }
+                    CanvasSelection::None => {}
                 }
                 self.context_menu = None;
             }
             Message::CanvasCopy => {
-                if let Some(id) = self.selection.clone() {
+                if let Some(id) = self.selection.part_id().map(str::to_string) {
                     if let Some(hub) = self.hub.as_mut() {
                         hub.copy_parts(&[id.clone()]);
                         self.status = format!("copied {id}");
@@ -771,11 +871,11 @@ impl App {
                 self.context_menu = None;
             }
             Message::CanvasCut => {
-                if let Some(id) = self.selection.clone() {
+                if let Some(id) = self.selection.part_id().map(str::to_string) {
                     if let Some(hub) = self.hub.as_mut() {
                         match hub.cut_parts(&[id.clone()]) {
                             Ok(()) => {
-                                self.selection = None;
+                                self.selection = CanvasSelection::None;
                                 self.refresh_after_authoring(format!("cut {id}"));
                             }
                             Err(e) => self.status = e,
@@ -788,7 +888,11 @@ impl App {
                 if let Some(hub) = self.hub.as_mut() {
                     match hub.paste_clipboard() {
                         Ok(ids) => {
-                            self.selection = ids.last().cloned();
+                            self.selection = ids
+                                .last()
+                                .cloned()
+                                .map(CanvasSelection::Part)
+                                .unwrap_or(CanvasSelection::None);
                             self.refresh_after_authoring(format!("pasted {}", ids.join(", ")));
                         }
                         Err(e) => self.status = e,
@@ -797,11 +901,15 @@ impl App {
                 self.context_menu = None;
             }
             Message::CanvasDuplicate => {
-                if let Some(id) = self.selection.clone() {
+                if let Some(id) = self.selection.part_id().map(str::to_string) {
                     if let Some(hub) = self.hub.as_mut() {
                         match hub.duplicate_parts(&[id]) {
                             Ok(ids) => {
-                                self.selection = ids.last().cloned();
+                                self.selection = ids
+                                    .last()
+                                    .cloned()
+                                    .map(CanvasSelection::Part)
+                                    .unwrap_or(CanvasSelection::None);
                                 self.refresh_after_authoring(format!(
                                     "duplicated → {}",
                                     ids.join(", ")
@@ -832,15 +940,28 @@ impl App {
             Message::OpenProperties { id } => {
                 // Sidebar out of scope — emit hook only.
                 self.status = format!("open properties: {id} (hook; sidebar = later phase)");
-                self.selection = Some(id);
+                self.selection = CanvasSelection::Part(id);
             }
             Message::ShowObjectContextMenu {
                 id,
                 screen_x,
                 screen_y,
             } => {
-                self.selection = Some(id.clone());
+                self.selection = CanvasSelection::Part(id.clone());
                 self.context_menu = Some((ContextMenuKind::Object, id, screen_x, screen_y));
+            }
+            Message::ShowWireContextMenu {
+                index,
+                screen_x,
+                screen_y,
+            } => {
+                self.selection = CanvasSelection::Wire(index);
+                self.context_menu = Some((
+                    ContextMenuKind::Wire,
+                    format!("wire#{index}"),
+                    screen_x,
+                    screen_y,
+                ));
             }
             Message::ShowEmptyContextMenu {
                 screen_x,
@@ -1085,12 +1206,20 @@ impl App {
 
     /// Full-bleed Simulation stack: canvas underneath, chrome panels overlaid.
     fn simulation_workspace(&self) -> Element<'_, Message> {
+        let empty: &[dendri_ast::Wire] = &[];
+        let wiring = self
+            .hub
+            .as_ref()
+            .map(|h| h.project().wiring.as_slice())
+            .unwrap_or(empty);
         let canvas_layer = canvas(WorldCanvas {
             camera: self.camera,
             scene: &self.scene,
-            selection: self.selection.as_deref(),
+            wiring,
+            selection: &self.selection,
             svgs: &self.scene_svgs,
             led_on: self.led,
+            static_gen: self.static_gen,
         })
         .width(Length::Fill)
         .height(Length::Fill);
@@ -1165,6 +1294,13 @@ impl App {
                 menu_button("Mirror H".into(), Message::MirrorSelectionX, true),
                 menu_button("Mirror V".into(), Message::MirrorSelectionY, true),
                 menu_button("Delete".into(), Message::DeleteSelection, true),
+                menu_button("Close".into(), Message::DismissContextMenu, true),
+            ]
+            .spacing(2)
+            .into(),
+            ContextMenuKind::Wire => column![
+                text(format!("· {id}")).size(11).color(ui::MUTED),
+                menu_button("Delete wire".into(), Message::DeleteSelection, true),
                 menu_button("Close".into(), Message::DismissContextMenu, true),
             ]
             .spacing(2)

@@ -421,16 +421,14 @@ impl AuthoringHub {
                     },
                     layout,
                 });
-                self.session.project.wiring.push(Wire {
-                    from: format!("board.D{pin}"),
-                    to: format!("{id}.A"),
-                    signal: Some("digital".into()),
-                });
-                self.session.project.wiring.push(Wire {
-                    from: "board.GND".into(),
-                    to: format!("{id}.K"),
-                    signal: Some("gnd".into()),
-                });
+                self.session
+                    .project
+                    .wiring
+                    .push(Wire::new(format!("board.D{pin}"), format!("{id}.A")).with_signal("digital"));
+                self.session
+                    .project
+                    .wiring
+                    .push(Wire::new("board.GND", format!("{id}.K")).with_signal("gnd"));
                 ensure_hw(
                     &mut self.session.project.asl,
                     HardwareEntry {
@@ -457,16 +455,14 @@ impl AuthoringHub {
                     params: Default::default(),
                     layout,
                 });
-                self.session.project.wiring.push(Wire {
-                    from: format!("board.D{pin}"),
-                    to: format!("{id}.NO"),
-                    signal: Some("digital".into()),
-                });
-                self.session.project.wiring.push(Wire {
-                    from: "board.GND".into(),
-                    to: format!("{id}.COM"),
-                    signal: Some("gnd".into()),
-                });
+                self.session
+                    .project
+                    .wiring
+                    .push(Wire::new(format!("board.D{pin}"), format!("{id}.NO")).with_signal("digital"));
+                self.session
+                    .project
+                    .wiring
+                    .push(Wire::new("board.GND", format!("{id}.COM")).with_signal("gnd"));
                 ensure_hw(
                     &mut self.session.project.asl,
                     HardwareEntry {
@@ -508,14 +504,76 @@ impl AuthoringHub {
         if from.is_empty() || to.is_empty() {
             return Err("wire needs from and to".into());
         }
-        self.session.project.wiring.push(Wire {
-            from: from.into(),
-            to: to.into(),
-            signal: signal
-                .map(str::trim)
-                .filter(|s| !s.is_empty())
-                .map(str::to_string),
-        });
+        let mut wire = Wire::new(from, to);
+        if let Some(sig) = signal.map(str::trim).filter(|s| !s.is_empty()) {
+            wire = wire.with_signal(sig);
+        }
+        self.session.project.wiring.push(wire);
+        self.refresh_derived();
+        Ok(())
+    }
+
+    /// Add a canvas wire with optional Manhattan waypoints (grid units).
+    pub fn add_canvas_wire(
+        &mut self,
+        from: &str,
+        to: &str,
+        signal: Option<&str>,
+        waypoints: Vec<[f64; 2]>,
+    ) -> Result<usize, String> {
+        let from = from.trim();
+        let to = to.trim();
+        if from.is_empty() || to.is_empty() {
+            return Err("wire needs from and to".into());
+        }
+        if from == to {
+            return Err("wire endpoints must differ".into());
+        }
+        // Reject duplicates (same endpoints either direction).
+        if self.session.project.wiring.iter().any(|w| {
+            (w.from == from && w.to == to) || (w.from == to && w.to == from)
+        }) {
+            return Err(format!("wire already exists: {from} ↔ {to}"));
+        }
+        self.push_undo();
+        let mut wire = Wire::new(from, to);
+        if let Some(sig) = signal.map(str::trim).filter(|s| !s.is_empty()) {
+            wire = wire.with_signal(sig);
+        }
+        wire.waypoints = waypoints;
+        self.session.project.wiring.push(wire);
+        let idx = self.session.project.wiring.len() - 1;
+        self.refresh_derived();
+        Ok(idx)
+    }
+
+    pub fn set_wire_waypoints(
+        &mut self,
+        index: usize,
+        waypoints: Vec<[f64; 2]>,
+    ) -> Result<(), String> {
+        if index >= self.session.project.wiring.len() {
+            return Err("wire index out of range".into());
+        }
+        self.push_undo();
+        self.session.project.wiring[index].waypoints = waypoints;
+        self.refresh_derived();
+        Ok(())
+    }
+
+    pub fn insert_wire_waypoint(
+        &mut self,
+        index: usize,
+        at: [f64; 2],
+        after_segment: usize,
+    ) -> Result<(), String> {
+        if index >= self.session.project.wiring.len() {
+            return Err("wire index out of range".into());
+        }
+        self.push_undo();
+        let wps = &mut self.session.project.wiring[index].waypoints;
+        let insert_at = after_segment.min(wps.len());
+        wps.insert(insert_at, at);
         self.refresh_derived();
         Ok(())
     }
@@ -551,6 +609,7 @@ impl AuthoringHub {
         if index >= self.session.project.wiring.len() {
             return Err("wire index out of range".into());
         }
+        self.push_undo();
         self.session.project.wiring.remove(index);
         self.refresh_derived();
         Ok(())
