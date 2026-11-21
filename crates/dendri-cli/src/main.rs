@@ -571,6 +571,7 @@ fn wrap_program_as_mvp_project(program: dendri_ast::Program) -> dendri_ast::Simu
         board: dendri_ast::BoardInstance {
             profile: "arduino-uno-r3".into(),
             instance_id: "board".into(),
+            layout: Default::default(),
         },
         components: vec![
             dendri_ast::ComponentInstance {
@@ -578,12 +579,14 @@ fn wrap_program_as_mvp_project(program: dendri_ast::Program) -> dendri_ast::Simu
                 profile: "led".into(),
                 label: None,
                 params: Default::default(),
+                layout: Default::default(),
             },
             dendri_ast::ComponentInstance {
                 instance_id: "btn_start".into(),
                 profile: "cmd-pushbutton-no-start".into(),
                 label: None,
                 params: Default::default(),
+                layout: Default::default(),
             },
         ],
         wiring: vec![

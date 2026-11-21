@@ -17,19 +17,25 @@ use std::time::Duration;
 
 use authoring::{AuthoringHub, Placeable};
 use dendri_ast::SourceLanguage;
-use dendri_canvas::{Camera, PhaseAScene, SimCanvas};
+use dendri_canvas::{Camera, Scene, SimCanvas};
 use dendri_sim::SimConfig;
 use iced::{
-    alignment, mouse,
+    alignment, event, keyboard, mouse,
     widget::{
         button, canvas, checkbox, column, container, row, scrollable, stack, text, text_editor,
         text_input, Space,
     },
-    Color, Element, Font, Length, Point, Rectangle, Renderer, Size, Subscription, Theme,
+    Color, Element, Event, Font, Length, Point, Rectangle, Renderer, Size, Subscription, Theme,
 };
 use project_io::{export_project, load_project, save_project};
-use sim_world::WorldCanvas;
+use sim_world::{SceneSvgHandles, WorldCanvas};
 use theme as ui;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ContextMenuKind {
+    Object,
+    Empty,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum View {
@@ -103,6 +109,7 @@ enum Message {
         dx_px: f32,
         dy_px: f32,
     },
+    /// Canvas / code clipboard (context-dependent).
     Copy,
     PathInput(String),
     OpenPath,
@@ -129,6 +136,61 @@ enum Message {
     LadderRemoveLast,
     SfcAddStep,
     SfcAddTransition,
+    // --- Phase B1 scene ---
+    SelectPart {
+        id: Option<String>,
+    },
+    DragPartTo {
+        id: String,
+        x: f64,
+        y: f64,
+        begin_undo: bool,
+    },
+    DragPartEnd {
+        id: String,
+    },
+    RotateSelection,
+    MirrorSelectionX,
+    MirrorSelectionY,
+    DeleteSelection,
+    CanvasCopy,
+    CanvasCut,
+    CanvasPaste,
+    CanvasDuplicate,
+    CanvasUndo,
+    CanvasRedo,
+    OpenProperties {
+        id: String,
+    },
+    ShowObjectContextMenu {
+        id: String,
+        screen_x: f32,
+        screen_y: f32,
+    },
+    ShowEmptyContextMenu {
+        screen_x: f32,
+        screen_y: f32,
+    },
+    DismissContextMenu,
+    /// Stub sim transport actions from empty-canvas RMB menu.
+    ContextPlay,
+    ContextPause,
+    ContextStop,
+    ContextReset,
+    ContextStep,
+    /// Global keyboard (Simulation shortcuts).
+    KeyChord(KeyChord),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum KeyChord {
+    Rotate,
+    Delete,
+    Copy,
+    Cut,
+    Paste,
+    Undo,
+    Redo,
 }
 
 struct App {
@@ -146,8 +208,12 @@ struct App {
     zoom: f32,
     /// Simulation world camera (pan + zoom). Infinite line grid; no page bounds.
     camera: Camera,
-    /// Phase A placeholders (Uno + LED) in logical grid units.
-    phase_a: PhaseAScene,
+    /// Scene graph built from the open project (B1).
+    scene: Scene,
+    /// Selected part instance id (board or component).
+    selection: Option<String>,
+    /// MVP SVG handles (Uno / LED / button).
+    scene_svgs: SceneSvgHandles,
     canvas: Option<SimCanvas>,
     hub: Option<AuthoringHub>,
     project_path: PathBuf,
@@ -161,6 +227,8 @@ struct App {
     wire_signal: String,
     code_dirty: bool,
     visual_dirty: bool,
+    /// Floating context menu (Simulation).
+    context_menu: Option<(ContextMenuKind, String, f32, f32)>,
 }
 
 impl App {
@@ -179,7 +247,9 @@ impl App {
             bottom: true,
             zoom: 1.0,
             camera: Camera::default(),
-            phase_a: PhaseAScene::default(),
+            scene: Scene::default(),
+            selection: None,
+            scene_svgs: SceneSvgHandles::load(repo_root()),
             canvas: None,
             hub: None,
             project_path: project_path.clone(),
@@ -193,9 +263,23 @@ impl App {
             wire_signal: "digital".into(),
             code_dirty: false,
             visual_dirty: false,
+            context_menu: None,
         };
         app.load_into_hub(project_path);
         (app, iced::Task::none())
+    }
+
+    fn rebuild_scene_from_hub(&mut self) {
+        if let Some(hub) = self.hub.as_ref() {
+            self.scene = Scene::from_project(hub.project()).with_default_layout_if_empty();
+        } else {
+            self.scene = Scene::default();
+        }
+        if let Some(id) = self.selection.clone() {
+            if self.scene.part(&id).is_none() {
+                self.selection = None;
+            }
+        }
     }
 
     fn load_into_hub(&mut self, path: PathBuf) {
@@ -206,12 +290,16 @@ impl App {
                 self.project_path = path.clone();
                 self.path_input = path.display().to_string();
                 self.hub = Some(hub);
+                self.selection = None;
+                self.context_menu = None;
                 self.sync_editors_from_hub();
+                self.rebuild_scene_from_hub();
                 self.boot_canvas_from_hub();
             }
             Err(e) => {
                 self.hub = None;
                 self.canvas = None;
+                self.scene = Scene::default();
                 self.status = format!("project load failed: {e}");
             }
         }
@@ -270,7 +358,13 @@ impl App {
 
     fn refresh_after_authoring(&mut self, note: impl Into<String>) {
         self.sync_editors_from_hub();
+        self.rebuild_scene_from_hub();
         self.boot_canvas_from_hub();
+        self.status = note.into();
+    }
+
+    fn refresh_scene_only(&mut self, note: impl Into<String>) {
+        self.rebuild_scene_from_hub();
         self.status = note.into();
     }
 
@@ -443,7 +537,10 @@ impl App {
                 self.path_input = path.display().to_string();
                 self.project_label = "untitled".into();
                 self.hub = Some(hub);
+                self.selection = None;
+                self.context_menu = None;
                 self.sync_editors_from_hub();
+                self.rebuild_scene_from_hub();
                 self.boot_canvas_from_hub();
                 self.status =
                     "blank Uno project · place components, wire, write code, Apply".into();
@@ -586,16 +683,279 @@ impl App {
                     }
                 }
             }
+            Message::SelectPart { id } => {
+                self.selection = id;
+                self.context_menu = None;
+            }
+            Message::DragPartTo {
+                id,
+                x,
+                y,
+                begin_undo,
+            } => {
+                if let Some(hub) = self.hub.as_mut() {
+                    if begin_undo {
+                        hub.begin_layout_edit();
+                    }
+                    match hub.part_layout(&id) {
+                        Ok(mut layout) => {
+                            layout.x = x;
+                            layout.y = y;
+                            let _ = hub.commit_part_layout_no_undo(&id, layout);
+                            self.rebuild_scene_from_hub();
+                        }
+                        Err(e) => self.status = e,
+                    }
+                }
+            }
+            Message::DragPartEnd { id } => {
+                self.status = format!("moved {id} (snapped)");
+            }
+            Message::RotateSelection => {
+                if let Some(id) = self.selection.clone() {
+                    if let Some(hub) = self.hub.as_mut() {
+                        match hub.rotate_part_cw(&id) {
+                            Ok(()) => self.refresh_scene_only(format!("rotated {id} +90°")),
+                            Err(e) => self.status = e,
+                        }
+                    }
+                }
+            }
+            Message::MirrorSelectionX => {
+                if let Some(id) = self.selection.clone() {
+                    if let Some(hub) = self.hub.as_mut() {
+                        match hub.mirror_part_x(&id) {
+                            Ok(()) => self.refresh_scene_only(format!("mirror X {id}")),
+                            Err(e) => self.status = e,
+                        }
+                    }
+                }
+                self.context_menu = None;
+            }
+            Message::MirrorSelectionY => {
+                if let Some(id) = self.selection.clone() {
+                    if let Some(hub) = self.hub.as_mut() {
+                        match hub.mirror_part_y(&id) {
+                            Ok(()) => self.refresh_scene_only(format!("mirror Y {id}")),
+                            Err(e) => self.status = e,
+                        }
+                    }
+                }
+                self.context_menu = None;
+            }
+            Message::DeleteSelection => {
+                if let Some(id) = self.selection.clone() {
+                    if let Some(hub) = self.hub.as_mut() {
+                        if hub.project().board.instance_id == id {
+                            self.status = "cannot delete board".into();
+                        } else {
+                            match hub.remove_component(&id) {
+                                Ok(()) => {
+                                    self.selection = None;
+                                    self.refresh_after_authoring(format!("deleted {id}"));
+                                }
+                                Err(e) => self.status = e,
+                            }
+                        }
+                    }
+                }
+                self.context_menu = None;
+            }
+            Message::CanvasCopy => {
+                if let Some(id) = self.selection.clone() {
+                    if let Some(hub) = self.hub.as_mut() {
+                        hub.copy_parts(&[id.clone()]);
+                        self.status = format!("copied {id}");
+                    }
+                }
+                self.context_menu = None;
+            }
+            Message::CanvasCut => {
+                if let Some(id) = self.selection.clone() {
+                    if let Some(hub) = self.hub.as_mut() {
+                        match hub.cut_parts(&[id.clone()]) {
+                            Ok(()) => {
+                                self.selection = None;
+                                self.refresh_after_authoring(format!("cut {id}"));
+                            }
+                            Err(e) => self.status = e,
+                        }
+                    }
+                }
+                self.context_menu = None;
+            }
+            Message::CanvasPaste => {
+                if let Some(hub) = self.hub.as_mut() {
+                    match hub.paste_clipboard() {
+                        Ok(ids) => {
+                            self.selection = ids.last().cloned();
+                            self.refresh_after_authoring(format!("pasted {}", ids.join(", ")));
+                        }
+                        Err(e) => self.status = e,
+                    }
+                }
+                self.context_menu = None;
+            }
+            Message::CanvasDuplicate => {
+                if let Some(id) = self.selection.clone() {
+                    if let Some(hub) = self.hub.as_mut() {
+                        match hub.duplicate_parts(&[id]) {
+                            Ok(ids) => {
+                                self.selection = ids.last().cloned();
+                                self.refresh_after_authoring(format!(
+                                    "duplicated → {}",
+                                    ids.join(", ")
+                                ));
+                            }
+                            Err(e) => self.status = e,
+                        }
+                    }
+                }
+                self.context_menu = None;
+            }
+            Message::CanvasUndo => {
+                if let Some(hub) = self.hub.as_mut() {
+                    match hub.undo() {
+                        Ok(()) => self.refresh_after_authoring("undo"),
+                        Err(e) => self.status = e,
+                    }
+                }
+            }
+            Message::CanvasRedo => {
+                if let Some(hub) = self.hub.as_mut() {
+                    match hub.redo() {
+                        Ok(()) => self.refresh_after_authoring("redo"),
+                        Err(e) => self.status = e,
+                    }
+                }
+            }
+            Message::OpenProperties { id } => {
+                // Sidebar out of scope — emit hook only.
+                self.status = format!("open properties: {id} (hook; sidebar = later phase)");
+                self.selection = Some(id);
+            }
+            Message::ShowObjectContextMenu {
+                id,
+                screen_x,
+                screen_y,
+            } => {
+                self.selection = Some(id.clone());
+                self.context_menu = Some((ContextMenuKind::Object, id, screen_x, screen_y));
+            }
+            Message::ShowEmptyContextMenu {
+                screen_x,
+                screen_y,
+            } => {
+                self.context_menu = Some((
+                    ContextMenuKind::Empty,
+                    String::new(),
+                    screen_x,
+                    screen_y,
+                ));
+            }
+            Message::DismissContextMenu => self.context_menu = None,
+            Message::ContextPlay => {
+                self.running = true;
+                self.context_menu = None;
+                self.status = "play (stub)".into();
+            }
+            Message::ContextPause => {
+                self.running = false;
+                self.context_menu = None;
+                self.status = "pause (stub)".into();
+            }
+            Message::ContextStop => {
+                self.running = false;
+                self.context_menu = None;
+                self.status = "stop (stub)".into();
+            }
+            Message::ContextReset => {
+                self.context_menu = None;
+                let was = self.running;
+                self.boot_canvas_from_hub();
+                self.running = was;
+                self.status = "reset".into();
+            }
+            Message::ContextStep => {
+                self.context_menu = None;
+                self.running = false;
+                self.scan();
+                self.status = "step".into();
+            }
+            Message::KeyChord(chord) => {
+                if self.view != View::Simulation {
+                    return iced::Task::none();
+                }
+                // Don't steal keys while editing code in other views; Simulation has no text focus.
+                match chord {
+                    KeyChord::Rotate => {
+                        return self.update(Message::RotateSelection);
+                    }
+                    KeyChord::Delete => {
+                        return self.update(Message::DeleteSelection);
+                    }
+                    KeyChord::Copy => {
+                        return self.update(Message::CanvasCopy);
+                    }
+                    KeyChord::Cut => {
+                        return self.update(Message::CanvasCut);
+                    }
+                    KeyChord::Paste => {
+                        return self.update(Message::CanvasPaste);
+                    }
+                    KeyChord::Undo => {
+                        return self.update(Message::CanvasUndo);
+                    }
+                    KeyChord::Redo => {
+                        return self.update(Message::CanvasRedo);
+                    }
+                }
+            }
         }
         iced::Task::none()
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        if self.running {
+        let tick = if self.running {
             iced::time::every(Duration::from_millis(100)).map(|_| Message::Tick)
         } else {
             Subscription::none()
-        }
+        };
+        let keys = event::listen_with(|event, status, _id| {
+            if status == event::Status::Captured {
+                return None;
+            }
+            let Event::Keyboard(keyboard::Event::KeyPressed { key, modifiers, .. }) = event else {
+                return None;
+            };
+            use keyboard::key::Named;
+            use keyboard::Key;
+            match key {
+                Key::Character(c) if c.eq_ignore_ascii_case("r") && !modifiers.control() => {
+                    Some(Message::KeyChord(KeyChord::Rotate))
+                }
+                Key::Named(Named::Delete) | Key::Named(Named::Backspace) => {
+                    Some(Message::KeyChord(KeyChord::Delete))
+                }
+                Key::Character(c) if modifiers.control() && c.eq_ignore_ascii_case("c") => {
+                    Some(Message::KeyChord(KeyChord::Copy))
+                }
+                Key::Character(c) if modifiers.control() && c.eq_ignore_ascii_case("x") => {
+                    Some(Message::KeyChord(KeyChord::Cut))
+                }
+                Key::Character(c) if modifiers.control() && c.eq_ignore_ascii_case("v") => {
+                    Some(Message::KeyChord(KeyChord::Paste))
+                }
+                Key::Character(c) if modifiers.control() && c.eq_ignore_ascii_case("z") => {
+                    Some(Message::KeyChord(KeyChord::Undo))
+                }
+                Key::Character(c) if modifiers.control() && c.eq_ignore_ascii_case("y") => {
+                    Some(Message::KeyChord(KeyChord::Redo))
+                }
+                _ => None,
+            }
+        });
+        Subscription::batch([tick, keys])
     }
 
     fn view(&self) -> Element<'_, Message> {
@@ -727,7 +1087,9 @@ impl App {
     fn simulation_workspace(&self) -> Element<'_, Message> {
         let canvas_layer = canvas(WorldCanvas {
             camera: self.camera,
-            scene: self.phase_a,
+            scene: &self.scene,
+            selection: self.selection.as_deref(),
+            svgs: &self.scene_svgs,
             led_on: self.led,
         })
         .width(Length::Fill)
@@ -759,10 +1121,83 @@ impl App {
             chrome = chrome.push(self.bottom_dock());
         }
 
-        stack![canvas_layer, chrome]
+        let mut layers = stack![canvas_layer, chrome]
             .width(Length::Fill)
-            .height(Length::Fill)
-            .into()
+            .height(Length::Fill);
+
+        if let Some((kind, id, x, y)) = self.context_menu.as_ref() {
+            let menu = self.context_menu_view(*kind, id, *x, *y);
+            layers = layers.push(menu);
+        }
+
+        layers.into()
+    }
+
+    fn context_menu_view(
+        &self,
+        kind: ContextMenuKind,
+        id: &str,
+        x: f32,
+        y: f32,
+    ) -> Element<'_, Message> {
+        let paste_ok = self
+            .hub
+            .as_ref()
+            .and_then(|h| h.canvas_clipboard.as_ref())
+            .is_some();
+        let menu_button = |label: String, msg: Message, enabled: bool| -> Element<'static, Message> {
+            let mut b = button(text(label).size(12))
+                .padding([6, 12])
+                .width(Length::Fill)
+                .style(ui::control);
+            if enabled {
+                b = b.on_press(msg);
+            }
+            b.into()
+        };
+        let entries: Element<'_, Message> = match kind {
+            ContextMenuKind::Object => column![
+                text(format!("· {id}")).size(11).color(ui::MUTED),
+                menu_button("Copy".into(), Message::CanvasCopy, true),
+                menu_button("Cut".into(), Message::CanvasCut, true),
+                menu_button("Paste".into(), Message::CanvasPaste, paste_ok),
+                menu_button("Duplicate".into(), Message::CanvasDuplicate, true),
+                menu_button("Mirror H".into(), Message::MirrorSelectionX, true),
+                menu_button("Mirror V".into(), Message::MirrorSelectionY, true),
+                menu_button("Delete".into(), Message::DeleteSelection, true),
+                menu_button("Close".into(), Message::DismissContextMenu, true),
+            ]
+            .spacing(2)
+            .into(),
+            ContextMenuKind::Empty => column![
+                text("Simulation").size(11).color(ui::MUTED),
+                menu_button("Play".into(), Message::ContextPlay, true),
+                menu_button("Pause".into(), Message::ContextPause, true),
+                menu_button("Stop".into(), Message::ContextStop, true),
+                menu_button("Reset".into(), Message::ContextReset, true),
+                menu_button("Step".into(), Message::ContextStep, true),
+                menu_button("Paste".into(), Message::CanvasPaste, paste_ok),
+                menu_button("Close".into(), Message::DismissContextMenu, true),
+            ]
+            .spacing(2)
+            .into(),
+        };
+        // Position via padding from top-left of the stack (approximate screen coords).
+        container(
+            container(entries)
+                .padding(6)
+                .width(160)
+                .style(ui::card),
+        )
+        .padding(iced::Padding {
+            top: y.max(0.0),
+            right: 0.0,
+            bottom: 0.0,
+            left: x.max(0.0),
+        })
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
     }
 
     /// Code / Ladder / GRAFCET: sibling panes (content between docks).

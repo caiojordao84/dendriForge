@@ -45,7 +45,10 @@ pub use grid::{
     PX_PER_HALF_AT_100,
 };
 pub use scene::{render_live_scene_svg, C01Layout, LiveSceneState};
-pub use world::{LedPlaceholder, PhaseAScene, Terminal, UnoPlaceholder};
+pub use world::{
+    LedPlaceholder, LocalTerminal, MvpProfile, PartKind, PhaseAScene, Scene, ScenePart,
+    Terminal, TerminalRole, UnoPlaceholder,
+};
 
 /// Canonical asset roots (prefer staged `content/assets/svg/`, fall back to `core/`).
 pub const ASSET_BOARD: &str = "content/assets/svg/boards/arduino-uno-r3.svg";

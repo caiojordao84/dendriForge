@@ -22,6 +22,7 @@ fn load_canvas(rel: &str) -> SimCanvas {
                 board: dendri_ast::BoardInstance {
                     profile: "arduino-uno-r3".into(),
                     instance_id: "board".into(),
+                    layout: Default::default(),
                 },
                 components: vec![
                     dendri_ast::ComponentInstance {
@@ -29,12 +30,14 @@ fn load_canvas(rel: &str) -> SimCanvas {
                         profile: "led".into(),
                         label: None,
                         params: Default::default(),
+                        layout: Default::default(),
                     },
                     dendri_ast::ComponentInstance {
                         instance_id: "btn_start".into(),
                         profile: "cmd-pushbutton-no-start".into(),
                         label: None,
                         params: Default::default(),
+                        layout: Default::default(),
                     },
                 ],
                 wiring: vec![

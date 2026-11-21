@@ -8,11 +8,21 @@ notes = "Uno + LED module with integrated 220-ohm SMD resistor + normally open p
 [board]
 profile = "arduino-uno-r3"
 instance_id = "board"
+x = 1.0
+y = 2.0
+rotation = 0
+mirror_x = false
+mirror_y = false
 
 [[components]]
 instance_id = "led1"
 profile = "led"
 label = "Status LED"
+x = 13.25
+y = 2.25
+rotation = 0
+mirror_x = false
+mirror_y = false
 
 [components.params]
 color = "red"
@@ -22,6 +32,11 @@ integrated_resistance = 220
 instance_id = "btn_start"
 profile = "cmd-pushbutton-no-start"
 label = "Start button"
+x = 13.0
+y = 6.0
+rotation = 0
+mirror_x = false
+mirror_y = false
 
 [components.params]
 

@@ -28,8 +28,8 @@ pub use program::{
     DataEntry, FunctionDef, HardwareEntry, Metadata, Program, Scope, TargetRole, ASL_VERSION,
 };
 pub use project::{
-    BoardInstance, ComponentInstance, SimulationProject, SourceLanguage, SourceScript, Wire,
-    PROJECT_EXTENSION,
+    BoardInstance, ComponentInstance, LayoutPose, SimulationProject, SourceLanguage, SourceScript,
+    Wire, PROJECT_EXTENSION,
 };
 pub use stmt::{ElifArm, Stmt};
 pub use toon::{
