@@ -30,6 +30,7 @@ pub mod scene;
 pub mod sim_bridge;
 pub mod svg_contract;
 pub mod svg_dyn;
+pub mod wire_activity;
 pub mod wires;
 pub mod world;
 
@@ -49,6 +50,9 @@ pub use grid::{
 };
 pub use scene::{render_live_scene_svg, C01Layout, LiveSceneState};
 pub use routing::{manhattan_l, manhattan_via, route_pin_to_pin, rubber_band};
+pub use wire_activity::{
+    activity_animation_enabled, endpoint_logical_level, wire_logical_activity, WireLogicalActivity,
+};
 pub use wires::{
     pick_wire, route_wires, waypoint_from_click, wire_color_kind, RoutedWire, TerminalRef,
     WireColorKind, PIN_SNAP_SCREEN_PX, WIRE_BASE_WIDTH_PX, WIRE_COLOR_WIDTH_PX,

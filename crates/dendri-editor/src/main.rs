@@ -535,11 +535,12 @@ impl App {
                     }
                 }
             }
-            Message::SimFrame(_at) => {
+            Message::SimFrame(at) => {
                 // Visual clock only — never auto-scan per presented frame (D-C6).
+                // Instant delta advances wire activity phase (not frame counts).
                 if self.sim.is_running() {
                     let project = self.hub.as_ref().map(|h| h.project().clone());
-                    self.sim.present_frame(project.as_ref());
+                    self.sim.present_frame(project.as_ref(), at);
                 }
             }
             Message::Raw(raw) => self.apply_raw(raw),
@@ -865,6 +866,11 @@ impl App {
             Message::DragPartEnd { id } => {
                 if self.reject_if_running("drag part") {
                     return iced::Task::none();
+                }
+                // C2: refresh code projections once at gesture end (not every drag move).
+                if let Some(hub) = self.hub.as_mut() {
+                    hub.refresh_derived();
+                    self.sync_editors_from_hub();
                 }
                 self.status = format!("moved {id} (snapped)");
             }
@@ -1350,6 +1356,7 @@ impl App {
             edits_allowed: self.sim.edits_allowed(),
             shift_held: self.shift_held,
             static_gen: self.static_gen,
+            wire_activity_phase: self.sim.wire_activity_phase(),
         })
         .width(Length::Fill)
         .height(Length::Fill);

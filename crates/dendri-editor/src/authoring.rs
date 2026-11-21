@@ -157,11 +157,13 @@ impl AuthoringHub {
         }
     }
 
-    /// Commit a drag without stacking an extra undo (caller pushed once at drag start).
+    /// Commit a layout pose without stacking undo and **without** regenerating
+    /// code projections (C2: layout-only invalidation during drag moves).
+    ///
+    /// Call [`Self::refresh_derived`] once on drag end / discrete rotate-mirror.
     pub fn commit_part_layout_no_undo(&mut self, id: &str, layout: LayoutPose) -> Result<(), String> {
         if self.session.project.board.instance_id == id {
             self.session.project.board.layout = layout;
-            self.refresh_derived();
             return Ok(());
         }
         if let Some(c) = self
@@ -172,7 +174,6 @@ impl AuthoringHub {
             .find(|c| c.instance_id == id)
         {
             c.layout = layout;
-            self.refresh_derived();
             Ok(())
         } else {
             Err(format!("part not found: {id}"))
@@ -188,21 +189,27 @@ impl AuthoringHub {
         let layout = self.part_layout(id)?;
         let mut next = layout;
         next.rotate_cw_90();
-        self.commit_part_layout_no_undo(id, next)
+        self.commit_part_layout_no_undo(id, next)?;
+        self.refresh_derived();
+        Ok(())
     }
 
     pub fn mirror_part_x(&mut self, id: &str) -> Result<(), String> {
         self.push_undo();
         let mut layout = self.part_layout(id)?;
         layout.mirror_x = !layout.mirror_x;
-        self.commit_part_layout_no_undo(id, layout)
+        self.commit_part_layout_no_undo(id, layout)?;
+        self.refresh_derived();
+        Ok(())
     }
 
     pub fn mirror_part_y(&mut self, id: &str) -> Result<(), String> {
         self.push_undo();
         let mut layout = self.part_layout(id)?;
         layout.mirror_y = !layout.mirror_y;
-        self.commit_part_layout_no_undo(id, layout)
+        self.commit_part_layout_no_undo(id, layout)?;
+        self.refresh_derived();
+        Ok(())
     }
 
     pub fn part_layout(&self, id: &str) -> Result<LayoutPose, String> {
@@ -268,6 +275,11 @@ impl AuthoringHub {
         self.paste_clipboard()
     }
 
+    /// Full derived refresh: ASL visual sources + **all** code projections.
+    ///
+    /// Invalidation domains (C2): call this on logic / wiring / load / undo —
+    /// **not** on every layout drag move (use [`Self::commit_part_layout_no_undo`]
+    /// then a single refresh on gesture end).
     pub fn refresh_derived(&mut self) {
         let _ = self.session.sync_visual_sources_from_asl();
         self.projections = Projections::from_project(&self.session.project);
@@ -918,5 +930,23 @@ mod tests {
         assert_eq!(hub.part_layout("led1").unwrap().rotation, 0);
         hub.mirror_part_x("led1").unwrap();
         assert!(hub.part_layout("led1").unwrap().mirror_x);
+    }
+
+    #[test]
+    fn layout_drag_moves_skip_projection_regen() {
+        let mut hub = AuthoringHub::from_project(c01());
+        let before = hub.projections.toml.clone();
+        // Poison projections; layout-only commit must not rebuild them.
+        hub.projections.toml = "POISONED".into();
+        let mut layout = hub.part_layout("led1").unwrap();
+        layout.x += 1.0;
+        hub.commit_part_layout_no_undo("led1", layout).unwrap();
+        assert_eq!(hub.projections.toml, "POISONED");
+        assert!((hub.part_layout("led1").unwrap().x - 14.25).abs() < 1e-9);
+        // Discrete refresh restores projections once.
+        hub.refresh_derived();
+        assert_ne!(hub.projections.toml, "POISONED");
+        assert!(hub.projections.toml.contains("led1") || !hub.projections.toml.is_empty());
+        let _ = before; // layout coords may appear in TOML after refresh
     }
 }
