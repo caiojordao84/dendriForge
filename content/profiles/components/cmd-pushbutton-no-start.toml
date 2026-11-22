@@ -43,11 +43,33 @@ options = [1, 3, 6, 8, 10]
 type = "enum"
 unit = "A"
 
+[params.contact_form]
+default = "no"
+editable = false
+label = "Contact Form"
+options = ["no", "nc"]
+type = "enum"
+
 [params.contact_state]
 default = "normally-open"
 editable = true
 label = "Contact State"
 options = ["normally-open", "momentary", "spring-return"]
+type = "enum"
+
+# Industrial 22 mm on S7 DI: typically active-high (contact fed from 24 V).
+[params.pull]
+default = "none"
+editable = true
+label = "Input Pull"
+options = ["none", "pullup", "pulldown"]
+type = "enum"
+
+[params.active_level]
+default = "high"
+editable = true
+label = "Active Level When Closed"
+options = ["high", "low"]
 type = "enum"
 
 [params.electrical_life]
@@ -103,6 +125,7 @@ model = "ideal"
 noise_model = false
 states = ["open", "closed"]
 thermal_model = false
+equation = "pressed => contact closed; GPIO level = f(closed, pull, active_level). Default industrial: active_level=high, pull=none (S7 24 V DI)."
 
 [limits]
 max_current = "10A"
@@ -130,7 +153,7 @@ y = 15
 x = 50
 y = 15
 ports_layout = "horizontal"
-value_display = "NO Start / {contact_state} / {ip_rating}"
+value_display = "NO Start / {contact_form} / {active_level} / {ip_rating}"
 width = 50
 
 [dendri]
@@ -143,3 +166,4 @@ tags = ["pushbutton", "no", "momentary", "switch", "operator", "control", "iec-6
 svg_status = "authored"
 visual_mvp = true
 svg_required_ids = ["actuator", "contact"]
+sim_role = "momentary-contact"

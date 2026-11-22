@@ -245,10 +245,19 @@ pid = "0x0043"
 type = "USB-B"
 vid = "0x2341"
 
+[simulation]
+# Board logic-high for LED DC model (board_logic_high_v). [specs].voltage is ignored.
+logic_high = 5
+model = "mcu-gpio"
+states = ["powered", "run", "reset"]
+# D13 sourcing 5 V for load (C01). ADC A0–A5: 0–5 V → 10-bit 0–1023 at platform edge;
+# set_adc API (D2) proposed as 0–65535 normalized then converted per board.
+equation = "V_do = 5 when pin high (sourcing); V_ai = 0..5; counts_uno = V_ai / 5 * 1023"
+
 [restrictions]
 max_io_current = "40mA"
 total_current_limit = "200mA"
-warnings = ["Pins 0/1 shared with USB Serial", "Pin 13 has onboard LED interference", "Polyfuse protects USB over 500mA"]
+warnings = ["Pins 0/1 shared with USB Serial", "Pin 13 has onboard LED interference", "Polyfuse protects USB over 500mA", "Do not expand SVG tags beyond led-pin13 / pads (D-C5); A0 terminals are scene-only (D-comp-12)"]
 
 [compatibility]
 arduino_core = "1.8.19"
@@ -265,4 +274,4 @@ svg_path = "content/assets/svg/boards/arduino-uno-r3.svg"
 svg_status = "authored"
 visual_mvp = true
 svg_required_ids = ["led-pin13"]
-svg_note = "Canvas binds #led-pin13 + D13 pad; prefers content/assets/svg/"
+svg_note = "Canvas binds #led-pin13 + D13 pad; prefers content/assets/svg/. SVG tag contract frozen (D-C5)."

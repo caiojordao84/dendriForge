@@ -81,6 +81,10 @@ pub struct DendriMeta {
     pub sim_protocols: Vec<String>,
     #[serde(default)]
     pub simulation_engine: Option<String>,
+    /// Declarative sim role for bridge/session (D-comp-14).
+    /// Values: `led-load` | `momentary-contact` | `adc-source`.
+    #[serde(default)]
+    pub sim_role: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -89,6 +93,13 @@ pub struct SimulationMeta {
     pub model: Option<String>,
     #[serde(default)]
     pub states: Vec<String>,
+    /// Board logic-high rail (volts). Read by `board_logic_high_v` for LED DC model.
+    #[serde(default)]
+    pub logic_high: Option<toml::Value>,
+    #[serde(default)]
+    pub vcc: Option<toml::Value>,
+    #[serde(default)]
+    pub voltage: Option<toml::Value>,
 }
 
 /// SVG hook recorded for later visual sim (does not load the SVG bytes).
@@ -400,7 +411,7 @@ mod tests {
         let components = s.list_ids("components").unwrap();
         let screens = s.list_ids("screens").unwrap();
         assert_eq!(boards.len(), 60, "all boards migrated");
-        assert_eq!(components.len(), 151, "all components migrated");
+        assert_eq!(components.len(), 153, "all components migrated");
         assert_eq!(screens.len(), 2, "all screens migrated");
         let report = s.validate_all().unwrap();
         assert!(
@@ -408,11 +419,67 @@ mod tests {
             "profile load errors: {:?}",
             report.errors
         );
-        assert_eq!(report.loaded, 213);
+        assert_eq!(report.loaded, 215);
         assert!(report.svg_present >= 6);
         // Screens load through dedicated API.
         let screen = s.load_screen("ind-hmi-numeric-indicator").unwrap();
         assert_eq!(screen.identification.id, "ind-hmi-numeric-indicator");
+    }
+
+    #[test]
+    fn s7_declares_logic_high_24_and_iw_labels() {
+        let s = store();
+        let siemens = s.load_board("siemens-s7-1200-cpu-1214c").unwrap();
+        let sim = siemens.simulation.as_ref().expect("S7 [simulation]");
+        let v = match sim.logic_high.as_ref().expect("logic_high") {
+            toml::Value::Integer(i) => *i as f64,
+            toml::Value::Float(f) => *f,
+            other => panic!("unexpected logic_high: {other:?}"),
+        };
+        assert!((v - 24.0).abs() < 1e-9);
+        let gpio = siemens
+            .rest
+            .get("gpio")
+            .and_then(|g| g.as_array())
+            .expect("gpio");
+        let labels: Vec<&str> = gpio
+            .iter()
+            .filter_map(|g| g.get("label").and_then(|l| l.as_str()))
+            .collect();
+        assert!(labels.iter().any(|l| *l == "IW64"), "{labels:?}");
+        assert!(labels.iter().any(|l| *l == "IW66"), "{labels:?}");
+        assert!(!labels.iter().any(|l| l.contains("AIW")), "{labels:?}");
+    }
+
+    #[test]
+    fn d0a_profiles_declare_sim_role() {
+        let s = store();
+        let cases = [
+            ("led", "led-load"),
+            ("signal-pilot-lamp", "led-load"),
+            ("cmd-pushbutton-no-start", "momentary-contact"),
+            ("cmd-pushbutton-nc-stop", "momentary-contact"),
+            ("maker-tactile-4pin", "momentary-contact"),
+            ("potentiometer", "adc-source"),
+            ("sensor-pressure-4-20ma", "adc-source"),
+        ];
+        for (id, role) in cases {
+            let doc = s.load_component(id).unwrap();
+            let got = doc
+                .dendri
+                .as_ref()
+                .and_then(|d| d.sim_role.as_deref())
+                .unwrap_or("<missing>");
+            assert_eq!(got, role, "sim_role for {id}");
+        }
+        let pilot = s.load_component("signal-pilot-lamp").unwrap();
+        let params = pilot.rest.get("params").and_then(|p| p.as_table()).unwrap();
+        assert!(params.contains_key("vf"));
+        assert!(params.contains_key("integrated_resistance"));
+        assert!(params.contains_key("if_max"));
+        assert!(params.contains_key("if_rated"));
+        assert!(!params.contains_key("current_rated"));
+        assert!(!params.contains_key("current_max"));
     }
 
     #[test]
