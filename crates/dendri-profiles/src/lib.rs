@@ -100,6 +100,13 @@ pub struct SimulationMeta {
     pub vcc: Option<toml::Value>,
     #[serde(default)]
     pub voltage: Option<toml::Value>,
+    /// AI voltage full-scale (Uno 5 V, S7 10 V). Used by D2 analog bridge.
+    #[serde(default)]
+    pub adc_v_full_scale: Option<toml::Value>,
+    /// Platform-native ADC max counts (Uno 1023, S7 27648). Documented conversion only —
+    /// ASL `READ_ADC` stays 0–65535 normalized.
+    #[serde(default)]
+    pub adc_platform_max: Option<toml::Value>,
 }
 
 /// SVG hook recorded for later visual sim (does not load the SVG bytes).

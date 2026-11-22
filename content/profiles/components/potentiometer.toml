@@ -146,5 +146,5 @@ svg_path = "content/assets/svg/components/potentiometer.svg"
 tags = ["potentiometer", "passive", "analog", "variable-resistor", "wiper", "voltage-divider"]
 svg_status = "authored"
 svg_required_ids = ["wiper", "actuator"]
-svg_note = "D1 minimal SVG (authored for criterion 2); live analog path is D2. panel-potentiometer remains legacy."
+svg_note = "Authored SVG (#wiper, #actuator). Live wiper is session state (D-comp-9); panel-potentiometer remains legacy."
 sim_role = "adc-source"

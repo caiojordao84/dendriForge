@@ -250,9 +250,11 @@ vid = "0x2341"
 logic_high = 5
 model = "mcu-gpio"
 states = ["powered", "run", "reset"]
-# D13 sourcing 5 V for load (C01). ADC A0–A5: 0–5 V → 10-bit 0–1023 at platform edge;
-# set_adc API (D2) proposed as 0–65535 normalized then converted per board.
-equation = "V_do = 5 when pin high (sourcing); V_ai = 0..5; counts_uno = V_ai / 5 * 1023"
+# D13 sourcing 5 V for load (C01). ASL set_adc / READ_ADC = 0–65535 normalized;
+# platform edge is 10-bit 0–1023 (norm * 1023 / 65535). See sim-components-d2-pr.md.
+adc_v_full_scale = 5
+adc_platform_max = 1023
+equation = "V_do = 5 when pin high (sourcing); V_ai = 0..5; norm = V_ai/5*65535; counts_uno = norm*1023/65535"
 
 [restrictions]
 max_io_current = "40mA"

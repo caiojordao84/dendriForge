@@ -150,5 +150,5 @@ svg_path = "content/assets/svg/components/sensor-pressure-4-20ma.svg"
 tags = ["pressure", "transmitter", "4-20ma", "analog", "sensor", "process"]
 svg_status = "authored"
 svg_required_ids = ["readout"]
-svg_note = "D1 minimal SVG (authored for criterion 2); loop/shunt path is D2. sim_role adc-source."
+svg_note = "Authored SVG (#readout). Loop path: OUT → resistor 500 Ω → GND; AI across shunt (D-comp-13)."
 sim_role = "adc-source"

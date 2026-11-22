@@ -325,9 +325,11 @@ vid = "0x0000"
 logic_high = 24
 model = "plc-io"
 states = ["powered", "run", "stop", "fault"]
-# DO: integrated MOSFET sourcing 24 V DC (0.5 A/ch). AI: voltage 0–10 V only (IW64/IW66); no AO on this CPU.
-# ADC scale (D2): 0–10 V → ~0…27648 counts; 4–20 mA via external 500 Ω shunt → 2…10 V (~5530…27648).
-equation = "V_do = 24 when Q high (sourcing); V_ai = 0..10; counts_s7 ~= V_ai / 10 * 27648"
+# DO: MOSFET sourcing 24 V. AI: 0–10 V only (IW64/IW66); no AO. ASL READ_ADC = 0–65535;
+# platform edge ≈ 0…27648 (norm * 27648 / 65535). 4–20 mA via 500 Ω → 2…10 V (~5530…27648).
+adc_v_full_scale = 10
+adc_platform_max = 27648
+equation = "V_do = 24 when Q high (sourcing); V_ai = 0..10; norm = V_ai/10*65535; counts_s7 ~= norm*27648/65535"
 
 [restrictions]
 max_io_current = "500mA"

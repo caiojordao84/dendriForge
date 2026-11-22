@@ -20,8 +20,13 @@ use dendri_ast::stmt::Stmt;
 use dendri_ast::{Program, Scope, SimulationProject};
 use dendri_parse::parse_expr_text;
 
+mod adc;
 mod modbus;
 mod value;
+pub use adc::{
+    clamp_norm, norm_to_platform, norm_to_volts, platform_to_norm, volts_to_norm, ADC_NORM_MAX,
+    S7_ADC_MAX, UNO_ADC_MAX,
+};
 pub use modbus::ModbusMap;
 pub use value::Value;
 
@@ -800,6 +805,20 @@ impl Simulator {
         Ok(())
     }
 
+    /// Drive an ADC input with a **normalized** raw value (0–65535).
+    ///
+    /// Same unit as [`SimConfig::initial_adc`] and ASL `READ_ADC`. Platform
+    /// native counts (Uno 0–1023, S7 0–27648) use [`norm_to_platform`].
+    pub fn set_adc(&mut self, pin: u32, normalized: u32) -> Result<(), String> {
+        self.adc.insert(pin, clamp_norm(normalized));
+        Ok(())
+    }
+
+    /// Current ADC raw (normalized 0–65535) for `pin`, or 0 if unset.
+    pub fn adc(&self, pin: u32) -> u32 {
+        *self.adc.get(&pin).unwrap_or(&0)
+    }
+
     fn maybe_fire_isr(&mut self, pin: u32, prev: bool, next: bool) -> Result<(), String> {
         let Some(att) = self.interrupts.get(&pin).cloned() else {
             return Ok(());
@@ -1256,6 +1275,7 @@ impl Simulator {
             }
             "READ_ADC" => {
                 let pin = self.eval_pin_arg(&args[0])?;
+                // ASL contract: normalized 0–65535 (see `set_adc` / SimConfig).
                 let value = *self.adc.get(&pin).unwrap_or(&0);
                 self.push(TraceKind::AdcRead { pin, value });
                 Ok(Value::Uint(value as u64))
