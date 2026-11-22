@@ -1,0 +1,126 @@
+[metadata]
+asl_version = "0.0.1"
+project_name = "C04-uno-tactile-led"
+editor = "dendriForge"
+author = "dendriForge D1"
+notes = "Uno + maker-tactile-4pin + LED. MCU mirror of industrial NO→load (C01 keeps cmd-pushbutton-no-start). Pull-up active-low."
+
+[board]
+profile = "arduino-uno-r3"
+instance_id = "board"
+x = 1.0
+y = 2.0
+rotation = 0
+mirror_x = false
+mirror_y = false
+
+[[components]]
+instance_id = "led1"
+profile = "led"
+label = "Status LED"
+x = 13.25
+y = 2.25
+rotation = 0
+mirror_x = false
+mirror_y = false
+
+[components.params]
+color = "red"
+integrated_resistance = 220
+
+[[components]]
+instance_id = "btn_tactile"
+profile = "maker-tactile-4pin"
+label = "Tactile"
+x = 13.0
+y = 6.0
+rotation = 0
+mirror_x = false
+mirror_y = false
+
+[components.params]
+
+[[wiring]]
+from = "board.D13"
+to = "led1.A"
+signal = "digital"
+
+[[wiring]]
+from = "board.GND"
+to = "led1.K"
+signal = "gnd"
+
+# Tactile poles A/B: pin ↔ GND (INPUT_PULLUP → pressed reads LOW).
+[[wiring]]
+from = "board.D2"
+to = "btn_tactile.A"
+signal = "digital"
+
+[[wiring]]
+from = "board.GND"
+to = "btn_tactile.B"
+signal = "gnd"
+
+[asl]
+functions = []
+
+[asl.metadata]
+asl_version = "0.0.1"
+project_name = "C04-uno-tactile-led"
+editor = "dendriForge"
+author = "dendriForge D1"
+
+[[asl.hardware]]
+pin = 2
+hw_type = "digital"
+io_mode = "DI"
+label = "btnPin"
+target_role = "digital-in"
+pull = "pullup"
+
+[[asl.hardware]]
+pin = 13
+hw_type = "digital"
+io_mode = "DO"
+label = "ledPin"
+target_role = "digital-out"
+
+[[asl.data]]
+name = "pressed"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[asl.setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT"
+args = [{ kind = "var", name = "btnPin" }]
+
+[[asl.setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "var", name = "ledPin" }]
+
+[[asl.setup]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "var", name = "ledPin" }, { kind = "bool", value = false }]
+
+[[asl.loop]]
+kind = "assign"
+target = "pressed"
+
+[asl.loop.value]
+kind = "unary"
+op = "not"
+
+[asl.loop.value.expr]
+kind = "call"
+name = "GET_BOOL"
+args = [{ kind = "var", name = "btnPin" }]
+
+[[asl.loop]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "var", name = "ledPin" }, { kind = "var", name = "pressed" }]

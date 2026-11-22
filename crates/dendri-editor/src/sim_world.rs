@@ -21,6 +21,7 @@
 //! (acceptance §5.9 — no per-frame routing / SVG parse / projection regen).
 
 use std::cell::{Cell, RefCell};
+use std::collections::BTreeMap;
 use std::f32::consts::PI;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -124,7 +125,7 @@ struct WireDragState {
     from: TerminalRef,
 }
 
-/// SVG handles + prepared hook geometry for MVP parts (loaded once at app boot).
+/// SVG handles + prepared hook geometry for MVP + D1 authored parts (boot once).
 #[derive(Debug, Clone)]
 pub struct SceneSvgHandles {
     pub uno: iced::widget::svg::Handle,
@@ -134,6 +135,12 @@ pub struct SceneSvgHandles {
     pub led_body: Option<PreparedHook>,
     /// `actuator` hook — prepared once; reused every dynamic frame.
     pub button_actuator: Option<PreparedHook>,
+    /// Authored SVGs keyed by profile id (S7, pilot, tactile, NC, …).
+    pub by_profile: BTreeMap<String, iced::widget::svg::Handle>,
+    /// Per-profile `led-body` hooks (pilot lamp, …).
+    pub hooks_led_body: BTreeMap<String, PreparedHook>,
+    /// Per-profile `actuator` hooks (tactile, NC, …).
+    pub hooks_actuator: BTreeMap<String, PreparedHook>,
 }
 
 impl SceneSvgHandles {
@@ -150,22 +157,85 @@ impl SceneSvgHandles {
             .ok()
             .and_then(|s| parse_svg_str(&s).ok())
             .and_then(|t| prepare_hook(&t, "actuator"));
+
+        let mut by_profile = BTreeMap::new();
+        let mut hooks_led_body = BTreeMap::new();
+        let mut hooks_actuator = BTreeMap::new();
+        // D1 authored set (+ S7 board body). Paths mirror profile `svg_path`.
+        const EXTRA: &[(&str, &str, &[&str])] = &[
+            (
+                "siemens-s7-1200-cpu-1214c",
+                "content/assets/svg/boards/siemens-s7-1200-cpu-1214c.svg",
+                &[],
+            ),
+            (
+                "signal-pilot-lamp",
+                "content/assets/svg/components/signal-pilot-lamp.svg",
+                &["led-body"],
+            ),
+            (
+                "maker-tactile-4pin",
+                "content/assets/svg/components/maker-tactile-4pin.svg",
+                &["actuator"],
+            ),
+            (
+                "cmd-pushbutton-nc-stop",
+                "content/assets/svg/components/cmd-pushbutton-nc-stop.svg",
+                &["actuator"],
+            ),
+            (
+                "potentiometer",
+                "content/assets/svg/components/potentiometer.svg",
+                &["actuator"],
+            ),
+            (
+                "sensor-pressure-4-20ma",
+                "content/assets/svg/components/sensor-pressure-4-20ma.svg",
+                &[],
+            ),
+        ];
+        for (id, rel, hooks) in EXTRA {
+            let path = root.join(rel);
+            if !path.exists() {
+                continue;
+            }
+            by_profile.insert(
+                (*id).to_string(),
+                iced::widget::svg::Handle::from_path(path.clone()),
+            );
+            if let Ok(text) = std::fs::read_to_string(&path) {
+                if let Ok(tree) = parse_svg_str(&text) {
+                    for hook_id in *hooks {
+                        if let Some(h) = prepare_hook(&tree, hook_id) {
+                            if *hook_id == "led-body" {
+                                hooks_led_body.insert((*id).to_string(), h);
+                            } else if *hook_id == "actuator" {
+                                hooks_actuator.insert((*id).to_string(), h);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         Self {
             uno: iced::widget::svg::Handle::from_path(uno),
             led: iced::widget::svg::Handle::from_path(led),
             button: iced::widget::svg::Handle::from_path(button),
             led_body,
             button_actuator,
+            by_profile,
+            hooks_led_body,
+            hooks_actuator,
         }
     }
 
-    fn for_profile(&self, profile: MvpProfile) -> Option<&iced::widget::svg::Handle> {
-        match profile {
+    fn for_part(&self, part: &ScenePart) -> Option<&iced::widget::svg::Handle> {
+        match part.profile {
             MvpProfile::UnoR3 => Some(&self.uno),
             MvpProfile::Led => Some(&self.led),
             MvpProfile::Pushbutton => Some(&self.button),
-            // D1 will load per-profile SVGs; D0b draws a placeholder body.
-            MvpProfile::Generic => None,
+            MvpProfile::Generic => self.by_profile.get(&part.profile_id),
         }
     }
 }
@@ -931,13 +1001,13 @@ fn draw_part(
 
     frame.with_save(|frame| {
         apply_part_pose(frame, part, cx, cy);
-        if let Some(handle) = svgs.for_profile(part.profile) {
+        if let Some(handle) = svgs.for_part(part) {
             frame.draw_svg(
                 Rectangle::new(Point::new(-w * 0.5, -h * 0.5), Size::new(w, h)),
                 handle,
             );
         } else {
-            // Generic / missing SVG: flat body so terminals stay usable (D0b).
+            // Missing SVG: flat body so terminals stay usable.
             let rect = Path::rectangle(Point::new(-w * 0.5, -h * 0.5), Size::new(w, h));
             frame.fill(&rect, Color::from_rgb(0.22, 0.26, 0.30));
             frame.stroke(
@@ -1027,9 +1097,17 @@ fn draw_dynamic_part(
     let Some(st) = snapshot.components.get(&part.id) else {
         return;
     };
-    // Authored MVP hooks only; Generic led-load / momentary wait for D1 SVGs.
-    if part.profile == MvpProfile::Led {
-            let Some(hook) = svgs.led_body.as_ref() else {
+    // MVP curated + D1 Generic led-load / momentary-contact (sim_role).
+    let is_led = part.profile == MvpProfile::Led || part.sim_role == Some(SimRole::LedLoad);
+    let is_btn = part.profile == MvpProfile::Pushbutton
+        || part.sim_role == Some(SimRole::MomentaryContact);
+    if is_led {
+            let hook = if part.profile == MvpProfile::Led {
+                svgs.led_body.as_ref()
+            } else {
+                svgs.hooks_led_body.get(&part.profile_id)
+            };
+            let Some(hook) = hook else {
                 return;
             };
             let burned = st.led_burned == Some(true);
@@ -1068,13 +1146,18 @@ fn draw_dynamic_part(
                     );
                 }
             });
-    } else if part.profile == MvpProfile::Pushbutton {
+    } else if is_btn {
             let pressed = st.button_pressed == Some(true);
             let latched = st.button_latched == Some(true);
             if !pressed && !latched {
                 return;
             }
-            let Some(hook) = svgs.button_actuator.as_ref() else {
+            let hook = if part.profile == MvpProfile::Pushbutton {
+                svgs.button_actuator.as_ref()
+            } else {
+                svgs.hooks_actuator.get(&part.profile_id)
+            };
+            let Some(hook) = hook else {
                 return;
             };
             with_hook_space(frame, camera, part, hook.view_w, hook.view_h, |frame| {

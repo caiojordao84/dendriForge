@@ -259,26 +259,30 @@ pub fn resolve_terminal_bindings_with_hints(
     hints: &ProjectSimHints,
 ) -> Vec<TerminalBinding> {
     let mut out = Vec::new();
+    let gpio = &hints.gpio_by_label;
 
     // Board digital pads from wiring endpoints + defaults.
     let mut board_ports: BTreeMap<String, Option<u32>> = BTreeMap::new();
     for w in &project.wiring {
-        push_endpoint_port(&mut board_ports, &w.from);
-        push_endpoint_port(&mut board_ports, &w.to);
+        push_endpoint_port(&mut board_ports, &w.from, hints);
+        push_endpoint_port(&mut board_ports, &w.to, hints);
     }
     // Ensure common MVP pads exist even if unwired.
     for (port, pin) in [("D13", Some(13u32)), ("D2", Some(2u32))] {
         board_ports.entry(port.into()).or_insert(pin);
     }
     let board_id = project.board.instance_id.clone();
+    let _ = gpio; // used via hints.gpio_pin
     for (port, pin) in board_ports {
-        if parse_board_digital_pin_label(&port).is_some() || pin.is_some() {
-            let pin = pin.or_else(|| parse_board_digital_pin_label(&port));
+        let resolved = pin
+            .or_else(|| parse_board_digital_pin_label(&port))
+            .or_else(|| hints.gpio_pin(&port));
+        if let Some(pin) = resolved {
             out.push(TerminalBinding {
                 instance_id: board_id.clone(),
                 terminal: port,
                 kind: TerminalKind::BoardDigital,
-                board_pin: pin,
+                board_pin: Some(pin),
             });
         }
     }
@@ -306,6 +310,7 @@ pub fn resolve_terminal_bindings_with_hints(
                     "cmd-pushbutton-no-start" | "cmd-pushbutton-nc-stop" => {
                         vec!["NO", "COM", "NC"]
                     }
+                    "maker-tactile-4pin" => vec!["A", "B"],
                     _ => Vec::new(),
                 }
             }
@@ -324,6 +329,7 @@ pub fn resolve_terminal_bindings_with_hints(
                     ("cmd-pushbutton-no-start" | "cmd-pushbutton-nc-stop", _) => {
                         TerminalKind::ButtonContact
                     }
+                    ("maker-tactile-4pin", _) => TerminalKind::ButtonContact,
                     _ => TerminalKind::Other,
                 },
             }
@@ -340,7 +346,7 @@ pub fn resolve_terminal_bindings_with_hints(
         }
         for term in terminals {
             let endpoint = format!("{}.{}", comp.instance_id, term);
-            let board_pin = find_board_pin_for_endpoint(&project.wiring, &endpoint);
+            let board_pin = find_board_pin_for_endpoint(&project.wiring, &endpoint, hints);
             out.push(TerminalBinding {
                 instance_id: comp.instance_id.clone(),
                 terminal: term.into(),
@@ -352,14 +358,18 @@ pub fn resolve_terminal_bindings_with_hints(
     out
 }
 
-fn push_endpoint_port(map: &mut BTreeMap<String, Option<u32>>, endpoint: &str) {
+fn push_endpoint_port(
+    map: &mut BTreeMap<String, Option<u32>>,
+    endpoint: &str,
+    hints: &ProjectSimHints,
+) {
     let Some((inst, port)) = split_endpoint(endpoint) else {
         return;
     };
     if !inst.eq_ignore_ascii_case("board") {
         return;
     }
-    let pin = parse_board_digital_pin_label(port);
+    let pin = parse_board_digital_pin_label(port).or_else(|| hints.gpio_pin(port));
     // Keep dotted port ids intact (e.g. Ia.0); only upper-case for D* labels.
     let key = if port.contains('.') {
         port.to_string()
@@ -385,18 +395,22 @@ fn parse_board_digital_pin_label(port: &str) -> Option<u32> {
     digits.parse().ok()
 }
 
-fn find_board_pin_for_endpoint(wiring: &[Wire], endpoint: &str) -> Option<u32> {
+fn find_board_pin_for_endpoint(
+    wiring: &[Wire],
+    endpoint: &str,
+    hints: &ProjectSimHints,
+) -> Option<u32> {
     let target = endpoint.to_ascii_lowercase();
     for w in wiring {
         let from = w.from.to_ascii_lowercase();
         let to = w.to.to_ascii_lowercase();
         if from == target {
-            if let Some(pin) = parse_board_digital_from_endpoint(&w.to) {
+            if let Some(pin) = parse_board_digital_from_endpoint(&w.to, hints) {
                 return Some(pin);
             }
         }
         if to == target {
-            if let Some(pin) = parse_board_digital_from_endpoint(&w.from) {
+            if let Some(pin) = parse_board_digital_from_endpoint(&w.from, hints) {
                 return Some(pin);
             }
         }
@@ -404,11 +418,14 @@ fn find_board_pin_for_endpoint(wiring: &[Wire], endpoint: &str) -> Option<u32> {
     None
 }
 
-fn parse_board_digital_from_endpoint(endpoint: &str) -> Option<u32> {
-    let lower = endpoint.to_ascii_lowercase();
-    let rest = lower.strip_prefix("board.d")?;
-    let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
-    digits.parse().ok()
+fn parse_board_digital_from_endpoint(endpoint: &str, hints: &ProjectSimHints) -> Option<u32> {
+    let Some((inst, port)) = split_endpoint(endpoint) else {
+        return None;
+    };
+    if !inst.eq_ignore_ascii_case("board") {
+        return None;
+    }
+    parse_board_digital_pin_label(port).or_else(|| hints.gpio_pin(port))
 }
 
 /// Optional inputs that refine the snapshot beyond raw pin levels.
@@ -864,8 +881,36 @@ mod tests {
     #[test]
     fn wire_endpoint_helpers() {
         let wires = vec![Wire::new("board.D13", "led1.A")];
-        assert_eq!(find_board_pin_for_endpoint(&wires, "led1.A"), Some(13));
-        assert_eq!(find_board_pin_for_endpoint(&wires, "led1.K"), None);
+        let hints = ProjectSimHints::default();
+        assert_eq!(
+            find_board_pin_for_endpoint(&wires, "led1.A", &hints),
+            Some(13)
+        );
+        assert_eq!(find_board_pin_for_endpoint(&wires, "led1.K", &hints), None);
+    }
+
+    #[test]
+    fn s7_gpio_labels_resolve_via_hints_map() {
+        let path = repo().join("content/fixtures/canvas/C02-s7-button-pilot.toml");
+        let doc = parse_path(&path).expect("parse C02");
+        let project = match doc {
+            ParsedDocument::Project(p) => p.project,
+            _ => panic!("expected project"),
+        };
+        let hints = crate::load_project_sim_hints(&repo(), &project);
+        assert_eq!(hints.gpio_pin("Ia.0"), Some(0));
+        assert_eq!(hints.gpio_pin("Qa.0"), Some(14));
+        let bindings = resolve_terminal_bindings_with_hints(&project, &hints);
+        let btn = bindings
+            .iter()
+            .find(|b| b.instance_id == "btn_start" && b.terminal == "NO")
+            .expect("btn NO");
+        assert_eq!(btn.board_pin, Some(0));
+        let pilot = bindings
+            .iter()
+            .find(|b| b.instance_id == "pilot1" && b.terminal == "A")
+            .expect("pilot A");
+        assert_eq!(pilot.board_pin, Some(14));
     }
 
     #[test]

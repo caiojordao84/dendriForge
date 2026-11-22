@@ -451,13 +451,22 @@ impl SimSession {
             {
                 any_primary = pressed;
             }
-            // Prefer NO contact pin; fall back to any button contact binding.
+            // Prefer NO (industrial) then A (tactile); else any wired contact.
             let pin = bindings
                 .iter()
                 .find(|b| {
                     b.instance_id == comp.instance_id
                         && b.kind == TerminalKind::ButtonContact
                         && b.terminal == "NO"
+                        && b.board_pin.is_some()
+                })
+                .or_else(|| {
+                    bindings.iter().find(|b| {
+                        b.instance_id == comp.instance_id
+                            && b.kind == TerminalKind::ButtonContact
+                            && b.terminal == "A"
+                            && b.board_pin.is_some()
+                    })
                 })
                 .or_else(|| {
                     bindings.iter().find(|b| {
@@ -714,6 +723,84 @@ mod tests {
 
         session.canvas_button_release(Some(&project));
         assert!(session.primary_raw_high());
+        session.scan_once(Some(&project)).unwrap();
+        assert!(!session.primary_led_on());
+    }
+
+    fn load_fixture(name: &str) -> SimulationProject {
+        let path = repo().join("content/fixtures/canvas").join(name);
+        let doc = parse_path(&path).unwrap();
+        match doc {
+            ParsedDocument::Project(p) => p.project,
+            _ => panic!("expected project {name}"),
+        }
+    }
+
+    #[test]
+    fn c04_tactile_press_drives_led_active_low() {
+        let project = load_fixture("C04-uno-tactile-led.toml");
+        assert!(
+            project
+                .components
+                .iter()
+                .any(|c| c.profile == "maker-tactile-4pin"),
+            "C04 must use tactile (C01 stays industrial NO)"
+        );
+        let mut session = SimSession::new();
+        session.boot_from_project(&project, &repo()).unwrap();
+        let btn = primary_button_id_with_hints(&project, &session.sim_hints).unwrap();
+        session.apply_command(SimCommand::Play, Some(&project), &repo());
+
+        assert!(session.primary_raw_high(), "pull-up released → HIGH");
+        session.canvas_button_press(&btn, Some(&project));
+        assert!(!session.primary_raw_high(), "pressed → LOW");
+        session.scan_once(Some(&project)).unwrap();
+        assert!(session.primary_led_on(), "C04 tactile → LED ON");
+
+        session.canvas_button_release(Some(&project));
+        session.scan_once(Some(&project)).unwrap();
+        assert!(!session.primary_led_on());
+    }
+
+    #[test]
+    fn c02_s7_press_drives_pilot_active_high() {
+        let project = load_fixture("C02-s7-button-pilot.toml");
+        assert_eq!(project.board.profile, "siemens-s7-1200-cpu-1214c");
+        assert!(project
+            .components
+            .iter()
+            .any(|c| c.profile == "signal-pilot-lamp"));
+        let mut session = SimSession::new();
+        session.boot_from_project(&project, &repo()).unwrap();
+        assert!((session.led_params_base.v_high - 24.0).abs() < 1e-9);
+        let btn = primary_button_id_with_hints(&project, &session.sim_hints).unwrap();
+        session.apply_command(SimCommand::Play, Some(&project), &repo());
+
+        // Active-high: released → DI low; pressed → DI high.
+        assert!(
+            !session.primary_raw_high(),
+            "S7 DI released should be LOW (no pull-up)"
+        );
+        session.canvas_button_press(&btn, Some(&project));
+        assert!(
+            session.primary_raw_high(),
+            "S7 pressed → DI HIGH (active-high)"
+        );
+        session.scan_once(Some(&project)).unwrap();
+        assert!(session.primary_led_on(), "C02 press → pilot ON");
+
+        let pilot = project
+            .components
+            .iter()
+            .find(|c| c.profile == "signal-pilot-lamp")
+            .unwrap();
+        let st = session.snapshot.components.get(&pilot.instance_id).unwrap();
+        assert_eq!(st.led_burned, Some(false));
+        let i = st.led_current_a().unwrap();
+        // (24 − 2) / 1100 ≈ 20 mA
+        assert!(i > 0.015 && i < 0.025, "pilot I={i}");
+
+        session.canvas_button_release(Some(&project));
         session.scan_once(Some(&project)).unwrap();
         assert!(!session.primary_led_on());
     }
