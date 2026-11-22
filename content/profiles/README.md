@@ -21,7 +21,8 @@ content/profiles/
 | `[[ports]]` (and pneumatic/hydraulic/protocol variants) | Components |
 | `[simulation]` | Model + discrete states |
 | `[canvas]` / `[canvas.port_*]` | Visual layout hooks |
-| `[dendri]` | Packer ids, `svg_path`, `svg_status`, MVP overlays |
+| `[dendri]` | Packer ids, `svg_path`, `svg_status`, MVP overlays, optional `sim_role` (`led-load` \| `momentary-contact` \| `adc-source`) |
+| Board `[simulation].logic_high` | Logic rail volts for LED DC model (`board_logic_high_v`); `[specs].voltage` is ignored |
 
 ## SVG resolution
 

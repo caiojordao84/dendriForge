@@ -65,10 +65,11 @@ options = [5, 10, 20]
 type = "enum"
 unit = "%"
 
+# Profile/TOML default only (D-comp-9). Live value is session state (like latches); do not mutate the project.
 [params.wiper_position]
 default = 50
 editable = true
-label = "Wiper Position"
+label = "Wiper Position (initial)"
 max = 100
 min = 0
 type = "float"
@@ -77,25 +78,25 @@ unit = "%"
 [[ports]]
 direction = "passive"
 id = "A"
-notes = "resistive track terminal A (full resistance end)"
+notes = "resistive track terminal A (full resistance end) — typically to 5 V on Uno"
 type = "analog"
 
 [[ports]]
 direction = "passive"
 id = "B"
-notes = "resistive track terminal B (zero resistance end)"
+notes = "resistive track terminal B (zero resistance end) — typically to GND"
 type = "analog"
 
 [[ports]]
 direction = "output"
 id = "W"
-notes = "wiper / sliding contact output"
+notes = "wiper / sliding contact output — typically to A0"
 type = "analog"
 
 [simulation]
 bidirectional = true
 dynamic = true
-equation = "R_AW = resistance * f(wiper_position, taper); R_WB = resistance - R_AW"
+equation = "R_AW = resistance * f(wiper_position_initial_or_session, taper); R_WB = resistance - R_AW; V_W = V_A * R_WB / (R_AW + R_WB) for linear. Uno A0: 0–5 V → platform 0–1023; set_adc bridge uses 0–65535 normalized (D2)."
 model = "ohms-law"
 noise_model = false
 states = ["nominal", "fault"]
@@ -108,13 +109,13 @@ unit = "W"
 value = "{power_rating}"
 max_temp = 125
 min_temp = -55
-warnings = ["Do not exceed rated power dissipation across the full resistive track", "Wiper current must not exceed the contact current rating (typically 1% of power rating)", "Logarithmic taper is designed for audio applications — do not use for linear control"]
+warnings = ["Do not exceed rated power dissipation across the full resistive track", "Wiper current must not exceed the contact current rating (typically 1% of power rating)", "Logarithmic taper is designed for audio applications — do not use for linear control", "wiper_position in the profile is the initial value only; live position is session state (D-comp-9)"]
 
 [connections]
 allowed_with = ["*"]
 forbidden_with = []
 requires = []
-typical_context = ["voltage-divider", "volume-control", "bias-adjustment", "sensor-calibration"]
+typical_context = ["voltage-divider", "volume-control", "bias-adjustment", "sensor-calibration", "adc-input"]
 
 [canvas]
 animated = true
@@ -144,3 +145,6 @@ simulation_engine = "basic-analog"
 svg_path = "content/assets/svg/components/potentiometer.svg"
 tags = ["potentiometer", "passive", "analog", "variable-resistor", "wiper", "voltage-divider"]
 svg_status = "missing"
+svg_required_ids = ["wiper", "actuator"]
+svg_note = "D1/D2 own SVG; panel-potentiometer remains legacy without deprecation."
+sim_role = "adc-source"

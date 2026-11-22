@@ -1,0 +1,153 @@
+# component profile — sensor-pressure-4-20ma (D0a; SVG in D1/D2)
+# ASL 0.0.1 lives on program IR (metadata.asl_version), not profiles.
+
+
+[metadata]
+author = "schemasmith"
+editor = "dendriForge"
+project_name = "sensor-pressure-4-20ma-profile"
+
+[identification]
+category = "passive"
+family = "electricals"
+id = "sensor-pressure-4-20ma"
+image = "sensor-pressure-4-20ma.svg"
+name = "Pressure Transmitter 4–20 mA"
+standard = "IEC 60770"
+subfamily = "passives"
+symbol = "sensor-pressure-4-20ma-symbol.svg"
+symbol_standard = "IEC"
+
+[params.pressure_min]
+default = 0
+editable = true
+label = "Pressure Range Min"
+max = 1000
+min = -100
+type = "float"
+unit = "bar"
+
+[params.pressure_max]
+default = 10
+editable = true
+label = "Pressure Range Max"
+max = 1000
+min = 0.1
+type = "float"
+unit = "bar"
+
+# Process value initial only; live value = session (analog path D2).
+[params.pressure]
+default = 0
+editable = true
+label = "Pressure (initial)"
+max = 1000
+min = -100
+type = "float"
+unit = "bar"
+
+[params.output_current_min]
+default = 0.004
+editable = false
+label = "Output Current at Min"
+type = "float"
+unit = "A"
+
+[params.output_current_max]
+default = 0.02
+editable = false
+label = "Output Current at Max"
+type = "float"
+unit = "A"
+
+[params.loop_supply]
+default = 24
+editable = true
+label = "Loop Supply (DC)"
+options = [12, 24]
+type = "enum"
+unit = "V"
+
+[params.package]
+default = "M12-2wire"
+editable = true
+label = "Package"
+options = ["M12-2wire", "DIN43650", "terminal"]
+type = "enum"
+
+[[ports]]
+direction = "input"
+id = "L_PLUS"
+notes = "loop supply +"
+type = "power"
+voltage_max = "36V"
+current_max = "30mA"
+
+[[ports]]
+direction = "output"
+id = "OUT"
+notes = "4–20 mA loop output (series with shunt to M / GND)"
+type = "analog"
+voltage_max = "36V"
+current_max = "30mA"
+
+[[ports]]
+direction = "input"
+id = "M"
+notes = "loop return / 0 V"
+type = "ground"
+
+[simulation]
+bidirectional = false
+dynamic = true
+model = "current-loop"
+noise_model = false
+states = ["nominal", "fault", "open-loop"]
+thermal_model = false
+# Topology (D-comp-13): TX OUT → resistor 500 Ω → GND; AI across resistor.
+# V_shunt = I_loop * 500 → 2…10 V for 4…20 mA. S7 IW64: ~5530…27648 counts.
+equation = "I_loop = 0.004 + (0.016) * clamp((pressure - pressure_min) / (pressure_max - pressure_min), 0, 1); V_shunt = I_loop * R_shunt"
+
+[limits]
+max_current = "30mA"
+max_temp = 85
+max_voltage = "36V"
+min_temp = -40
+warnings = ["2-wire loop requires external supply on L_PLUS", "No native S7 4–20 mA AI in this phase — use resistor @ 500 Ω shunt into IW64 (0–10 V)", "At 20 mA / 500 Ω, shunt dissipation is 0.2 W — set resistor power_rating ≥ 0.25 W", "SM1231 / SB1231 native current inputs are out of scope"]
+
+[connections]
+allowed_with = ["resistor", "dc-source", "plc-ai"]
+forbidden_with = []
+requires = []
+typical_context = ["process-pressure", "4-20ma-loop", "plc-analog-in"]
+
+[canvas]
+animated = false
+height = 40
+label_position = "top"
+
+[canvas.port_L_PLUS]
+x = 0
+y = 10
+
+[canvas.port_OUT]
+x = 0
+y = 30
+
+[canvas.port_M]
+x = 60
+y = 20
+ports_layout = "custom"
+value_display = "{pressure} bar / 4–20 mA / {loop_supply}V"
+width = 60
+
+[dendri]
+component_family_skill_id = "electricals-family"
+component_profile_id = "sensor-pressure-4-20ma"
+palette_group = "Fundamental Electricals > Sensors"
+simulation_engine = "basic-analog"
+svg_path = "content/assets/svg/components/sensor-pressure-4-20ma.svg"
+tags = ["pressure", "transmitter", "4-20ma", "analog", "sensor", "process"]
+svg_status = "missing"
+svg_note = "D1/D2 own SVG. sim_role adc-source: loop current drives AI via shunt (not a GPIO button)."
+sim_role = "adc-source"

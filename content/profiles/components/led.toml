@@ -116,10 +116,10 @@ type = "ground"
 [simulation]
 bidirectional = false
 dynamic = false
-equation = "V_f = vf; I_f = (V_supply - vf) / R_series; lux = luminous_intensity * (if_rated / if_rated)"
+equation = "I = (V_pin - vf) / integrated_resistance; I = 0 if V_pin <= vf; I > if_max => burned. R=0 with V_pin > vf → unbounded I (no NaN)."
 model = "basic-analog"
 noise_model = false
-states = ["off", "on", "fault"]
+states = ["off", "on", "burned", "fault"]
 thermal_model = false
 
 [limits]
@@ -128,7 +128,7 @@ max_power = "{power_rated}W"
 max_temp = 85
 max_voltage = "50V"
 min_temp = -40
-warnings = ["Always use a current-limiting resistor or constant-current driver — never connect LED directly to voltage source", "Do not exceed absolute max forward current — LED degrades irreversibly above thermal limit", "Reverse voltage above Vr_max causes breakdown — add protection diode in AC circuits", "RGB and addressable LEDs (WS2812) require specific drive logic — verify timing and voltage levels"]
+warnings = ["Always use a current-limiting resistor or constant-current driver — never connect LED directly to voltage source", "Do not exceed absolute max forward current — LED degrades irreversibly above thermal limit; overcurrent burns the load in sim", "Reverse voltage above Vr_max causes breakdown — add protection diode in AC circuits", "RGB and addressable LEDs (WS2812) require specific drive logic — verify timing and voltage levels"]
 
 [connections]
 allowed_with = ["*"]
@@ -149,7 +149,7 @@ y = 20
 x = 50
 y = 20
 ports_layout = "custom"
-value_display = "{color} / Vf={vf}V / If={if_rated}A ({led_type})"
+value_display = "{color} / Vf={vf}V / If={if_rated}A / R={integrated_resistance}Ω"
 width = 50
 
 [dendri]
@@ -162,3 +162,4 @@ tags = ["led", "diode", "light", "indicator", "passive", "optical", "iec-60810"]
 svg_status = "authored"
 visual_mvp = true
 svg_required_ids = ["led-body"]
+sim_role = "led-load"

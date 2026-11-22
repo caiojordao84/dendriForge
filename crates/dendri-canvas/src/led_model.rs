@@ -218,4 +218,40 @@ mod tests {
         assert_eq!(st.current, 0.0);
         assert!(!st.burned);
     }
+
+    #[test]
+    fn integrated_resistance_zero_no_nan_or_panic() {
+        // Mandatory D-comp-5 / D0a: R=0 with forward bias → unbounded I, burn; no NaN.
+        let params = LedElectricalParams {
+            vf: 2.0,
+            r_series: 0.0,
+            i_max: 0.03,
+            v_high: 24.0,
+        };
+        let st = evaluate_led(&params, 24.0, false);
+        assert!(st.current.is_infinite(), "I={}", st.current);
+        assert!(!st.current.is_nan());
+        assert!(st.burned);
+        let ua = amperes_to_ua(st.current);
+        assert_eq!(ua, i64::MAX);
+        let after = evaluate_led(&params, 24.0, true);
+        assert_eq!(after.current, 0.0);
+        assert!(!after.current.is_nan());
+        assert!(after.burned);
+    }
+
+    #[test]
+    fn pilot_defaults_at_24v_about_20_ma_not_burned() {
+        // signal-pilot-lamp.toml: vf=2.0, R=1100, if_max=0.03 @ 24 V → I≈20 mA.
+        let params = LedElectricalParams {
+            vf: 2.0,
+            r_series: 1100.0,
+            i_max: 0.03,
+            v_high: 24.0,
+        };
+        let st = evaluate_led(&params, params.v_pin(true), false);
+        assert!((st.current - 0.02).abs() < 1e-9, "I={}", st.current);
+        assert!(!st.burned);
+        assert!(st.current <= params.i_max);
+    }
 }

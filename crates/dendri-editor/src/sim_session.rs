@@ -544,9 +544,9 @@ fn load_led_params_base(repo_root: &Path, project: &SimulationProject) -> LedEle
     let content = repo_root.join("content");
     let store = ProfileStore::new(&content);
     let mut base = LedElectricalParams::PROFILE_DEFAULTS;
-    // Board logic-high voltage (Uno = 5 V).
+    // Board logic-high voltage (Uno = 5 V, S7 = 24 V via [simulation].logic_high).
     if let Ok(board) = store.load_board(&project.board.profile) {
-        if let Some(v) = board_logic_high_v(&board.rest) {
+        if let Some(v) = board_logic_high_v(&board) {
             base.v_high = v;
         }
     }
@@ -558,9 +558,18 @@ fn load_led_params_base(repo_root: &Path, project: &SimulationProject) -> LedEle
     base
 }
 
-fn board_logic_high_v(rest: &toml::map::Map<String, toml::Value>) -> Option<f64> {
-    // Prefer an explicit simulation / power rail hint when present.
-    if let Some(sim) = rest.get("simulation").and_then(|v| v.as_table()) {
+fn board_logic_high_v(board: &dendri_profiles::ProfileDocument) -> Option<f64> {
+    // Prefer typed [simulation] fields (logic_high / vcc / voltage).
+    // Note: [specs].voltage is intentionally ignored — only simulation / ports feed v_high.
+    if let Some(sim) = board.simulation.as_ref() {
+        for opt in [&sim.logic_high, &sim.vcc, &sim.voltage] {
+            if let Some(v) = opt.as_ref().and_then(value_as_volts) {
+                return Some(v);
+            }
+        }
+    }
+    // Fallback: raw rest table (legacy / untyped shapes).
+    if let Some(sim) = board.rest.get("simulation").and_then(|v| v.as_table()) {
         for key in ["vcc", "logic_high", "voltage"] {
             if let Some(v) = sim.get(key) {
                 if let Some(f) = value_as_volts(v) {
@@ -570,7 +579,7 @@ fn board_logic_high_v(rest: &toml::map::Map<String, toml::Value>) -> Option<f64>
         }
     }
     // Ports often list `voltage = "5V"` on digital pins.
-    if let Some(ports) = rest.get("ports").and_then(|v| v.as_array()) {
+    if let Some(ports) = board.rest.get("ports").and_then(|v| v.as_array()) {
         for p in ports {
             if let Some(t) = p.as_table() {
                 if let Some(v) = t.get("voltage").and_then(value_as_volts) {

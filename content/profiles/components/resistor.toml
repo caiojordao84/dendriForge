@@ -26,6 +26,7 @@ label = "Package"
 options = ["THT", "SMD-0402", "SMD-0603", "SMD-0805", "SMD-1206", "SMD-2512"]
 type = "enum"
 
+# Default 0.25 W covers shunt use at 500 Ω / 20 mA (I²R = 0.2 W). Instances may raise power_rating.
 [params.power_rating]
 default = 0.25
 editable = true
@@ -42,6 +43,7 @@ max = 10000000
 min = 0.001
 type = "float"
 unit = "Ω"
+notes = "For 4–20 mA → 0–10 V AI shunt use resistance = 500 (not shunt-resistor profile). At 20 mA: P = 0.2 W → keep power_rating ≥ 0.25 W (default)."
 
 [params.temp_coefficient]
 default = 100
@@ -75,7 +77,7 @@ type = "analog"
 [simulation]
 bidirectional = true
 dynamic = false
-equation = "V = I * resistance"
+equation = "V = I * resistance. Shunt @ 500 Ω / 20 mA → 10 V, P = 0.2 W (D-comp-7)."
 model = "ohms-law"
 noise_model = false
 states = ["nominal"]
@@ -88,13 +90,13 @@ unit = "W"
 value = "{power_rating}"
 max_temp = 155
 min_temp = -55
-warnings = ["Do not exceed rated power dissipation", "Derate 50% above 70°C ambient temperature"]
+warnings = ["Do not exceed rated power dissipation", "Derate 50% above 70°C ambient temperature", "4–20 mA shunt at 500 Ω requires power_rating ≥ 0.2 W (default 0.25 W is adequate)"]
 
 [connections]
 allowed_with = ["*"]
 forbidden_with = []
 requires = []
-typical_context = ["current-limiting", "voltage-divider", "pull-up", "pull-down"]
+typical_context = ["current-limiting", "voltage-divider", "pull-up", "pull-down", "current-shunt"]
 
 [canvas]
 animated = false
@@ -118,5 +120,6 @@ component_profile_id = "resistor"
 palette_group = "Fundamental Electricals > Passives"
 simulation_engine = "basic-analog"
 svg_path = "content/assets/svg/components/resistor.svg"
-tags = ["resistor", "passive", "analog", "ohms-law", "passive-component"]
+tags = ["resistor", "passive", "analog", "ohms-law", "passive-component", "shunt"]
 svg_status = "missing"
+svg_note = "Preferred for 500 Ω AI shunt; do not use shunt-resistor enum (max 1 Ω)."

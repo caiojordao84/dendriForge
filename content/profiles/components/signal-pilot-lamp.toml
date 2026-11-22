@@ -1,4 +1,4 @@
-# component profile — signal-pilot-lamp (migrated from legacy TOON)
+# component profile — signal-pilot-lamp (migrated from legacy TOON; D0a LED-param unify)
 # Source: signal-pilot-lamp.toon
 # ASL 0.0.1 lives on program IR (metadata.asl_version), not profiles.
 
@@ -35,29 +35,49 @@ label = "Color"
 options = ["red", "green", "yellow", "blue", "white", "amber", "orange", "custom"]
 type = "enum"
 
-[params.current_max]
-default = 0.03
-editable = false
-label = "Absolute Max Current"
-max = 0.1
-min = 0.003
-type = "float"
-unit = "A"
-
-[params.current_rated]
-default = 0.02
-editable = true
-label = "Rated Current"
-options = [0.005, 0.01, 0.02, 0.03, 0.05]
-type = "enum"
-unit = "A"
-
 [params.flashing_mode]
 default = "steady"
 editable = true
 label = "Flashing Mode"
 options = ["steady", "flashing", "blinking", "pulsing", "custom"]
 type = "enum"
+
+# Unified with led.toml (D-comp-5 / D-C3): vf, integrated_resistance, if_max, if_rated.
+[params.vf]
+default = 2.0
+editable = false
+label = "Forward Voltage (Vf)"
+max = 4.5
+min = 1.5
+type = "float"
+unit = "V"
+
+[params.integrated_resistance]
+default = 1100
+editable = true
+label = "Integrated series resistance"
+max = 100000
+min = 0
+type = "int"
+unit = "ohm"
+notes = "Default ~ (24 − 2.0) / 0.02 ≈ 1100 Ω. May be derived as (supply_voltage − vf) / if_rated when supply changes. R=0 → unbounded I (burn) without NaN/panic."
+
+[params.if_max]
+default = 0.03
+editable = false
+label = "Absolute Max Forward Current"
+max = 0.1
+min = 0.003
+type = "float"
+unit = "A"
+
+[params.if_rated]
+default = 0.02
+editable = true
+label = "Rated Forward Current (If)"
+options = [0.005, 0.01, 0.02, 0.03, 0.05]
+type = "enum"
+unit = "A"
 
 [params.led_type]
 default = "standard-pilot-lamp"
@@ -89,11 +109,13 @@ min = 0.01
 type = "float"
 unit = "W"
 
+# DC-only supply voltages (D-comp-5). AC / mains options removed.
+# When supply_voltage changes, integrated_resistance may be derived as (V − vf) / if_rated.
 [params.supply_voltage]
 default = 24
 editable = true
-label = "Supply Voltage"
-options = [12, 24, 48, 110, 220]
+label = "Supply Voltage (DC)"
+options = [12, 24, 48]
 type = "enum"
 unit = "V"
 
@@ -103,7 +125,7 @@ direction = "input"
 id = "A"
 notes = "anode / positive terminal"
 type = "power"
-voltage_max = "250V"
+voltage_max = "48V"
 
 [[ports]]
 direction = "input"
@@ -114,19 +136,19 @@ type = "ground"
 [simulation]
 bidirectional = false
 dynamic = false
-equation = "V_f = 1.8..3.3V depending on color; I_f = (V_supply - V_f) / R_series; brightness = f(I_f, lens_type)"
+equation = "I = (V_pin - vf) / integrated_resistance; I = 0 if V_pin <= vf; I > if_max => burned. Default @ 24 V: vf=2.0, R=1100, I≈20 mA."
 model = "basic-analog"
 noise_model = false
-states = ["off", "on", "flashing", "fault"]
+states = ["off", "on", "flashing", "burned", "fault"]
 thermal_model = false
 
 [limits]
 max_current = "50mA"
 max_power = "{power_rated}W"
 max_temp = 85
-max_voltage = "250V"
+max_voltage = "48V"
 min_temp = -40
-warnings = ["Always use a current-limiting resistor or constant-current driver — never connect the lamp directly to a voltage source", "Do not exceed the absolute maximum current — brightness and lifetime degrade with overdrive", "For AC circuits or higher voltages, use a lamp assembly rated for the installation", "Flashing / pulsing modes must be implemented by the controller or driver, not by overdriving the lamp"]
+warnings = ["Always use a current-limiting resistor or constant-current driver — never connect the lamp directly to a voltage source without series R", "Do not exceed the absolute maximum current (if_max) — brightness and lifetime degrade with overdrive; overcurrent burns the load in sim", "supply_voltage is DC only (12/24/48); for other rails derive integrated_resistance = (V − vf) / if_rated", "Flashing / pulsing modes must be implemented by the controller or driver, not by overdriving the lamp"]
 
 [connections]
 allowed_with = ["*"]
@@ -147,7 +169,7 @@ y = 20
 x = 50
 y = 20
 ports_layout = "custom"
-value_display = "{color} / {supply_voltage}V / {flashing_mode}"
+value_display = "{color} / {supply_voltage}V DC / Vf={vf}V / R={integrated_resistance}Ω"
 width = 50
 
 [dendri]
@@ -158,3 +180,6 @@ simulation_engine = "basic-analog"
 svg_path = "content/assets/svg/components/signal-pilot-lamp.svg"
 tags = ["pilot-lamp", "indicator", "light", "passive", "optical", "panel", "iec-60810"]
 svg_status = "missing"
+svg_required_ids = ["led-body"]
+svg_note = "D1 owns SVG; reuse led-body brightness/burned hooks. sim_role consumed in D0b."
+sim_role = "led-load"
