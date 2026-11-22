@@ -29,9 +29,9 @@ use dendri_ast::Wire;
 use dendri_canvas::{
     parse_svg_str, pick_wire, prepare_hook, route_wires, rubber_band, waypoint_from_click,
     wire_logical_activity, Camera, MvpProfile, PreparedHook, RoutedWire, RuntimeAvailability,
-    RuntimeSnapshot, Scene, ScenePart, SimRunState, TerminalRef, TerminalRole, WireColorKind,
-    WireLogicalActivity, WorldPoint, PIN_SNAP_SCREEN_PX, WIRE_BASE_WIDTH_PX, WIRE_COLOR_WIDTH_PX,
-    WIRE_FILLET_SCREEN_PX, WIRE_HIT_SCREEN_PX, ZOOM_MAX, ZOOM_MIN,
+    RuntimeSnapshot, Scene, ScenePart, SimRole, SimRunState, TerminalRef, TerminalRole,
+    WireColorKind, WireLogicalActivity, WorldPoint, PIN_SNAP_SCREEN_PX, WIRE_BASE_WIDTH_PX,
+    WIRE_COLOR_WIDTH_PX, WIRE_FILLET_SCREEN_PX, WIRE_HIT_SCREEN_PX, ZOOM_MAX, ZOOM_MIN,
 };
 use iced::{
     mouse,
@@ -159,11 +159,13 @@ impl SceneSvgHandles {
         }
     }
 
-    fn for_profile(&self, profile: MvpProfile) -> &iced::widget::svg::Handle {
+    fn for_profile(&self, profile: MvpProfile) -> Option<&iced::widget::svg::Handle> {
         match profile {
-            MvpProfile::UnoR3 => &self.uno,
-            MvpProfile::Led => &self.led,
-            MvpProfile::Pushbutton => &self.button,
+            MvpProfile::UnoR3 => Some(&self.uno),
+            MvpProfile::Led => Some(&self.led),
+            MvpProfile::Pushbutton => Some(&self.button),
+            // D1 will load per-profile SVGs; D0b draws a placeholder body.
+            MvpProfile::Generic => None,
         }
     }
 }
@@ -354,9 +356,9 @@ impl canvas::Program<Message> for WorldCanvas<'_> {
                     state.wire_drag = None;
 
                     // While Running: actionable button body → press / Shift latch.
-                    if self.snapshot.run_state == SimRunState::Running
-                        && part.profile == MvpProfile::Pushbutton
-                    {
+                    let is_momentary = part.profile == MvpProfile::Pushbutton
+                        || part.sim_role == Some(SimRole::MomentaryContact);
+                    if self.snapshot.run_state == SimRunState::Running && is_momentary {
                         state.drag = None;
                         state.dynamic_cache.clear();
                         if self.shift_held {
@@ -927,14 +929,24 @@ fn draw_part(
     let cx = vx as f32 + w * 0.5;
     let cy = vy as f32 + h * 0.5;
 
-    let handle = svgs.for_profile(part.profile);
-
     frame.with_save(|frame| {
         apply_part_pose(frame, part, cx, cy);
-        frame.draw_svg(
-            Rectangle::new(Point::new(-w * 0.5, -h * 0.5), Size::new(w, h)),
-            handle,
-        );
+        if let Some(handle) = svgs.for_profile(part.profile) {
+            frame.draw_svg(
+                Rectangle::new(Point::new(-w * 0.5, -h * 0.5), Size::new(w, h)),
+                handle,
+            );
+        } else {
+            // Generic / missing SVG: flat body so terminals stay usable (D0b).
+            let rect = Path::rectangle(Point::new(-w * 0.5, -h * 0.5), Size::new(w, h));
+            frame.fill(&rect, Color::from_rgb(0.22, 0.26, 0.30));
+            frame.stroke(
+                &rect,
+                Stroke::default()
+                    .with_color(ui::MUTED)
+                    .with_width(1.5),
+            );
+        }
     });
 
     if selected {
@@ -1015,8 +1027,8 @@ fn draw_dynamic_part(
     let Some(st) = snapshot.components.get(&part.id) else {
         return;
     };
-    match part.profile {
-        MvpProfile::Led => {
+    // Authored MVP hooks only; Generic led-load / momentary wait for D1 SVGs.
+    if part.profile == MvpProfile::Led {
             let Some(hook) = svgs.led_body.as_ref() else {
                 return;
             };
@@ -1056,8 +1068,7 @@ fn draw_dynamic_part(
                     );
                 }
             });
-        }
-        MvpProfile::Pushbutton => {
+    } else if part.profile == MvpProfile::Pushbutton {
             let pressed = st.button_pressed == Some(true);
             let latched = st.button_latched == Some(true);
             if !pressed && !latched {
@@ -1084,8 +1095,6 @@ fn draw_dynamic_part(
                     }
                 }
             });
-        }
-        MvpProfile::UnoR3 => {}
     }
 }
 

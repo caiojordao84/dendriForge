@@ -305,7 +305,9 @@ impl App {
 
     fn rebuild_scene_from_hub(&mut self) {
         if let Some(hub) = self.hub.as_ref() {
-            self.scene = Scene::from_project(hub.project()).with_default_layout_if_empty();
+            let store = dendri_profiles::ProfileStore::from_repo_root(repo_root());
+            self.scene = Scene::from_project_with_store(hub.project(), &store)
+                .with_default_layout_if_empty();
         } else {
             self.scene = Scene::default();
         }

@@ -1,12 +1,19 @@
-//! Phase B1 scene graph: boards/components from the project with layout poses.
+//! Phase B1 / D0b scene graph: boards/components from the project with layout poses.
 //!
-//! Bodies use SVG sizes (mm → grid). Terminals sit on full-module intersections
-//! after transform (snapped). Drag snaps origins to the half-module.
+//! Bodies use SVG sizes (mm → grid) when a profile store is available; curated
+//! MVP sizes remain for Uno / LED / pushbutton. Terminals sit on full-module
+//! intersections after transform (snapped). Unknown profiles are no longer
+//! skipped (D-comp-11). Drag snaps origins to the half-module.
+
+use std::fs;
+use std::path::Path;
 
 use dendri_ast::{LayoutPose, SimulationProject};
+use dendri_profiles::{ProfileDocument, ProfileStore};
 
 use crate::camera::{WorldPoint, WorldRect, WorldSize};
 use crate::grid::{is_terminal_intersection, mm_to_grid, snap_half_module, snap_terminal};
+use crate::sim_role::{sim_role_from_doc, SimRole};
 
 /// Electrical role for pin coloring (mirrors editor A11Y theme roles).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,21 +42,23 @@ pub enum PartKind {
     Component,
 }
 
-/// MVP profiles supported in Phase B1.
+/// Visual / curated kind for known MVP assets; [`Generic`] for any other profile.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MvpProfile {
     UnoR3,
     Led,
     Pushbutton,
+    /// Unknown / non-MVP profile — size + terminals from profile/SVG (D-comp-11).
+    Generic,
 }
 
 impl MvpProfile {
-    pub fn from_profile_id(profile: &str) -> Option<Self> {
+    pub fn from_profile_id(profile: &str) -> Self {
         match profile {
-            "arduino-uno-r3" | "uno" => Some(Self::UnoR3),
-            "led" => Some(Self::Led),
-            "cmd-pushbutton-no-start" => Some(Self::Pushbutton),
-            _ => None,
+            "arduino-uno-r3" | "uno" | "arduino-uno" => Self::UnoR3,
+            "led" => Self::Led,
+            "cmd-pushbutton-no-start" => Self::Pushbutton,
+            _ => Self::Generic,
         }
     }
 
@@ -59,6 +68,7 @@ impl MvpProfile {
             Self::UnoR3 => (76.0, 54.0),
             Self::Led => (10.0, 10.0),
             Self::Pushbutton => (24.0, 24.0),
+            Self::Generic => (20.0, 20.0),
         }
     }
 
@@ -68,10 +78,12 @@ impl MvpProfile {
     }
 
     /// Local terminal offsets in grid units (pre-transform).
+    ///
+    /// Uno includes **A0** (scene-only; SVG tags unchanged — D-comp-12 / D-C5).
     pub fn local_terminals(self) -> Vec<LocalTerminal> {
         match self {
             Self::UnoR3 => {
-                // Right-edge digital header, module-aligned.
+                // Right-edge digital header + left power / A0 (module-aligned).
                 vec![
                     LocalTerminal {
                         port: "D13".into(),
@@ -96,6 +108,12 @@ impl MvpProfile {
                         label: "5V".into(),
                         local: WorldPoint::new(0.0, 8.0),
                         role: TerminalRole::Power,
+                    },
+                    LocalTerminal {
+                        port: "A0".into(),
+                        label: "A0".into(),
+                        local: WorldPoint::new(0.0, 5.0),
+                        role: TerminalRole::Analog,
                     },
                 ]
             }
@@ -127,6 +145,7 @@ impl MvpProfile {
                     role: TerminalRole::Gnd,
                 },
             ],
+            Self::Generic => Vec::new(),
         }
     }
 }
@@ -138,6 +157,8 @@ pub struct ScenePart {
     pub kind: PartKind,
     pub profile: MvpProfile,
     pub profile_id: String,
+    /// From `[dendri].sim_role` when the profile declares it (D-comp-14).
+    pub sim_role: Option<SimRole>,
     pub pose: LayoutPose,
     pub size: WorldSize,
     pub terminals: Vec<LocalTerminal>,
@@ -228,33 +249,30 @@ pub struct Scene {
 }
 
 impl Scene {
-    /// Build from project; unknown profiles are skipped (B1 = Uno + LED + button).
+    /// Build from project using curated MVP sizes/terminals when known.
+    ///
+    /// Prefer [`Self::from_project_with_store`] so unknown profiles get size +
+    /// terminals from profile/SVG (D-comp-11). Without a store, Generic parts
+    /// still appear with default size and empty terminals.
     pub fn from_project(project: &SimulationProject) -> Self {
+        Self::from_project_opt(project, None)
+    }
+
+    /// Build scene with profile/SVG size and port terminals for non-MVP parts.
+    pub fn from_project_with_store(project: &SimulationProject, store: &ProfileStore) -> Self {
+        Self::from_project_opt(project, Some(store))
+    }
+
+    fn from_project_opt(project: &SimulationProject, store: Option<&ProfileStore>) -> Self {
         let mut parts = Vec::new();
-        if let Some(profile) = MvpProfile::from_profile_id(&project.board.profile) {
-            parts.push(ScenePart {
-                id: project.board.instance_id.clone(),
-                kind: PartKind::Board,
-                profile,
-                profile_id: project.board.profile.clone(),
-                pose: project.board.layout,
-                size: profile.size_grid(),
-                terminals: profile.local_terminals(),
-            });
-        }
+        parts.push(build_board_part(project, store));
         for c in &project.components {
-            let Some(profile) = MvpProfile::from_profile_id(&c.profile) else {
-                continue;
-            };
-            parts.push(ScenePart {
-                id: c.instance_id.clone(),
-                kind: PartKind::Component,
-                profile,
-                profile_id: c.profile.clone(),
-                pose: c.layout,
-                size: profile.size_grid(),
-                terminals: profile.local_terminals(),
-            });
+            parts.push(build_component_part(
+                &c.instance_id,
+                &c.profile,
+                c.layout,
+                store,
+            ));
         }
         Self { parts }
     }
@@ -271,6 +289,7 @@ impl Scene {
         if !all_zero || self.parts.is_empty() {
             return self;
         }
+        let mut generic_x = 13.0;
         for p in &mut self.parts {
             match p.profile {
                 MvpProfile::UnoR3 => {
@@ -282,6 +301,10 @@ impl Scene {
                 }
                 MvpProfile::Pushbutton => {
                     p.pose = LayoutPose::with_xy(13.0, 6.0);
+                }
+                MvpProfile::Generic => {
+                    p.pose = LayoutPose::with_xy(generic_x, 10.0);
+                    generic_x += p.size.w + 1.0;
                 }
             }
         }
@@ -320,6 +343,283 @@ impl Scene {
             }
         }
     }
+}
+
+fn build_board_part(project: &SimulationProject, store: Option<&ProfileStore>) -> ScenePart {
+    let profile_id = project.board.profile.clone();
+    let kind = MvpProfile::from_profile_id(&profile_id);
+    let (doc, family) = load_profile_doc(store, &profile_id, true);
+    let sim_role = doc.as_ref().and_then(sim_role_from_doc);
+    let (size, terminals) = match kind {
+        MvpProfile::UnoR3 | MvpProfile::Led | MvpProfile::Pushbutton => {
+            (kind.size_grid(), kind.local_terminals())
+        }
+        MvpProfile::Generic => resolve_size_and_terminals(
+            kind,
+            doc.as_ref(),
+            store,
+            family,
+            true,
+        ),
+    };
+    ScenePart {
+        id: project.board.instance_id.clone(),
+        kind: PartKind::Board,
+        profile: kind,
+        profile_id,
+        sim_role,
+        pose: project.board.layout,
+        size,
+        terminals,
+    }
+}
+
+fn build_component_part(
+    instance_id: &str,
+    profile_id: &str,
+    pose: LayoutPose,
+    store: Option<&ProfileStore>,
+) -> ScenePart {
+    let kind = MvpProfile::from_profile_id(profile_id);
+    let (doc, family) = load_profile_doc(store, profile_id, false);
+    let sim_role = doc.as_ref().and_then(sim_role_from_doc);
+    let (size, terminals) = match kind {
+        MvpProfile::UnoR3 | MvpProfile::Led | MvpProfile::Pushbutton => {
+            (kind.size_grid(), kind.local_terminals())
+        }
+        MvpProfile::Generic => resolve_size_and_terminals(
+            kind,
+            doc.as_ref(),
+            store,
+            family,
+            false,
+        ),
+    };
+    ScenePart {
+        id: instance_id.to_string(),
+        kind: PartKind::Component,
+        profile: kind,
+        profile_id: profile_id.to_string(),
+        sim_role,
+        pose,
+        size,
+        terminals,
+    }
+}
+
+fn load_profile_doc(
+    store: Option<&ProfileStore>,
+    profile_id: &str,
+    is_board: bool,
+) -> (Option<ProfileDocument>, &'static str) {
+    let Some(store) = store else {
+        return (None, if is_board { "boards" } else { "components" });
+    };
+    if is_board {
+        (
+            store.load_board(profile_id).ok(),
+            "boards",
+        )
+    } else {
+        (
+            store.load_component(profile_id).ok(),
+            "components",
+        )
+    }
+}
+
+fn resolve_size_and_terminals(
+    kind: MvpProfile,
+    doc: Option<&ProfileDocument>,
+    store: Option<&ProfileStore>,
+    family: &str,
+    is_board: bool,
+) -> (WorldSize, Vec<LocalTerminal>) {
+    let size = size_from_profile(doc, store, family).unwrap_or_else(|| kind.size_grid());
+    let terminals = if let Some(doc) = doc {
+        terminals_from_profile(doc, size, is_board)
+    } else {
+        Vec::new()
+    };
+    (size, terminals)
+}
+
+/// Prefer authored SVG width/height (mm), then `[dims]`, else `None`.
+fn size_from_profile(
+    doc: Option<&ProfileDocument>,
+    store: Option<&ProfileStore>,
+    family: &str,
+) -> Option<WorldSize> {
+    let doc = doc?;
+    let store = store?;
+    if let Some(hook) = store.svg_hook_for(family, doc) {
+        if hook.present {
+            let path = store.repo_root().join(&hook.relative_path);
+            if let Some((w_mm, h_mm)) = read_svg_size_mm(&path) {
+                return Some(WorldSize::new(mm_to_grid(w_mm), mm_to_grid(h_mm)));
+            }
+        }
+    }
+    if let Some(dims) = doc.rest.get("dims").and_then(|v| v.as_table()) {
+        let w = dims.get("w").and_then(toml_f64)?;
+        let h = dims.get("h").and_then(toml_f64)?;
+        // Round up to 2 mm quantum when dims are physical but not contract-aligned.
+        let w_mm = (w / 2.0).ceil() * 2.0;
+        let h_mm = (h / 2.0).ceil() * 2.0;
+        return Some(WorldSize::new(mm_to_grid(w_mm), mm_to_grid(h_mm)));
+    }
+    None
+}
+
+fn read_svg_size_mm(path: &Path) -> Option<(f64, f64)> {
+    let text = fs::read_to_string(path).ok()?;
+    let w = attr_mm(&text, "width")?;
+    let h = attr_mm(&text, "height")?;
+    Some((w, h))
+}
+
+fn attr_mm(svg: &str, name: &str) -> Option<f64> {
+    // Prefer early attributes on the root <svg …>.
+    let head = svg.get(..2048).unwrap_or(svg);
+    let key = format!("{name}=\"");
+    let start = head.find(&key)? + key.len();
+    let rest = &head[start..];
+    let end = rest.find('"')?;
+    let raw = rest[..end].trim();
+    let num = raw.trim_end_matches("mm").trim();
+    num.parse().ok()
+}
+
+fn toml_f64(v: &toml::Value) -> Option<f64> {
+    match v {
+        toml::Value::Float(f) => Some(*f),
+        toml::Value::Integer(i) => Some(*i as f64),
+        toml::Value::String(s) => s.parse().ok(),
+        _ => None,
+    }
+}
+
+fn terminals_from_profile(
+    doc: &ProfileDocument,
+    size: WorldSize,
+    is_board: bool,
+) -> Vec<LocalTerminal> {
+    let mut ports: Vec<(String, TerminalRole)> = Vec::new();
+    if let Some(arr) = doc.rest.get("ports").and_then(|v| v.as_array()) {
+        for p in arr {
+            let Some(t) = p.as_table() else { continue };
+            let id = t
+                .get("id")
+                .or_else(|| t.get("name"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            if id.is_empty() {
+                continue;
+            }
+            let role = port_role_from_table(t, &id);
+            ports.push((id, role));
+        }
+    }
+    if ports.is_empty() && is_board {
+        if let Some(arr) = doc.rest.get("power_pins").and_then(|v| v.as_array()) {
+            for p in arr {
+                let Some(t) = p.as_table() else { continue };
+                let name = t
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                if name.is_empty() {
+                    continue;
+                }
+                let role = if name.contains("GND") || name.ends_with("_M") || name == "PE" {
+                    TerminalRole::Gnd
+                } else {
+                    TerminalRole::Power
+                };
+                ports.push((name, role));
+            }
+        }
+        // Cap board GPIO clutter: first few digital + analog labels only.
+        if let Some(arr) = doc.rest.get("gpio").and_then(|v| v.as_array()) {
+            let mut n = 0;
+            for p in arr {
+                if n >= 8 {
+                    break;
+                }
+                let Some(t) = p.as_table() else { continue };
+                let label = t
+                    .get("label")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                let port = gpio_label_to_port(label);
+                if port.is_empty() {
+                    continue;
+                }
+                let ty = t.get("type").and_then(|v| v.as_str()).unwrap_or("digital");
+                let role = if ty == "analog" {
+                    TerminalRole::Analog
+                } else {
+                    TerminalRole::Digital
+                };
+                ports.push((port, role));
+                n += 1;
+            }
+        }
+    }
+    layout_ports_on_left_edge(ports, size)
+}
+
+fn gpio_label_to_port(label: &str) -> String {
+    // "Ia.0 / HSC0" → "Ia.0"; "A0" → "A0"; "D13 / LED / SCK" → "D13"
+    let primary = label.split('/').next().unwrap_or(label).trim();
+    primary.to_string()
+}
+
+fn port_role_from_table(t: &toml::map::Map<String, toml::Value>, id: &str) -> TerminalRole {
+    let ty = t.get("type").and_then(|v| v.as_str()).unwrap_or("");
+    match ty {
+        "ground" => TerminalRole::Gnd,
+        "power" => TerminalRole::Power,
+        "analog" => TerminalRole::Analog,
+        "digital" => TerminalRole::Digital,
+        _ => {
+            let id_u = id.to_ascii_uppercase();
+            if id_u.contains("GND") || id_u == "K" || id_u == "COM" || id_u == "B" {
+                TerminalRole::Gnd
+            } else if id_u.contains("V") && !id_u.starts_with('A') {
+                TerminalRole::Power
+            } else if id_u.starts_with('A') && id_u.len() <= 3 {
+                TerminalRole::Analog
+            } else {
+                TerminalRole::Digital
+            }
+        }
+    }
+}
+
+fn layout_ports_on_left_edge(
+    ports: Vec<(String, TerminalRole)>,
+    size: WorldSize,
+) -> Vec<LocalTerminal> {
+    if ports.is_empty() {
+        return Vec::new();
+    }
+    let max_y = (size.h.floor() as i32).max(1);
+    let mut out = Vec::with_capacity(ports.len());
+    for (i, (port, role)) in ports.into_iter().enumerate() {
+        let y = ((i as i32 + 1).min(max_y)) as f64;
+        // Prefer canvas.port_* when present would be nicer; left-edge is stable for D0b.
+        let local = WorldPoint::new(0.0, y);
+        out.push(LocalTerminal {
+            label: port.clone(),
+            port,
+            local,
+            role,
+        });
+    }
+    out
 }
 
 // --- Phase A compatibility shims (tests / gradual migration) ---------------
@@ -495,6 +795,11 @@ mod tests {
         let scene = Scene::from_project(&sample_project());
         assert_eq!(scene.parts.len(), 3);
         scene.assert_terminal_contract();
+        let uno = scene.part("board").unwrap();
+        assert!(
+            uno.terminals.iter().any(|t| t.port == "A0"),
+            "Uno scene must expose A0 (D-comp-12)"
+        );
     }
 
     #[test]
@@ -529,5 +834,69 @@ mod tests {
         let s = MvpProfile::UnoR3.size_grid();
         assert!((s.w - 19.0).abs() < 1e-9);
         assert!((s.h - 13.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn unknown_profile_gets_size_and_terminals_from_store() {
+        use dendri_ast::{
+            BoardInstance, ComponentInstance, Metadata, Program, SimulationProject,
+        };
+        use dendri_profiles::ProfileStore;
+        use std::path::PathBuf;
+
+        let store = ProfileStore::from_repo_root(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."),
+        );
+        let project = SimulationProject {
+            metadata: Metadata {
+                asl_version: Some("0.0.1".into()),
+                project_name: Some("d0b".into()),
+                editor: Some("test".into()),
+                author: None,
+                notes: None,
+                expect_error: None,
+            },
+            board: BoardInstance {
+                profile: "siemens-s7-1200-cpu-1214c".into(),
+                instance_id: "board".into(),
+                layout: LayoutPose::with_xy(1.0, 1.0),
+            },
+            components: vec![ComponentInstance {
+                instance_id: "pilot1".into(),
+                profile: "signal-pilot-lamp".into(),
+                label: None,
+                params: Default::default(),
+                layout: LayoutPose::with_xy(30.0, 2.0),
+            }],
+            wiring: vec![],
+            sources: vec![],
+            asl: Program {
+                metadata: Metadata::default(),
+                hardware: vec![],
+                data: vec![],
+                setup: vec![],
+                loop_body: vec![],
+                functions: vec![],
+                ladder: vec![],
+                grafcet: vec![],
+            },
+        };
+        let scene = Scene::from_project_with_store(&project, &store);
+        assert_eq!(scene.parts.len(), 2);
+        let s7 = scene.part("board").unwrap();
+        assert_eq!(s7.profile, MvpProfile::Generic);
+        // SVG 110×100 mm → 27.5 × 25 grid.
+        assert!((s7.size.w - 27.5).abs() < 1e-9, "w={}", s7.size.w);
+        assert!((s7.size.h - 25.0).abs() < 1e-9, "h={}", s7.size.h);
+        assert!(!s7.terminals.is_empty(), "S7 should expose ports");
+        let pilot = scene.part("pilot1").unwrap();
+        assert_eq!(pilot.profile, MvpProfile::Generic);
+        assert_eq!(pilot.sim_role, Some(SimRole::LedLoad));
+        assert!(pilot.terminals.iter().any(|t| t.port == "A"));
+        assert!(pilot.terminals.iter().any(|t| t.port == "K"));
+        // Missing SVG → dims (none) → default 20×20 mm = 5×5 grid, or canvas — pilot has no dims;
+        // svg_status missing so default Generic size.
+        assert!(pilot.size.w > 0.0 && pilot.size.h > 0.0);
+        scene.assert_terminal_contract();
     }
 }

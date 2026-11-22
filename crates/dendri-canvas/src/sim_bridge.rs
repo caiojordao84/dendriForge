@@ -15,9 +15,11 @@ use std::collections::BTreeMap;
 use dendri_ast::{SimulationProject, Wire};
 use dendri_sim::Simulator;
 
+use crate::endpoint::split_endpoint;
 use crate::led_model::{
     amperes_to_ua, evaluate_led, ua_to_amperes, LedElectricalParams,
 };
+use crate::sim_role::{ProjectSimHints, SimRole};
 use crate::PinBinding;
 
 /// Editor / bridge run mode (D-C2).
@@ -243,8 +245,19 @@ impl RuntimeSnapshot {
     }
 }
 
-/// Resolve per-instance / terminal bindings from project wiring.
+/// Resolve per-instance / terminal bindings from project wiring (no role map).
+///
+/// Prefer [`resolve_terminal_bindings_with_hints`] so `sim_role` drives LED /
+/// button terminal kinds (D-comp-14).
 pub fn resolve_terminal_bindings(project: &SimulationProject) -> Vec<TerminalBinding> {
+    resolve_terminal_bindings_with_hints(project, &ProjectSimHints::default())
+}
+
+/// Resolve bindings using `[dendri].sim_role` when available.
+pub fn resolve_terminal_bindings_with_hints(
+    project: &SimulationProject,
+    hints: &ProjectSimHints,
+) -> Vec<TerminalBinding> {
     let mut out = Vec::new();
 
     // Board digital pads from wiring endpoints + defaults.
@@ -271,23 +284,49 @@ pub fn resolve_terminal_bindings(project: &SimulationProject) -> Vec<TerminalBin
     }
 
     for comp in &project.components {
-        let profile = comp.profile.as_str();
-        let kind_for = |term: &str| -> TerminalKind {
-            match (profile, term) {
-                ("led", "A") => TerminalKind::LedAnode,
-                ("led", "K") => TerminalKind::LedCathode,
-                ("cmd-pushbutton-no-start", "NO" | "COM" | "NC") => TerminalKind::ButtonContact,
-                _ if profile.contains("button") || profile.contains("push") => {
-                    TerminalKind::ButtonContact
+        let role = hints.role_of(&comp.profile);
+        let terminals: Vec<&str> = match role {
+            Some(SimRole::LedLoad) => vec!["A", "K"],
+            Some(SimRole::MomentaryContact) => {
+                // Industrial NO/COM/NC; maker tactile uses A/B (and numbered legs).
+                if comp.profile == "maker-tactile-4pin" {
+                    vec!["A", "B", "1", "2", "3", "4"]
+                } else {
+                    vec!["NO", "COM", "NC"]
                 }
-                _ if profile == "led" => TerminalKind::Other,
-                _ => TerminalKind::Other,
+            }
+            Some(SimRole::AdcSource) => {
+                // Stub recognition only (D2 owns analog path).
+                Vec::new()
+            }
+            None => {
+                // Legacy fallback when hints were not loaded (unit tests).
+                match comp.profile.as_str() {
+                    "led" => vec!["A", "K"],
+                    "cmd-pushbutton-no-start" | "cmd-pushbutton-nc-stop" => {
+                        vec!["NO", "COM", "NC"]
+                    }
+                    _ => Vec::new(),
+                }
             }
         };
-        let terminals = match profile {
-            "led" => vec!["A", "K"],
-            "cmd-pushbutton-no-start" => vec!["NO", "COM"],
-            _ => Vec::new(),
+        let kind_for = |term: &str| -> TerminalKind {
+            match role {
+                Some(SimRole::LedLoad) => match term {
+                    "A" => TerminalKind::LedAnode,
+                    "K" => TerminalKind::LedCathode,
+                    _ => TerminalKind::Other,
+                },
+                Some(SimRole::MomentaryContact) => TerminalKind::ButtonContact,
+                _ => match (comp.profile.as_str(), term) {
+                    ("led", "A") => TerminalKind::LedAnode,
+                    ("led", "K") => TerminalKind::LedCathode,
+                    ("cmd-pushbutton-no-start" | "cmd-pushbutton-nc-stop", _) => {
+                        TerminalKind::ButtonContact
+                    }
+                    _ => TerminalKind::Other,
+                },
+            }
         };
         if terminals.is_empty() {
             // Still record instance with no terminals so snapshot lists it.
@@ -321,21 +360,19 @@ fn push_endpoint_port(map: &mut BTreeMap<String, Option<u32>>, endpoint: &str) {
         return;
     }
     let pin = parse_board_digital_pin_label(port);
-    map.entry(port.to_ascii_uppercase())
+    // Keep dotted port ids intact (e.g. Ia.0); only upper-case for D* labels.
+    let key = if port.contains('.') {
+        port.to_string()
+    } else {
+        port.to_ascii_uppercase()
+    };
+    map.entry(key)
         .and_modify(|p| {
             if p.is_none() {
                 *p = pin;
             }
         })
         .or_insert(pin);
-}
-
-fn split_endpoint(endpoint: &str) -> Option<(&str, &str)> {
-    let (a, b) = endpoint.split_once('.')?;
-    if a.is_empty() || b.is_empty() {
-        return None;
-    }
-    Some((a, b))
 }
 
 fn parse_board_digital_pin_label(port: &str) -> Option<u32> {
@@ -383,8 +420,10 @@ pub struct SnapshotExtras<'a> {
     pub button_latched: &'a BTreeMap<String, bool>,
     /// LED instance id → burned (persists until Reset).
     pub led_burned: &'a BTreeMap<String, bool>,
-    /// Base electrical params (profile defaults + board V_high). Instance overrides apply on top.
+    /// Fallback electrical params (board V_high + `"led"` defaults).
     pub led_params_base: LedElectricalParams,
+    /// Per-profile LED params + `sim_role` map (D-comp-14). Empty = legacy id checks.
+    pub sim_hints: &'a ProjectSimHints,
 }
 
 /// Build a runtime snapshot from simulator + project bindings + actuation map.
@@ -401,6 +440,7 @@ pub fn build_runtime_snapshot(
 ) -> RuntimeSnapshot {
     let empty_latched = BTreeMap::new();
     let empty_burned = BTreeMap::new();
+    let empty_hints = ProjectSimHints::default();
     build_runtime_snapshot_ex(
         run_state,
         availability,
@@ -411,6 +451,7 @@ pub fn build_runtime_snapshot(
             button_latched: &empty_latched,
             led_burned: &empty_burned,
             led_params_base: LedElectricalParams::PROFILE_DEFAULTS,
+            sim_hints: &empty_hints,
         },
         present_gen,
     )
@@ -431,7 +472,7 @@ pub fn build_runtime_snapshot_ex(
             _ => RuntimeSnapshot::unavailable(run_state),
         };
     };
-    let bindings = resolve_terminal_bindings(project);
+    let bindings = resolve_terminal_bindings_with_hints(project, extras.sim_hints);
     let mut pins = BTreeMap::new();
     let (cycle, time_ms) = if let Some(sim) = sim {
         for (k, v) in sim.pins() {
@@ -450,8 +491,12 @@ pub fn build_runtime_snapshot_ex(
         let mut led_burned = None;
         let mut button_pressed = None;
         let mut button_latched = None;
-        let is_led = comp.profile == "led";
-        let is_btn = comp.profile.contains("button") || comp.profile.contains("push");
+        let role = extras.sim_hints.role_of(&comp.profile);
+        let is_led = role == Some(SimRole::LedLoad)
+            || (role.is_none() && comp.profile == "led");
+        let is_btn = role == Some(SimRole::MomentaryContact)
+            || (role.is_none()
+                && (comp.profile.contains("button") || comp.profile.contains("push")));
         if is_btn {
             button_pressed = Some(
                 extras
@@ -498,7 +543,8 @@ pub fn build_runtime_snapshot_ex(
                 .get(&comp.instance_id)
                 .copied()
                 .unwrap_or(false);
-            let params = LedElectricalParams::resolve(comp, extras.led_params_base);
+            let base = extras.sim_hints.led_params_for_profile(&comp.profile);
+            let params = LedElectricalParams::resolve(comp, base);
             // Unwired LED: no anode drive → V_pin = 0 (GPIO high alone does not light).
             let v_pin = if anode_wired {
                 params.v_pin(anode_high == Some(true))
@@ -578,9 +624,29 @@ pub fn update_led_burn_state(
     burned: &mut BTreeMap<String, bool>,
     params_base: LedElectricalParams,
 ) {
-    let bindings = resolve_terminal_bindings(project);
+    update_led_burn_state_with_hints(
+        project,
+        pins,
+        burned,
+        params_base,
+        &ProjectSimHints::default(),
+    );
+}
+
+/// Like [`update_led_burn_state`] but uses `sim_role` + per-profile LED params.
+pub fn update_led_burn_state_with_hints(
+    project: &SimulationProject,
+    pins: &BTreeMap<u32, bool>,
+    burned: &mut BTreeMap<String, bool>,
+    params_base: LedElectricalParams,
+    hints: &ProjectSimHints,
+) {
+    let bindings = resolve_terminal_bindings_with_hints(project, hints);
     for comp in &project.components {
-        if comp.profile != "led" {
+        let role = hints.role_of(&comp.profile);
+        let is_led = role == Some(SimRole::LedLoad)
+            || (role.is_none() && comp.profile == "led");
+        if !is_led {
             continue;
         }
         let already = burned.get(&comp.instance_id).copied().unwrap_or(false);
@@ -595,7 +661,12 @@ pub fn update_led_burn_state(
             .and_then(|b| b.board_pin)
             .and_then(|p| pins.get(&p).copied())
             .unwrap_or(false);
-        let params = LedElectricalParams::resolve(comp, params_base);
+        let base = if hints.led_params_by_profile.contains_key(&comp.profile) {
+            hints.led_params_for_profile(&comp.profile)
+        } else {
+            params_base
+        };
+        let params = LedElectricalParams::resolve(comp, base);
         let v_pin = if wired { params.v_pin(high) } else { 0.0 };
         let elec = evaluate_led(&params, v_pin, false);
         if elec.burned {
@@ -823,6 +894,7 @@ mod tests {
                 button_latched: &empty,
                 led_burned: &empty,
                 led_params_base: LedElectricalParams::PROFILE_DEFAULTS,
+                sim_hints: &ProjectSimHints::default(),
             },
             1,
         );
@@ -878,6 +950,7 @@ mod tests {
                 button_latched: &empty,
                 led_burned: &burned,
                 led_params_base: LedElectricalParams::PROFILE_DEFAULTS,
+                sim_hints: &ProjectSimHints::default(),
             },
             1,
         );
@@ -898,6 +971,7 @@ mod tests {
                 button_latched: &empty,
                 led_burned: &burned,
                 led_params_base: LedElectricalParams::PROFILE_DEFAULTS,
+                sim_hints: &ProjectSimHints::default(),
             },
             2,
         );
@@ -905,5 +979,67 @@ mod tests {
         assert_eq!(st2.led_burned, Some(true));
         assert_eq!(st2.led_current_ua, Some(0));
         assert_eq!(st2.led_on, Some(false));
+    }
+
+    #[test]
+    fn pilot_led_load_uses_own_profile_params_and_board_v_high() {
+        use crate::sim_role::load_project_sim_hints;
+
+        let mut project = load_c01();
+        // Swap LED for pilot; keep wiring to A/K. Clear C01 instance R override
+        // so the load uses signal-pilot-lamp profile defaults (1100 Ω).
+        let led = project
+            .components
+            .iter_mut()
+            .find(|c| c.profile == "led")
+            .unwrap();
+        led.profile = "signal-pilot-lamp".into();
+        led.instance_id = "pilot1".into();
+        led.params.clear();
+        for w in &mut project.wiring {
+            w.from = w.from.replace("led1", "pilot1");
+            w.to = w.to.replace("led1", "pilot1");
+        }
+        // Use S7 board rail so pilot sees 24 V (D0a logic_high).
+        project.board.profile = "siemens-s7-1200-cpu-1214c".into();
+
+        let hints = load_project_sim_hints(&repo(), &project);
+        assert_eq!(hints.role_of("signal-pilot-lamp"), Some(SimRole::LedLoad));
+        let base = hints.led_params_for_profile("signal-pilot-lamp");
+        assert!((base.v_high - 24.0).abs() < 1e-9);
+        assert!((base.r_series - 1100.0).abs() < 1e-9);
+
+        let mut canvas =
+            crate::SimCanvas::from_project(&project, repo(), &SimConfig::default()).unwrap();
+        canvas.boot().unwrap();
+        let _ = canvas.sim.set_pin(13, true);
+        let empty = BTreeMap::new();
+        let snap = build_runtime_snapshot_ex(
+            SimRunState::Idle,
+            RuntimeAvailability::Available,
+            Some(&canvas.sim),
+            Some(&project),
+            SnapshotExtras {
+                button_pressed: &empty,
+                button_latched: &empty,
+                led_burned: &empty,
+                led_params_base: hints.led_params_base,
+                sim_hints: &hints,
+            },
+            1,
+        );
+        let st = snap.components.get("pilot1").unwrap();
+        assert_eq!(st.led_on, Some(true));
+        assert_eq!(st.led_burned, Some(false));
+        let i = st.led_current_a().unwrap();
+        assert!((i - 0.02).abs() < 1e-6, "pilot I={i} (expect ~20 mA @ 24 V)");
+    }
+
+    #[test]
+    fn split_endpoint_keeps_dotted_port() {
+        assert_eq!(
+            crate::endpoint::split_endpoint("board.Ia.0"),
+            Some(("board", "Ia.0"))
+        );
     }
 }
