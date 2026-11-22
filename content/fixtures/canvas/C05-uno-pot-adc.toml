@@ -1,0 +1,84 @@
+[metadata]
+asl_version = "0.0.1"
+project_name = "C05-uno-pot-adc"
+editor = "dendriForge"
+author = "dendriForge D2"
+notes = "Uno + potentiometer → A0. MCU analog mirror. wiper_position initial in TOML; live = session (D-comp-9). C01 untouched."
+
+[board]
+profile = "arduino-uno-r3"
+instance_id = "board"
+x = 1.0
+y = 2.0
+rotation = 0
+mirror_x = false
+mirror_y = false
+
+[[components]]
+instance_id = "pot1"
+profile = "potentiometer"
+label = "Panel pot"
+x = 14.0
+y = 2.0
+rotation = 0
+mirror_x = false
+mirror_y = false
+
+[components.params]
+resistance = 10000
+wiper_position = 50
+taper = "linear"
+
+# Voltage divider: 5 V → A, GND → B, W → A0.
+[[wiring]]
+from = "board.5V"
+to = "pot1.A"
+signal = "power"
+
+[[wiring]]
+from = "board.GND"
+to = "pot1.B"
+signal = "gnd"
+
+[[wiring]]
+from = "board.A0"
+to = "pot1.W"
+signal = "analog"
+
+[asl]
+functions = []
+
+[asl.metadata]
+asl_version = "0.0.1"
+project_name = "C05-uno-pot-adc"
+editor = "dendriForge"
+author = "dendriForge D2"
+
+# A0 = pin 14 (ADC).
+[[asl.hardware]]
+pin = 14
+hw_type = "analog"
+io_mode = "DI"
+label = "potPin"
+target_role = "analog-in"
+
+[[asl.data]]
+name = "raw"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[asl.setup]]
+kind = "call"
+name = "CFG_ADC_INPUT"
+args = [{ kind = "var", name = "potPin" }]
+
+[[asl.loop]]
+kind = "assign"
+target = "raw"
+
+[asl.loop.value]
+kind = "call"
+name = "READ_ADC"
+args = [{ kind = "var", name = "potPin" }]

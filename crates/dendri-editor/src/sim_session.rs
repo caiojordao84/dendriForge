@@ -12,9 +12,10 @@ use std::time::Instant;
 use dendri_ast::SimulationProject;
 use dendri_canvas::{
     activity_animation_enabled, apply_sim_command, build_runtime_snapshot_ex,
-    load_project_sim_hints, resolve_terminal_bindings_with_hints, update_led_burn_state_with_hints,
-    LedElectricalParams, ProjectSimHints, RuntimeAvailability, RuntimeSnapshot, SimCanvas,
-    SimCommand, SimRunState, SnapshotExtras, TerminalKind,
+    load_project_sim_hints, resolve_terminal_bindings_with_hints, sync_adc_sources_to_sim,
+    update_led_burn_state_with_hints, AdcActuatorState, LedElectricalParams, ProjectSimHints,
+    RuntimeAvailability, RuntimeSnapshot, SimCanvas, SimCommand, SimRunState, SnapshotExtras,
+    TerminalKind,
 };
 use dendri_sim::SimConfig;
 
@@ -32,6 +33,8 @@ pub struct SimSession {
     pub momentary: Option<String>,
     /// LED burned flags — persist across Stop; cleared on Reset.
     pub led_burned: BTreeMap<String, bool>,
+    /// Live ADC actuators (wiper % / pressure) — session state, not project (D-comp-9).
+    pub adc_actuators: AdcActuatorState,
     /// Profile defaults + board V_high for LED DC model (fallback).
     pub led_params_base: LedElectricalParams,
     /// `sim_role` + per-profile LED params (D-comp-14 / D0b).
@@ -60,6 +63,7 @@ impl SimSession {
             latched: BTreeMap::new(),
             momentary: None,
             led_burned: BTreeMap::new(),
+            adc_actuators: AdcActuatorState::default(),
             led_params_base: LedElectricalParams::PROFILE_DEFAULTS,
             sim_hints: ProjectSimHints::default(),
             wire_anim_phase: 0.0,
@@ -101,6 +105,7 @@ impl SimSession {
         self.led_burned.clear();
         self.sim_hints = load_project_sim_hints(repo_root, project);
         self.led_params_base = self.sim_hints.led_params_base;
+        self.adc_actuators = AdcActuatorState::from_project(project, &self.sim_hints);
         match SimCanvas::from_project(project, repo_root, &SimConfig::default()) {
             Ok(mut canvas) => match canvas.boot() {
                 Ok(_) => {
@@ -108,6 +113,7 @@ impl SimSession {
                     canvas.clear_frame_history();
                     self.canvas = Some(canvas);
                     self.sync_buttons_to_sim(Some(project));
+                    self.sync_adc_to_sim(Some(project));
                     self.bump_present();
                     self.refresh_snapshot(Some(project));
                     Ok(())
@@ -136,6 +142,7 @@ impl SimSession {
         self.latched.clear();
         self.momentary = None;
         self.led_burned.clear();
+        self.adc_actuators = AdcActuatorState::default();
         self.bump_present();
         self.snapshot = RuntimeSnapshot::unavailable(self.run_state);
     }
@@ -226,6 +233,8 @@ impl SimSession {
 
     /// One runtime scan + presentation update. Never fabricates state without a canvas.
     pub fn scan_once(&mut self, project: Option<&SimulationProject>) -> Result<(), String> {
+        // Push live ADC actuators before the scan so READ_ADC sees them.
+        self.sync_adc_to_sim(project);
         let Some(canvas) = self.canvas.as_mut() else {
             self.bump_present();
             self.snapshot = match &self.snapshot.availability {
@@ -412,6 +421,46 @@ impl SimSession {
         if let Some(id) = &self.momentary {
             self.button_pressed.insert(id.clone(), true);
         }
+    }
+
+    /// Set live pot wiper % (0–100). Session only — does not mutate the project (D-comp-9).
+    pub fn set_wiper_position(
+        &mut self,
+        instance_id: &str,
+        percent: f64,
+        project: Option<&SimulationProject>,
+    ) {
+        self.adc_actuators
+            .wiper_percent
+            .insert(instance_id.to_string(), percent.clamp(0.0, 100.0));
+        self.sync_adc_to_sim(project);
+        self.bump_present();
+        self.refresh_snapshot(project);
+    }
+
+    /// Set live pressure TX process value. Session only — does not mutate the project.
+    pub fn set_pressure(
+        &mut self,
+        instance_id: &str,
+        pressure: f64,
+        project: Option<&SimulationProject>,
+    ) {
+        self.adc_actuators
+            .pressure
+            .insert(instance_id.to_string(), pressure);
+        self.sync_adc_to_sim(project);
+        self.bump_present();
+        self.refresh_snapshot(project);
+    }
+
+    fn sync_adc_to_sim(&mut self, project: Option<&SimulationProject>) {
+        let Some(project) = project else {
+            return;
+        };
+        let Some(canvas) = self.canvas.as_mut() else {
+            return;
+        };
+        sync_adc_sources_to_sim(&mut canvas.sim, project, &self.sim_hints, &self.adc_actuators);
     }
 
     /// Drive every button instance pin from the actuation map (multi-button).
@@ -851,5 +900,127 @@ mod tests {
         session.apply_command(SimCommand::Stop, Some(&project), &repo());
         assert!(session.wire_activity_phase().is_none());
         assert_eq!(session.wire_anim_phase, 0.0);
+    }
+
+    #[test]
+    fn c05_uno_pot_tracks_read_adc() {
+        use dendri_canvas::{platform_counts, pot_norm_at_percent, AdcBoardScale};
+        use dendri_sim::UNO_ADC_MAX;
+
+        let project = load_fixture("C05-uno-pot-adc.toml");
+        assert_eq!(project.board.profile, "arduino-uno-r3");
+        assert!(project
+            .components
+            .iter()
+            .any(|c| c.profile == "potentiometer"));
+        // C01 must stay untouched (industrial NO + LED).
+        let c01 = load_fixture("C01-button-led.toml");
+        assert!(c01
+            .components
+            .iter()
+            .any(|c| c.profile == "cmd-pushbutton-no-start"));
+
+        let mut session = SimSession::new();
+        session.boot_from_project(&project, &repo()).unwrap();
+        assert!((session.sim_hints.adc_scale.v_full_scale - 5.0).abs() < 1e-9);
+        assert_eq!(session.sim_hints.adc_scale.platform_max, UNO_ADC_MAX);
+        session.apply_command(SimCommand::Play, Some(&project), &repo());
+
+        // Initial wiper 50% → mid-scale normalized.
+        session.scan_once(Some(&project)).unwrap();
+        let mid = pot_norm_at_percent(50.0, AdcBoardScale::UNO);
+        let raw = session
+            .canvas
+            .as_ref()
+            .unwrap()
+            .sim
+            .var("raw")
+            .unwrap()
+            .as_u64()
+            .unwrap() as u32;
+        assert_eq!(raw, mid, "50% pot → mid norm");
+        // 32768 * 1023 / 65535 → 511 (integer).
+        assert_eq!(platform_counts(raw, AdcBoardScale::UNO), 511);
+
+        // Live wiper (session only) → full scale.
+        session.set_wiper_position("pot1", 100.0, Some(&project));
+        session.scan_once(Some(&project)).unwrap();
+        let raw_hi = session
+            .canvas
+            .as_ref()
+            .unwrap()
+            .sim
+            .var("raw")
+            .unwrap()
+            .as_u64()
+            .unwrap() as u32;
+        assert_eq!(raw_hi, 65_535);
+        assert_eq!(platform_counts(raw_hi, AdcBoardScale::UNO), 1_023);
+
+        session.set_wiper_position("pot1", 0.0, Some(&project));
+        session.scan_once(Some(&project)).unwrap();
+        let raw_lo = session
+            .canvas
+            .as_ref()
+            .unwrap()
+            .sim
+            .var("raw")
+            .unwrap()
+            .as_u64()
+            .unwrap() as u32;
+        assert_eq!(raw_lo, 0);
+    }
+
+    #[test]
+    fn c03_s7_pressure_shunt_tracks_read_adc() {
+        use dendri_canvas::{loop_norm_at_pressure, platform_counts, AdcBoardScale};
+        use dendri_sim::S7_ADC_MAX;
+
+        let project = load_fixture("C03-s7-pressure-shunt.toml");
+        assert_eq!(project.board.profile, "siemens-s7-1200-cpu-1214c");
+        assert!(project
+            .components
+            .iter()
+            .any(|c| c.profile == "sensor-pressure-4-20ma"));
+        assert!(project
+            .components
+            .iter()
+            .any(|c| c.profile == "resistor"));
+
+        let mut session = SimSession::new();
+        session.boot_from_project(&project, &repo()).unwrap();
+        assert!((session.sim_hints.adc_scale.v_full_scale - 10.0).abs() < 1e-9);
+        assert_eq!(session.sim_hints.adc_scale.platform_max, S7_ADC_MAX);
+        session.apply_command(SimCommand::Play, Some(&project), &repo());
+
+        // pressure=0 → 4 mA × 500 Ω = 2 V → live zero (~20% of 0–10 V).
+        session.scan_once(Some(&project)).unwrap();
+        let live_zero = loop_norm_at_pressure(0.0, 0.0, 10.0, 500.0, AdcBoardScale::S7_0_10V);
+        let raw = session
+            .canvas
+            .as_ref()
+            .unwrap()
+            .sim
+            .var("raw")
+            .unwrap()
+            .as_u64()
+            .unwrap() as u32;
+        assert_eq!(raw, live_zero);
+        assert_eq!(platform_counts(raw, AdcBoardScale::S7_0_10V), 5_529);
+
+        // Full scale pressure → 20 mA → 10 V.
+        session.set_pressure("tx1", 10.0, Some(&project));
+        session.scan_once(Some(&project)).unwrap();
+        let raw_hi = session
+            .canvas
+            .as_ref()
+            .unwrap()
+            .sim
+            .var("raw")
+            .unwrap()
+            .as_u64()
+            .unwrap() as u32;
+        assert_eq!(raw_hi, 65_535);
+        assert_eq!(platform_counts(raw_hi, AdcBoardScale::S7_0_10V), S7_ADC_MAX);
     }
 }

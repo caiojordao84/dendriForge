@@ -1,0 +1,110 @@
+[metadata]
+asl_version = "0.0.1"
+project_name = "C03-s7-pressure-shunt"
+editor = "dendriForge"
+author = "dendriForge D2"
+notes = "S7-1200 + pressure TX 4–20 mA + resistor 500 Ω shunt → IW64 (AI0). Topology D-comp-13: TX → one resistor → GND; AI across shunt. No SM1231."
+
+[board]
+profile = "siemens-s7-1200-cpu-1214c"
+instance_id = "board"
+x = 1.0
+y = 2.0
+rotation = 0
+mirror_x = false
+mirror_y = false
+
+[[components]]
+instance_id = "tx1"
+profile = "sensor-pressure-4-20ma"
+label = "Pressure TX"
+x = 28.0
+y = 2.0
+rotation = 0
+mirror_x = false
+mirror_y = false
+
+[components.params]
+pressure_min = 0
+pressure_max = 10
+pressure = 0
+loop_supply = 24
+
+[[components]]
+instance_id = "shunt1"
+profile = "resistor"
+label = "Shunt 500Ω"
+x = 28.0
+y = 8.0
+rotation = 0
+mirror_x = false
+mirror_y = false
+
+[components.params]
+resistance = 500
+power_rating = 0.25
+
+# Loop supply to TX.
+[[wiring]]
+from = "board.3_L_PLUS"
+to = "tx1.L_PLUS"
+signal = "power"
+
+[[wiring]]
+from = "board.1_M"
+to = "tx1.M"
+signal = "gnd"
+
+# TX OUT → shunt A; shunt B → M (GND). AI0 (IW64) across shunt.
+[[wiring]]
+from = "tx1.OUT"
+to = "shunt1.A"
+signal = "analog"
+
+[[wiring]]
+from = "shunt1.B"
+to = "board.1_M"
+signal = "gnd"
+
+[[wiring]]
+from = "board.IW64"
+to = "shunt1.A"
+signal = "analog"
+
+[asl]
+functions = []
+
+[asl.metadata]
+asl_version = "0.0.1"
+project_name = "C03-s7-pressure-shunt"
+editor = "dendriForge"
+author = "dendriForge D2"
+
+# IW64 = pin 24 (AI0, 0–10 V).
+[[asl.hardware]]
+pin = 24
+hw_type = "analog"
+io_mode = "DI"
+label = "aiPin"
+target_role = "analog-in"
+
+[[asl.data]]
+name = "raw"
+type = "UINT"
+scope = "VAR"
+init = "0"
+unit = "-"
+
+[[asl.setup]]
+kind = "call"
+name = "CFG_ADC_INPUT"
+args = [{ kind = "var", name = "aiPin" }]
+
+[[asl.loop]]
+kind = "assign"
+target = "raw"
+
+[asl.loop.value]
+kind = "call"
+name = "READ_ADC"
+args = [{ kind = "var", name = "aiPin" }]

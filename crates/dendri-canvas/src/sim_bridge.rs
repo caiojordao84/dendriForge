@@ -143,6 +143,8 @@ pub enum TerminalKind {
     LedAnode,
     LedCathode,
     ButtonContact,
+    /// Analog sense / drive terminal (pot W, TX OUT, etc.).
+    AdcSense,
     Other,
 }
 
@@ -300,8 +302,13 @@ pub fn resolve_terminal_bindings_with_hints(
                 }
             }
             Some(SimRole::AdcSource) => {
-                // Stub recognition only (D2 owns analog path).
-                Vec::new()
+                if comp.profile == "potentiometer" {
+                    vec!["A", "B", "W"]
+                } else if comp.profile == "sensor-pressure-4-20ma" {
+                    vec!["L_PLUS", "OUT", "M"]
+                } else {
+                    Vec::new()
+                }
             }
             None => {
                 // Legacy fallback when hints were not loaded (unit tests).
@@ -323,6 +330,7 @@ pub fn resolve_terminal_bindings_with_hints(
                     _ => TerminalKind::Other,
                 },
                 Some(SimRole::MomentaryContact) => TerminalKind::ButtonContact,
+                Some(SimRole::AdcSource) => TerminalKind::AdcSense,
                 _ => match (comp.profile.as_str(), term) {
                     ("led", "A") => TerminalKind::LedAnode,
                     ("led", "K") => TerminalKind::LedCathode,

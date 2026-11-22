@@ -21,6 +21,7 @@
 //! Lyon path conversion uses iced’s re-export
 //! `iced::widget::canvas::path::lyon_path` in `dendri-editor` (canvas feature).
 
+pub mod adc_path;
 pub mod camera;
 pub mod endpoint;
 pub mod grid;
@@ -60,6 +61,10 @@ pub use wires::{
     WireColorKind, PIN_SNAP_SCREEN_PX, WIRE_BASE_WIDTH_PX, WIRE_COLOR_WIDTH_PX,
     WIRE_FILLET_SCREEN_PX, WIRE_HIT_SCREEN_PX,
 };
+pub use adc_path::{
+    loop_norm_at_pressure, platform_counts, pot_norm_at_percent, sync_adc_sources_to_sim,
+    AdcActuatorState, AdcBoardScale,
+};
 pub use endpoint::split_endpoint;
 pub use led_model::{
     amperes_to_ua, defaults_from_profile_params, evaluate_led, ua_to_amperes, LedElectricalParams,
@@ -72,7 +77,7 @@ pub use sim_bridge::{
     RuntimeSnapshot, SimCommand, SimRunState, SnapshotExtras, TerminalBinding, TerminalKind,
 };
 pub use sim_role::{
-    board_logic_high_v, load_project_sim_hints, load_project_sim_hints_from_store,
+    board_adc_scale, board_logic_high_v, load_project_sim_hints, load_project_sim_hints_from_store,
     sim_role_from_doc, ProjectSimHints, SimRole,
 };
 pub use svg_dyn::{

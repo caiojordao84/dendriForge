@@ -305,6 +305,29 @@ fn s29_modbus_tcp_trace() {
 }
 
 #[test]
+fn set_adc_drives_read_adc_normalized() {
+    let path = repo().join("content/fixtures/sim/S04-pwm-adc-map.toml");
+    let parsed = parse_program_file(&path).unwrap();
+    let mut sim = Simulator::from_program(parsed.program, &SimConfig::default());
+    sim.ensure_setup().unwrap();
+    // set_adc / READ_ADC unit is 0–65535 (not Uno 10-bit).
+    sim.set_adc(34, 65_535).unwrap();
+    sim.step().unwrap();
+    assert_eq!(sim.adc(34), 65_535);
+    let raw = sim.var("raw").unwrap().as_u64().unwrap();
+    assert_eq!(raw, 65_535);
+    // Over-range clamps.
+    sim.set_adc(34, 70_000).unwrap();
+    assert_eq!(sim.adc(34), 65_535);
+    // Platform conversion helpers (docs / bridge).
+    assert_eq!(dendri_sim::norm_to_platform(65_535, dendri_sim::UNO_ADC_MAX), 1_023);
+    assert_eq!(
+        dendri_sim::norm_to_platform(65_535, dendri_sim::S7_ADC_MAX),
+        27_648
+    );
+}
+
+#[test]
 fn s29_modbus_tcp_map_survives_soft_restart() {
     let path = repo().join("content/fixtures/sim/S29-modbus-tcp.toml");
     let parsed = parse_program_file(&path).unwrap();

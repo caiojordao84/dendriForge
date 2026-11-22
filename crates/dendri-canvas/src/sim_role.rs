@@ -9,6 +9,7 @@ use std::path::Path;
 use dendri_ast::SimulationProject;
 use dendri_profiles::{ProfileDocument, ProfileStore};
 
+use crate::adc_path::AdcBoardScale;
 use crate::led_model::{defaults_from_profile_params, LedElectricalParams};
 
 /// Runtime role declared on a component profile.
@@ -54,6 +55,8 @@ pub struct ProjectSimHints {
     /// Board GPIO label → pin (`Ia.0` → 0, `Qa.0` → 14, `D13` → 13).
     /// Built from `[[gpio]]` so Siemens-style ports resolve without `if board == …`.
     pub gpio_by_label: BTreeMap<String, u32>,
+    /// Board AI scale (V_fs + platform max counts) for D2 analog path.
+    pub adc_scale: AdcBoardScale,
 }
 
 impl Default for ProjectSimHints {
@@ -63,6 +66,7 @@ impl Default for ProjectSimHints {
             led_params_by_profile: BTreeMap::new(),
             led_params_base: LedElectricalParams::PROFILE_DEFAULTS,
             gpio_by_label: BTreeMap::new(),
+            adc_scale: AdcBoardScale::default(),
         }
     }
 }
@@ -160,6 +164,51 @@ pub fn gpio_label_to_port(label: &str) -> String {
     label.split('/').next().unwrap_or(label).trim().to_string()
 }
 
+/// Board AI scale from `[simulation]` (`adc_v_full_scale` / `adc_platform_max`).
+///
+/// Fallback: logic_high ≈ 5 → Uno 5 V / 1023; otherwise S7-style 10 V / 27648.
+pub fn board_adc_scale(board: &ProfileDocument) -> AdcBoardScale {
+    let mut scale = if board_logic_high_v(board).is_some_and(|v| (v - 5.0).abs() < 0.5) {
+        AdcBoardScale::UNO
+    } else {
+        AdcBoardScale::S7_0_10V
+    };
+    if let Some(sim) = board.simulation.as_ref() {
+        if let Some(v) = sim.adc_v_full_scale.as_ref().and_then(value_as_volts) {
+            if v > 0.0 {
+                scale.v_full_scale = v;
+            }
+        }
+        if let Some(m) = sim.adc_platform_max.as_ref().and_then(value_as_u32) {
+            if m > 0 {
+                scale.platform_max = m;
+            }
+        }
+    }
+    if let Some(sim) = board.rest.get("simulation").and_then(|v| v.as_table()) {
+        if let Some(v) = sim.get("adc_v_full_scale").and_then(value_as_volts) {
+            if v > 0.0 {
+                scale.v_full_scale = v;
+            }
+        }
+        if let Some(m) = sim.get("adc_platform_max").and_then(value_as_u32) {
+            if m > 0 {
+                scale.platform_max = m;
+            }
+        }
+    }
+    scale
+}
+
+fn value_as_u32(v: &toml::Value) -> Option<u32> {
+    match v {
+        toml::Value::Integer(i) if *i >= 0 && *i <= u32::MAX as i64 => Some(*i as u32),
+        toml::Value::Float(f) if *f >= 0.0 && *f <= u32::MAX as f64 => Some(*f as u32),
+        toml::Value::String(s) => s.trim().parse().ok(),
+        _ => None,
+    }
+}
+
 /// Build label → pin from board `[[gpio]]` entries.
 pub fn board_gpio_label_map(board: &ProfileDocument) -> BTreeMap<String, u32> {
     let mut map = BTreeMap::new();
@@ -203,6 +252,7 @@ pub fn load_project_sim_hints_from_store(
             hints.led_params_base.v_high = v;
         }
         hints.gpio_by_label = board_gpio_label_map(&board);
+        hints.adc_scale = board_adc_scale(&board);
     }
 
     // Always seed `"led"` defaults (C01 / fallback).
@@ -279,6 +329,24 @@ mod tests {
         assert_eq!(map.get("Ia.0"), Some(&0));
         assert_eq!(map.get("Qa.0"), Some(&14));
         assert_eq!(map.get("IW64"), Some(&24));
+    }
+
+    #[test]
+    fn board_adc_scales_from_simulation() {
+        let store = ProfileStore::from_repo_root(repo());
+        let uno = store.load_board("arduino-uno-r3").unwrap();
+        let s7 = store.load_board("siemens-s7-1200-cpu-1214c").unwrap();
+        let u = board_adc_scale(&uno);
+        assert!((u.v_full_scale - 5.0).abs() < 1e-9);
+        assert_eq!(u.platform_max, 1_023);
+        let s = board_adc_scale(&s7);
+        assert!((s.v_full_scale - 10.0).abs() < 1e-9);
+        assert_eq!(s.platform_max, 27_648);
+        assert_eq!(map_get_a0(&uno), Some(14));
+    }
+
+    fn map_get_a0(board: &ProfileDocument) -> Option<u32> {
+        board_gpio_label_map(board).get("A0").copied()
     }
 
     #[test]
