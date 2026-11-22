@@ -11,6 +11,7 @@
 //!   dash/pulse overlays only while activity animation is enabled (Running /
 //!   frozen on Pause; cleared on Stop).
 
+use crate::endpoint::split_endpoint;
 use crate::sim_bridge::RuntimeSnapshot;
 use crate::wires::{wire_color_kind, RoutedWire, WireColorKind};
 
@@ -127,16 +128,6 @@ pub fn activity_animation_enabled(run_state: crate::SimRunState) -> bool {
     )
 }
 
-fn split_endpoint(endpoint: &str) -> Option<(&str, &str)> {
-    let (instance, rest) = endpoint.split_once('.')?;
-    if instance.is_empty() || rest.is_empty() {
-        return None;
-    }
-    // Port may include suffixes; take the first path segment as terminal name.
-    let terminal = rest.split('.').next().unwrap_or(rest);
-    Some((instance, terminal))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -234,5 +225,33 @@ mod tests {
         assert!(activity_animation_enabled(SimRunState::Running));
         assert!(activity_animation_enabled(SimRunState::Paused));
         assert!(!activity_animation_enabled(SimRunState::Idle));
+    }
+
+    #[test]
+    fn dotted_port_id_resolves_like_sim_bridge() {
+        // Regression: wire_activity used to truncate `board.Ia.0` → terminal `Ia`.
+        let mut pins = BTreeMap::new();
+        pins.insert(0u32, true);
+        let snap = RuntimeSnapshot {
+            run_state: SimRunState::Running,
+            availability: RuntimeAvailability::Available,
+            cycle: 1,
+            time_ms: 0,
+            pins,
+            bindings: vec![TerminalBinding {
+                instance_id: "board".into(),
+                terminal: "Ia.0".into(),
+                kind: TerminalKind::BoardDigital,
+                board_pin: Some(0),
+            }],
+            components: BTreeMap::new(),
+            present_gen: 1,
+        };
+        assert_eq!(endpoint_logical_level("board.Ia.0", &snap), Some(true));
+        let w = signal_wire("board.Ia.0", "load.A");
+        assert_eq!(
+            wire_logical_activity(&w, &snap),
+            WireLogicalActivity::Active { level: true }
+        );
     }
 }

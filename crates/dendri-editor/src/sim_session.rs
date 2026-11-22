@@ -12,10 +12,10 @@ use std::time::Instant;
 use dendri_ast::SimulationProject;
 use dendri_canvas::{
     activity_animation_enabled, apply_sim_command, build_runtime_snapshot_ex,
-    resolve_terminal_bindings, update_led_burn_state, LedElectricalParams, RuntimeAvailability,
-    RuntimeSnapshot, SimCanvas, SimCommand, SimRunState, SnapshotExtras, TerminalKind,
+    load_project_sim_hints, resolve_terminal_bindings_with_hints, update_led_burn_state_with_hints,
+    LedElectricalParams, ProjectSimHints, RuntimeAvailability, RuntimeSnapshot, SimCanvas,
+    SimCommand, SimRunState, SnapshotExtras, TerminalKind,
 };
-use dendri_profiles::ProfileStore;
 use dendri_sim::SimConfig;
 
 /// Live simulation session bound to the open project.
@@ -32,8 +32,10 @@ pub struct SimSession {
     pub momentary: Option<String>,
     /// LED burned flags — persist across Stop; cleared on Reset.
     pub led_burned: BTreeMap<String, bool>,
-    /// Profile defaults + board V_high for LED DC model.
+    /// Profile defaults + board V_high for LED DC model (fallback).
     pub led_params_base: LedElectricalParams,
+    /// `sim_role` + per-profile LED params (D-comp-14 / D0b).
+    pub sim_hints: ProjectSimHints,
     /// Wire activity animation phase (radians-ish seconds accumulator).
     /// Advanced only while Running via Instant deltas; frozen on Pause; cleared on Stop.
     pub wire_anim_phase: f32,
@@ -59,6 +61,7 @@ impl SimSession {
             momentary: None,
             led_burned: BTreeMap::new(),
             led_params_base: LedElectricalParams::PROFILE_DEFAULTS,
+            sim_hints: ProjectSimHints::default(),
             wire_anim_phase: 0.0,
             wire_anim_last: None,
             present_gen: 0,
@@ -96,7 +99,8 @@ impl SimSession {
         self.latched.clear();
         self.momentary = None;
         self.led_burned.clear();
-        self.led_params_base = load_led_params_base(repo_root, project);
+        self.sim_hints = load_project_sim_hints(repo_root, project);
+        self.led_params_base = self.sim_hints.led_params_base;
         match SimCanvas::from_project(project, repo_root, &SimConfig::default()) {
             Ok(mut canvas) => match canvas.boot() {
                 Ok(_) => {
@@ -291,17 +295,19 @@ impl SimSession {
                 button_latched: &self.latched,
                 led_burned: &self.led_burned,
                 led_params_base: self.led_params_base,
+                sim_hints: &self.sim_hints,
             },
             self.present_gen,
         );
         // Persist burns after the burn-scan snapshot has been published (I≠0 that frame).
         if let Some(project) = project {
             let pins = self.snapshot.pins.clone();
-            update_led_burn_state(
+            update_led_burn_state_with_hints(
                 project,
                 &pins,
                 &mut self.led_burned,
                 self.led_params_base,
+                &self.sim_hints,
             );
         }
     }
@@ -313,7 +319,7 @@ impl SimSession {
         project: Option<&SimulationProject>,
     ) {
         if let Some(project) = project {
-            if let Some(id) = primary_button_id(project) {
+            if let Some(id) = primary_button_id_with_hints(project, &self.sim_hints) {
                 if pressed {
                     self.button_pressed.insert(id, true);
                 } else if !self.latched.contains_key(&id) {
@@ -418,7 +424,7 @@ impl SimSession {
             }
             return;
         };
-        let bindings = resolve_terminal_bindings(project);
+        let bindings = resolve_terminal_bindings_with_hints(project, &self.sim_hints);
         let active_low = self
             .canvas
             .as_ref()
@@ -429,7 +435,9 @@ impl SimSession {
         };
         let mut any_primary = false;
         for comp in &project.components {
-            let is_btn = comp.profile.contains("button") || comp.profile.contains("push");
+            let is_btn = self.sim_hints.is_momentary_contact(&comp.profile)
+                || (self.sim_hints.role_of(&comp.profile).is_none()
+                    && (comp.profile.contains("button") || comp.profile.contains("push")));
             if !is_btn {
                 continue;
             }
@@ -438,7 +446,9 @@ impl SimSession {
                 .get(&comp.instance_id)
                 .copied()
                 .unwrap_or(false);
-            if primary_button_id(project).as_deref() == Some(comp.instance_id.as_str()) {
+            if primary_button_id_with_hints(project, &self.sim_hints).as_deref()
+                == Some(comp.instance_id.as_str())
+            {
                 any_primary = pressed;
             }
             // Prefer NO contact pin; fall back to any button contact binding.
@@ -475,7 +485,7 @@ impl SimSession {
 
     pub fn primary_pressed_logic(&self, project: Option<&SimulationProject>) -> bool {
         if let Some(project) = project {
-            if let Some(id) = primary_button_id(project) {
+            if let Some(id) = primary_button_id_with_hints(project, &self.sim_hints) {
                 if let Some(v) = self.button_pressed.get(&id) {
                     return *v;
                 }
@@ -533,76 +543,31 @@ fn run_label(s: SimRunState) -> &'static str {
 }
 
 fn primary_button_id(project: &SimulationProject) -> Option<String> {
+    // Prefer components that declare momentary-contact; fall back to C01-style ids
+    // when hints are not yet loaded (tests calling before boot).
     project
         .components
         .iter()
-        .find(|c| c.profile.contains("button") || c.profile.contains("push"))
+        .find(|c| {
+            c.profile == "cmd-pushbutton-no-start"
+                || c.profile == "cmd-pushbutton-nc-stop"
+                || c.profile == "maker-tactile-4pin"
+                || c.profile.contains("button")
+                || c.profile.contains("push")
+        })
         .map(|c| c.instance_id.clone())
 }
 
-fn load_led_params_base(repo_root: &Path, project: &SimulationProject) -> LedElectricalParams {
-    let content = repo_root.join("content");
-    let store = ProfileStore::new(&content);
-    let mut base = LedElectricalParams::PROFILE_DEFAULTS;
-    // Board logic-high voltage (Uno = 5 V, S7 = 24 V via [simulation].logic_high).
-    if let Ok(board) = store.load_board(&project.board.profile) {
-        if let Some(v) = board_logic_high_v(&board) {
-            base.v_high = v;
-        }
-    }
-    if let Ok(led) = store.load_component("led") {
-        if let Some(params) = led.rest.get("params").and_then(|v| v.as_table()) {
-            base = dendri_canvas::defaults_from_profile_params(params, base.v_high);
-        }
-    }
-    base
-}
-
-fn board_logic_high_v(board: &dendri_profiles::ProfileDocument) -> Option<f64> {
-    // Prefer typed [simulation] fields (logic_high / vcc / voltage).
-    // Note: [specs].voltage is intentionally ignored — only simulation / ports feed v_high.
-    if let Some(sim) = board.simulation.as_ref() {
-        for opt in [&sim.logic_high, &sim.vcc, &sim.voltage] {
-            if let Some(v) = opt.as_ref().and_then(value_as_volts) {
-                return Some(v);
-            }
-        }
-    }
-    // Fallback: raw rest table (legacy / untyped shapes).
-    if let Some(sim) = board.rest.get("simulation").and_then(|v| v.as_table()) {
-        for key in ["vcc", "logic_high", "voltage"] {
-            if let Some(v) = sim.get(key) {
-                if let Some(f) = value_as_volts(v) {
-                    return Some(f);
-                }
-            }
-        }
-    }
-    // Ports often list `voltage = "5V"` on digital pins.
-    if let Some(ports) = board.rest.get("ports").and_then(|v| v.as_array()) {
-        for p in ports {
-            if let Some(t) = p.as_table() {
-                if let Some(v) = t.get("voltage").and_then(value_as_volts) {
-                    if (v - 5.0).abs() < 0.01 || (v - 3.3).abs() < 0.01 {
-                        return Some(v);
-                    }
-                }
-            }
-        }
-    }
-    None
-}
-
-fn value_as_volts(v: &toml::Value) -> Option<f64> {
-    match v {
-        toml::Value::Float(f) => Some(*f),
-        toml::Value::Integer(i) => Some(*i as f64),
-        toml::Value::String(s) => {
-            let s = s.trim().trim_end_matches('V').trim_end_matches('v');
-            s.parse().ok()
-        }
-        _ => None,
-    }
+fn primary_button_id_with_hints(
+    project: &SimulationProject,
+    hints: &ProjectSimHints,
+) -> Option<String> {
+    project
+        .components
+        .iter()
+        .find(|c| hints.is_momentary_contact(&c.profile))
+        .map(|c| c.instance_id.clone())
+        .or_else(|| primary_button_id(project))
 }
 
 #[cfg(test)]

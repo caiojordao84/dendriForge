@@ -22,12 +22,14 @@
 //! `iced::widget::canvas::path::lyon_path` in `dendri-editor` (canvas feature).
 
 pub mod camera;
+pub mod endpoint;
 pub mod grid;
 pub mod interpolate;
 pub mod led_model;
 pub mod routing;
 pub mod scene;
 pub mod sim_bridge;
+pub mod sim_role;
 pub mod svg_contract;
 pub mod svg_dyn;
 pub mod wire_activity;
@@ -58,14 +60,20 @@ pub use wires::{
     WireColorKind, PIN_SNAP_SCREEN_PX, WIRE_BASE_WIDTH_PX, WIRE_COLOR_WIDTH_PX,
     WIRE_FILLET_SCREEN_PX, WIRE_HIT_SCREEN_PX,
 };
+pub use endpoint::split_endpoint;
 pub use led_model::{
     amperes_to_ua, defaults_from_profile_params, evaluate_led, ua_to_amperes, LedElectricalParams,
     LedElectricalState,
 };
 pub use sim_bridge::{
-    apply_sim_command, build_runtime_snapshot, build_runtime_snapshot_ex, resolve_terminal_bindings,
-    update_led_burn_state, ComponentRuntimeState, ControlOutcome, RuntimeAvailability,
+    apply_sim_command, build_runtime_snapshot, build_runtime_snapshot_ex,
+    resolve_terminal_bindings, resolve_terminal_bindings_with_hints, update_led_burn_state,
+    update_led_burn_state_with_hints, ComponentRuntimeState, ControlOutcome, RuntimeAvailability,
     RuntimeSnapshot, SimCommand, SimRunState, SnapshotExtras, TerminalBinding, TerminalKind,
+};
+pub use sim_role::{
+    board_logic_high_v, load_project_sim_hints, load_project_sim_hints_from_store,
+    sim_role_from_doc, ProjectSimHints, SimRole,
 };
 pub use svg_dyn::{
     parse_svg_str, prepare_hook, HookCircle, HookSeg, PreparedHook,
