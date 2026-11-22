@@ -894,9 +894,9 @@ mod tests {
         assert_eq!(pilot.sim_role, Some(SimRole::LedLoad));
         assert!(pilot.terminals.iter().any(|t| t.port == "A"));
         assert!(pilot.terminals.iter().any(|t| t.port == "K"));
-        // Missing SVG → dims (none) → default 20×20 mm = 5×5 grid, or canvas — pilot has no dims;
-        // svg_status missing so default Generic size.
-        assert!(pilot.size.w > 0.0 && pilot.size.h > 0.0);
+        // D1 authored pilot SVG is 24×24 mm → 6×6 grid.
+        assert!((pilot.size.w - 6.0).abs() < 1e-9, "pilot w={}", pilot.size.w);
+        assert!((pilot.size.h - 6.0).abs() < 1e-9, "pilot h={}", pilot.size.h);
         scene.assert_terminal_contract();
     }
 }

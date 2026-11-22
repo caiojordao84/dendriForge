@@ -51,6 +51,9 @@ pub struct ProjectSimHints {
     pub led_params_by_profile: BTreeMap<String, LedElectricalParams>,
     /// Board logic-high rail (Uno 5 V, S7 24 V). Fallback when a profile map miss.
     pub led_params_base: LedElectricalParams,
+    /// Board GPIO label → pin (`Ia.0` → 0, `Qa.0` → 14, `D13` → 13).
+    /// Built from `[[gpio]]` so Siemens-style ports resolve without `if board == …`.
+    pub gpio_by_label: BTreeMap<String, u32>,
 }
 
 impl Default for ProjectSimHints {
@@ -59,6 +62,7 @@ impl Default for ProjectSimHints {
             roles: BTreeMap::new(),
             led_params_by_profile: BTreeMap::new(),
             led_params_base: LedElectricalParams::PROFILE_DEFAULTS,
+            gpio_by_label: BTreeMap::new(),
         }
     }
 }
@@ -86,6 +90,18 @@ impl ProjectSimHints {
             .get(profile_id)
             .copied()
             .unwrap_or(self.led_params_base)
+    }
+
+    /// Resolve a board port label (`D13`, `Ia.0`, `Qa.0`) to a GPIO pin number.
+    pub fn gpio_pin(&self, port: &str) -> Option<u32> {
+        if let Some(p) = self.gpio_by_label.get(port) {
+            return Some(*p);
+        }
+        let lower = port.to_ascii_lowercase();
+        self.gpio_by_label
+            .iter()
+            .find(|(k, _)| k.eq_ignore_ascii_case(&lower))
+            .map(|(_, v)| *v)
     }
 }
 
@@ -139,6 +155,35 @@ fn value_as_volts(v: &toml::Value) -> Option<f64> {
     }
 }
 
+/// Primary port token from a GPIO label (`"Ia.0 / HSC0"` → `"Ia.0"`).
+pub fn gpio_label_to_port(label: &str) -> String {
+    label.split('/').next().unwrap_or(label).trim().to_string()
+}
+
+/// Build label → pin from board `[[gpio]]` entries.
+pub fn board_gpio_label_map(board: &ProfileDocument) -> BTreeMap<String, u32> {
+    let mut map = BTreeMap::new();
+    let Some(arr) = board.rest.get("gpio").and_then(|v| v.as_array()) else {
+        return map;
+    };
+    for p in arr {
+        let Some(t) = p.as_table() else {
+            continue;
+        };
+        let pin = match t.get("pin") {
+            Some(toml::Value::Integer(i)) if *i >= 0 => *i as u32,
+            _ => continue,
+        };
+        let label = t.get("label").and_then(|v| v.as_str()).unwrap_or("");
+        let port = gpio_label_to_port(label);
+        if port.is_empty() {
+            continue;
+        }
+        map.insert(port, pin);
+    }
+    map
+}
+
 /// Load roles + per-profile LED params for every component in the project.
 pub fn load_project_sim_hints(repo_root: &Path, project: &SimulationProject) -> ProjectSimHints {
     let store = ProfileStore::from_repo_root(repo_root);
@@ -157,6 +202,7 @@ pub fn load_project_sim_hints_from_store(
             v_high = v;
             hints.led_params_base.v_high = v;
         }
+        hints.gpio_by_label = board_gpio_label_map(&board);
     }
 
     // Always seed `"led"` defaults (C01 / fallback).
@@ -223,6 +269,16 @@ mod tests {
             Some(SimRole::MomentaryContact)
         );
         assert!((hints.led_params_base.v_high - 5.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn s7_gpio_map_includes_ia_and_qa() {
+        let store = ProfileStore::from_repo_root(repo());
+        let board = store.load_board("siemens-s7-1200-cpu-1214c").unwrap();
+        let map = board_gpio_label_map(&board);
+        assert_eq!(map.get("Ia.0"), Some(&0));
+        assert_eq!(map.get("Qa.0"), Some(&14));
+        assert_eq!(map.get("IW64"), Some(&24));
     }
 
     #[test]

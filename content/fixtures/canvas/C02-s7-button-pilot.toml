@@ -1,0 +1,125 @@
+[metadata]
+asl_version = "0.0.1"
+project_name = "C02-s7-button-pilot"
+editor = "dendriForge"
+author = "dendriForge D1"
+notes = "S7-1200 + industrial NO start + 24 V pilot. Press → load ON (active-high DI). Mirror of C01 on PLC side. C01 untouched."
+
+[board]
+profile = "siemens-s7-1200-cpu-1214c"
+instance_id = "board"
+x = 1.0
+y = 2.0
+rotation = 0
+mirror_x = false
+mirror_y = false
+
+[[components]]
+instance_id = "pilot1"
+profile = "signal-pilot-lamp"
+label = "Run pilot"
+x = 30.0
+y = 2.0
+rotation = 0
+mirror_x = false
+mirror_y = false
+
+[components.params]
+color = "green"
+supply_voltage = 24
+
+[[components]]
+instance_id = "btn_start"
+profile = "cmd-pushbutton-no-start"
+label = "Start button"
+x = 30.0
+y = 8.0
+rotation = 0
+mirror_x = false
+mirror_y = false
+
+[components.params]
+
+# Industrial NO: COM fed from 24 V; NO → DI (active-high when pressed).
+[[wiring]]
+from = "board.3_L_PLUS"
+to = "btn_start.COM"
+signal = "power"
+
+[[wiring]]
+from = "board.Ia.0"
+to = "btn_start.NO"
+signal = "digital"
+
+# DO MOSFET sourcing 24 V → pilot anode; M → cathode.
+[[wiring]]
+from = "board.Qa.0"
+to = "pilot1.A"
+signal = "digital"
+
+[[wiring]]
+from = "board.1_M"
+to = "pilot1.K"
+signal = "gnd"
+
+[asl]
+functions = []
+
+[asl.metadata]
+asl_version = "0.0.1"
+project_name = "C02-s7-button-pilot"
+editor = "dendriForge"
+author = "dendriForge D1"
+
+# Ia.0 = pin 0 (DI, active-high — no pull-up).
+[[asl.hardware]]
+pin = 0
+hw_type = "digital"
+io_mode = "DI"
+label = "btnPin"
+target_role = "digital-in"
+
+# Qa.0 = pin 14 (DO MOSFET sourcing).
+[[asl.hardware]]
+pin = 14
+hw_type = "digital"
+io_mode = "DO"
+label = "pilotPin"
+target_role = "digital-out"
+
+[[asl.data]]
+name = "pressed"
+type = "BOOL"
+scope = "VAR"
+init = "FALSE"
+unit = "-"
+
+[[asl.setup]]
+kind = "call"
+name = "CFG_DIGITAL_INPUT"
+args = [{ kind = "var", name = "btnPin" }]
+
+[[asl.setup]]
+kind = "call"
+name = "CFG_DIGITAL_OUTPUT"
+args = [{ kind = "var", name = "pilotPin" }]
+
+[[asl.setup]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "var", name = "pilotPin" }, { kind = "bool", value = false }]
+
+# Active-high: pressed == GET_BOOL (no NOT).
+[[asl.loop]]
+kind = "assign"
+target = "pressed"
+
+[asl.loop.value]
+kind = "call"
+name = "GET_BOOL"
+args = [{ kind = "var", name = "btnPin" }]
+
+[[asl.loop]]
+kind = "call"
+name = "SET_BOOL"
+args = [{ kind = "var", name = "pilotPin" }, { kind = "var", name = "pressed" }]

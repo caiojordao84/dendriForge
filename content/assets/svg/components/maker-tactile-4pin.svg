@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="12mm"
+   height="12mm"
+   viewBox="0 0 48 48"
+   version="1.1"
+   id="maker-tactile-4pin"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:df="https://dendriforge.dev/ns/1.0"
+   df:profile="maker-tactile-4pin"
+   df:version="0.1.0">
+  <title>Tactile Pushbutton 4-Pin</title>
+  <desc>Required ids: #actuator (press), #contact (NO state). Dims 12×12 mm (2 mm quantum). Pads optional.</desc>
+  <defs>
+    <style type="text/css"><![CDATA[
+      .body { fill: #3d3d3d; stroke: #1a1a1a; stroke-width: 1.2; }
+      .stem { fill: #555; stroke: #2a2a2a; stroke-width: 0.8; }
+      #actuator { fill: #95a5a6; stroke: #5d6d7e; stroke-width: 1.2; cursor: pointer; }
+      #actuator.pressed { transform: translate(0, 2px); fill: #7f8c8d; }
+      #contact { fill: none; stroke: #bdc3c7; stroke-width: 1.5; }
+      #contact.closed { stroke: #f1c40f; }
+      .pad { fill: #c0c0c0; stroke: #7f8c8d; stroke-width: 0.6; }
+      .label { fill: #ecf0f1; font-family: sans-serif; font-size: 5px; text-anchor: middle; }
+    ]]></style>
+  </defs>
+  <!-- Four corner pads (legs 1–4) -->
+  <rect class="pad" id="pad-1" x="2" y="2" width="6" height="6" rx="0.5"/>
+  <rect class="pad" id="pad-2" x="40" y="2" width="6" height="6" rx="0.5"/>
+  <rect class="pad" id="pad-3" x="2" y="40" width="6" height="6" rx="0.5"/>
+  <rect class="pad" id="pad-4" x="40" y="40" width="6" height="6" rx="0.5"/>
+  <rect class="body" x="10" y="10" width="28" height="28" rx="2" ry="2"/>
+  <rect class="stem" x="18" y="18" width="12" height="12" rx="1"/>
+  <g id="actuator" transform="translate(0,0)">
+    <circle cx="24" cy="24" r="6"/>
+  </g>
+  <!-- NO contact schematic cue -->
+  <g id="contact" class="open">
+    <line x1="14" y1="42" x2="20" y2="42"/>
+    <line x1="28" y1="42" x2="34" y2="42"/>
+    <line x1="20" y1="42" x2="25" y2="38"/>
+  </g>
+</svg>
