@@ -346,6 +346,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "dendri-frontend-core"
+version = "0.1.0"
+dependencies = [
+ "dendri-ast",
+ "dendri-span",
+ "dendri-stdlib",
+ "hex",
+ "proptest",
+ "serde",
+ "sha2",
+ "thiserror",
+ "toml",
+]
+
+[[package]]
 name = "dendri-physics"
 version = "0.1.0"
 dependencies = [
