@@ -201,7 +201,7 @@ Primary         ::= Literal | Ident | "(" Expr ")" ;
 | Arduino C++ Call | ASL v2 Representation | Board Profile Binding (`arduino-uno-r3`) |
 |---|---|---|
 | `analogRead(A0)` | `ADC_CODE(A0)` -> `CODE<uno_10bit>` | `uno_10bit`: `kind = "binned"`, `D = 1024`, `n_max = 1023`, `0.0..5.0 V` (`A0..A5`) |
-| `analogWrite(D5, val)` | `PWM_WRITE(D5, CODE_TO_DUTY(val, "pwm_8bit"))` | `pwm_8bit`: `kind = "binned"`, `D = 256`, `n_max = 255` (`D3, D5, D6, D9, D10, D11`) |
+| `analogWrite(D5, val)` | `PWM_WRITE(D5, ANALOG_TO_DUTY(CODE_TO_ANALOG(val, "pwm_8bit")))` | `pwm_8bit`: `kind = "binned"`, `D = 256`, `n_max = 255` (`D3, D5, D6, D9, D10, D11`) |
 | `analogReadResolution(bits)` | `ANALOG_READ_RESOLUTION(bits)` | Statement updating active channel ADC codec (`D = 2^bits`, `n_max = 2^bits - 1`) |
 | `digitalRead(pin)` | `DIGITAL_READ(pin)` -> `BOOL` | Reads pin electrical level per `[electrical]` `v_ih_v`/`v_il_v` & `indeterminate_reads_as` |
 | `digitalWrite(pin, val)` | `DIGITAL_WRITE(pin, val)` | Drives digital output pin (`HIGH`/`true`, `LOW`/`false`) |

@@ -92,7 +92,7 @@ At load time inside `dendri-vm` (strictly in memory, never written back to ASL),
      - `SR` / `RS`: rail -> `S1` / `S`, `out_rail = fb.Q1`
      - `UART_SEND`, `I2C_XFER`, `SPI_XFER`, `MB_CLIENT`: rail -> `REQ`, `out_rail = fb.DONE`
      - `UART_RECV`: rail -> `EN_R`, `out_rail = fb.NDR`
-     - `MB_SERVER`: rail -> `ENABLE`, `out_rail = fb.DONE` (or `NDR` per bus event)
+     - `MB_SERVER`: rail -> `ENABLE`, primary IEC output pin `out_rail = fb.NDR` (note: `dendri-vm`'s Phase 4 `CommStub` placeholder currently propagates its stub `done` flag until modeled Modbus bus execution wires `NDR`)
      - User `FB`: rail -> `EN`, `out_rail = ENO`
    - **`Call` Box (Math / Move / Convert / Callable `Structured POU`):** Standard IEC `EN`/`ENO` semantics. Executes `callee(args...)` ONLY when `EN == true`, writes the return value to `output` if bound, and passes `ENO = EN` downstream.
    - **`Foreign` Box:** Renders as a locked box in the Ladder grid. Under default simulation policy (`halt`), hitting an unmodeled `Foreign` box stops execution with a 4-part diagnostic; when governed by `[[boards.assumptions]]`, applies the recorded policy and propagates `out_rail = in_rail`.
