@@ -1,0 +1,45 @@
+# dendriForge v2 — Wave 1 F1 Declared Library Pack: Arduino SPI
+# Closes DEF-008. Content SHA-256 is computed dynamically on load by `dendri-frontend-core`.
+
+schema_version = "2.0"
+
+[pack]
+id = "arduino-spi"
+name = "Arduino SPI Bus Library Pack"
+version = "1.0.0"
+language = "cpp"
+fidelity = "f1_declared"
+standards = ["IEC 61131-3"]
+description = "F1 declared signatures for the Arduino SPI.h full-duplex 4-wire synchronous serial controller API (MOSI/MISO/SCK with active-low CS GPIO)."
+
+[[symbols]]
+name = "SPI.begin"
+kind = "method"
+params = []
+return_ty = "VOID"
+doc = "Initializes the hardware SPI peripheral in controller mode on the board's wired MOSI/MISO/SCK pins (e.g., D11/D12/D13 on arduino-uno-r3)."
+
+[[symbols]]
+name = "SPI.beginTransaction"
+kind = "method"
+params = [
+    { name = "clock_hz", ty = "UDINT" },
+    { name = "bit_order", ty = "USINT" },
+    { name = "data_mode", ty = "USINT" },
+]
+return_ty = "VOID"
+doc = "Acquires the SPI bus and configures clock frequency (Hz), bit order (MSBFIRST=1, LSBFIRST=0), and clock polarity/phase mode (SPI_MODE0..SPI_MODE3); corresponds to Arduino SPISettings(clock_hz, bit_order, data_mode)."
+
+[[symbols]]
+name = "SPI.transfer"
+kind = "method"
+params = [{ name = "data", ty = "BYTE" }]
+return_ty = "BYTE"
+doc = "Performs a full-duplex single-byte SPI exchange, shifting out `data` on MOSI and returning the simultaneously sampled byte from MISO (0xFF when no peripheral CS line is asserted)."
+
+[[symbols]]
+name = "SPI.endTransaction"
+kind = "method"
+params = []
+return_ty = "VOID"
+doc = "Releases the SPI bus transaction lock after the caller de-asserts the selected peripheral's active-low chip-select (CS) pin."

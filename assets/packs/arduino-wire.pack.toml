@@ -1,0 +1,55 @@
+# dendriForge v2 — Wave 1 F1 Declared Library Pack: Arduino Wire (I2C)
+# Closes DEF-008. Content SHA-256 is computed dynamically on load by `dendri-frontend-core`.
+
+schema_version = "2.0"
+
+[pack]
+id = "arduino-wire"
+name = "Arduino Wire (I2C) Library Pack"
+version = "1.0.0"
+language = "cpp"
+fidelity = "f1_declared"
+standards = ["IEC 61131-3"]
+description = "F1 declared signatures for the Arduino Wire.h two-wire I2C/TWI controller API (7-bit target addressing 0x08..0x77 on board SDA/SCL bus pins)."
+
+[[symbols]]
+name = "Wire.begin"
+kind = "method"
+params = []
+return_ty = "VOID"
+doc = "Initializes the I2C/TWI peripheral in controller mode on the board's wired SDA/SCL pins (e.g., A4/A5 on arduino-uno-r3)."
+
+[[symbols]]
+name = "Wire.beginTransmission"
+kind = "method"
+params = [{ name = "address", ty = "USINT" }]
+return_ty = "VOID"
+doc = "Begins buffering a controller-write transmission to a 7-bit I2C peripheral address (0x08..0x77)."
+
+[[symbols]]
+name = "Wire.write"
+kind = "method"
+params = [{ name = "data", ty = "USINT" }]
+return_ty = "USINT"
+doc = "Queues one byte into the active I2C transmit buffer and returns the number of bytes queued (1 on success, 0 if buffer is full)."
+
+[[symbols]]
+name = "Wire.endTransmission"
+kind = "method"
+params = [{ name = "sendStop", ty = "BOOL" }]
+return_ty = "USINT"
+doc = "Transmits queued bytes to the addressed target and emits STOP when sendStop is true (default when omitted in C++) or repeated START when false. Returns status: 0=success, 1=buffer overflow, 2=address NACK, 3=data NACK, 4=other bus error."
+
+[[symbols]]
+name = "Wire.requestFrom"
+kind = "method"
+params = [{ name = "address", ty = "USINT" }, { name = "quantity", ty = "USINT" }]
+return_ty = "USINT"
+doc = "Requests `quantity` bytes from 7-bit I2C target `address` on the wired bus and returns the count of bytes received into the RX buffer."
+
+[[symbols]]
+name = "Wire.read"
+kind = "method"
+params = []
+return_ty = "INT"
+doc = "Dequeues and returns the next received byte (0..255) from the I2C receive buffer, or -1 if no byte is available."

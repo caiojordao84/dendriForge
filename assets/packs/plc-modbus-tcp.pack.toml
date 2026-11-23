@@ -1,0 +1,55 @@
+# dendriForge v2 — Wave 1 F1 Declared Library Pack: IEC 61131-3 Modbus TCP
+# Closes DEF-008. Content SHA-256 is computed dynamically on load by `dendri-frontend-core`.
+
+schema_version = "2.0"
+
+[pack]
+id = "plc-modbus-tcp"
+name = "IEC 61131-3 Modbus TCP Communication Pack"
+version = "1.0.0"
+language = "st"
+fidelity = "f1_declared"
+standards = ["IEC 61131-3", "Modbus TCP"]
+description = "F1 declared signatures for vendor-neutral IEC 61131-3 Modbus TCP client and server Function Blocks (MB_CLIENT and MB_SERVER) covering function codes FC1-FC6, FC15, and FC16 over plc-1200-open-1214 ETH0."
+
+[[symbols]]
+name = "MB_CLIENT"
+kind = "fb"
+params = [
+    { name = "REQ", ty = "BOOL" },
+    { name = "DISCONNECT", ty = "BOOL" },
+    { name = "REMOTE_IP", ty = "STRING" },
+    { name = "REMOTE_PORT", ty = "UINT" },
+    { name = "UNIT_ID", ty = "USINT" },
+    { name = "FC", ty = "USINT" },
+    { name = "ADDR", ty = "UINT" },
+    { name = "QTY", ty = "UINT" },
+    { name = "DATA_WR", ty = "UINT" },
+    { name = "DATA_RD", ty = "UINT" },
+    { name = "DONE", ty = "BOOL" },
+    { name = "BUSY", ty = "BOOL" },
+    { name = "ERR", ty = "BOOL" },
+    { name = "STATUS", ty = "WORD" },
+]
+return_ty = "VOID"
+doc = "Vendor-neutral IEC 61131-3 Modbus TCP client Function Block covering FC1 (Read Coils), FC2 (Read Discrete Inputs), FC3 (Read Holding Registers), FC4 (Read Input Registers), FC5 (Write Single Coil), FC6 (Write Single Register), FC15 (Write Multiple Coils), and FC16 (Write Multiple Registers). IN parameters: REQ, DISCONNECT, REMOTE_IP, REMOTE_PORT (default 502), UNIT_ID, FC, ADDR, QTY, DATA_WR. OUT parameters: DATA_RD, DONE, BUSY, ERR, STATUS (16#0000 OK; 16#0001..16#0004 Modbus protocol exception codes)."
+
+[[symbols]]
+name = "MB_SERVER"
+kind = "fb"
+params = [
+    { name = "ENABLE", ty = "BOOL" },
+    { name = "BIND_IP", ty = "STRING" },
+    { name = "PORT", ty = "UINT" },
+    { name = "UNIT_ID", ty = "USINT" },
+    { name = "DISCONNECT", ty = "BOOL" },
+    { name = "NDR", ty = "BOOL" },
+    { name = "DR", ty = "BOOL" },
+    { name = "CONNECTED", ty = "BOOL" },
+    { name = "LAST_FC", ty = "USINT" },
+    { name = "LAST_ADDR", ty = "UINT" },
+    { name = "ERR", ty = "BOOL" },
+    { name = "STATUS", ty = "WORD" },
+]
+return_ty = "VOID"
+doc = "Vendor-neutral IEC 61131-3 Modbus TCP server Function Block servicing FC1-FC6, FC15, and FC16 requests on ETH0 and raising OB_COMM_EVENT (OB50+) upon remote register or coil writes. IN parameters: ENABLE, BIND_IP, PORT (default 502), UNIT_ID, DISCONNECT. OUT parameters: NDR (New Data Ready after client write), DR (Data Read), CONNECTED, LAST_FC, LAST_ADDR, ERR, STATUS."

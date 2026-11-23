@@ -1,0 +1,41 @@
+# dendriForge v2 — Wave 1 F1 Declared Library Pack: Arduino Servo
+# Closes DEF-008. Content SHA-256 is computed dynamically on load by `dendri-frontend-core`.
+
+schema_version = "2.0"
+
+[pack]
+id = "arduino-servo"
+name = "Arduino Servo Actuator Library Pack"
+version = "1.0.0"
+language = "cpp"
+fidelity = "f1_declared"
+standards = ["IEC 61131-3"]
+description = "F1 declared signatures for the Arduino Servo.h 50 Hz RC servo pulse-width control API (544..2400 us pulse bounds, 0..180 deg)."
+
+[[symbols]]
+name = "Servo.attach"
+kind = "method"
+params = [{ name = "pin", ty = "USINT" }]
+return_ty = "USINT"
+doc = "Attaches the servo instance to the specified digital output pin with default pulse bounds (544..2400 us at 50 Hz) and returns the allocated timer channel index (0 on failure)."
+
+[[symbols]]
+name = "Servo.write"
+kind = "method"
+params = [{ name = "angle", ty = "INT" }]
+return_ty = "VOID"
+doc = "Commands the target servo angle in degrees (0..180); values >= 544 are interpreted directly as pulse width in microseconds per Arduino Servo library rules."
+
+[[symbols]]
+name = "Servo.writeMicroseconds"
+kind = "method"
+params = [{ name = "pulse_us", ty = "INT" }]
+return_ty = "VOID"
+doc = "Commands the servo control pulse width directly in microseconds (nominal 1000..2000 us, clamped to configured 544..2400 us limits)."
+
+[[symbols]]
+name = "Servo.detach"
+kind = "method"
+params = []
+return_ty = "VOID"
+doc = "Detaches the servo instance from its bound output pin and stops 50 Hz PWM pulse generation."

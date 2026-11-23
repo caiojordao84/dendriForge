@@ -1,0 +1,29 @@
+# dendriForge v2 — Wave 1 Library Pack SHA-256 Lock Manifest (DEF-008)
+# Digests match `sha256sum assets/packs/*.pack.toml` verbatim.
+# `dendri-frontend-core` also computes each pack's SHA-256 dynamically on load.
+
+schema_version = "2.0"
+
+[[packs]]
+id = "arduino-servo"
+version = "1.0.0"
+path = "assets/packs/arduino-servo.pack.toml"
+sha256 = "693074555aba184c164b2a311a29784bc9b452cdb254f5b77f13c2fdd7f5fb26"
+
+[[packs]]
+id = "arduino-spi"
+version = "1.0.0"
+path = "assets/packs/arduino-spi.pack.toml"
+sha256 = "7899add898f55b139b162fe7ba3d5be3b0361ec6f44e56a04e8f43bfdeb10b9f"
+
+[[packs]]
+id = "arduino-wire"
+version = "1.0.0"
+path = "assets/packs/arduino-wire.pack.toml"
+sha256 = "2a9ef1d59c9eb0b293bc04ef7fc854fc8b747e181af6e4a96bb0274fbd45b491"
+
+[[packs]]
+id = "plc-modbus-tcp"
+version = "1.0.0"
+path = "assets/packs/plc-modbus-tcp.pack.toml"
+sha256 = "160a7e2bd927e50cc1ec437b2758cd91737bc9190d88d45cba39132bacd99fd9"
