@@ -59,5 +59,6 @@
     <circle id="pin:Qa.5" class="df-pin-digital" cx="216" cy="216" r="4"/>
     <circle id="pin:Qa.6" class="df-pin-digital" cx="240" cy="216" r="4"/>
     <circle id="pin:Qa.7" class="df-pin-digital" cx="264" cy="216" r="4"/>
+    <circle id="pin:ETH0" class="df-pin-comm" cx="312" cy="216" r="4"/>
   </g>
 </svg>

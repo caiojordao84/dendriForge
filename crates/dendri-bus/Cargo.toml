@@ -1,0 +1,17 @@
+[package]
+name = "dendri-bus"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Physical-topology virtual bus fabric for dendriForge v2 (UART, I2C, SPI w/ CS, Virtual Ethernet / Modbus TCP)"
+
+[lints]
+workspace = true
+
+[dependencies]
+dendri-ast = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }

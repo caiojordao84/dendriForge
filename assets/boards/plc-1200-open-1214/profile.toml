@@ -322,3 +322,11 @@ domain = "electrical"
 role = "digital"
 iec_address = "%QX0.7"
 capabilities = ["digital_out"]
+
+[[ports]]
+id = "ETH0"
+label = "ETH0 (Modbus TCP)"
+domain = "electrical"
+role = "comm"
+capabilities = ["ethernet"]
+nominal_v = 0.0

@@ -1,8 +1,8 @@
 schema_version = "2.0"
 reviewer = "caio"
 reviewed_on = "2026-11-23"
-physical_render_sha256 = "2fc235c763614849e1d85f619bf7523394223445b11bcb9bbb1847b1f8aed246"
-schematic_render_sha256 = "41290a1214f1a76e7017a912cf42405ff320e1718ac5fcd6c246423e2e0b03a4"
+physical_render_sha256 = "f60d6283135601d3e7efefdb026ca98d37ac359817c6dc3414a11834a9497614"
+schematic_render_sha256 = "6ea5b695d724d305c736e31be14bcf1b7f7ecf8c818b8622a8fff88c69920f8f"
 conformity_claimed = false
 
 [checklist]

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:df="https://dendriforge.dev/ns/svg/v2" viewBox="0 0 240 144">
+  <metadata>
+    <df:provenance source="original" symbol-ref="IEC 60617-S00814" reviewed-by="caio" reviewed-on="2026-11-23" ml-restricted="false"/>
+  </metadata>
+  <g id="body">
+    <line x1="0" y1="24" x2="20" y2="24" stroke="#fc8181" stroke-width="2.5"/>
+    <line x1="0" y1="48" x2="20" y2="48" stroke="#a0aec0" stroke-width="2.5"/>
+    <line x1="0" y1="96" x2="20" y2="96" stroke="#c4b5fd" stroke-width="2.5"/>
+    <line x1="0" y1="120" x2="20" y2="120" stroke="#c4b5fd" stroke-width="2.5"/>
+    <rect x="20" y="10" width="212" height="124" rx="6" fill="#0f3d2e" stroke="#34d399" stroke-width="2"/>
+    <rect x="36" y="24" width="180" height="96" rx="4" fill="#0f172a" stroke="#475569" stroke-width="2"/>
+    <rect id="lcd-screen" x="46" y="34" width="160" height="76" rx="2" fill="#065f46" stroke="#34d399" stroke-width="1.5"/>
+    <circle cx="30" cy="20" r="4" fill="#020617" stroke="#94a3b8" stroke-width="1.5"/>
+    <circle cx="222" cy="20" r="4" fill="#020617" stroke="#94a3b8" stroke-width="1.5"/>
+    <circle cx="30" cy="124" r="4" fill="#020617" stroke="#94a3b8" stroke-width="1.5"/>
+    <circle cx="222" cy="124" r="4" fill="#020617" stroke="#94a3b8" stroke-width="1.5"/>
+  </g>
+  <g id="df-pins">
+    <circle id="pin:VCC" class="df-pin-power" cx="0" cy="24" r="4"/>
+    <circle id="pin:GND" class="df-pin-gnd" cx="0" cy="48" r="4"/>
+    <circle id="pin:SDA" class="df-pin-comm" cx="0" cy="96" r="4"/>
+    <circle id="pin:SCL" class="df-pin-comm" cx="0" cy="120" r="4"/>
+  </g>
+</svg>

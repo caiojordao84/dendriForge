@@ -12,7 +12,9 @@ use crate::svg::{
 };
 use dendri_ast::{Codec, is_valid_profile_id};
 use dendri_stdlib::StandardsRegistry;
-use dendri_validate::{BoardProfileMeta, ComponentProfileMeta, PortMeta, ProfileCatalog};
+use dendri_validate::{
+    BoardProfileMeta, ComponentProfileMeta, DisplayCharset, PortMeta, ProfileCatalog,
+};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::fs;
@@ -882,20 +884,41 @@ fn validate_component_dir(
         violations,
     );
 
+    // Validate optional `[display].charset` against authoritative DEF-007 ROM charsets
+    let display_charset = match &comp.display {
+        Some(disp) => match DisplayCharset::from_id(&disp.charset) {
+            Some(cs) => Some(cs),
+            None => {
+                push_v(
+                    violations,
+                    &label,
+                    "R9",
+                    format!(
+                        "unknown display.charset `{}` (expected ascii_7bit|hd44780_a00|hd44780_a02)",
+                        disp.charset
+                    ),
+                );
+                None
+            }
+        },
+        None => None,
+    };
+
     // Populate live ProfileCatalog metadata
     let mut meta_ports = BTreeMap::new();
     for p in &comp.ports {
+        let is_comm = matches!(p.role, dendri_theme::PinClass::Comm);
         meta_ports.insert(
             p.id.clone(),
             PortMeta {
-                digital_in: true,
-                digital_out: true,
+                digital_in: !is_comm,
+                digital_out: !is_comm,
                 pullup: false,
                 pulldown: false,
-                analog_in: true,
-                analog_out: true,
+                analog_in: !is_comm,
+                analog_out: !is_comm,
                 pwm: false,
-                bus: false,
+                bus: is_comm,
                 nominal_v: p.nominal_v,
                 v_abs_max_v: p.v_abs_max_v,
             },
@@ -907,7 +930,7 @@ fn validate_component_dir(
         ComponentProfileMeta {
             id: id.clone(),
             ports: meta_ports,
-            display_charset: None,
+            display_charset,
         },
     );
     catalog.components.insert(id, comp);

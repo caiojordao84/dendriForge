@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:df="https://dendriforge.dev/ns/svg/v2" viewBox="0 0 96 96">
+  <metadata>
+    <df:provenance source="original" symbol-ref="IEC 61082-IC-MEM" reviewed-by="caio" reviewed-on="2026-11-23" ml-restricted="false"/>
+  </metadata>
+  <g id="symbol">
+    <rect x="20" y="14" width="56" height="68" fill="none" stroke="#e2e8f0" stroke-width="2"/>
+    <line x1="0" y1="24" x2="20" y2="24" stroke="#e2e8f0" stroke-width="2"/>
+    <line x1="0" y1="72" x2="20" y2="72" stroke="#e2e8f0" stroke-width="2"/>
+    <line x1="76" y1="24" x2="96" y2="24" stroke="#e2e8f0" stroke-width="2"/>
+    <line x1="76" y1="72" x2="96" y2="72" stroke="#e2e8f0" stroke-width="2"/>
+  </g>
+  <g id="df-pins">
+    <circle id="pin:VCC" class="df-pin-power" cx="0" cy="24" r="4"/>
+    <circle id="pin:GND" class="df-pin-gnd" cx="0" cy="72" r="4"/>
+    <circle id="pin:SDA" class="df-pin-comm" cx="96" cy="24" r="4"/>
+    <circle id="pin:SCL" class="df-pin-comm" cx="96" cy="72" r="4"/>
+  </g>
+</svg>

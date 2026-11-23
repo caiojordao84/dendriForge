@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:df="https://dendriforge.dev/ns/svg/v2" viewBox="0 0 192 144">
+  <metadata>
+    <df:provenance source="original" symbol-ref="ISO 1219-1-V52" reviewed-by="caio" reviewed-on="2026-11-23" ml-restricted="false"/>
+  </metadata>
+  <g id="symbol">
+    <rect x="44" y="42" width="52" height="60" fill="none" stroke="#e2e8f0" stroke-width="2"/>
+    <rect x="96" y="42" width="52" height="60" fill="none" stroke="#e2e8f0" stroke-width="2"/>
+    <rect x="20" y="58" width="24" height="28" fill="none" stroke="#e2e8f0" stroke-width="1.5"/>
+    <line x1="20" y1="86" x2="44" y2="58" stroke="#e2e8f0" stroke-width="1.5"/>
+    <rect x="148" y="58" width="24" height="28" fill="none" stroke="#e2e8f0" stroke-width="1.5"/>
+    <line x1="148" y1="86" x2="172" y2="58" stroke="#e2e8f0" stroke-width="1.5"/>
+    <line x1="70" y1="102" x2="58" y2="42" stroke="#e2e8f0" stroke-width="1.5"/>
+    <line x1="82" y1="42" x2="88" y2="102" stroke="#e2e8f0" stroke-width="1.5"/>
+    <line x1="122" y1="102" x2="134" y2="42" stroke="#e2e8f0" stroke-width="1.5"/>
+    <line x1="110" y1="42" x2="104" y2="102" stroke="#e2e8f0" stroke-width="1.5"/>
+    <line x1="72" y1="0" x2="72" y2="42" stroke="#e2e8f0" stroke-width="2"/>
+    <line x1="120" y1="0" x2="120" y2="42" stroke="#e2e8f0" stroke-width="2"/>
+    <line x1="48" y1="102" x2="48" y2="144" stroke="#e2e8f0" stroke-width="2"/>
+    <line x1="96" y1="102" x2="96" y2="144" stroke="#e2e8f0" stroke-width="2"/>
+    <line x1="144" y1="102" x2="144" y2="144" stroke="#e2e8f0" stroke-width="2"/>
+    <path d="M 0 48 L 20 48 L 20 64 M 0 96 L 20 96 L 20 80" fill="none" stroke="#e2e8f0" stroke-width="1.5"/>
+    <path d="M 192 48 L 172 48 L 172 64 M 192 96 L 172 96 L 172 80" fill="none" stroke="#e2e8f0" stroke-width="1.5"/>
+  </g>
+  <g id="df-pins">
+    <circle id="pin:4" class="df-pin-pneumatic" cx="72" cy="0" r="4"/>
+    <circle id="pin:2" class="df-pin-pneumatic" cx="120" cy="0" r="4"/>
+    <circle id="pin:5" class="df-pin-pneumatic" cx="48" cy="144" r="4"/>
+    <circle id="pin:1" class="df-pin-pneumatic" cx="96" cy="144" r="4"/>
+    <circle id="pin:3" class="df-pin-pneumatic" cx="144" cy="144" r="4"/>
+    <circle id="pin:Y1+" class="df-pin-digital" cx="0" cy="48" r="4"/>
+    <circle id="pin:Y1-" class="df-pin-gnd" cx="0" cy="96" r="4"/>
+    <circle id="pin:Y2+" class="df-pin-digital" cx="192" cy="48" r="4"/>
+    <circle id="pin:Y2-" class="df-pin-gnd" cx="192" cy="96" r="4"/>
+  </g>
+</svg>

@@ -11,17 +11,110 @@ use std::collections::BTreeMap;
 pub enum DisplayCharset {
     /// Strict printable 7-bit ASCII (`0x20..=0x7E`).
     Ascii7Bit,
-    /// HD44780 ROM A00 (ASCII printable + degree symbol `°`).
+    /// Hitachi HD44780U ROM Code A00 (Datasheet Table 4: ASCII + `¥`, `→`, `←`, `°`, `α`, `β`, `ε`, `μ`, `Ω`, `Σ`, `π`, `÷`, `█`, half-width Katakana).
     Hd44780A00,
+    /// Hitachi HD44780U ROM Code A02 (Datasheet Table 5: ASCII + European/Latin-1 accents `áéíóúãõçüöäñ°±µΩ`).
+    Hd44780A02,
 }
 
 impl DisplayCharset {
+    /// Parses a profile TOML `[display].charset` identifier.
+    #[must_use]
+    pub fn from_id(id: &str) -> Option<Self> {
+        match id {
+            "ascii_7bit" => Some(Self::Ascii7Bit),
+            "hd44780_a00" => Some(Self::Hd44780A00),
+            "hd44780_a02" => Some(Self::Hd44780A02),
+            _ => None,
+        }
+    }
+
     /// Returns `true` iff `ch` can be rendered natively by this display ROM.
     #[must_use]
     pub const fn supports_char(self, ch: char) -> bool {
         match self {
             Self::Ascii7Bit => matches!(ch, ' '..='~' | '\n' | '\r'),
-            Self::Hd44780A00 => matches!(ch, ' '..='~' | '\n' | '\r' | '°'),
+            Self::Hd44780A00 => matches!(
+                ch,
+                ' '..='['
+                    | ']'..='}'
+                    | '\n'
+                    | '\r'
+                    | '¥'
+                    | '→'
+                    | '←'
+                    | '°'
+                    | 'α'
+                    | 'ä'
+                    | 'β'
+                    | 'ε'
+                    | 'μ'
+                    | 'µ'
+                    | 'σ'
+                    | 'ρ'
+                    | '√'
+                    | '¢'
+                    | '£'
+                    | 'ñ'
+                    | 'ö'
+                    | 'θ'
+                    | '∞'
+                    | 'Ω'
+                    | 'ü'
+                    | 'Σ'
+                    | 'π'
+                    | '÷'
+                    | '█'
+                    | '\u{FF61}'..='\u{FF9E}'
+            ),
+            Self::Hd44780A02 => matches!(
+                ch,
+                ' '..='~'
+                    | '\n'
+                    | '\r'
+                    | '£'
+                    | '¥'
+                    | '°'
+                    | '±'
+                    | 'µ'
+                    | 'μ'
+                    | 'À'
+                    | 'Á'
+                    | 'Â'
+                    | 'Ã'
+                    | 'Ä'
+                    | 'Ç'
+                    | 'É'
+                    | 'Ê'
+                    | 'Í'
+                    | 'Ñ'
+                    | 'Ó'
+                    | 'Ô'
+                    | 'Õ'
+                    | 'Ö'
+                    | 'Ú'
+                    | 'Ü'
+                    | 'ß'
+                    | 'à'
+                    | 'á'
+                    | 'â'
+                    | 'ã'
+                    | 'ä'
+                    | 'ç'
+                    | 'é'
+                    | 'ê'
+                    | 'í'
+                    | 'ñ'
+                    | 'ó'
+                    | 'ô'
+                    | 'õ'
+                    | 'ö'
+                    | '÷'
+                    | 'ú'
+                    | 'ü'
+                    | 'Ω'
+                    | '█'
+            ),
         }
     }
 
@@ -31,6 +124,7 @@ impl DisplayCharset {
         match self {
             Self::Ascii7Bit => "ascii_7bit",
             Self::Hd44780A00 => "hd44780_a00",
+            Self::Hd44780A02 => "hd44780_a02",
         }
     }
 }
@@ -328,6 +422,21 @@ fn plc_1200_open_1214_meta() -> BoardProfileMeta {
             },
         );
     }
+    ports.insert(
+        "ETH0".to_owned(),
+        PortMeta {
+            digital_in: false,
+            digital_out: false,
+            pullup: false,
+            pulldown: false,
+            analog_in: false,
+            analog_out: false,
+            pwm: false,
+            bus: true,
+            nominal_v: 0.0,
+            v_abs_max_v: 30.0,
+        },
+    );
     let mut codecs = BTreeMap::new();
     codecs.insert(
         "plc_span_27648".to_owned(),

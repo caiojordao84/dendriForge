@@ -53,7 +53,7 @@ fn live_phase4_core_kit_passes_all_13_rules_and_exposes_certified_catalog() {
 
     let report = validate_assets_dir(&root, &assets_dir).unwrap();
     assert_eq!(report.boards_checked, 2);
-    assert_eq!(report.components_checked, 8);
+    assert_eq!(report.components_checked, 14);
     assert_eq!(report.standards_loaded, 14);
     assert!(report.third_party_assets.is_empty());
     assert!(report.ml_restricted_assets.is_empty());
@@ -64,10 +64,16 @@ fn live_phase4_core_kit_passes_all_13_rules_and_exposes_certified_catalog() {
     for comp_id in [
         "cmd-pushbutton-nc-stop",
         "cmd-pushbutton-no-start",
+        "i2c-eeprom-24c32",
+        "lcd-16x2",
         "led",
         "maker-tactile-4pin",
+        "oled-128x64",
+        "pneu-cylinder-da",
+        "pneu-valve-5-2",
         "potentiometer",
         "resistor",
+        "sensor-limit-switch",
         "sensor-pressure-4-20ma",
         "signal-pilot-lamp",
     ] {
@@ -77,6 +83,14 @@ fn live_phase4_core_kit_passes_all_13_rules_and_exposes_certified_catalog() {
             "invalid IEC 81346-2 prefix on {comp_id}"
         );
     }
+
+    // Verify DEF-007 display charset propagated cleanly from `assets/components/lcd-16x2/profile.toml`
+    let lcd_meta =
+        dendri_validate::ProfileCatalog::component_profile(&catalog, "lcd-16x2").unwrap();
+    let cs = lcd_meta.display_charset.unwrap();
+    assert!(cs.supports_char('°'));
+    assert!(cs.supports_char('Ω'));
+    assert!(!cs.supports_char('🔥'));
 
     // Verify DEF-002 verified analog channel bands on plc-1200-open-1214
     let plc = catalog.boards.get("plc-1200-open-1214").unwrap();

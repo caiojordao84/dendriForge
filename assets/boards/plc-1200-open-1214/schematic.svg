@@ -27,6 +27,7 @@
     <line x1="360" y1="168" x2="384" y2="168" stroke="#e2e8f0" stroke-width="2"/>
     <line x1="360" y1="192" x2="384" y2="192" stroke="#e2e8f0" stroke-width="2"/>
     <line x1="360" y1="216" x2="384" y2="216" stroke="#e2e8f0" stroke-width="2"/>
+    <line x1="360" y1="240" x2="384" y2="240" stroke="#e2e8f0" stroke-width="2"/>
   </g>
   <g id="df-pins">
     <circle id="pin:L+" class="df-pin-power" cx="96" cy="0" r="4"/>
@@ -51,5 +52,6 @@
     <circle id="pin:Qa.5" class="df-pin-digital" cx="384" cy="168" r="4"/>
     <circle id="pin:Qa.6" class="df-pin-digital" cx="384" cy="192" r="4"/>
     <circle id="pin:Qa.7" class="df-pin-digital" cx="384" cy="216" r="4"/>
+    <circle id="pin:ETH0" class="df-pin-comm" cx="384" cy="240" r="4"/>
   </g>
 </svg>

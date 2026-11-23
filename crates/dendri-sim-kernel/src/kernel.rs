@@ -106,6 +106,7 @@ struct BoardRuntime {
 /// Borrowed I/O adapter forwarding one board's reads/writes to the active [`ElectricalBackend`].
 struct BoardIoBridge<'a> {
     board_id: &'a str,
+    now_us: u64,
     backend: &'a mut dyn ElectricalBackend,
     digital_outputs: &'a mut BTreeMap<String, bool>,
     analog_outputs: &'a mut BTreeMap<String, i32>,
@@ -145,6 +146,25 @@ impl BoardIoInterface for BoardIoBridge<'_> {
             self.output_changed = true;
         }
         self.backend.set_board_pwm_out(self.board_id, pin, duty);
+    }
+
+    fn uart_send(&mut self, channel: &str, payload: &str) -> bool {
+        let ok = self
+            .backend
+            .board_uart_send(self.board_id, channel, payload, self.now_us);
+        if ok {
+            self.output_changed = true;
+        }
+        ok
+    }
+
+    fn uart_recv(&mut self, channel: &str) -> Option<String> {
+        self.backend.board_uart_recv(self.board_id, channel)
+    }
+
+    fn display_print(&mut self, target: &str, text: &str) {
+        self.backend
+            .board_display_print(self.board_id, target, text);
     }
 }
 
@@ -482,6 +502,16 @@ impl SimKernel {
             self.time_us = self.time_us.max(ev.time_us);
             let now_us = self.time_us;
 
+            // Advance continuous electrical/physics/bus state up to `now_us` whenever an event
+            // is due before any board reads physical inputs on this tick.
+            if self
+                .backend
+                .next_electrical_event_us()
+                .is_some_and(|t| t <= now_us)
+            {
+                self.propagate_and_dispatch_hw_ints(now_us)?;
+            }
+
             match ev.kind {
                 EventKind::ExternalStimulus(stim) => {
                     match stim.kind {
@@ -676,6 +706,7 @@ impl SimKernel {
         };
         let mut bridge = BoardIoBridge {
             board_id: &br.board_id,
+            now_us: self.time_us,
             backend: self.backend.as_mut(),
             digital_outputs: &mut br.digital_outputs,
             analog_outputs: &mut br.analog_outputs,
@@ -699,11 +730,13 @@ impl SimKernel {
     where
         F: FnOnce(&mut BoardVm, &str, &mut BoardIoBridge<'_>) -> Result<(), KernelError>,
     {
+        let now_us = self.time_us;
         let Some(br) = self.boards.get_mut(board_idx) else {
             return Err(KernelError::UnknownBoardId(format!("board#{board_idx}")));
         };
         let mut bridge = BoardIoBridge {
             board_id: &br.board_id,
+            now_us,
             backend: self.backend.as_mut(),
             digital_outputs: &mut br.digital_outputs,
             analog_outputs: &mut br.analog_outputs,
@@ -717,6 +750,9 @@ impl SimKernel {
     fn propagate_and_dispatch_hw_ints(&mut self, time_us: u64) -> Result<(), KernelError> {
         for _depth in 0..self.config.max_isr_cascade {
             self.backend.solve_at(time_us);
+
+            // Collect any pending communication receive events (`OB_COMM_EVENT` / `OB50`) from bus fabric.
+            let comm_events = self.backend.drain_comm_events();
 
             // Detect edge transitions deterministically across all boards and update baselines
             // BEFORE executing handlers so multiple ISRs on one pin share a consistent snapshot.
@@ -755,7 +791,7 @@ impl SimKernel {
                 }
             }
 
-            if triggered.is_empty() {
+            if triggered.is_empty() && comm_events.is_empty() {
                 return Ok(());
             }
 
@@ -771,6 +807,20 @@ impl SimKernel {
                 })?;
                 self.sync_board_trace(board_idx);
                 any_output |= changed;
+            }
+            for (board_id, bus_id) in comm_events {
+                if let Some(&board_idx) = self.board_index.get(&board_id) {
+                    let changed = self.with_board_io(board_idx, |vm, bid, bridge| {
+                        vm.sync_to_time_us(time_us);
+                        vm.run_comm_event_obs(&bus_id, bridge)
+                            .map_err(|source| KernelError::Vm {
+                                board_id: bid.to_owned(),
+                                source,
+                            })
+                    })?;
+                    self.sync_board_trace(board_idx);
+                    any_output |= changed;
+                }
             }
 
             if !any_output {

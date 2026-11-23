@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:df="https://dendriforge.dev/ns/svg/v2" viewBox="0 0 192 96">
+  <metadata>
+    <df:provenance source="original" symbol-ref="IEC 60617-S00814" reviewed-by="caio" reviewed-on="2026-11-23" ml-restricted="false"/>
+  </metadata>
+  <g id="symbol">
+    <rect x="24" y="8" width="156" height="80" fill="none" stroke="#e2e8f0" stroke-width="2"/>
+    <rect x="44" y="20" width="116" height="56" fill="none" stroke="#94a3b8" stroke-width="1.5"/>
+    <line x1="44" y1="48" x2="160" y2="48" stroke="#64748b" stroke-width="1"/>
+    <line x1="0" y1="24" x2="24" y2="24" stroke="#e2e8f0" stroke-width="2"/>
+    <line x1="0" y1="48" x2="24" y2="48" stroke="#e2e8f0" stroke-width="2"/>
+    <line x1="0" y1="72" x2="24" y2="72" stroke="#e2e8f0" stroke-width="2"/>
+    <path d="M 0 96 L 14 96 L 14 84 L 24 84" fill="none" stroke="#e2e8f0" stroke-width="2"/>
+  </g>
+  <g id="df-pins">
+    <circle id="pin:VCC" class="df-pin-power" cx="0" cy="24" r="4"/>
+    <circle id="pin:GND" class="df-pin-gnd" cx="0" cy="48" r="4"/>
+    <circle id="pin:SDA" class="df-pin-comm" cx="0" cy="72" r="4"/>
+    <circle id="pin:SCL" class="df-pin-comm" cx="0" cy="96" r="4"/>
+  </g>
+</svg>

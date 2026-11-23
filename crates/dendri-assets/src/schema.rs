@@ -6,7 +6,8 @@ use dendri_theme::PinClass;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-/// Registered analytical primitive physics models implemented in `dendri-circuit` (`03` §7 #9).
+/// Registered analytical primitive physics & subsystem models implemented in `dendri-circuit`,
+/// `dendri-bus`, and `dendri-physics` (`03` §7 #9).
 pub const REGISTERED_PRIMITIVE_MODELS: &[&str] = &[
     "spice_resistor",
     "spice_led",
@@ -31,6 +32,15 @@ pub const REGISTERED_PRIMITIVE_MODELS: &[&str] = &[
     "spice_hbridge",
     "spice_dc_motor",
     "spice_ground",
+    // Phase 5 pluggable multi-domain physics, display & virtual bus models
+    "pneu_valve_5_2",
+    "pneu_cylinder_da",
+    "sensor_limit_switch",
+    "display_lcd_16x2",
+    "display_oled_128x64",
+    "bus_i2c_eeprom",
+    "thermal_chamber",
+    "fluid_tank",
 ];
 
 /// Returns `true` iff `model_name` is a registered, analytically tested primitive model.

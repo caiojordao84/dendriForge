@@ -1,0 +1,68 @@
+# Certified Component Profile — Mechanical End-of-Stroke Limit Switch (IEC 60947-5-1 / IEC 60617-S00237)
+
+schema_version = "2.0"
+
+[meta]
+id = "sensor-limit-switch"
+name = "Mechanical Limit Switch (NO)"
+category = "sensor"
+ref_designator = "-B"
+standards = ["IEC 60947-5-1", "IEC 60617", "IEC 61082", "IEC 81346"]
+
+[provenance]
+source = "original"
+symbol_ref = "IEC 60617-S00237"
+reviewed_by = "caio"
+reviewed_on = "2026-11-23"
+ml_restricted = false
+
+[geometry]
+grid_px = 48
+pin_px = 8
+pin_pitch_px = 24
+physical_grid_w = 2.0
+physical_grid_h = 2.0
+schematic_grid_w = 2.0
+schematic_grid_h = 2.0
+
+[svg]
+physical = "physical.svg"
+schematic = "schematic.svg"
+
+[[svg.bindings]]
+target_id = "roller-lever"
+kind = "rotate"
+source_signal = "physics:actuated"
+pivot = [48.0, 38.0]
+angle_range_deg = [0.0, 28.0]
+
+[[svg.bindings]]
+target_id = "contact-led"
+kind = "visibility"
+source_signal = "physics:closed"
+
+[[ports]]
+id = "NO"
+label = "13 (NO)"
+domain = "electrical"
+role = "passive"
+nominal_v = 0.0
+v_abs_max_v = 250.0
+
+[[ports]]
+id = "COM"
+label = "14 (COM)"
+domain = "electrical"
+role = "passive"
+nominal_v = 0.0
+v_abs_max_v = 250.0
+
+[params.trigger_position_norm]
+type = "real"
+unit = "ratio"
+min = 0.0
+max = 1.0
+default = 1.0
+
+[physics]
+model = "sensor_limit_switch"

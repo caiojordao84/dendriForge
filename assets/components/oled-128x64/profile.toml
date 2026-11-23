@@ -1,0 +1,76 @@
+# Certified Component Profile — 128x64 Monochrome SSD1306 I2C OLED Display
+
+schema_version = "2.0"
+
+[meta]
+id = "oled-128x64"
+name = "Graphic OLED 128x64 (I2C SSD1306)"
+category = "display"
+ref_designator = "-P"
+standards = ["IEC 60617", "IEC 61082", "IEC 81346"]
+
+[provenance]
+source = "original"
+symbol_ref = "IEC 60617-S00814"
+reviewed_by = "caio"
+reviewed_on = "2026-11-23"
+ml_restricted = false
+
+[geometry]
+grid_px = 48
+pin_px = 8
+pin_pitch_px = 24
+physical_grid_w = 3.0
+physical_grid_h = 3.0
+schematic_grid_w = 3.0
+schematic_grid_h = 2.0
+
+[svg]
+physical = "physical.svg"
+schematic = "schematic.svg"
+
+[[svg.bindings]]
+target_id = "oled-canvas"
+kind = "overlay_rect"
+source_signal = "display:framebuffer"
+
+[[ports]]
+id = "VCC"
+label = "VCC (+5V/+3.3V)"
+domain = "electrical"
+role = "power"
+nominal_v = 5.0
+v_abs_max_v = 5.5
+
+[[ports]]
+id = "GND"
+label = "GND (0V)"
+domain = "electrical"
+role = "gnd"
+nominal_v = 0.0
+v_abs_max_v = 5.5
+
+[[ports]]
+id = "SDA"
+label = "I2C SDA"
+domain = "electrical"
+role = "comm"
+nominal_v = 5.0
+v_abs_max_v = 5.5
+
+[[ports]]
+id = "SCL"
+label = "I2C SCL"
+domain = "electrical"
+role = "comm"
+nominal_v = 5.0
+v_abs_max_v = 5.5
+
+[params.i2c_addr]
+type = "integer"
+min = 8.0
+max = 119.0
+default = 60
+
+[physics]
+model = "display_oled_128x64"

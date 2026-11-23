@@ -296,6 +296,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "dendri-bus"
+version = "0.1.0"
+dependencies = [
+ "dendri-ast",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "dendri-circuit"
 version = "0.1.0"
 dependencies = [
@@ -333,6 +342,21 @@ dependencies = [
  "dendri-ast",
  "dendri-span",
  "proptest",
+ "thiserror",
+]
+
+[[package]]
+name = "dendri-physics"
+version = "0.1.0"
+dependencies = [
+ "dendri-ast",
+ "dendri-bus",
+ "dendri-circuit",
+ "dendri-project",
+ "dendri-sim-kernel",
+ "dendri-vm",
+ "libm",
+ "serde",
  "thiserror",
 ]
 

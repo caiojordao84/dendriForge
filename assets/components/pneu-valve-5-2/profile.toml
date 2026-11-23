@@ -1,0 +1,132 @@
+# Certified Component Profile — 5/2-Way Pneumatic Solenoid Directional Valve (ISO 1219-1)
+
+schema_version = "2.0"
+
+[meta]
+id = "pneu-valve-5-2"
+name = "5/2 Pneumatic Solenoid Valve"
+category = "pneumatic"
+ref_designator = "-Q"
+standards = ["ISO 1219-1", "IEC 60617", "IEC 61082", "IEC 81346"]
+
+[provenance]
+source = "original"
+symbol_ref = "ISO 1219-1-V52"
+reviewed_by = "caio"
+reviewed_on = "2026-11-23"
+ml_restricted = false
+
+[geometry]
+grid_px = 48
+pin_px = 8
+pin_pitch_px = 24
+physical_grid_w = 4.0
+physical_grid_h = 3.0
+schematic_grid_w = 4.0
+schematic_grid_h = 3.0
+
+[svg]
+physical = "physical.svg"
+schematic = "schematic.svg"
+
+[[svg.bindings]]
+target_id = "spool-indicator"
+kind = "translate"
+source_signal = "physics:spool_pos"
+axis = [24.0, 0.0]
+
+[[svg.bindings]]
+target_id = "solenoid-y1-led"
+kind = "paint"
+source_signal = "physics:y1_energized"
+
+[[svg.bindings]]
+target_id = "solenoid-y2-led"
+kind = "paint"
+source_signal = "physics:y2_energized"
+
+[[ports]]
+id = "1"
+label = "1 (P Supply)"
+domain = "pneumatic"
+role = "pneumatic"
+nominal_v = 0.0
+v_abs_max_v = 30.0
+
+[[ports]]
+id = "2"
+label = "2 (B Outlet)"
+domain = "pneumatic"
+role = "pneumatic"
+nominal_v = 0.0
+v_abs_max_v = 30.0
+
+[[ports]]
+id = "3"
+label = "3 (R Exhaust)"
+domain = "pneumatic"
+role = "pneumatic"
+nominal_v = 0.0
+v_abs_max_v = 30.0
+
+[[ports]]
+id = "4"
+label = "4 (A Outlet)"
+domain = "pneumatic"
+role = "pneumatic"
+nominal_v = 0.0
+v_abs_max_v = 30.0
+
+[[ports]]
+id = "5"
+label = "5 (S Exhaust)"
+domain = "pneumatic"
+role = "pneumatic"
+nominal_v = 0.0
+v_abs_max_v = 30.0
+
+[[ports]]
+id = "Y1+"
+label = "Y1+ (+24V)"
+domain = "electrical"
+role = "digital"
+nominal_v = 0.0
+v_abs_max_v = 30.0
+
+[[ports]]
+id = "Y1-"
+label = "Y1- (0V)"
+domain = "electrical"
+role = "gnd"
+nominal_v = 0.0
+v_abs_max_v = 30.0
+
+[[ports]]
+id = "Y2+"
+label = "Y2+ (+24V)"
+domain = "electrical"
+role = "digital"
+nominal_v = 0.0
+v_abs_max_v = 30.0
+
+[[ports]]
+id = "Y2-"
+label = "Y2- (0V)"
+domain = "electrical"
+role = "gnd"
+nominal_v = 0.0
+v_abs_max_v = 30.0
+
+[params.bistable]
+type = "boolean"
+default = false
+
+[params.supply_bar]
+type = "real"
+unit = "bar"
+min = 1.0
+max = 10.0
+default = 6.0
+
+[physics]
+model = "pneu_valve_5_2"

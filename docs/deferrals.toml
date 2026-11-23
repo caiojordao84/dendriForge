@@ -17,17 +17,14 @@ schema_version = "2.0"
 #   scheme (`-A`, `-B`, `-C`, `-G`, `-H`, `-K`, `-L`, `-M`, `-P`, `-Q`, `-R`, `-S`, `-T`, `-V`, `-X`)
 #   implemented in `crates/dendri-assets/src/ref_des.rs`, enforced by `dendri asset-check` (Rule 2),
 #   and applied across all 10 certified Phase 4 Core Kit profiles.
-
-[[deferral]]
-id                 = "DEF-003"
-title              = "Toolchain selection for Phase 6b differential gate (AVR oracle simavr; matiec vs RuSTy; arduino-cli)"
-owner_milestone    = "phase-5"
-deadline_milestone = "phase-5"
-reason             = "Open evaluation decision (D7): benchmark CI image size, LLVM build overhead, and IEC ST dialect coverage before Phase 6b"
-refs               = [
-    "docs/architecture/00-overview-and-adrs.md#adr-004-early-real-toolchain-differential-verification-phase-6b",
-    "docs/architecture/05-ide-and-roadmap.md#4-twelve-gate-ci-verification-suite",
-]
+# - DEF-003 (closed in phase-5): Differential gate toolchains ratified for Phase 6b (ADR-004):
+#   IEC 61131-3 ST (and Ladder/GRAFCET via emitted ST) uses RuSTy (`plc`, pure-Rust compiler
+#   targeting native code directly via LLVM, zero C transpilation step, multi-arch support);
+#   Arduino C++ uses host deterministic Arduino shim (`g++`) + nightly `arduino-cli` + `avr-gcc`/`simavr`.
+# - DEF-007 (closed in phase-5): Authoritative Hitachi HD44780U Character ROM tables (Table 4 ROM A00,
+#   Table 5 ROM A02, plus strict `ascii_7bit`) implemented in `crates/dendri-physics/src/display.rs`,
+#   mirrored into `crates/dendri-validate/src/profile_catalog.rs`, validated by `dendri-assets`, and
+#   certified on `assets/components/lcd-16x2/profile.toml`.
 
 [[deferral]]
 id                 = "DEF-004"
@@ -61,17 +58,6 @@ reason             = "Defines supported line/block/nested comment syntax per tar
 refs               = [
     "docs/architecture/01-asl-ir-and-project-schema.md#7-comments--first-class-verbatim-data-adr-027",
     "docs/architecture/04-frontends-visual-and-sync.md#2-language-binding-contract-lbc",
-]
-
-[[deferral]]
-id                 = "DEF-007"
-title              = "Display charset tables (HD44780 LCD ROM variants)"
-owner_milestone    = "phase-5"
-deadline_milestone = "phase-5"
-reason             = "Authoritative glyph tables for display components that enforce display-sink ERR_STRING_CHARSET"
-refs               = [
-    "docs/architecture/01-asl-ir-and-project-schema.md#7-comments--first-class-verbatim-data-adr-027",
-    "docs/architecture/03-asset-and-profile-contract.md#61-component-profile-profiletoml",
 ]
 
 [[deferral]]

@@ -1,0 +1,79 @@
+# Certified Component Profile — 16x2 HD44780 I2C Character LCD Display (DEF-007)
+
+schema_version = "2.0"
+
+[meta]
+id = "lcd-16x2"
+name = "Character LCD 16x2 (I2C HD44780)"
+category = "display"
+ref_designator = "-P"
+standards = ["IEC 60617", "IEC 61082", "IEC 81346"]
+
+[provenance]
+source = "original"
+symbol_ref = "IEC 60617-S00814"
+reviewed_by = "caio"
+reviewed_on = "2026-11-23"
+ml_restricted = false
+
+[geometry]
+grid_px = 48
+pin_px = 8
+pin_pitch_px = 24
+physical_grid_w = 5.0
+physical_grid_h = 3.0
+schematic_grid_w = 4.0
+schematic_grid_h = 2.0
+
+[svg]
+physical = "physical.svg"
+schematic = "schematic.svg"
+
+[[svg.bindings]]
+target_id = "lcd-screen"
+kind = "overlay_rect"
+source_signal = "display:framebuffer"
+
+[[ports]]
+id = "VCC"
+label = "VCC (+5V)"
+domain = "electrical"
+role = "power"
+nominal_v = 5.0
+v_abs_max_v = 5.5
+
+[[ports]]
+id = "GND"
+label = "GND (0V)"
+domain = "electrical"
+role = "gnd"
+nominal_v = 0.0
+v_abs_max_v = 5.5
+
+[[ports]]
+id = "SDA"
+label = "I2C SDA"
+domain = "electrical"
+role = "comm"
+nominal_v = 5.0
+v_abs_max_v = 5.5
+
+[[ports]]
+id = "SCL"
+label = "I2C SCL"
+domain = "electrical"
+role = "comm"
+nominal_v = 5.0
+v_abs_max_v = 5.5
+
+[params.i2c_addr]
+type = "integer"
+min = 8.0
+max = 119.0
+default = 39
+
+[display]
+charset = "hd44780_a00"
+
+[physics]
+model = "display_lcd_16x2"

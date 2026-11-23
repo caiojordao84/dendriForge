@@ -67,9 +67,9 @@ To prevent every structural failure mode identified in the v1 audit, every v2 cr
   - **Robotics Horizon:** Vendor robot programming languages (collectively **robotic languages**) are NOT simulated in Waves 1–3, but ASL MUST NOT foreclose them: capabilities negotiate via versioned `requires = ["asl-core@1", ...]` (`ERR_UNSUPPORTED_CAPABILITY` on unknown capability), and `ExecutionKind` is a non-exhaustive enum ready for a future `asl-motion` task-based capability (`DEF-005`).
 
 #### ADR-004: Early Real-Toolchain Differential Verification (Phase 6b)
-- **Status:** Accepted (Amended in Round 7 — promoted from Phase 9 to Phase 6b)
+- **Status:** Accepted (Amended in Round 7 — promoted from Phase 9 to Phase 6b; `DEF-003` ratified in Phase 5)
 - **Context:** Waiting until Phase 9 to verify generated code against real compilers risks letting emitters drift into uncompilable output before the IDE is even built.
-- **Decision:** Introduce a dedicated **Phase 6b** immediately after Wave 1 frontends (and before IDE Phases 7–8) that compiles and executes emitted C++ (host deterministic Arduino shim + nightly `arduino-cli`) and emitted ST (open IEC 61131-3 compiler + I/O shim; candidates `matiec` / RuSTy evaluated in `DEF-003`), comparing traces directly against the ASL VM and exercising the hostile comment corpus (`C3`). MicroPython and Rust differential gates open with their respective waves.
+- **Decision:** Introduce a dedicated **Phase 6b** immediately after Wave 1 frontends (and before IDE Phases 7–8) that compiles and executes emitted C++ (host deterministic Arduino shim via `g++` + nightly `arduino-cli` + `avr-gcc`/`simavr` AVR oracle) and emitted IEC 61131-3 ST using **RuSTy** (`plc` — pure-Rust IEC 61131-3 compiler compiling directly to optimized native machine code via LLVM, eliminating any intermediate C transpilation step and supporting native multi-architecture targets, ratified to close `DEF-003`), comparing traces directly against the ASL VM and exercising the hostile comment corpus (`C3`). Ladder and GRAFCET are verified through their emitted ST. MicroPython and Rust differential gates open with their respective waves.
 
 ### Complete ADR Index (ADR-005 through ADR-030)
 

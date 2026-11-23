@@ -133,8 +133,8 @@ Enforces **ADR-004** and **ADR-023**. Every PR and phase completion MUST pass al
    - **Post-Phase 3 Tracer Bullet:** Immediately after Phase 3, a headless CLI scenario (Uno + button + LED) runs end-to-end across `dendri-vm` and `dendri-circuit` against its independent oracle before any later phase builds on the VM↔circuit seam.
 10. **Real-Toolchain Differential Gate (Phase 6b — Wave 1 Exit, ADR-004):**
     - **C++:** Emitted C++ is compiled and **executed** on the host against a deterministic Arduino API shim (virtual clock, pin-event log); pin/serial traces are compared against `dendri-vm`. Nightly CI runs compile-only checks against the real Arduino Uno core (`arduino-cli`).
-    - **AVR Oracle (`DEF-003`):** `avr-gcc` + an AVR simulator (e.g., `simavr`) as independent ground truth for AVR-specific behavior (16-bit `int`, PWM, ADC).
-    - **IEC ST (`DEF-003`):** Emitted ST is compiled and executed with an open IEC 61131-3 compiler + I/O shim (candidates: `matiec` ST→C vs **RuSTy** `plc` LLVM compiler). Ladder and GRAFCET are verified through their emitted ST.
+    - **AVR Oracle (`DEF-003` — ratified):** `avr-gcc` + `simavr` as independent ground truth for AVR-specific behavior (16-bit `int`, PWM, ADC).
+    - **IEC ST (`DEF-003` — ratified):** Emitted ST is compiled directly to optimized native code via LLVM using **RuSTy** (`plc`, written in Rust — zero C intermediate step, native multi-architecture support) linked against a deterministic Rust I/O shim. Ladder and GRAFCET are verified through their emitted ST.
     - Hostile comment corpus (`C3`) compiles and executes through this gate.
     - MicroPython and Rust differential gates open with Waves 2 and 3.
 11. **Fuzzing & Weekly Mutation Testing:**

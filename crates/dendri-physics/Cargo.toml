@@ -1,0 +1,25 @@
+[package]
+name = "dendri-physics"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Decoupled multi-domain physical component models (pneumatics, thermal, fluid tank) and display framebuffers w/ HD44780 ROM charset tables (DEF-007)"
+
+[lints]
+workspace = true
+
+[dependencies]
+dendri-bus = { workspace = true }
+dendri-circuit = { workspace = true }
+libm = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+dendri-ast = { workspace = true }
+dendri-project = { workspace = true }
+dendri-sim-kernel = { workspace = true }
+dendri-vm = { workspace = true }

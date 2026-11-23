@@ -1,0 +1,69 @@
+# Certified Component Profile — Double-Acting Linear Pneumatic Cylinder (ISO 1219-1)
+
+schema_version = "2.0"
+
+[meta]
+id = "pneu-cylinder-da"
+name = "Double-Acting Pneumatic Cylinder"
+category = "pneumatic"
+ref_designator = "-M"
+standards = ["ISO 1219-1", "IEC 61082", "IEC 81346"]
+
+[provenance]
+source = "original"
+symbol_ref = "ISO 1219-1-CYL-DA"
+reviewed_by = "caio"
+reviewed_on = "2026-11-23"
+ml_restricted = false
+
+[geometry]
+grid_px = 48
+pin_px = 8
+pin_pitch_px = 24
+physical_grid_w = 5.0
+physical_grid_h = 2.0
+schematic_grid_w = 5.0
+schematic_grid_h = 2.0
+
+[svg]
+physical = "physical.svg"
+schematic = "schematic.svg"
+
+[[svg.bindings]]
+target_id = "piston-rod"
+kind = "translate"
+source_signal = "physics:stroke_norm"
+axis = [48.0, 0.0]
+
+[[ports]]
+id = "A"
+label = "Port A (Extend)"
+domain = "pneumatic"
+role = "pneumatic"
+nominal_v = 0.0
+v_abs_max_v = 30.0
+
+[[ports]]
+id = "B"
+label = "Port B (Retract)"
+domain = "pneumatic"
+role = "pneumatic"
+nominal_v = 0.0
+v_abs_max_v = 30.0
+
+[params.bore_mm]
+type = "real"
+unit = "mm"
+min = 10.0
+max = 125.0
+default = 32.0
+
+[params.stroke_mm]
+type = "real"
+unit = "mm"
+min = 20.0
+max = 500.0
+default = 100.0
+
+[physics]
+model = "pneu_cylinder_da"

@@ -39,9 +39,37 @@ pub trait ElectricalBackend: Send {
     /// Reads the solved analog voltage/reading seen by a board analog input pin.
     fn read_board_analog_in(&self, board_id: &str, pin: &str) -> AnalogReading;
 
-    /// Returns the next required electrical transient timestamp, if any (used by Phase 3 MNA).
+    /// Returns the next required electrical transient or bus-arrival timestamp, if any.
     fn next_electrical_event_us(&self) -> Option<u64> {
         None
+    }
+
+    /// Transmits a UTF-8 UART payload from `board_id` on `channel` at simulation time `time_us`.
+    fn board_uart_send(
+        &mut self,
+        board_id: &str,
+        channel: &str,
+        payload: &str,
+        time_us: u64,
+    ) -> bool {
+        let _ = (board_id, channel, payload, time_us);
+        true
+    }
+
+    /// Receives the next pending UTF-8 UART payload for `board_id` on `channel`.
+    fn board_uart_recv(&mut self, board_id: &str, channel: &str) -> Option<String> {
+        let _ = (board_id, channel);
+        None
+    }
+
+    /// Writes text from `board_id` to display sink `target`.
+    fn board_display_print(&mut self, board_id: &str, target: &str, text: &str) {
+        let _ = (board_id, target, text);
+    }
+
+    /// Drains pending `(board_id, bus_id)` communication-receive notifications (`OB_COMM_EVENT` / `OB50`).
+    fn drain_comm_events(&mut self) -> Vec<(String, String)> {
+        Vec::new()
     }
 }
 

@@ -1,0 +1,12 @@
+schema_version = "2.0"
+reviewer = "caio"
+reviewed_on = "2026-11-23"
+physical_render_sha256 = "544dd77f710cee37cbc4261e85196e618e7ce9124d421297ac3259e3d1f4ac76"
+schematic_render_sha256 = "83fe704eb9ad2eb80b09e575f032dbdc6d11f52831fa7c1b7d8ee936c41ff879"
+conformity_claimed = false
+
+[checklist]
+grid_and_pins_verified = true
+symbology_style_checked = true
+datasheet_params_cited = true
+provenance_verified = true
