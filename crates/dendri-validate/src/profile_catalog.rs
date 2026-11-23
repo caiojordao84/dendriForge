@@ -129,12 +129,12 @@ impl MemoryProfileCatalog {
     }
 
     /// Builds the reference catalog matching the Phase 4 Core Kit (`arduino-uno-r3`,
-    /// `siemens-s7-1200-cpu-1214c`, core components, plus `lcd-16x2` display charset).
+    /// `plc-1200-open-1214`, core components, plus `lcd-16x2` display charset).
     #[must_use]
     pub fn builtin_reference() -> Self {
         let mut cat = Self::new();
         cat.insert_board(arduino_uno_r3_meta());
-        cat.insert_board(siemens_s7_1200_meta());
+        cat.insert_board(plc_1200_open_1214_meta());
         cat.insert_component(passive_2pin("led", "A", "K", 0.0, 30.0));
         cat.insert_component(passive_2pin("resistor", "1", "2", 0.0, 250.0));
         cat.insert_component(passive_2pin("maker-tactile-4pin", "1", "2", 0.0, 30.0));
@@ -260,7 +260,7 @@ fn arduino_uno_r3_meta() -> BoardProfileMeta {
     }
 }
 
-fn siemens_s7_1200_meta() -> BoardProfileMeta {
+fn plc_1200_open_1214_meta() -> BoardProfileMeta {
     let mut ports = BTreeMap::new();
     for i in 0..=7u8 {
         ports.insert(
@@ -330,13 +330,27 @@ fn siemens_s7_1200_meta() -> BoardProfileMeta {
     }
     let mut codecs = BTreeMap::new();
     codecs.insert(
-        "s7_span".to_owned(),
+        "plc_span_27648".to_owned(),
         Codec {
-            id: "s7_span".to_owned(),
+            id: "plc_span_27648".to_owned(),
             kind: CodecKind::Span,
             d: 27_648,
             n_max: 27_648,
-            source_ref: Some("Siemens S7-1200 System Manual".to_owned()),
+            source_ref: Some(
+                "IEC 61131-2 / Industrial 27648-count unipolar analog scale".to_owned(),
+            ),
+        },
+    );
+    codecs.insert(
+        "plc_bipolar_27648".to_owned(),
+        Codec {
+            id: "plc_bipolar_27648".to_owned(),
+            kind: CodecKind::SpanBipolar,
+            d: 27_648,
+            n_max: 27_648,
+            source_ref: Some(
+                "IEC 61131-2 / Industrial 27648-count bipolar analog scale".to_owned(),
+            ),
         },
     );
     let mut channel_bands = BTreeMap::new();
@@ -347,11 +361,11 @@ fn siemens_s7_1200_meta() -> BoardProfileMeta {
             overrange_max: 32_511,
             overflow_code: Some(32_767),
             wire_break_code: Some(-32_768),
-            source_ref: "Siemens S7-1200 System Manual".to_owned(),
+            source_ref: "IEC 61131-2 / Industrial 27648-count AI band table".to_owned(),
         },
     );
     BoardProfileMeta {
-        id: "siemens-s7-1200-cpu-1214c".to_owned(),
+        id: "plc-1200-open-1214".to_owned(),
         ports,
         codecs,
         channel_bands,

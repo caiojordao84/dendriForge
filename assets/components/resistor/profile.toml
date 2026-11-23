@@ -1,0 +1,68 @@
+# Certified Component Profile — Axial Fixed Resistor (IEC 60062 / IEC 60617-S00555)
+
+schema_version = "2.0"
+
+[meta]
+id = "resistor"
+name = "Fixed Resistor"
+category = "passive"
+ref_designator = "-R"
+standards = ["IEC 60062", "IEC 60617", "IEC 61082", "IEC 81346"]
+
+[provenance]
+source = "original"
+symbol_ref = "IEC 60617-S00555"
+reviewed_by = "caio"
+reviewed_on = "2026-11-23"
+ml_restricted = false
+
+[geometry]
+grid_px = 48
+pin_px = 8
+pin_pitch_px = 24
+physical_grid_w = 2.0
+physical_grid_h = 1.0
+schematic_grid_w = 2.0
+schematic_grid_h = 1.0
+
+[svg]
+physical = "physical.svg"
+schematic = "schematic.svg"
+
+[[svg.bindings]]
+target_id = "resistor-burned"
+kind = "visibility"
+source_signal = "fault:overpower"
+
+[[ports]]
+id = "1"
+label = "1"
+domain = "electrical"
+role = "passive"
+nominal_v = 0.0
+v_abs_max_v = 250.0
+
+[[ports]]
+id = "2"
+label = "2"
+domain = "electrical"
+role = "passive"
+nominal_v = 0.0
+v_abs_max_v = 250.0
+
+[params.r_ohm]
+type = "real"
+unit = "ohm"
+min = 0.1
+max = 100000000.0
+default = 220.0
+
+[params.p_rated_w]
+type = "real"
+unit = "W"
+min = 0.05
+max = 100.0
+default = 0.25
+
+[physics]
+model = "spice_resistor"

@@ -17,7 +17,7 @@ pub enum ElectricalDigitalLevel {
 /// Analog channel reading crossing the Solver -> ASL boundary (`01` §3.4).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AnalogReading {
-    /// Fixed-point analog quantity at scale `M = 10⁹` (`i32` supports bipolar & S7 over/underrange).
+    /// Fixed-point analog quantity at scale `M = 10⁹` (`i32` supports bipolar & industrial PLC over/underrange).
     pub analog: i32,
     /// Separate status channel (`Ok | Underrange | Overrange | Fault`).
     pub status: AnalogStatus,

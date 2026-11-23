@@ -1,0 +1,64 @@
+# Certified Component Profile — Industrial Pushbutton NC Stop (IEC 60947-5-1 / IEC 60617-S00228)
+
+schema_version = "2.0"
+
+[meta]
+id = "cmd-pushbutton-nc-stop"
+name = "Industrial Pushbutton NC (Stop)"
+category = "command"
+ref_designator = "-S"
+standards = ["IEC 60947-5-1", "IEC 60617", "IEC 61082", "IEC 81346"]
+
+[provenance]
+source = "original"
+symbol_ref = "IEC 60617-S00228"
+reviewed_by = "caio"
+reviewed_on = "2026-11-23"
+ml_restricted = false
+
+[geometry]
+grid_px = 48
+pin_px = 8
+pin_pitch_px = 24
+physical_grid_w = 2.0
+physical_grid_h = 2.0
+schematic_grid_w = 2.0
+schematic_grid_h = 2.0
+
+[svg]
+physical = "physical.svg"
+schematic = "schematic.svg"
+
+[[svg.bindings]]
+target_id = "actuator"
+kind = "translate"
+source_signal = "input:pressed"
+axis = [0.0, 2.0]
+
+[[svg.bindings]]
+target_id = "contact-open"
+kind = "visibility"
+source_signal = "input:pressed"
+
+[[ports]]
+id = "NC"
+label = "21 (NC)"
+domain = "electrical"
+role = "passive"
+nominal_v = 0.0
+v_abs_max_v = 250.0
+
+[[ports]]
+id = "COM"
+label = "22 (COM)"
+domain = "electrical"
+role = "passive"
+nominal_v = 0.0
+v_abs_max_v = 250.0
+
+[params.pressed]
+type = "boolean"
+default = false
+
+[physics]
+model = "spice_switch_nc"

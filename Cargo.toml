@@ -6,6 +6,7 @@ members = [
     "crates/dendri-stdlib",
     "crates/dendri-ast",
     "crates/dendri-expr",
+    "crates/dendri-assets",
     "crates/dendri-project",
     "crates/dendri-validate",
     "crates/dendri-vm",
@@ -44,18 +45,26 @@ iter_over_hash_type = "deny"
 
 [workspace.dependencies]
 clap = { version = "4", features = ["derive"] }
+hex = "0.4"
 libm = "0.2"
 proptest = "1"
+resvg = { version = "0.48", default-features = false }
+roxmltree = "0.21"
 serde = { version = "1", features = ["derive"] }
+sha2 = "0.10"
 tempfile = "3"
 thiserror = "2"
+tiny-skia = "0.12"
 toml = "0.8"
+usvg = { version = "0.48", default-features = false }
 
 # Internal workspace crates
 dendri-span = { path = "crates/dendri-span" }
+dendri-theme = { path = "crates/dendri-theme" }
 dendri-stdlib = { path = "crates/dendri-stdlib" }
 dendri-ast = { path = "crates/dendri-ast" }
 dendri-expr = { path = "crates/dendri-expr" }
+dendri-assets = { path = "crates/dendri-assets" }
 dendri-project = { path = "crates/dendri-project" }
 dendri-validate = { path = "crates/dendri-validate" }
 dendri-vm = { path = "crates/dendri-vm" }

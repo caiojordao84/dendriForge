@@ -33,7 +33,7 @@ ASL v2 combines **IEC 61131-3 strong static typing** with **deterministic embedd
 | `REAL` / `LREAL` | 32 / 64 | IEEE-754 `f32` / `f64` (no implicit FMA; `libm` transcendentals) | IEEE-754 (explicit `NaN`/`Inf` validation hooks) |
 | `TIME` | 64 | Duration in **microseconds** (`i64` / `u64`) | Supports `T#500us`, `T#200ms`, `T#1s500ms`, `T#2m` |
 | `STRING` | Bounded | UTF-8 fixed-capacity string (`STRING[N]`, default `N = 255`) | Deterministic truncation/error; zero unbounded OOM |
-| `ANALOG` | 32 | Signed fixed-point analog quantity at scale `M = 10⁹` (§3) | Domain `[-2.147M, +2.147M]` (supports bipolar & S7 over/underrange) |
+| `ANALOG` | 32 | Signed fixed-point analog quantity at scale `M = 10⁹` (§3) | Domain `[-2.147M, +2.147M]` (supports bipolar & industrial PLC over/underrange) |
 | `DUTY` | 32 | **Unsigned** fixed-point PWM duty cycle in `[0, M]` (§3.5) | Values `> M` clamp to `M` with `WARN_DUTY_CLAMPED` |
 | `CODE` | Codec-bound | Signed or unsigned native converter code bound to a declared codec id (§3.5) | Forbidden to mix with plain integers without explicit conversion |
 
@@ -115,8 +115,8 @@ ASL defines a single frozen fixed-point scale for all analog quantities; every l
 | Kind | Meaning | `D` | `n_max` | Native codes | Example |
 |---|---|---|---|---|---|
 | `binned` | Real ADC: `code = floor(fraction · 2^b)`; full scale is never reached exactly | $2^b$ | $D - 1$ | `0 .. n_max` | Uno 10-bit: `D = 1024, n_max = 1023` |
-| `span` | Endpoint-inclusive scale: 0 and 100% are both codes | `n_max` | `n_max` | `0 .. n_max` | S7 nominal 0–10 V / 4–20 mA: `D = n_max = 27648` |
-| `span_bipolar` | Symmetric endpoint-inclusive scale | `n_max` | `n_max` | `-n_max .. +n_max` | S7 ±10 V: `D = n_max = 27648` |
+| `span` | Endpoint-inclusive scale: 0 and 100% are both codes | `n_max` | `n_max` | `0 .. n_max` | Industrial PLC nominal 0–10 V / 4–20 mA (`plc_span_27648`): `D = n_max = 27648` |
+| `span_bipolar` | Symmetric endpoint-inclusive scale | `n_max` | `n_max` | `-n_max .. +n_max` | Industrial PLC ±10 V (`plc_bipolar_27648`): `D = n_max = 27648` |
 
 ### 3.2 Normative Formulas (Exact Integer Arithmetic)
 ```text
@@ -143,13 +143,13 @@ Validity condition (hard error ERR_CODEC_RESOLUTION_EXCEEDS_SCALE):  D <= M
   (Sufficient, not necessary; for any pair with $\operatorname{lcm} > M$, the exhaustive pair test `T-NUM-2` is the proof obligation.)
 - **Mandatory Clamp Rule:** The destination codec bounds the result:
   $$n_2 = \min\left(n_{\max,2},\; \left\lfloor \frac{n \cdot D_2}{D_1} \right\rfloor\right)$$
-  The `min` clamp is **MANDATORY whenever source is `span` and destination is `binned`** (otherwise the top source code $n = D_1$ yields $D_2 = n_{\max,2} + 1$, verified across all `S7 27648 → binned` pairs). It MAY be omitted only when range analysis proves $\lfloor n D_2 / D_1 \rfloor \le n_{\max,2}$ for all $n \le n_{\max,1}$.
+  The `min` clamp is **MANDATORY whenever source is `span` and destination is `binned`** (otherwise the top source code $n = D_1$ yields $D_2 = n_{\max,2} + 1$, verified across all `PLC 27648 → binned` pairs). It MAY be omitted only when range analysis proves $\lfloor n D_2 / D_1 \rfloor \le n_{\max,2}$ for all $n \le n_{\max,1}$.
 - **Emitter Consequence:** Emitters NEVER emit `M`. When translating a native read across platforms, they emit the clamped reduced rational (e.g., 12-bit → 10-bit is `n >> 2`), selecting 32-bit vs 64-bit intermediate width via range analysis.
 
 ### 3.4 Channel Ranges, Band Layer & Status
 - Codecs and ranges are declared **per channel**, not globally per board.
-- Current-input modules normalizing 4–20 mA map 4 mA → code `0` and 20 mA → nominal max (S7: `27648`). A 0–10 V input measuring a 4–20 mA loop across a 500 Ω shunt sees 4 mA as 2 V = 20% = `a = 200_000_000` → S7 code `5529` (`floor(5529.6)`): live zero is then program logic.
-- **Nominal vs. Band Layer:** The nominal codec (§3.2) covers only the nominal interval. **Underrange (`< 0` / below nominal), overrange (`> M`, e.g., S7 codes above `27648` up to `+17.6%`), and bipolar inputs** are handled by the band layer using the same formulas on signed `i64` values with 128-bit intermediates restricted to channel-declared band intervals. Band limits and special diagnostic codes (overflow, wire-break) MUST come from the official module manual and be cited via `source_ref` (`DEF-002`).
+- Current-input modules normalizing 4–20 mA map 4 mA → code `0` and 20 mA → nominal max (industrial PLC: `27648`). A 0–10 V input measuring a 4–20 mA loop across a 500 Ω shunt sees 4 mA as 2 V = 20% = `a = 200_000_000` → PLC code `5529` (`floor(5529.6)`): live zero is then program logic.
+- **Nominal vs. Band Layer:** The nominal codec (§3.2) covers only the nominal interval. **Underrange (`< 0` / below nominal), overrange (`> M`, e.g., industrial 27648-count codes up to `+17.6%`), and bipolar inputs** are handled by the band layer using the same formulas on signed `i64` values with 128-bit intermediates restricted to channel-declared band intervals. Band limits and special diagnostic codes (overflow, wire-break) MUST be verified and cited via `source_ref` (`DEF-002`).
 - `ANALOG` (`i32`) holds `±2.147 · M`; the validator MUST reject any channel band limit that would overflow `i32` (`ERR_BAND_LIMIT_OVERFLOW`).
 - Analog reads carry a separate **status channel** (`Ok | Underrange | Overrange | Fault`); fault states are never encoded as ordinary values.
 
@@ -264,7 +264,7 @@ Every board's ASL `Program` organizes execution into **Organization Blocks (OBs)
 - Three origins: **project modules**, the **standard library**, and **packs** (§6.2).
 - **Domain-Split Standard Library:**
   - `std.iec.*` (IEC 61131-3 timers, counters, edges, bistables, math, bitwise, conversions, communication FBs) is platform-neutral.
-  - Platform modules (`std.arduino.*`, later `std.siemens.*`, `std.micropython.*`, …) are visible **only** when imported or implied by a frontend (e.g., `#include <Arduino.h>` implies `std.arduino.*`). A pure-PLC ST/Ladder project cannot accidentally resolve Arduino APIs (`ERR_UNRESOLVED_IMPORT`).
+  - Platform modules (`std.arduino.*`, `std.plc.*`, later `std.micropython.*`, …) are visible **only** when imported or implied by a frontend (e.g., `#include <Arduino.h>` implies `std.arduino.*`). A pure-PLC ST/Ladder project cannot accidentally resolve Arduino APIs (`ERR_UNRESOLVED_IMPORT`).
 - Imports MUST be explicit and acyclic (`ERR_IMPORT_CYCLE`, `ERR_UNRESOLVED_IMPORT`). Nothing leaks into an implicit global namespace.
 - **Versioned Capabilities:** Projects declare `requires = ["asl-core@1", ...]`. Future capabilities (`asl-oop` `DEF-004`, `asl-motion` `DEF-005`) are negotiated explicitly; any unknown capability MUST be rejected with `ERR_UNSUPPORTED_CAPABILITY` (never partially loaded).
 - **Initialization Order:** Module top-level initializers execute once in topological dependency order prior to `OB_STARTUP`.
@@ -292,9 +292,9 @@ Unsupported or vendor-specific code MUST NEVER trigger a dead-end refusal. `Fore
 schema_version = "2.0"
 asl_version    = "0.1.0"
 requires       = ["asl-core@1"]
-name           = "Uno-S7-Conveyor-Cell"
+name           = "Uno-PLC-Conveyor-Cell"
 author         = "Engineering Team"
-description    = "Arduino Uno sensor node communicating with Siemens S7-1200 PLC"
+description    = "Arduino Uno sensor node communicating with PLC-1200-Open-1214 controller"
 
 # Optional external reusable library lock entries (.dendrilib)
 [[libraries]]
@@ -319,7 +319,7 @@ origin    = { language = "asl", style = "visual" }     # line | block | paren_bl
 
 [[boards]]
 id                 = "plc_main"
-profile            = "siemens-s7-1200-cpu-1214c"
+profile            = "plc-1200-open-1214"
 authoring_language = "ladder"          # cpp | st | ladder | sfc | micropython | rust
 execution          = "plc_scan"
 scan_period_us     = 10_000

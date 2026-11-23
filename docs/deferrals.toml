@@ -8,17 +8,15 @@ schema_version = "2.0"
 # - DEF-001 (closed in phase-3): Verified Arduino Uno R3 Timer 0 Fast PWM ((OCR+1)/256 w/ 0/255
 #   Arduino core bypass) and Timer 1/2 Phase-Correct PWM (OCR/255) implemented and tested in
 #   `crates/dendri-circuit/src/pwm.rs` and `crates/dendri-circuit/tests/tier2_transient_ac_pwm.rs`.
-
-[[deferral]]
-id                 = "DEF-002"
-title              = "Channel band tables and bipolar truncation behavior (S7 AI and SM modules) from official manuals"
-owner_milestone    = "phase-4"
-deadline_milestone = "phase-4"
-reason             = "Secondary sources disagree on S7 underrange/overrange limits; every band limit and special fault code must cite the official Siemens module manual"
-refs               = [
-    "docs/architecture/01-asl-ir-and-project-schema.md#34-channel-ranges-band-layer--status",
-    "docs/architecture/03-asset-and-profile-contract.md#62-board-profile-profiletoml",
-]
+# - DEF-002 (closed in phase-4): Verified industrial 27,648-count unipolar and bipolar analog
+#   channel band tables (nominal 0..27648 / -27648..+27648, underrange -4864..-1 / -32512..-27649,
+#   overrange 27649..32511, overflow 32767, wire-break -32768, truncation toward zero) encoded in
+#   `assets/boards/plc-1200-open-1214/profile.toml` and verified by `dendri-assets` and
+#   `crates/dendri-circuit/tests/core_kit_scenarios.rs`.
+# - DEF-009 (closed in phase-4): IEC 81346-2 product-aspect schematic reference-designation prefix
+#   scheme (`-A`, `-B`, `-C`, `-G`, `-H`, `-K`, `-L`, `-M`, `-P`, `-Q`, `-R`, `-S`, `-T`, `-V`, `-X`)
+#   implemented in `crates/dendri-assets/src/ref_des.rs`, enforced by `dendri asset-check` (Rule 2),
+#   and applied across all 10 certified Phase 4 Core Kit profiles.
 
 [[deferral]]
 id                 = "DEF-003"
@@ -85,14 +83,4 @@ reason             = "Concrete F1/F2 packs are derived once the Wave 1 golden sc
 refs               = [
     "docs/architecture/04-frontends-visual-and-sync.md#33-three-level-foreign-nodes-packs--cross-language-export",
     "docs/architecture/05-ide-and-roadmap.md#6-multi-phase-master-implementation-roadmap-adr-024",
-]
-
-[[deferral]]
-id                 = "DEF-009"
-title              = "Reference-designation scheme for schematic labels (IEC 81346 / IEC 61082)"
-owner_milestone    = "phase-4"
-deadline_milestone = "phase-4"
-reason             = "Standardizes component reference designators (-S1, -H1, -R1, -K1) applied across original IEC 60617-style schematic SVGs"
-refs               = [
-    "docs/architecture/03-asset-and-profile-contract.md#32-symbology--copyright-policy-iec-60617-style--iec-61082",
 ]

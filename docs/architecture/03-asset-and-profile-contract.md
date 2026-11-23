@@ -27,7 +27,7 @@ A component is considered **done** ONLY when it ships ALL eight verified artifac
 - **Legacy Quarantine:** All 215 v1 profiles remain archived in `legacy/v1/` strictly as engineering datasheet references. No v1 asset or fixture graduates into `assets/` without being re-authored to full v2 compliance.
 - **Phase 3 (Headless Solver Benchmarks — Zero Asset Dependency):** All analytical solver benchmarks (R, C, L, AC, diode, LED, Zener, BJT, MOSFET, power devices) run **100% headless** inside `dendri-circuit` with zero dependency on Phase 4 SVGs.
 - **Phase 4 — Narrowed Certified Core Kit:**
-  - **2 Boards:** `arduino-uno-r3` and `siemens-s7-1200-cpu-1214c` (each with complete pinout, electrical thresholds, `[cpu]` (`int_bits`, `clock_hz`), `[execution.cost]`, `indeterminate_reads_as`, per-channel codecs + ranges + band tables with `source_ref` (`DEF-002`), PWM transfer functions (`DEF-001`), `iec_address` port mapping, validated SVGs, provenance, `review.toml`, and ≥1 end-to-end scenario).
+  - **2 Boards:** `arduino-uno-r3` and `plc-1200-open-1214` (original open-brand industrial 24 V DC / IEC 61131-2 Type 1 PLC styled in differentiated **A11Y Slate** colors — zero third-party PLC brand marks; each board ships complete pinout, electrical thresholds, `[cpu]` (`int_bits`, `clock_hz`), `[execution.cost]`, `indeterminate_reads_as`, per-channel codecs + ranges + band tables with `source_ref` (`DEF-002`), PWM transfer functions (`DEF-001`), `iec_address` port mapping, validated SVGs, provenance, `review.toml`, and ≥1 end-to-end scenario).
   - **8 Mirrored Components:** `maker-tactile-4pin`, `cmd-pushbutton-no-start`, `cmd-pushbutton-nc-stop`, `led`, `signal-pilot-lamp`, `potentiometer`, `sensor-pressure-4-20ma`, `resistor` (including 500 Ω shunt configuration).
 - **Phase 5 — Subsystem Batch Certification:** Bus devices, display components (LCD/OLED/7-seg with optional `charset` tables, `DEF-007`), and electro-pneumatic components (5/2 solenoid valve, double-acting cylinder, limit switch) are certified as a **batch** under the full §1.1 complete unit without blocking the Phase 4 Core Kit.
 - **Wave 2 Gate:** `esp32-devkitc-v4` and `raspberry-pi-pico` are certified at the Wave 2 gate alongside exact per-port MicroPython ADC/PWM scaling verified from target port source code.
@@ -97,7 +97,7 @@ assets/components/led/
 ```
 Every **board** in `assets/boards/<id>/`:
 ```text
-assets/boards/siemens-s7-1200-cpu-1214c/
+assets/boards/plc-1200-open-1214/
 ├── profile.toml          # Strict v2 board contract + [provenance]
 ├── physical.svg          # Mandatory: realistic hardware view (48px grid + df-pins)
 ├── schematic.svg         # Optional: IEC 61082-style schematic pinout block (48px grid + df-pins)
@@ -167,6 +167,7 @@ datasheet_params_cited  = true
 provenance_verified     = true
 ```
 Any edit to `profile.toml`, `physical.svg`, or `schematic.svg` that changes the canonical render hash automatically invalidates `review.toml` and fails `dendri asset-check` until a human reviews and updates the sign-off.
+To streamline visual review workflows, the CLI provides an explicit human-invoked command **`dendri asset-approve <asset-dir> --reviewer <name>`** (never invoked implicitly by builds or CI) that validates the asset, computes its canonical sanitized SVG + headless `usvg`/`resvg` render SHA-256 digests, and atomically writes an updated `review.toml` with `conformity_claimed = false` by default.
 
 ---
 

@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:df="https://dendriforge.dev/ns/svg/v2" viewBox="0 0 336 192">
+  <metadata>
+    <df:provenance source="original" symbol-ref="IEC 61082-MCU-BLOCK" reviewed-by="caio" reviewed-on="2026-11-23" ml-restricted="false"/>
+  </metadata>
+  <g id="body">
+    <path d="M 16 4 L 316 4 L 328 16 L 328 164 L 316 176 L 316 188 L 16 188 Z" fill="#0e4f63" stroke="#38bdf8" stroke-width="2"/>
+    <rect x="4" y="28" width="46" height="44" rx="2" fill="#94a3b8" stroke="#cbd5e1" stroke-width="1.5"/>
+    <rect x="4" y="132" width="48" height="36" rx="2" fill="#0f172a" stroke="#475569" stroke-width="1.5"/>
+    <rect x="128" y="84" width="144" height="36" rx="3" fill="#0f172a" stroke="#64748b" stroke-width="1.5"/>
+    <circle cx="138" cy="102" r="4" fill="#334155"/>
+    <rect x="64" y="88" width="24" height="24" rx="3" fill="#1e293b" stroke="#94a3b8" stroke-width="1.5"/>
+    <circle cx="76" cy="100" r="6" fill="#f43f5e"/>
+    <rect x="108" y="6" width="84" height="12" rx="1" fill="#020617" stroke="#334155" stroke-width="1"/>
+    <rect x="196" y="6" width="100" height="12" rx="1" fill="#020617" stroke="#334155" stroke-width="1"/>
+    <rect x="148" y="174" width="40" height="12" rx="1" fill="#020617" stroke="#334155" stroke-width="1"/>
+    <rect x="208" y="174" width="76" height="12" rx="1" fill="#020617" stroke="#334155" stroke-width="1"/>
+    <rect x="92" y="38" width="14" height="6" rx="2" fill="#fbbf24" id="led-pin13"/>
+    <rect x="92" y="54" width="14" height="6" rx="2" fill="#34d399" id="led-power"/>
+    <circle cx="32" cy="16" r="5" fill="#0f172a" stroke="#cbd5e1" stroke-width="1.5"/>
+    <circle cx="308" cy="24" r="5" fill="#0f172a" stroke="#cbd5e1" stroke-width="1.5"/>
+    <circle cx="308" cy="168" r="5" fill="#0f172a" stroke="#cbd5e1" stroke-width="1.5"/>
+    <circle cx="64" cy="176" r="5" fill="#0f172a" stroke="#cbd5e1" stroke-width="1.5"/>
+  </g>
+  <g id="df-pins">
+    <circle id="pin:D13" class="df-pin-digital" cx="120" cy="12" r="4"/>
+    <circle id="pin:D12" class="df-pin-digital" cx="132" cy="12" r="4"/>
+    <circle id="pin:D11" class="df-pin-pwm" cx="144" cy="12" r="4"/>
+    <circle id="pin:D10" class="df-pin-pwm" cx="156" cy="12" r="4"/>
+    <circle id="pin:D9" class="df-pin-pwm" cx="168" cy="12" r="4"/>
+    <circle id="pin:D8" class="df-pin-digital" cx="180" cy="12" r="4"/>
+    <circle id="pin:D7" class="df-pin-digital" cx="204" cy="12" r="4"/>
+    <circle id="pin:D6" class="df-pin-pwm" cx="216" cy="12" r="4"/>
+    <circle id="pin:D5" class="df-pin-pwm" cx="228" cy="12" r="4"/>
+    <circle id="pin:D4" class="df-pin-digital" cx="240" cy="12" r="4"/>
+    <circle id="pin:D3" class="df-pin-pwm" cx="252" cy="12" r="4"/>
+    <circle id="pin:D2" class="df-pin-interrupt" cx="264" cy="12" r="4"/>
+    <circle id="pin:D1" class="df-pin-comm" cx="276" cy="12" r="4"/>
+    <circle id="pin:D0" class="df-pin-comm" cx="288" cy="12" r="4"/>
+    <circle id="pin:5V" class="df-pin-power" cx="156" cy="180" r="4"/>
+    <circle id="pin:VCC" class="df-pin-power" cx="168" cy="180" r="4"/>
+    <circle id="pin:GND" class="df-pin-gnd" cx="180" cy="180" r="4"/>
+    <circle id="pin:A0" class="df-pin-analog" cx="216" cy="180" r="4"/>
+    <circle id="pin:A1" class="df-pin-analog" cx="228" cy="180" r="4"/>
+    <circle id="pin:A2" class="df-pin-analog" cx="240" cy="180" r="4"/>
+    <circle id="pin:A3" class="df-pin-analog" cx="252" cy="180" r="4"/>
+    <circle id="pin:A4" class="df-pin-analog" cx="264" cy="180" r="4"/>
+    <circle id="pin:A5" class="df-pin-analog" cx="276" cy="180" r="4"/>
+  </g>
+</svg>

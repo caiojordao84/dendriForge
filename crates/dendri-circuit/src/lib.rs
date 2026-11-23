@@ -26,8 +26,8 @@ pub mod solver;
 
 pub use backend::{BoardCircuitSpec, SpiceCircuitBackend};
 pub use boundary::{
-    BoardElectricalProfile, BoardPinSpec, arduino_uno_r3_electrical, round_half_even_f64,
-    siemens_s7_1200_electrical, voltage_to_analog_round_half_even,
+    BoardElectricalProfile, BoardPinSpec, arduino_uno_r3_electrical, plc_1200_open_1214_electrical,
+    round_half_even_f64, voltage_to_analog_round_half_even,
 };
 pub use devices::{
     BjtParams, BjtPolarity, CapacitorParams, ComponentSpec, CurrentSourceDcParams, DcMotorParams,

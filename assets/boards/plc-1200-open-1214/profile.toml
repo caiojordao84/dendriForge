@@ -1,0 +1,324 @@
+# Certified Board Profile — Open Compact PLC 1200-1214 (24 V DC / IEC 61131-2 Type 1)
+# Original vendor-neutral open industrial controller styled in A11Y Slate.
+# Closes DEF-002 with verified 27,648-count unipolar and bipolar analog channel band tables.
+
+schema_version = "2.0"
+
+[meta]
+id = "plc-1200-open-1214"
+name = "Open PLC 1200-1214 (24V DC/DC/DC)"
+family = "plc-open-1200"
+ref_designator = "-A"
+standards = ["IEC 61131-3", "IEC 61131-2", "IEC 60848", "IEC 61082", "IEC 81346", "IEEE 754", "Modbus TCP"]
+
+[provenance]
+source = "original"
+symbol_ref = "IEC 61082-PLC-BLOCK"
+reviewed_by = "caio"
+reviewed_on = "2026-11-23"
+ml_restricted = false
+
+[cpu]
+int_bits = 32
+clock_hz = 100000000
+source_ref = "IEC 61131-3 32-bit compact industrial PLC reference architecture (100 MHz deterministic scan CPU)"
+
+[execution]
+default_kind = "plc_scan"
+default_scan_period_us = 10000
+indeterminate_reads_as = "previous"
+
+[execution.cost]
+stmt_cycles = 2
+io_read_cycles = 16
+io_write_cycles = 16
+adc_read_cycles = 128
+branch_cycles = 1
+call_cycles = 4
+
+[electrical]
+logic_high_v = 24.0
+logic_low_v = 0.0
+v_ih_v = 15.0
+v_il_v = 5.0
+pin_r_out_ohm = 0.5
+pin_r_in_ohm = 4800.0
+pin_i_max_a = 0.500
+v_abs_max_v = 30.0
+v_abs_min_v = -0.5
+pullup_ohm = 4800.0
+pulldown_ohm = 4800.0
+source_ref = "IEC 61131-2:2017 Table 7 (24 V DC Type 1 digital input: state 0 <= 5 V, state 1 >= 15 V; 0.5 A transistor output)"
+
+[[codecs]]
+id = "plc_span_27648"
+kind = "span"
+d = 27648
+n_max = 27648
+source_ref = "IEC 61131-2 / Industrial 27648-count unipolar analog scaling (0..27648 nominal)"
+
+[[codecs]]
+id = "plc_bipolar_27648"
+kind = "span_bipolar"
+d = 27648
+n_max = 27648
+source_ref = "IEC 61131-2 / Industrial 27648-count bipolar analog scaling (-27648..+27648 nominal)"
+
+# Channel IW64: Unipolar 0-10 V (DEF-002 verified band table: nominal 0..27648, overrange 27649..32511, overflow 32767, underflow -32768)
+[[channels]]
+port_id = "IW64"
+codec_id = "plc_span_27648"
+bipolar_truncation = "toward_zero"
+[channels.range]
+signal = "voltage"
+low = 0.0
+high = 10.0
+[channels.band]
+underrange_min = -4864
+overrange_max = 32511
+overflow_code = 32767
+wire_break_code = -32768
+source_ref = "IEC 61131-2 / Industrial 27648-count analog band table (nominal 0..27648, underrange -4864..-1, overrange 27649..32511, overflow 32767, wire-break -32768)"
+
+# Channel IW66: Bipolar +/-10 V (DEF-002 verified band table: nominal -27648..+27648, underrange -32512..-27649, overrange +27649..+32511)
+[[channels]]
+port_id = "IW66"
+codec_id = "plc_bipolar_27648"
+bipolar_truncation = "toward_zero"
+[channels.range]
+signal = "voltage"
+low = -10.0
+high = 10.0
+[channels.band]
+underrange_min = -32512
+overrange_max = 32511
+overflow_code = 32767
+wire_break_code = -32768
+source_ref = "IEC 61131-2 / Industrial 27648-count bipolar analog band table (-27648..+27648 nominal, truncation toward zero)"
+
+[[channels]]
+port_id = "Qa.0"
+codec_id = "plc_span_27648"
+[channels.range]
+signal = "voltage"
+low = 0.0
+high = 24.0
+[channels.pwm]
+mode = "linear"
+period_us = 1000
+source_ref = "IEC 61131-2 high-speed 24 V DC transistor PWM output (1 kHz default base)"
+
+[[channels]]
+port_id = "Qa.1"
+codec_id = "plc_span_27648"
+[channels.range]
+signal = "voltage"
+low = 0.0
+high = 24.0
+[channels.pwm]
+mode = "linear"
+period_us = 1000
+source_ref = "IEC 61131-2 high-speed 24 V DC transistor PWM output (1 kHz default base)"
+
+[geometry]
+grid_px = 48
+pin_px = 8
+pin_pitch_px = 24
+physical_grid_w = 8.0
+physical_grid_h = 5.0
+schematic_grid_w = 8.0
+schematic_grid_h = 6.0
+
+[svg]
+physical = "physical.svg"
+schematic = "schematic.svg"
+
+[[svg.bindings]]
+target_id = "run-led"
+kind = "paint"
+source_signal = "board:run"
+
+[[svg.bindings]]
+target_id = "fault-led"
+kind = "paint"
+source_signal = "board:fault"
+
+[[ports]]
+id = "L+"
+label = "L+ (+24V)"
+domain = "electrical"
+role = "power"
+capabilities = ["power"]
+nominal_v = 24.0
+
+[[ports]]
+id = "M"
+label = "M (0V)"
+domain = "electrical"
+role = "gnd"
+capabilities = ["ground"]
+nominal_v = 0.0
+
+[[ports]]
+id = "24V"
+label = "24V AUX"
+domain = "electrical"
+role = "power"
+capabilities = ["power"]
+nominal_v = 24.0
+
+[[ports]]
+id = "GND"
+label = "GND (0V)"
+domain = "electrical"
+role = "gnd"
+capabilities = ["ground"]
+nominal_v = 0.0
+
+[[ports]]
+id = "Ia.0"
+label = "DI 0.0"
+domain = "electrical"
+role = "digital"
+iec_address = "%IX0.0"
+capabilities = ["digital_in", "pulldown", "interrupt"]
+
+[[ports]]
+id = "Ia.1"
+label = "DI 0.1"
+domain = "electrical"
+role = "digital"
+iec_address = "%IX0.1"
+capabilities = ["digital_in", "pulldown", "interrupt"]
+
+[[ports]]
+id = "Ia.2"
+label = "DI 0.2"
+domain = "electrical"
+role = "digital"
+iec_address = "%IX0.2"
+capabilities = ["digital_in", "pulldown", "interrupt"]
+
+[[ports]]
+id = "Ia.3"
+label = "DI 0.3"
+domain = "electrical"
+role = "digital"
+iec_address = "%IX0.3"
+capabilities = ["digital_in", "pulldown", "interrupt"]
+
+[[ports]]
+id = "Ia.4"
+label = "DI 0.4"
+domain = "electrical"
+role = "digital"
+iec_address = "%IX0.4"
+capabilities = ["digital_in", "pulldown"]
+
+[[ports]]
+id = "Ia.5"
+label = "DI 0.5"
+domain = "electrical"
+role = "digital"
+iec_address = "%IX0.5"
+capabilities = ["digital_in", "pulldown"]
+
+[[ports]]
+id = "Ia.6"
+label = "DI 0.6"
+domain = "electrical"
+role = "digital"
+iec_address = "%IX0.6"
+capabilities = ["digital_in", "pulldown"]
+
+[[ports]]
+id = "Ia.7"
+label = "DI 0.7"
+domain = "electrical"
+role = "digital"
+iec_address = "%IX0.7"
+capabilities = ["digital_in", "pulldown"]
+
+[[ports]]
+id = "IW64"
+label = "AI 0 (0-10V)"
+domain = "electrical"
+role = "analog"
+iec_address = "%IW64"
+capabilities = ["analog_in"]
+nominal_v = 10.0
+v_abs_max_v = 12.0
+
+[[ports]]
+id = "IW66"
+label = "AI 1 (+/-10V)"
+domain = "electrical"
+role = "analog"
+iec_address = "%IW66"
+capabilities = ["analog_in"]
+nominal_v = 10.0
+v_abs_max_v = 12.0
+
+[[ports]]
+id = "Qa.0"
+label = "DQ 0.0 / PWM"
+domain = "electrical"
+role = "pwm"
+iec_address = "%QX0.0"
+capabilities = ["digital_out", "pwm"]
+
+[[ports]]
+id = "Qa.1"
+label = "DQ 0.1 / PWM"
+domain = "electrical"
+role = "pwm"
+iec_address = "%QX0.1"
+capabilities = ["digital_out", "pwm"]
+
+[[ports]]
+id = "Qa.2"
+label = "DQ 0.2"
+domain = "electrical"
+role = "digital"
+iec_address = "%QX0.2"
+capabilities = ["digital_out"]
+
+[[ports]]
+id = "Qa.3"
+label = "DQ 0.3"
+domain = "electrical"
+role = "digital"
+iec_address = "%QX0.3"
+capabilities = ["digital_out"]
+
+[[ports]]
+id = "Qa.4"
+label = "DQ 0.4"
+domain = "electrical"
+role = "digital"
+iec_address = "%QX0.4"
+capabilities = ["digital_out"]
+
+[[ports]]
+id = "Qa.5"
+label = "DQ 0.5"
+domain = "electrical"
+role = "digital"
+iec_address = "%QX0.5"
+capabilities = ["digital_out"]
+
+[[ports]]
+id = "Qa.6"
+label = "DQ 0.6"
+domain = "electrical"
+role = "digital"
+iec_address = "%QX0.6"
+capabilities = ["digital_out"]
+
+[[ports]]
+id = "Qa.7"
+label = "DQ 0.7"
+domain = "electrical"
+role = "digital"
+iec_address = "%QX0.7"
+capabilities = ["digital_out"]

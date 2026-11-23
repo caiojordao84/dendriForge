@@ -130,7 +130,7 @@ mod tests {
 schema_version = "2.0"
 asl_version = "0.1.0"
 requires = ["asl-core@1"]
-name = "Uno-S7-Conveyor-Cell"
+name = "Uno-PLC-Conveyor-Cell"
 author = "Engineering Team"
 description = "Heterogeneous MCU + PLC cell"
 
@@ -155,7 +155,7 @@ origin = { language = "asl", style = "visual" }
 
 [[boards]]
 id = "plc_main"
-profile = "siemens-s7-1200-cpu-1214c"
+profile = "plc-1200-open-1214"
 authoring_language = "ladder"
 execution = "plc_scan"
 scan_period_us = 10000
@@ -183,7 +183,7 @@ id = "n_hw_press"
 label = "PRESS_RAW"
 pin = "IW64"
 kind = "analog_in"
-codec = "s7_span"
+codec = "plc_span_27648"
 range = { signal = "current", low = 4.0, high = 20.0, live_zero = true, hardware_normalizes_live_zero = true }
 
 [[boards.program.data]]
@@ -396,6 +396,6 @@ rogue_unknown_key = true
 
         let mut sm = SourceMap::new();
         let (_fid, loaded) = load_project_path(&path, &mut sm).unwrap();
-        assert_eq!(loaded.meta.name, "Uno-S7-Conveyor-Cell");
+        assert_eq!(loaded.meta.name, "Uno-PLC-Conveyor-Cell");
     }
 }

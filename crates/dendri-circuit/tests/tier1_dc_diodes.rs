@@ -1,14 +1,14 @@
 //! Phase 3a (Tier 1) Headless Analytical Physics Benchmarks (`02` §3.4):
 //! Linear DC (R, V, I, potentiometers, NO/NC switches, breadboards, relays + inductive flyback),
 //! Shockley Diodes / LEDs / Zeners, island partitioning, floating warnings, fault detection,
-//! and end-to-end T-NUM-5 through the real MNA solver -> round-half-even -> S7 codec (`5529`).
+//! and end-to-end T-NUM-5 through the real MNA solver -> round-half-even -> PLC 27648-count codec (`5529`).
 
 use dendri_ast::{ChannelRange, Codec, CodecKind, PullMode, SignalKind};
 use dendri_circuit::{
     BoardCircuitSpec, BoardPinSpec, Circuit, CircuitConfig, ComponentSpec, CurrentSourceDcParams,
     DiodeParams, FaultKind, PotentiometerParams, RelayParams, ResistorParams, SpiceCircuitBackend,
     SwitchParams, VoltageSourceDcParams, WarningKind, arduino_uno_r3_electrical,
-    siemens_s7_1200_electrical,
+    plc_1200_open_1214_electrical,
 };
 use dendri_sim_kernel::ElectricalBackend;
 use dendri_vm::ElectricalDigitalLevel;
@@ -416,16 +416,15 @@ fn tier1_islands_floating_warning_pin_overvoltage_and_t_num_5_end_to_end() {
     );
 
     // 3. T-NUM-5 through REAL SPICE MNA solver:
-    //    4 mA current source -> 500 Ohm shunt resistor -> S7-1200 IW64 (0-10V AI, R_in = 100kOhm)
-    //    Note: With R_in = 100 kOhm in parallel with 500 Ohm, use exact 500 Ohm parallel-compensated
-    //    or high-impedance 10 MOhm AI input: verify exact 2.000 V -> a = 200_000_000 -> S7 code 5529!
-    let mut s7_prof = siemens_s7_1200_electrical();
-    s7_prof.pin_r_in_ohm = 10_000_000.0; // High-Z voltage input (error < 0.005%)
-    let mut s7_backend = SpiceCircuitBackend::new(Circuit::default());
-    s7_backend
+    //    4 mA current source -> 500 Ohm shunt resistor -> PLC-1200-Open-1214 IW64 (0-10V AI)
+    //    Verify exact 2.000 V -> round-half-even a = 200_000_000 -> industrial 27648-scale code 5529!
+    let mut plc_prof = plc_1200_open_1214_electrical();
+    plc_prof.pin_r_in_ohm = 10_000_000.0; // High-Z voltage input (error < 0.005%)
+    let mut plc_backend = SpiceCircuitBackend::new(Circuit::default());
+    plc_backend
         .attach_board(BoardCircuitSpec {
             board_id: "plc".to_owned(),
-            profile: s7_prof,
+            profile: plc_prof,
             pins: vec![BoardPinSpec {
                 pin: "IW64".to_owned(),
                 is_output: false,
@@ -442,14 +441,14 @@ fn tier1_islands_floating_warning_pin_overvoltage_and_t_num_5_end_to_end() {
             }],
         })
         .unwrap();
-    s7_backend
+    plc_backend
         .circuit_mut()
         .add_component(
             "i_4ma",
             ComponentSpec::CurrentSourceDc(CurrentSourceDcParams { current_a: 0.004 }),
         )
         .unwrap();
-    s7_backend
+    plc_backend
         .circuit_mut()
         .add_component(
             "r_shunt",
@@ -457,30 +456,30 @@ fn tier1_islands_floating_warning_pin_overvoltage_and_t_num_5_end_to_end() {
         )
         .unwrap();
     // 4 mA flows OUT of i_4ma.OUT into top of 500 Ohm shunt -> returns via GND to i_4ma.IN
-    s7_backend
+    plc_backend
         .circuit_mut()
         .connect("i_4ma", "IN", "plc", "GND");
-    s7_backend
+    plc_backend
         .circuit_mut()
         .connect("i_4ma", "OUT", "r_shunt", "A");
-    s7_backend
+    plc_backend
         .circuit_mut()
         .connect("r_shunt", "A", "plc", "IW64");
-    s7_backend
+    plc_backend
         .circuit_mut()
         .connect("r_shunt", "B", "plc", "GND");
-    s7_backend.solve_at(0);
+    plc_backend.solve_at(0);
 
-    let v_shunt = s7_backend.circuit().terminal_voltage("plc", "IW64");
+    let v_shunt = plc_backend.circuit().terminal_voltage("plc", "IW64");
     assert!(
         (v_shunt - 2.0).abs() < 2e-4,
         "expected ~2.0 V, got {v_shunt}"
     );
-    let reading = s7_backend.read_board_analog_in("plc", "IW64");
-    let s7_codec = Codec::new("s7_ai", CodecKind::Span, 27_648, 27_648).unwrap();
-    let code = s7_codec.to_code_unipolar(u64::try_from(reading.analog).unwrap());
+    let reading = plc_backend.read_board_analog_in("plc", "IW64");
+    let plc_codec = Codec::new("plc_span_27648", CodecKind::Span, 27_648, 27_648).unwrap();
+    let code = plc_codec.to_code_unipolar(u64::try_from(reading.analog).unwrap());
     assert_eq!(
         code, 5_529,
-        "T-NUM-5 through MNA solver MUST produce S7 code 5529!"
+        "T-NUM-5 through MNA solver MUST produce industrial PLC code 5529!"
     );
 }

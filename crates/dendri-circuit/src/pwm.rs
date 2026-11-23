@@ -206,7 +206,7 @@ pub fn uno_timer1_2_phase_correct_pwm() -> PwmTransferFunction {
     }
 }
 
-/// Linear hardware PWM transfer function (e.g., Siemens S7-1200 PTO/PWM channel).
+/// Linear hardware PWM transfer function (e.g., industrial PLC 24 V DC PTO/PWM channel).
 #[must_use]
 pub fn linear_pwm(period_us: u64, source_ref: impl Into<String>) -> PwmTransferFunction {
     PwmTransferFunction {

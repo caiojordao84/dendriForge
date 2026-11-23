@@ -4,12 +4,12 @@
 //! (`02-simulation-and-electrical-engine.md` §3.3).
 
 use crate::boundary::{
-    BoardElectricalProfile, BoardPinSpec, arduino_uno_r3_electrical, siemens_s7_1200_electrical,
+    BoardElectricalProfile, BoardPinSpec, arduino_uno_r3_electrical, plc_1200_open_1214_electrical,
     voltage_to_analog_round_half_even,
 };
 use crate::devices::{
-    CapacitorParams, ComponentSpec, DiodeParams, InductorParams, PotentiometerParams,
-    ResistorParams, SwitchParams, VoltageSourceDcParams,
+    CapacitorParams, ComponentSpec, CurrentSourceDcParams, DiodeParams, InductorParams,
+    PotentiometerParams, ResistorParams, SwitchParams, VoltageSourceDcParams,
 };
 use crate::pwm::PwmWaveform;
 use crate::solver::{Circuit, CircuitError, ElectricalFault, FaultKind};
@@ -64,7 +64,7 @@ impl BoardCircuitSpec {
 #[must_use]
 pub fn default_electrical_profile(profile_id: &str) -> BoardElectricalProfile {
     match profile_id {
-        "siemens-s7-1200-cpu-1214c" => siemens_s7_1200_electrical(),
+        "plc-1200-open-1214" => plc_1200_open_1214_electrical(),
         _ => arduino_uno_r3_electrical(),
     }
 }
@@ -175,12 +175,16 @@ impl SpiceCircuitBackend {
                 out_sources.insert(pin_spec.pin.clone(), src_id);
             } else {
                 let rin_id = format!("__rin_{bid}_{}", pin_spec.pin);
+                let rin_ohm = if pin_spec.is_analog {
+                    // Analog voltage inputs (e.g. PLC 0-10 V AI / MCU ADC) are high-impedance
+                    // so external 500-ohm 4-20 mA shunts and dividers are not loaded down.
+                    spec.profile.pin_r_in_ohm.max(10_000_000.0)
+                } else {
+                    spec.profile.pin_r_in_ohm.max(100.0)
+                };
                 self.circuit.add_component(
                     &rin_id,
-                    ComponentSpec::Resistor(ResistorParams::with_power(
-                        spec.profile.pin_r_in_ohm.max(100.0),
-                        10.0,
-                    )),
+                    ComponentSpec::Resistor(ResistorParams::with_power(rin_ohm, 10.0)),
                 )?;
                 self.circuit.connect(&rin_id, "A", &bid, &pin_spec.pin);
                 self.circuit.connect(&rin_id, "B", &bid, "GND");
@@ -311,6 +315,42 @@ impl SpiceCircuitBackend {
                             wiper: w,
                         }),
                     )?;
+                }
+                "signal-pilot-lamp" => {
+                    // Declarative composite sub-circuit matching `assets/components/signal-pilot-lamp/profile.toml`:
+                    // X1 -> r_limit.A, r_limit.B -> lamp_led.A, lamp_led.K -> X2
+                    let r_limit = parse_f64("r_limit_ohm", 1_100.0);
+                    let r_id = format!("{}__r_limit", comp.id);
+                    let led_id = format!("{}__lamp_led", comp.id);
+                    backend.circuit.add_component(
+                        &r_id,
+                        ComponentSpec::Resistor(ResistorParams::with_power(r_limit, 1.0)),
+                    )?;
+                    let mut led = DiodeParams::led_red();
+                    led.i_max_a = 0.030;
+                    led.v_br = 30.0;
+                    backend
+                        .circuit
+                        .add_component(&led_id, ComponentSpec::Diode(led))?;
+                    backend.circuit.connect(&comp.id, "X1", &r_id, "A");
+                    backend.circuit.connect(&r_id, "B", &led_id, "A");
+                    backend.circuit.connect(&led_id, "K", &comp.id, "X2");
+                }
+                "sensor-pressure-4-20ma" => {
+                    let current_a = if comp.params.contains_key("current_ma") {
+                        parse_f64("current_ma", 4.0) * 1e-3
+                    } else {
+                        let p = parse_f64("pressure_bar", 0.0);
+                        let p_max = parse_f64("max_bar", 10.0).max(1e-6);
+                        let frac = (p / p_max).clamp(0.0, 1.0);
+                        0.004 + frac * 0.016
+                    };
+                    backend.circuit.add_component(
+                        &comp.id,
+                        ComponentSpec::CurrentSourceDc(CurrentSourceDcParams { current_a }),
+                    )?;
+                    // Current flows internally IN -> OUT, so tying GND -> IN injects +current_a out of OUT.
+                    backend.circuit.connect(&comp.id, "GND", &comp.id, "IN");
                 }
                 "capacitor" => {
                     let c = parse_f64("c_f", 1e-6);

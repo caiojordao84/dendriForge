@@ -1,0 +1,78 @@
+# Certified Component Profile — Linear Rotary Potentiometer (IEC 60617-S00561)
+
+schema_version = "2.0"
+
+[meta]
+id = "potentiometer"
+name = "Rotary Potentiometer (10 kOhm)"
+category = "passive"
+ref_designator = "-R"
+standards = ["IEC 60062", "IEC 60617", "IEC 61082", "IEC 81346"]
+
+[provenance]
+source = "original"
+symbol_ref = "IEC 60617-S00561"
+reviewed_by = "caio"
+reviewed_on = "2026-11-23"
+ml_restricted = false
+
+[geometry]
+grid_px = 48
+pin_px = 8
+pin_pitch_px = 24
+physical_grid_w = 2.0
+physical_grid_h = 2.0
+schematic_grid_w = 2.0
+schematic_grid_h = 2.0
+
+[svg]
+physical = "physical.svg"
+schematic = "schematic.svg"
+
+[[svg.bindings]]
+target_id = "wiper-knob"
+kind = "rotate"
+source_signal = "input:wiper"
+pivot = [48.0, 44.0]
+angle_range_deg = [-135.0, 135.0]
+
+[[ports]]
+id = "A"
+label = "End A"
+domain = "electrical"
+role = "passive"
+nominal_v = 0.0
+v_abs_max_v = 30.0
+
+[[ports]]
+id = "W"
+label = "Wiper"
+domain = "electrical"
+role = "analog"
+nominal_v = 0.0
+v_abs_max_v = 30.0
+
+[[ports]]
+id = "B"
+label = "End B"
+domain = "electrical"
+role = "passive"
+nominal_v = 0.0
+v_abs_max_v = 30.0
+
+[params.r_total_ohm]
+type = "real"
+unit = "ohm"
+min = 100.0
+max = 1000000.0
+default = 10000.0
+
+[params.wiper]
+type = "real"
+unit = "ratio"
+min = 0.0
+max = 1.0
+default = 0.5
+
+[physics]
+model = "spice_potentiometer"

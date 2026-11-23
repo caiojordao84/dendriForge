@@ -1,0 +1,89 @@
+# Certified Component Profile — Industrial 24 V DC Signal Pilot Lamp (IEC 60947-5-1 / IEC 60617-S00814)
+# Declarative composite electrical sub-circuit (`03` §1.3): series current-limiting resistor + LED.
+
+schema_version = "2.0"
+
+[meta]
+id = "signal-pilot-lamp"
+name = "Industrial Pilot Lamp (24 V DC)"
+category = "indicator"
+ref_designator = "-H"
+standards = ["IEC 60947-5-1", "IEC 60810", "IEC 60617", "IEC 61082", "IEC 81346"]
+
+[provenance]
+source = "original"
+symbol_ref = "IEC 60617-S00814"
+reviewed_by = "caio"
+reviewed_on = "2026-11-23"
+ml_restricted = false
+
+[geometry]
+grid_px = 48
+pin_px = 8
+pin_pitch_px = 24
+physical_grid_w = 2.0
+physical_grid_h = 2.0
+schematic_grid_w = 2.0
+schematic_grid_h = 2.0
+
+[svg]
+physical = "physical.svg"
+schematic = "schematic.svg"
+
+[[svg.bindings]]
+target_id = "lamp-lens"
+kind = "paint"
+source_signal = "electrical:luminosity"
+color_from_param = "color"
+
+[[svg.bindings]]
+target_id = "lamp-burned"
+kind = "visibility"
+source_signal = "fault:overcurrent"
+
+[[ports]]
+id = "X1"
+label = "X1 (+24V)"
+domain = "electrical"
+role = "passive"
+nominal_v = 0.0
+v_abs_max_v = 30.0
+
+[[ports]]
+id = "X2"
+label = "X2 (0V)"
+domain = "electrical"
+role = "passive"
+nominal_v = 0.0
+v_abs_max_v = 30.0
+
+[params.color]
+type = "enum"
+options = ["green", "red", "amber", "blue", "white"]
+default = "green"
+
+[params.r_limit_ohm]
+type = "real"
+unit = "ohm"
+min = 100.0
+max = 10000.0
+default = 1100.0
+
+[physics.composite]
+[[physics.composite.parts]]
+id = "r_limit"
+model = "spice_resistor"
+params = { r_ohm = 1100.0, p_rated_w = 1.0 }
+
+[[physics.composite.parts]]
+id = "lamp_led"
+model = "spice_led"
+params = { vf_nom_v = 2.0, if_max_a = 0.030, vr_max_v = 30.0 }
+
+[[physics.composite.wires]]
+from = "r_limit.B"
+to = "lamp_led.A"
+
+[physics.composite.port_map]
+X1 = "r_limit.A"
+X2 = "lamp_led.K"

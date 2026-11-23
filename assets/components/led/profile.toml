@@ -1,0 +1,86 @@
+# Certified Component Profile — 5 mm Indicator LED (IEC 60810 / IEC 60617-S00669)
+
+schema_version = "2.0"
+
+[meta]
+id = "led"
+name = "Indicator LED (5 mm)"
+category = "indicator"
+ref_designator = "-H"
+standards = ["IEC 60810", "IEC 60617", "IEC 61082", "IEC 81346"]
+
+[provenance]
+source = "original"
+symbol_ref = "IEC 60617-S00669"
+reviewed_by = "caio"
+reviewed_on = "2026-11-23"
+ml_restricted = false
+
+[geometry]
+grid_px = 48
+pin_px = 8
+pin_pitch_px = 24
+physical_grid_w = 2.0
+physical_grid_h = 3.0
+schematic_grid_w = 2.0
+schematic_grid_h = 2.0
+
+[svg]
+physical = "physical.svg"
+schematic = "schematic.svg"
+
+[[svg.bindings]]
+target_id = "led-body"
+kind = "paint"
+source_signal = "electrical:luminosity"
+color_from_param = "color"
+
+[[svg.bindings]]
+target_id = "led-burned"
+kind = "visibility"
+source_signal = "fault:overcurrent"
+
+[[ports]]
+id = "A"
+label = "Anode (+)"
+domain = "electrical"
+role = "passive"
+nominal_v = 0.0
+v_abs_max_v = 30.0
+
+[[ports]]
+id = "K"
+label = "Cathode (-)"
+domain = "electrical"
+role = "passive"
+nominal_v = 0.0
+v_abs_max_v = 30.0
+
+[params.color]
+type = "enum"
+options = ["red", "green", "yellow", "blue", "white"]
+default = "red"
+
+[params.vf_nom_v]
+type = "real"
+unit = "V"
+min = 1.2
+max = 4.0
+default = 2.0
+
+[params.if_max_a]
+type = "real"
+unit = "A"
+min = 0.005
+max = 0.100
+default = 0.030
+
+[params.vr_max_v]
+type = "real"
+unit = "V"
+min = 3.0
+max = 10.0
+default = 5.0
+
+[physics]
+model = "spice_led"

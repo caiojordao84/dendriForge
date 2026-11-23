@@ -1,5 +1,5 @@
 //! Comprehensive Phase 2 integration tests for `dendri-sim-kernel`:
-//! - 2-board heterogeneous co-simulation (Cooperative Arduino Uno <-> PlcScan Siemens S7-1200 Ladder)
+//! - 2-board heterogeneous co-simulation (Cooperative Arduino Uno <-> PlcScan Open-1214 PLC Ladder)
 //! - `WAIT_TIME` suspending only the calling fiber while PLC scans, `OB_HW_INT`, and `OB_CYCLIC_INT` stay live
 //! - Cooperative polling loop (`while (NOT BTN)`) advancing virtual time & observing `InputTimeline` edges
 //! - Bit-identical deterministic replay across independent kernel instances
@@ -20,7 +20,7 @@ const TWO_BOARD_PROJECT_TOML: &str = r#"
 schema_version = "2.0"
 asl_version = "0.1.0"
 requires = ["asl-core@1"]
-name = "UnoS7CoSim"
+name = "UnoPlcCoSim"
 
 # Board 1: Cooperative MCU (Arduino Uno R3, 16 MHz)
 # - OB_MAIN blinks D8 every 50 ms (100 ms period -> rising edges at t=0ms, t=100ms, t=200ms)
@@ -123,12 +123,12 @@ id = "n_u_c1"
 target = "cyclic_ticks"
 value = "cyclic_ticks + 1"
 
-# Board 2: Industrial PLC (Siemens S7-1200, 10 ms scan cycle, Ladder)
+# Board 2: Industrial PLC (PLC-1200-Open-1214, 10 ms scan cycle, Ladder)
 # - OB_STARTUP sets `booted = true`
 # - OB_MAIN (Ladder) feeds Ia.0 into CTU (PV=2) and drives Qa.0 from CTU Q!
 [[boards]]
 id = "plc"
-profile = "siemens-s7-1200-cpu-1214c"
+profile = "plc-1200-open-1214"
 authoring_language = "ladder"
 execution = "plc_scan"
 scan_period_us = 10000
@@ -205,7 +205,7 @@ kind = "coil"
 coil_kind = "normal"
 target = "ACK_OUT"
 
-# Bidirectional physical wires connecting Arduino Uno <-> Siemens S7-1200
+# Bidirectional physical wires connecting Arduino Uno <-> PLC-1200-Open-1214
 [[wires]]
 id = "w_pulse"
 from = "uno.D8"
@@ -463,7 +463,7 @@ args = [{ value = "OUT2" }, { value = "false" }]
 
 [[boards]]
 id = "reader"
-profile = "siemens-s7-1200-cpu-1214c"
+profile = "plc-1200-open-1214"
 authoring_language = "st"
 execution = "plc_scan"
 scan_period_us = 10000
@@ -724,7 +724,7 @@ name = "Ob50Wire"
 
 [[boards]]
 id = "plc"
-profile = "siemens-s7-1200-cpu-1214c"
+profile = "plc-1200-open-1214"
 authoring_language = "st"
 execution = "plc_scan"
 scan_period_us = 10000

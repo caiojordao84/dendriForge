@@ -559,7 +559,7 @@ name = "LadderSemantics"
 
 [[boards]]
 id = "plc"
-profile = "siemens-s7-1200-cpu-1214c"
+profile = "plc-1200-open-1214"
 authoring_language = "ladder"
 execution = "plc_scan"
 scan_period_us = 10000
@@ -722,7 +722,7 @@ name = "GrafcetExact"
 
 [[boards]]
 id = "plc"
-profile = "siemens-s7-1200-cpu-1214c"
+profile = "plc-1200-open-1214"
 authoring_language = "sfc"
 execution = "plc_scan"
 scan_period_us = 10000
@@ -901,7 +901,7 @@ name = "MathAndOb50"
 
 [[boards]]
 id = "plc"
-profile = "siemens-s7-1200-cpu-1214c"
+profile = "plc-1200-open-1214"
 authoring_language = "st"
 execution = "plc_scan"
 scan_period_us = 10000
@@ -985,7 +985,7 @@ name = "GrafcetQuals"
 
 [[boards]]
 id = "plc"
-profile = "siemens-s7-1200-cpu-1214c"
+profile = "plc-1200-open-1214"
 authoring_language = "sfc"
 execution = "plc_scan"
 scan_period_us = 10000
@@ -1129,7 +1129,7 @@ name = "SfcCycle"
 
 [[boards]]
 id = "plc"
-profile = "siemens-s7-1200-cpu-1214c"
+profile = "plc-1200-open-1214"
 authoring_language = "sfc"
 execution = "plc_scan"
 scan_period_us = 10000

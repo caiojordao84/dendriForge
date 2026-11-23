@@ -67,7 +67,7 @@ ASL is the single executable truth (Principle P2). Every frontend crate **MUST**
 ## 3. Organization Blocks (OBs), Multi-POU Structure, Modules & `Foreign` (ADR-018, ADR-028)
 
 ### 3.1 Organization Block & POU Semantic Bridging
-To guarantee that NO construct is silently lost when moving between MCU and industrial PLC paradigms, ASL v2 uses an IEC 61131-3 / TIA Portal OB & POU hierarchy:
+To guarantee that NO construct is silently lost when moving between MCU and industrial PLC paradigms, ASL v2 uses an IEC 61131-3 / Industrial PLC OB & POU hierarchy:
 
 | Embedded / MCU Concept | ASL v2 Canonical POU / OB | Industrial PLC / Ladder / GRAFCET View |
 |---|---|---|

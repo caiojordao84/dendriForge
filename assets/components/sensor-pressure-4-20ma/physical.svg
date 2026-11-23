@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:df="https://dendriforge.dev/ns/svg/v2" viewBox="0 0 96 144">
+  <metadata>
+    <df:provenance source="original" symbol-ref="IEC 60617-S00894" reviewed-by="caio" reviewed-on="2026-11-23" ml-restricted="false"/>
+  </metadata>
+  <g id="body">
+    <line x1="24" y1="112" x2="24" y2="144" stroke="#abe338" stroke-width="3"/>
+    <line x1="72" y1="112" x2="72" y2="144" stroke="#a0aec0" stroke-width="3"/>
+    <rect x="34" y="88" width="28" height="24" rx="2" fill="#475569" stroke="#94a3b8" stroke-width="1.5"/>
+    <polygon points="28,112 68,112 62,126 34,126" fill="#334155" stroke="#94a3b8" stroke-width="1.5"/>
+    <circle cx="48" cy="52" r="36" fill="#1e293b" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="48" cy="52" r="29" fill="#0f172a" stroke="#38bdf8" stroke-width="1.5"/>
+    <path d="M 27 66 A 24 24 0 1 1 69 66" fill="none" stroke="#475569" stroke-width="3"/>
+    <g id="pressure-needle">
+      <line x1="48" y1="52" x2="48" y2="28" stroke="#f59e0b" stroke-width="2.5"/>
+      <circle cx="48" cy="52" r="4" fill="#cbd5e1"/>
+    </g>
+  </g>
+  <g id="df-pins">
+    <circle id="pin:OUT" class="df-pin-analog" cx="24" cy="144" r="4"/>
+    <circle id="pin:GND" class="df-pin-gnd" cx="72" cy="144" r="4"/>
+  </g>
+</svg>

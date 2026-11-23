@@ -1,14 +1,15 @@
 //! `dendri` command-line tool (governance, project validation, and verification gates).
 
 use clap::{Parser, Subcommand};
+use dendri_assets::{AssetCatalog, AssetCheckError, approve_asset_dir, validate_assets_dir};
 use dendri_circuit::SpiceCircuitBackend;
 use dendri_cli::{ledger, provenance, resolve_assets_dir, resolve_workspace_root};
 use dendri_project::load_project_path;
 use dendri_sim_kernel::{InputTimeline, KernelConfig, SimKernel};
 use dendri_span::{Severity, SourceMap};
 use dendri_stdlib::StandardsRegistry;
-use dendri_validate::{MemoryProfileCatalog, ValidateOptions, validate_project};
-use std::path::PathBuf;
+use dendri_validate::{MemoryProfileCatalog, ProfileCatalog, ValidateOptions, validate_project};
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 #[derive(Debug, Parser)]
@@ -41,6 +42,24 @@ enum Commands {
     /// Validate assets/standards.toml via dendri-stdlib (CI Gate 5).
     #[command(name = "standards-check")]
     Standards,
+    /// Run all 13 asset contract rules across assets/{boards,components} (CI Gate 5).
+    #[command(name = "asset-check")]
+    AssetCheck,
+    /// Explicitly sign off an inspected asset directory, writing canonical render SHA-256 hashes to review.toml.
+    #[command(name = "asset-approve")]
+    AssetApprove {
+        /// Path to the asset directory (e.g. `assets/components/led`).
+        dir: PathBuf,
+        /// Human reviewer identifier recorded in `review.toml`.
+        #[arg(long, default_value = "caio")]
+        reviewer: String,
+        /// Review date in ISO YYYY-MM-DD format.
+        #[arg(long, default_value = "2026-11-23")]
+        date: String,
+        /// Claim formal standards conformity (must remain false unless backed by a licensed audit).
+        #[arg(long, default_value_t = false)]
+        conformity_claimed: bool,
+    },
     /// Parse and statically validate a v2 single-file `.toml` project (`dendri-project` + `dendri-validate`).
     Validate {
         /// Path to the `.toml` project file.
@@ -140,6 +159,55 @@ fn main() -> ExitCode {
                 }
             }
         }
+        Commands::AssetCheck => match validate_assets_dir(&root, &assets_dir) {
+            Ok(report) => {
+                println!(
+                    "asset-check OK | boards={} | components={} | standards={} | third_party={} | ml_restricted={}",
+                    report.boards_checked,
+                    report.components_checked,
+                    report.standards_loaded,
+                    report.third_party_assets.len(),
+                    report.ml_restricted_assets.len(),
+                );
+                ExitCode::SUCCESS
+            }
+            Err(AssetCheckError::Violations(vs)) => {
+                for v in &vs {
+                    eprintln!("asset-check ERROR: {v}");
+                }
+                eprintln!("asset-check FAILED with {} violation(s).", vs.len());
+                ExitCode::FAILURE
+            }
+            Err(err) => {
+                eprintln!("asset-check ERROR: {err}");
+                ExitCode::FAILURE
+            }
+        },
+        Commands::AssetApprove {
+            dir,
+            reviewer,
+            date,
+            conformity_claimed,
+        } => match approve_asset_dir(&dir, &reviewer, &date, conformity_claimed) {
+            Ok(review) => {
+                println!(
+                    "asset-approve OK | dir={} | reviewer={} | date={} | physical_sha256={} | schematic_sha256={}",
+                    dir.display(),
+                    review.reviewer,
+                    review.reviewed_on,
+                    review.physical_render_sha256,
+                    review
+                        .schematic_render_sha256
+                        .as_deref()
+                        .unwrap_or("<none>"),
+                );
+                ExitCode::SUCCESS
+            }
+            Err(err) => {
+                eprintln!("asset-approve ERROR: {err}");
+                ExitCode::FAILURE
+            }
+        },
         Commands::Validate {
             file,
             report,
@@ -157,13 +225,13 @@ fn main() -> ExitCode {
                     return ExitCode::FAILURE;
                 }
             };
-            let catalog = MemoryProfileCatalog::builtin_reference();
+            let catalog = load_live_or_reference_catalog(&root, &assets_dir);
             let opts = ValidateOptions {
                 file_id: Some(fid),
                 allow_foreign_export: allow_foreign,
                 ..ValidateOptions::default()
             };
-            let bag = validate_project(&proj, &catalog, &opts);
+            let bag = validate_project(&proj, catalog.as_ref(), &opts);
             for diag in bag.all() {
                 eprintln!("{}", diag.render(Some(&sources)));
             }
@@ -210,13 +278,13 @@ fn main() -> ExitCode {
                     return ExitCode::FAILURE;
                 }
             };
-            let catalog = MemoryProfileCatalog::builtin_reference();
+            let catalog = load_live_or_reference_catalog(&root, &assets_dir);
             let opts = ValidateOptions {
                 file_id: Some(fid),
                 allow_foreign_export: allow_foreign,
                 ..ValidateOptions::default()
             };
-            let bag = validate_project(&proj, &catalog, &opts);
+            let bag = validate_project(&proj, catalog.as_ref(), &opts);
             for diag in bag.all() {
                 eprintln!("{}", diag.render(Some(&sources)));
             }
@@ -280,4 +348,13 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
     }
+}
+
+fn load_live_or_reference_catalog(root: &Path, assets_dir: &Path) -> Box<dyn ProfileCatalog> {
+    if let Ok(live) = AssetCatalog::load_validated(root, assets_dir)
+        && !live.boards.is_empty()
+    {
+        return Box::new(live);
+    }
+    Box::new(MemoryProfileCatalog::builtin_reference())
 }

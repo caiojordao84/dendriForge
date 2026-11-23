@@ -45,13 +45,13 @@ fn test_catalog() -> MemoryProfileCatalog {
     // Real board profile with a channel band limit that overflows signed i32 ANALOG
     let mut band_codecs = BTreeMap::new();
     band_codecs.insert(
-        "s7_span".to_owned(),
+        "plc_span_27648".to_owned(),
         Codec {
-            id: "s7_span".to_owned(),
+            id: "plc_span_27648".to_owned(),
             kind: CodecKind::Span,
             d: 27_648,
             n_max: 27_648,
-            source_ref: Some("Siemens S7-1200 System Manual".to_owned()),
+            source_ref: Some("IEC 61131-2 / Industrial 27648-count analog scale".to_owned()),
         },
     );
     let mut bands = BTreeMap::new();

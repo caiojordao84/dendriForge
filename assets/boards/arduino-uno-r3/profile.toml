@@ -1,0 +1,370 @@
+# Certified Board Profile — Arduino Uno R3 (ATmega328P, 16 MHz, 5 V)
+# Verified against Microchip ATmega328P Datasheet DS40002061B (DEF-001 closed).
+
+schema_version = "2.0"
+
+[meta]
+id = "arduino-uno-r3"
+name = "Arduino Uno R3 (ATmega328P)"
+family = "mcu-avr"
+ref_designator = "-A"
+standards = ["IEC 61082", "IEC 81346", "IEEE 754"]
+
+[provenance]
+source = "original"
+symbol_ref = "IEC 61082-MCU-BLOCK"
+reviewed_by = "caio"
+reviewed_on = "2026-11-23"
+ml_restricted = false
+
+[cpu]
+int_bits = 16
+clock_hz = 16000000
+source_ref = "Microchip ATmega328P Datasheet DS40002061B §1 & §32 (16 MHz ceramic resonator)"
+
+[execution]
+default_kind = "cooperative"
+indeterminate_reads_as = "previous"
+
+[execution.cost]
+stmt_cycles = 4
+io_read_cycles = 32
+io_write_cycles = 32
+adc_read_cycles = 1664
+branch_cycles = 2
+call_cycles = 8
+
+[electrical]
+logic_high_v = 5.0
+logic_low_v = 0.0
+v_ih_v = 3.0
+v_il_v = 1.5
+pin_r_out_ohm = 25.0
+pin_r_in_ohm = 10000000.0
+pin_i_max_a = 0.040
+v_abs_max_v = 5.5
+v_abs_min_v = -0.5
+pullup_ohm = 35000.0
+pulldown_ohm = 10000000.0
+source_ref = "Microchip ATmega328P Datasheet DS40002061B Table 29-1 (DC Characteristics, VCC = 5 V)"
+
+[[codecs]]
+id = "uno_10bit"
+kind = "binned"
+d = 1024
+n_max = 1023
+source_ref = "Microchip ATmega328P Datasheet DS40002061B §24.7 (ADC = Vin * 1024 / VREF)"
+
+[[codecs]]
+id = "pwm_8bit"
+kind = "binned"
+d = 256
+n_max = 255
+source_ref = "Microchip ATmega328P Datasheet DS40002061B §15-§18 (8-bit Timer0/1/2 PWM)"
+
+[[channels]]
+port_id = "A0"
+codec_id = "uno_10bit"
+[channels.range]
+signal = "voltage"
+low = 0.0
+high = 5.0
+
+[[channels]]
+port_id = "A1"
+codec_id = "uno_10bit"
+[channels.range]
+signal = "voltage"
+low = 0.0
+high = 5.0
+
+[[channels]]
+port_id = "A2"
+codec_id = "uno_10bit"
+[channels.range]
+signal = "voltage"
+low = 0.0
+high = 5.0
+
+[[channels]]
+port_id = "A3"
+codec_id = "uno_10bit"
+[channels.range]
+signal = "voltage"
+low = 0.0
+high = 5.0
+
+[[channels]]
+port_id = "A4"
+codec_id = "uno_10bit"
+[channels.range]
+signal = "voltage"
+low = 0.0
+high = 5.0
+
+[[channels]]
+port_id = "A5"
+codec_id = "uno_10bit"
+[channels.range]
+signal = "voltage"
+low = 0.0
+high = 5.0
+
+[[channels]]
+port_id = "D3"
+codec_id = "pwm_8bit"
+[channels.range]
+signal = "voltage"
+low = 0.0
+high = 5.0
+[channels.pwm]
+mode = "phase_correct_8bit"
+period_us = 2040
+source_ref = "ATmega328P DS40002061B §18.7.4 Timer2 Phase-Correct PWM (prescaler 64, 490.20 Hz)"
+
+[[channels]]
+port_id = "D5"
+codec_id = "pwm_8bit"
+[channels.range]
+signal = "voltage"
+low = 0.0
+high = 5.0
+[channels.pwm]
+mode = "fast_pwm_8bit"
+period_us = 1024
+source_ref = "ATmega328P DS40002061B §15.7.3 Timer0 Fast PWM (prescaler 64, 976.56 Hz)"
+
+[[channels]]
+port_id = "D6"
+codec_id = "pwm_8bit"
+[channels.range]
+signal = "voltage"
+low = 0.0
+high = 5.0
+[channels.pwm]
+mode = "fast_pwm_8bit"
+period_us = 1024
+source_ref = "ATmega328P DS40002061B §15.7.3 Timer0 Fast PWM (prescaler 64, 976.56 Hz)"
+
+[[channels]]
+port_id = "D9"
+codec_id = "pwm_8bit"
+[channels.range]
+signal = "voltage"
+low = 0.0
+high = 5.0
+[channels.pwm]
+mode = "phase_correct_8bit"
+period_us = 2040
+source_ref = "ATmega328P DS40002061B §16.9.4 Timer1 Phase-Correct 8-bit PWM (prescaler 64, 490.20 Hz)"
+
+[[channels]]
+port_id = "D10"
+codec_id = "pwm_8bit"
+[channels.range]
+signal = "voltage"
+low = 0.0
+high = 5.0
+[channels.pwm]
+mode = "phase_correct_8bit"
+period_us = 2040
+source_ref = "ATmega328P DS40002061B §16.9.4 Timer1 Phase-Correct 8-bit PWM (prescaler 64, 490.20 Hz)"
+
+[[channels]]
+port_id = "D11"
+codec_id = "pwm_8bit"
+[channels.range]
+signal = "voltage"
+low = 0.0
+high = 5.0
+[channels.pwm]
+mode = "phase_correct_8bit"
+period_us = 2040
+source_ref = "ATmega328P DS40002061B §18.7.4 Timer2 Phase-Correct PWM (prescaler 64, 490.20 Hz)"
+
+[geometry]
+grid_px = 48
+pin_px = 8
+pin_pitch_px = 12
+physical_grid_w = 7.0
+physical_grid_h = 4.0
+schematic_grid_w = 6.0
+schematic_grid_h = 5.0
+
+[svg]
+physical = "physical.svg"
+schematic = "schematic.svg"
+
+[[svg.bindings]]
+target_id = "led-pin13"
+kind = "paint"
+source_signal = "pin:D13"
+
+[[svg.bindings]]
+target_id = "led-power"
+kind = "paint"
+source_signal = "power:on"
+
+[[ports]]
+id = "D0"
+label = "D0 / RX"
+domain = "electrical"
+role = "comm"
+capabilities = ["digital_in", "digital_out", "pullup", "uart_rx"]
+
+[[ports]]
+id = "D1"
+label = "D1 / TX"
+domain = "electrical"
+role = "comm"
+capabilities = ["digital_in", "digital_out", "pullup", "uart_tx"]
+
+[[ports]]
+id = "D2"
+label = "D2 / INT0"
+domain = "electrical"
+role = "interrupt"
+capabilities = ["digital_in", "digital_out", "pullup", "interrupt"]
+
+[[ports]]
+id = "D3"
+label = "D3 / PWM"
+domain = "electrical"
+role = "pwm"
+capabilities = ["digital_in", "digital_out", "pullup", "pwm", "interrupt"]
+
+[[ports]]
+id = "D4"
+label = "D4"
+domain = "electrical"
+role = "digital"
+capabilities = ["digital_in", "digital_out", "pullup"]
+
+[[ports]]
+id = "D5"
+label = "D5 / PWM"
+domain = "electrical"
+role = "pwm"
+capabilities = ["digital_in", "digital_out", "pullup", "pwm"]
+
+[[ports]]
+id = "D6"
+label = "D6 / PWM"
+domain = "electrical"
+role = "pwm"
+capabilities = ["digital_in", "digital_out", "pullup", "pwm"]
+
+[[ports]]
+id = "D7"
+label = "D7"
+domain = "electrical"
+role = "digital"
+capabilities = ["digital_in", "digital_out", "pullup"]
+
+[[ports]]
+id = "D8"
+label = "D8"
+domain = "electrical"
+role = "digital"
+capabilities = ["digital_in", "digital_out", "pullup"]
+
+[[ports]]
+id = "D9"
+label = "D9 / PWM"
+domain = "electrical"
+role = "pwm"
+capabilities = ["digital_in", "digital_out", "pullup", "pwm"]
+
+[[ports]]
+id = "D10"
+label = "D10 / SS / PWM"
+domain = "electrical"
+role = "pwm"
+capabilities = ["digital_in", "digital_out", "pullup", "pwm", "spi_cs"]
+
+[[ports]]
+id = "D11"
+label = "D11 / MOSI / PWM"
+domain = "electrical"
+role = "pwm"
+capabilities = ["digital_in", "digital_out", "pullup", "pwm", "spi_mosi"]
+
+[[ports]]
+id = "D12"
+label = "D12 / MISO"
+domain = "electrical"
+role = "digital"
+capabilities = ["digital_in", "digital_out", "pullup", "spi_miso"]
+
+[[ports]]
+id = "D13"
+label = "D13 / SCK / LED"
+domain = "electrical"
+role = "digital"
+capabilities = ["digital_in", "digital_out", "pullup", "spi_sck"]
+
+[[ports]]
+id = "A0"
+label = "A0"
+domain = "electrical"
+role = "analog"
+capabilities = ["digital_in", "digital_out", "pullup", "analog_in"]
+
+[[ports]]
+id = "A1"
+label = "A1"
+domain = "electrical"
+role = "analog"
+capabilities = ["digital_in", "digital_out", "pullup", "analog_in"]
+
+[[ports]]
+id = "A2"
+label = "A2"
+domain = "electrical"
+role = "analog"
+capabilities = ["digital_in", "digital_out", "pullup", "analog_in"]
+
+[[ports]]
+id = "A3"
+label = "A3"
+domain = "electrical"
+role = "analog"
+capabilities = ["digital_in", "digital_out", "pullup", "analog_in"]
+
+[[ports]]
+id = "A4"
+label = "A4 / SDA"
+domain = "electrical"
+role = "analog"
+capabilities = ["digital_in", "digital_out", "pullup", "analog_in", "i2c_sda"]
+
+[[ports]]
+id = "A5"
+label = "A5 / SCL"
+domain = "electrical"
+role = "analog"
+capabilities = ["digital_in", "digital_out", "pullup", "analog_in", "i2c_scl"]
+
+[[ports]]
+id = "5V"
+label = "5V"
+domain = "electrical"
+role = "power"
+capabilities = ["power"]
+nominal_v = 5.0
+
+[[ports]]
+id = "VCC"
+label = "VCC"
+domain = "electrical"
+role = "power"
+capabilities = ["power"]
+nominal_v = 5.0
+
+[[ports]]
+id = "GND"
+label = "GND"
+domain = "electrical"
+role = "gnd"
+capabilities = ["ground"]
+nominal_v = 0.0

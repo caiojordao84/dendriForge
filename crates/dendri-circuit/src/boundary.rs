@@ -39,11 +39,11 @@ pub fn round_half_even_f64(x: f64) -> f64 {
 /// $$a = \operatorname{clamp}_{i32}\!\left(\operatorname{round\_half\_even}\!\left(\frac{v - v_{\text{low}}}{v_{\text{high}} - v_{\text{low}}} \cdot M\right)\right)$$
 ///
 /// - Non-finite `v` (`NaN`, `±inf`) or degenerate span (`v_high <= v_low`) returns `AnalogStatus::Fault`.
-/// - When `live_zero == true && hardware_normalizes_live_zero == true` (e.g., S7 4–20 mA module),
+/// - When `live_zero == true && hardware_normalizes_live_zero == true` (e.g., industrial 4–20 mA module),
 ///   `v_low` maps to `0` and `v_high` maps to `M` (`1_000_000_000`).
 /// - When `live_zero == false` or `hardware_normalizes_live_zero == false` (e.g., 0–10 V input
 ///   measuring a 4–20 mA loop across a 500 Ω shunt where 4 mA = 2 V = 20%), `0 V -> 0` and
-///   `10 V -> M`, so `2.0 V -> 200_000_000` (`T-NUM-5` -> S7 code `5529`!).
+///   `10 V -> M`, so `2.0 V -> 200_000_000` (`T-NUM-5` -> industrial 27648-count code `5529`!).
 #[must_use]
 pub fn voltage_to_analog_round_half_even(v: f64, range: &ChannelRange) -> AnalogReading {
     if !v.is_finite() || !range.low.is_finite() || !range.high.is_finite() {
@@ -113,7 +113,7 @@ pub fn voltage_to_analog_round_half_even(v: f64, range: &ChannelRange) -> Analog
 #[serde(deny_unknown_fields)]
 pub struct BoardElectricalProfile {
     pub profile_id: String,
-    /// Logic HIGH output voltage ($V_{OH}$, e.g. `5.0 V` Uno, `24.0 V` S7-1200).
+    /// Logic HIGH output voltage ($V_{OH}$, e.g. `5.0 V` Uno, `24.0 V` PLC).
     pub logic_high_v: f64,
     /// Logic LOW output voltage ($V_{OL}$, typically `0.0 V`).
     pub logic_low_v: f64,
@@ -135,7 +135,7 @@ pub struct BoardElectricalProfile {
     pub pullup_ohm: f64,
     /// Internal pull-down resistance ($R_{pd}$ in Ω).
     pub pulldown_ohm: f64,
-    /// Default ADC full-scale reference voltage (e.g. `5.0 V` Uno, `10.0 V` S7-1200).
+    /// Default ADC full-scale reference voltage (e.g. `5.0 V` Uno, `10.0 V` PLC).
     pub default_adc_range: ChannelRange,
     /// Verified per-pin hardware PWM transfer functions (`DEF-001`).
     pub pwm_channels: BTreeMap<String, PwmTransferFunction>,
@@ -216,23 +216,23 @@ pub fn arduino_uno_r3_electrical() -> BoardElectricalProfile {
     }
 }
 
-/// Reference electrical profile for `siemens-s7-1200-cpu-1214c` (24 V DC / IEC 61131-2 Type 1 DI, 0–10 V AI).
+/// Reference electrical profile for `plc-1200-open-1214` (24 V DC / IEC 61131-2 Type 1 DI, 0–10 V AI).
 ///
-/// Datasheet refs: Siemens S7-1200 System Manual (A5E02486680) Technical Specifications
-/// CPU 1214C DC/DC/DC: `24 V DC`, DI `V_IH >= 15.0 V`, `V_IL <= 5.0 V`, DI input current
-/// `4 mA @ 24 V` (`R_in ≈ 6 kΩ`), DO `0.5 A` max, `V_abs_max = 30.0 V`, onboard AI `0..10 V` (`100 kΩ`).
+/// Engineering spec: IEC 61131-2 Type 1 24 V DC PLC (`V_OH = 24 V`, DI `V_IH >= 15.0 V`,
+/// `V_IL <= 5.0 V`, DI sink `4 mA @ 24 V` / `R_in ≈ 6 kΩ`, DO `0.5 A` max, `V_abs_max = 30.0 V`,
+/// onboard AI `0..10 V` / `100 kΩ`, 27,648-count industrial analog representation).
 #[must_use]
-pub fn siemens_s7_1200_electrical() -> BoardElectricalProfile {
+pub fn plc_1200_open_1214_electrical() -> BoardElectricalProfile {
     let mut pwm_channels = BTreeMap::new();
     let pto = linear_pwm(
         1_000,
-        "Siemens S7-1200 System Manual A5E02486680 §10.2 Pulse outputs (PWM)",
+        "IEC 61131-2 / Industrial PLC 24V DC linear PTO/PWM output (1 kHz nominal)",
     );
     pwm_channels.insert("Qa.0".to_owned(), pto.clone());
     pwm_channels.insert("Qa.1".to_owned(), pto);
 
     BoardElectricalProfile {
-        profile_id: "siemens-s7-1200-cpu-1214c".to_owned(),
+        profile_id: "plc-1200-open-1214".to_owned(),
         logic_high_v: 24.0,
         logic_low_v: 0.0,
         v_ih_v: 15.0,
@@ -252,9 +252,8 @@ pub fn siemens_s7_1200_electrical() -> BoardElectricalProfile {
             hardware_normalizes_live_zero: false,
         },
         pwm_channels,
-        source_ref:
-            "Siemens S7-1200 Programmable Controller System Manual A5E02486680 Appendix A.1"
-                .to_owned(),
+        source_ref: "IEC 61131-2 Type 1 (24V DC) & Industrial 27648-count PLC Analog Specification"
+            .to_owned(),
     }
 }
 
@@ -289,8 +288,8 @@ mod tests {
         assert_eq!(reading.status, AnalogStatus::Ok);
         assert_eq!(reading.analog, 200_000_000);
 
-        let s7_codec = Codec::new("s7_ai", CodecKind::Span, 27_648, 27_648).unwrap();
-        let code = s7_codec.to_code_unipolar(u64::try_from(reading.analog).unwrap());
+        let plc_codec = Codec::new("plc_span_27648", CodecKind::Span, 27_648, 27_648).unwrap();
+        let code = plc_codec.to_code_unipolar(u64::try_from(reading.analog).unwrap());
         assert_eq!(code, 5_529);
 
         let nan_reading = voltage_to_analog_round_half_even(f64::NAN, &range);

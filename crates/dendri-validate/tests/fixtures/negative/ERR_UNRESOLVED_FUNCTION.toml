@@ -6,7 +6,7 @@ name = "Fixture"
 
 [[boards]]
 id = "plc"
-profile = "siemens-s7-1200-cpu-1214c"
+profile = "plc-1200-open-1214"
 authoring_language = "st"
 execution = "plc_scan"
 

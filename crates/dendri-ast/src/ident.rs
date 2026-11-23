@@ -137,7 +137,7 @@ mod tests {
     #[test]
     fn profile_and_instance_id_validation() {
         assert!(is_valid_profile_id("arduino-uno-r3"));
-        assert!(is_valid_profile_id("siemens-s7-1200-cpu-1214c"));
+        assert!(is_valid_profile_id("plc-1200-open-1214"));
         assert!(is_valid_profile_id("led"));
         assert!(!is_valid_profile_id(""));
         assert!(!is_valid_profile_id("../escape"));

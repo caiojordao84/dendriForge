@@ -1,0 +1,70 @@
+# Certified Component Profile — Industrial 4-20 mA Pressure Transmitter (IEC 61131-2 / IEC 60617-S00894)
+
+schema_version = "2.0"
+
+[meta]
+id = "sensor-pressure-4-20ma"
+name = "Pressure Transmitter (4-20 mA)"
+category = "sensor"
+ref_designator = "-B"
+standards = ["IEC 61131-2", "IEC 60617", "IEC 61082", "IEC 81346"]
+
+[provenance]
+source = "original"
+symbol_ref = "IEC 60617-S00894"
+reviewed_by = "caio"
+reviewed_on = "2026-11-23"
+ml_restricted = false
+
+[geometry]
+grid_px = 48
+pin_px = 8
+pin_pitch_px = 24
+physical_grid_w = 2.0
+physical_grid_h = 3.0
+schematic_grid_w = 2.0
+schematic_grid_h = 2.0
+
+[svg]
+physical = "physical.svg"
+schematic = "schematic.svg"
+
+[[svg.bindings]]
+target_id = "pressure-needle"
+kind = "rotate"
+source_signal = "input:pressure_norm"
+pivot = [48.0, 52.0]
+angle_range_deg = [-120.0, 120.0]
+
+[[ports]]
+id = "OUT"
+label = "I_OUT (4-20 mA)"
+domain = "electrical"
+role = "analog"
+nominal_v = 0.0
+v_abs_max_v = 30.0
+
+[[ports]]
+id = "GND"
+label = "0V / Loop Return"
+domain = "electrical"
+role = "gnd"
+nominal_v = 0.0
+v_abs_max_v = 30.0
+
+[params.pressure_bar]
+type = "real"
+unit = "bar"
+min = 0.0
+max = 10.0
+default = 0.0
+
+[params.max_bar]
+type = "real"
+unit = "bar"
+min = 1.0
+max = 100.0
+default = 10.0
+
+[physics]
+model = "spice_current_source_4_20ma"

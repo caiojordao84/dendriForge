@@ -21,9 +21,9 @@ pub const ANALOG_I32_MAX: i128 = i32::MAX as i128;
 pub enum CodecKind {
     /// Real ADC: `code = floor(fraction * 2^b)`, `D = 2^b`, `n_max = D - 1`.
     Binned,
-    /// Endpoint-inclusive unipolar scale (e.g., Siemens S7 `0..27648`, `D = n_max`).
+    /// Endpoint-inclusive unipolar scale (e.g., industrial PLC `0..27648`, `D = n_max`).
     Span,
-    /// Symmetric endpoint-inclusive bipolar scale (e.g., Siemens S7 `-27648..+27648`, `D = n_max`).
+    /// Symmetric endpoint-inclusive bipolar scale (e.g., industrial PLC `-27648..+27648`, `D = n_max`).
     SpanBipolar,
 }
 
@@ -246,8 +246,8 @@ mod tests {
             Codec::new("pwm_8bit", CodecKind::Binned, 256, 255).unwrap(),
             Codec::new("uno_10bit", CodecKind::Binned, 1024, 1023).unwrap(),
             Codec::new("adc_12bit", CodecKind::Binned, 4096, 4095).unwrap(),
-            Codec::new("s7_span", CodecKind::Span, 27_648, 27_648).unwrap(),
-            Codec::new("s7_bipolar", CodecKind::SpanBipolar, 27_648, 27_648).unwrap(),
+            Codec::new("plc_span_27648", CodecKind::Span, 27_648, 27_648).unwrap(),
+            Codec::new("plc_bipolar_27648", CodecKind::SpanBipolar, 27_648, 27_648).unwrap(),
             Codec::new("adc_16bit", CodecKind::Binned, 65_536, 65_535).unwrap(),
             Codec::new("adc_19bit", CodecKind::Binned, 1 << 19, (1 << 19) - 1).unwrap(),
             Codec::new("adc_20bit", CodecKind::Binned, 1 << 20, (1 << 20) - 1).unwrap(),
@@ -370,16 +370,16 @@ mod tests {
             Err(CodecError::ResolutionExceedsScale { .. })
         ));
 
-        let s7 = Codec::new("s7_span", CodecKind::Span, 27_648, 27_648).unwrap();
-        // Realistic S7 overrange (+17.6%, ~32511) fits comfortably inside signed i32
+        let plc = Codec::new("plc_span_27648", CodecKind::Span, 27_648, 27_648).unwrap();
+        // Industrial 27648-count overrange (+17.6%, ~32511) fits comfortably inside signed i32
         let ok_band = ChannelBand {
             underrange_min: -4_864,
             overrange_max: 32_511,
             overflow_code: Some(32_767),
             wire_break_code: Some(-32_768),
-            source_ref: "Siemens S7-1200 System Manual".to_owned(),
+            source_ref: "IEC 61131-2 / Industrial 27648-count analog representation".to_owned(),
         };
-        assert!(ok_band.validate_against(&s7).is_ok());
+        assert!(ok_band.validate_against(&plc).is_ok());
 
         // Pathological band (> 2.147 * 27648 = 59373) overflows signed i32 ANALOG
         let bad_band = ChannelBand {
@@ -390,16 +390,16 @@ mod tests {
             source_ref: "synthetic overflow test".to_owned(),
         };
         assert!(matches!(
-            bad_band.validate_against(&s7),
+            bad_band.validate_against(&plc),
             Err(CodecError::BandLimitOverflow { code: 60_000, .. })
         ));
     }
 
     #[test]
-    fn t_num_5_worked_example_2v_on_0_to_10v_yields_s7_5529() {
-        let s7 = Codec::new("s7_span", CodecKind::Span, 27_648, 27_648).unwrap();
+    fn t_num_5_worked_example_2v_on_0_to_10v_yields_plc_5529() {
+        let plc = Codec::new("plc_span_27648", CodecKind::Span, 27_648, 27_648).unwrap();
         // 2 V on 0..10 V = exactly 20% = 200_000_000 ppb
         let a_2v: u64 = 200_000_000;
-        assert_eq!(s7.to_code_unipolar(a_2v), 5529);
+        assert_eq!(plc.to_code_unipolar(a_2v), 5529);
     }
 }

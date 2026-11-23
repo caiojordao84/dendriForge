@@ -1,6 +1,6 @@
 //! Domain-split standard library catalog (`01-asl-ir-and-project-schema.md` §6.1).
 //!
-//! `std.iec.*` is platform-neutral. Platform modules (`std.arduino.*`, `std.siemens.*`)
+//! `std.iec.*` is platform-neutral. Platform modules (`std.arduino.*`, `std.plc.*`)
 //! are visible ONLY when explicitly imported or implied by a frontend — a pure-PLC
 //! project can never accidentally resolve MCU APIs.
 
@@ -15,8 +15,8 @@ pub enum StdDomain {
     Iec,
     /// Arduino MCU platform library (`std.arduino.*`).
     Arduino,
-    /// Siemens PLC platform library (`std.siemens.*`).
-    Siemens,
+    /// Industrial PLC platform extension library (`std.plc.*`).
+    Plc,
 }
 
 impl StdDomain {
@@ -26,7 +26,7 @@ impl StdDomain {
         match self {
             Self::Iec => "std.iec",
             Self::Arduino => "std.arduino",
-            Self::Siemens => "std.siemens",
+            Self::Plc => "std.plc",
         }
     }
 }
@@ -500,8 +500,8 @@ static ARDUINO_TIME_FNS: &[StdFnSig] = &[
     },
 ];
 
-// --- std.siemens.scale ---
-static SIEMENS_SCALE_FNS: &[StdFnSig] = &[
+// --- std.plc.scale ---
+static PLC_SCALE_FNS: &[StdFnSig] = &[
     StdFnSig {
         name: "NORM_X",
         params: &[
@@ -578,9 +578,9 @@ static BUILTIN_MODULES: &[StdModule] = &[
         function_blocks: &[],
     },
     StdModule {
-        path: "std.siemens.scale",
-        domain: StdDomain::Siemens,
-        functions: SIEMENS_SCALE_FNS,
+        path: "std.plc.scale",
+        domain: StdDomain::Plc,
+        functions: PLC_SCALE_FNS,
         function_blocks: &[],
     },
 ];
@@ -673,7 +673,7 @@ mod tests {
         assert!(cat.resolve_symbol(plc_imports, "ANALOG_TO_CODE").is_some());
         assert!(cat.resolve_symbol(plc_imports, "UART_SEND").is_some());
 
-        // Platform isolation invariant (01 §6.1): Arduino & Siemens APIs MUST NOT leak!
+        // Platform isolation invariant (01 §6.1): Arduino & PLC platform APIs MUST NOT leak!
         assert_eq!(cat.resolve_symbol(plc_imports, "DIGITAL_READ"), None);
         assert_eq!(cat.resolve_symbol(plc_imports, "MILLIS"), None);
         assert_eq!(cat.resolve_symbol(plc_imports, "NORM_X"), None);
@@ -693,11 +693,11 @@ mod tests {
         );
         assert_eq!(cat.resolve_symbol(arduino_imports, "NORM_X"), None);
 
-        let siemens_imports = &["std.iec.timers", "std.siemens.scale"];
-        assert!(cat.resolve_symbol(siemens_imports, "TON").is_some());
-        assert!(cat.resolve_symbol(siemens_imports, "NORM_X").is_some());
-        assert_eq!(cat.resolve_symbol(siemens_imports, "CTU"), None);
-        assert_eq!(cat.resolve_symbol(siemens_imports, "MILLIS"), None);
+        let plc_ext_imports = &["std.iec.timers", "std.plc.scale"];
+        assert!(cat.resolve_symbol(plc_ext_imports, "TON").is_some());
+        assert!(cat.resolve_symbol(plc_ext_imports, "NORM_X").is_some());
+        assert_eq!(cat.resolve_symbol(plc_ext_imports, "CTU"), None);
+        assert_eq!(cat.resolve_symbol(plc_ext_imports, "MILLIS"), None);
     }
 
     #[test]
