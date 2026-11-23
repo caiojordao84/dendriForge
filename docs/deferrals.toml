@@ -4,17 +4,10 @@
 
 schema_version = "2.0"
 
-[[deferral]]
-id                 = "DEF-001"
-title              = "PWM transfer functions per timer mode (Arduino Uno R3 first)"
-owner_milestone    = "phase-3"
-deadline_milestone = "phase-3"
-reason             = "Requires hardware datasheet and Arduino core source verification (e.g., AVR Fast PWM (OCR+1)/256 with 0/255 special cases)"
-refs               = [
-    "docs/architecture/01-asl-ir-and-project-schema.md#35-types-intrinsics--two-layer-separation",
-    "docs/architecture/02-simulation-and-electrical-engine.md#33-mcu--plc-pin-boundary-coupling--solver--asl-numeric-boundary",
-    "docs/architecture/03-asset-and-profile-contract.md#62-board-profile-profiletoml",
-]
+# Closed deferrals:
+# - DEF-001 (closed in phase-3): Verified Arduino Uno R3 Timer 0 Fast PWM ((OCR+1)/256 w/ 0/255
+#   Arduino core bypass) and Timer 1/2 Phase-Correct PWM (OCR/255) implemented and tested in
+#   `crates/dendri-circuit/src/pwm.rs` and `crates/dendri-circuit/tests/tier2_transient_ac_pwm.rs`.
 
 [[deferral]]
 id                 = "DEF-002"

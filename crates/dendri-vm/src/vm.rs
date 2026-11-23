@@ -213,6 +213,15 @@ impl BoardVm {
         &self.trace
     }
 
+    /// Returns `true` if the board defines a non-empty `OB_MAIN` body.
+    #[must_use]
+    pub fn has_non_empty_main(&self) -> bool {
+        self.compiled
+            .main_pou
+            .and_then(|idx| self.compiled.pous.get(idx))
+            .is_some_and(|p| !p.instrs.is_empty())
+    }
+
     /// Returns registered cyclic interrupt periods `(pou_idx, period_us)`.
     #[must_use]
     pub fn cyclic_interrupts(&self) -> &[(usize, u64)] {

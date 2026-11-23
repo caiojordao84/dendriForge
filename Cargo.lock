@@ -207,10 +207,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "dendri-circuit"
+version = "0.1.0"
+dependencies = [
+ "dendri-ast",
+ "dendri-project",
+ "dendri-sim-kernel",
+ "dendri-vm",
+ "libm",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "dendri-cli"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "dendri-circuit",
  "dendri-project",
  "dendri-sim-kernel",
  "dendri-span",

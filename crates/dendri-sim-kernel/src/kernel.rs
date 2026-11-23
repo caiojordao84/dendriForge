@@ -628,11 +628,21 @@ impl SimKernel {
                             );
                         }
                         StepOutcome::Completed => {
-                            // Only re-schedule `OB_MAIN` if it actually executed instructions;
-                            // an empty `OB_MAIN` stays idle while interrupts remain armed.
-                            if after_cycles > before_cycles {
+                            // Re-schedule `OB_MAIN` whenever the board has a non-empty `OB_MAIN`
+                            // (including when resuming from a trailing `WAIT_TIME` at the end of `OB_MAIN`!).
+                            let has_main = self
+                                .boards
+                                .get(board_idx)
+                                .is_some_and(|br| br.vm.has_non_empty_main());
+                            if has_main {
+                                let next_t =
+                                    if after_cycles > before_cycles || resume_cycles.is_some() {
+                                        after_us.max(now_us)
+                                    } else {
+                                        now_us.saturating_add(1)
+                                    };
                                 self.push_event(
-                                    after_us.max(now_us),
+                                    next_t,
                                     PRIO_COOP_WAKE,
                                     EventKind::CooperativeWake {
                                         board_idx,
@@ -646,7 +656,12 @@ impl SimKernel {
             }
         }
 
-        self.time_us = self.time_us.max(target_us);
+        if self.time_us < target_us {
+            self.time_us = target_us;
+            if self.backend.next_electrical_event_us().is_some() {
+                self.propagate_and_dispatch_hw_ints(target_us)?;
+            }
+        }
         Ok(())
     }
 

@@ -135,30 +135,32 @@ impl MemoryProfileCatalog {
         let mut cat = Self::new();
         cat.insert_board(arduino_uno_r3_meta());
         cat.insert_board(siemens_s7_1200_meta());
-        cat.insert_component(passive_2pin("led", "A", "K", 5.0, 30.0));
-        cat.insert_component(passive_2pin("resistor", "1", "2", 24.0, 250.0));
+        cat.insert_component(passive_2pin("led", "A", "K", 0.0, 30.0));
+        cat.insert_component(passive_2pin("resistor", "1", "2", 0.0, 250.0));
+        cat.insert_component(passive_2pin("maker-tactile-4pin", "1", "2", 0.0, 30.0));
         cat.insert_component(passive_2pin(
             "cmd-pushbutton-no-start",
             "NO",
             "COM",
-            24.0,
+            0.0,
             250.0,
         ));
         cat.insert_component(passive_2pin(
             "cmd-pushbutton-nc-stop",
             "NC",
             "COM",
-            24.0,
+            0.0,
             250.0,
         ));
-        cat.insert_component(passive_2pin("signal-pilot-lamp", "X1", "X2", 24.0, 30.0));
+        cat.insert_component(passive_2pin("signal-pilot-lamp", "X1", "X2", 0.0, 30.0));
         cat.insert_component(passive_2pin(
             "sensor-pressure-4-20ma",
             "OUT",
             "GND",
-            24.0,
+            0.0,
             30.0,
         ));
+        cat.insert_component(potentiometer_meta());
         cat.insert_component(lcd_16x2_meta());
         cat
     }
@@ -208,6 +210,23 @@ fn arduino_uno_r3_meta() -> BoardProfileMeta {
                 pwm: false,
                 bus: matches!(a, 4 | 5),
                 nominal_v: 5.0,
+                v_abs_max_v: 5.5,
+            },
+        );
+    }
+    for (pwr, nom) in [("5V", 5.0), ("VCC", 5.0), ("GND", 0.0)] {
+        ports.insert(
+            pwr.to_owned(),
+            PortMeta {
+                digital_in: false,
+                digital_out: false,
+                pullup: false,
+                pulldown: false,
+                analog_in: false,
+                analog_out: false,
+                pwm: false,
+                bus: false,
+                nominal_v: nom,
                 v_abs_max_v: 5.5,
             },
         );
@@ -292,6 +311,23 @@ fn siemens_s7_1200_meta() -> BoardProfileMeta {
             },
         );
     }
+    for (pwr, nom) in [("24V", 24.0), ("L+", 24.0), ("M", 0.0), ("GND", 0.0)] {
+        ports.insert(
+            pwr.to_owned(),
+            PortMeta {
+                digital_in: false,
+                digital_out: false,
+                pullup: false,
+                pulldown: false,
+                analog_in: false,
+                analog_out: false,
+                pwm: false,
+                bus: false,
+                nominal_v: nom,
+                v_abs_max_v: 30.0,
+            },
+        );
+    }
     let mut codecs = BTreeMap::new();
     codecs.insert(
         "s7_span".to_owned(),
@@ -346,6 +382,30 @@ fn passive_2pin(
     ports.insert(p2.to_owned(), pm);
     ComponentProfileMeta {
         id: id.to_owned(),
+        ports,
+        display_charset: None,
+    }
+}
+
+fn potentiometer_meta() -> ComponentProfileMeta {
+    let mut ports = BTreeMap::new();
+    let pm = PortMeta {
+        digital_in: false,
+        digital_out: false,
+        pullup: false,
+        pulldown: false,
+        analog_in: true,
+        analog_out: true,
+        pwm: false,
+        bus: false,
+        nominal_v: 0.0,
+        v_abs_max_v: 30.0,
+    };
+    for p in ["A", "W", "B"] {
+        ports.insert(p.to_owned(), pm.clone());
+    }
+    ComponentProfileMeta {
+        id: "potentiometer".to_owned(),
         ports,
         display_charset: None,
     }

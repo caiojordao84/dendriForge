@@ -1,0 +1,23 @@
+[package]
+name = "dendri-circuit"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Headless pure-Rust SPICE-class Modified Nodal Analysis (MNA) mixed-signal circuit solver (DC, transient, AC, nonlinear semiconductors, MCU/PLC pin coupling)"
+
+[lints]
+workspace = true
+
+[dependencies]
+dendri-ast = { workspace = true }
+dendri-sim-kernel = { workspace = true }
+dendri-vm = { workspace = true }
+libm = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+dendri-project = { workspace = true }

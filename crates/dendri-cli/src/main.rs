@@ -1,6 +1,7 @@
 //! `dendri` command-line tool (governance, project validation, and verification gates).
 
 use clap::{Parser, Subcommand};
+use dendri_circuit::SpiceCircuitBackend;
 use dendri_cli::{ledger, provenance, resolve_assets_dir, resolve_workspace_root};
 use dendri_project::load_project_path;
 use dendri_sim_kernel::{InputTimeline, KernelConfig, SimKernel};
@@ -51,7 +52,7 @@ enum Commands {
         #[arg(long)]
         allow_foreign: bool,
     },
-    /// Run a headless deterministic multi-board co-simulation (`dendri-sim-kernel` + `dendri-vm`).
+    /// Run a headless deterministic multi-board co-simulation (`dendri-sim-kernel` + `dendri-vm` + optional SPICE MNA).
     Sim {
         /// Path to the `.toml` project file.
         file: PathBuf,
@@ -61,6 +62,9 @@ enum Commands {
         /// Deterministic replay seed.
         #[arg(long, default_value_t = 0)]
         seed: u64,
+        /// Use the full SPICE-class MNA electrical solver (`dendri-circuit`) instead of digital wire fabric.
+        #[arg(long)]
+        spice: bool,
         /// Permit cross-language export of Foreign constructs during pre-run validation.
         #[arg(long)]
         allow_foreign: bool,
@@ -191,6 +195,7 @@ fn main() -> ExitCode {
             file,
             duration_ms,
             seed,
+            spice,
             allow_foreign,
         } => {
             let mut sources = SourceMap::new();
@@ -223,11 +228,28 @@ fn main() -> ExitCode {
                 seed,
                 ..KernelConfig::default()
             };
-            let mut kernel = match SimKernel::new(&proj, cfg, InputTimeline::new()) {
-                Ok(k) => k,
-                Err(err) => {
-                    eprintln!("sim ERROR: {err}");
-                    return ExitCode::FAILURE;
+            let mut kernel = if spice {
+                let backend = match SpiceCircuitBackend::from_project_headless(&proj) {
+                    Ok(b) => b,
+                    Err(err) => {
+                        eprintln!("sim SPICE ERROR: {err}");
+                        return ExitCode::FAILURE;
+                    }
+                };
+                match SimKernel::with_backend(&proj, cfg, InputTimeline::new(), Box::new(backend)) {
+                    Ok(k) => k,
+                    Err(err) => {
+                        eprintln!("sim ERROR: {err}");
+                        return ExitCode::FAILURE;
+                    }
+                }
+            } else {
+                match SimKernel::new(&proj, cfg, InputTimeline::new()) {
+                    Ok(k) => k,
+                    Err(err) => {
+                        eprintln!("sim ERROR: {err}");
+                        return ExitCode::FAILURE;
+                    }
                 }
             };
             let target_us = duration_ms.saturating_mul(1_000);
@@ -237,7 +259,8 @@ fn main() -> ExitCode {
             }
             let snap = kernel.snapshot();
             println!(
-                "sim OK | project={} | time_us={} | boards={} | trace_events={}",
+                "sim OK | mode={} | project={} | time_us={} | boards={} | trace_events={}",
+                if spice { "spice-mna" } else { "digital-wire" },
                 proj.meta.name,
                 snap.time_us,
                 snap.boards.len(),
