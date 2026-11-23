@@ -9,8 +9,8 @@
 //! - Auto-generated feature-matrix collector and Markdown table generator (`04` §2)
 
 use crate::comments::{
-    contains_bidi_control, has_cpp_line_splice_hazard, lex_cpp_comment, lex_st_comment,
-    orphan_comments_to_parent,
+    contains_bidi_control, has_cpp_block_comment_hazard, has_cpp_line_splice_hazard,
+    lex_cpp_comment, lex_st_comment, orphan_comments_to_parent,
 };
 use crate::cursor::Cursor;
 use crate::traits::{
@@ -192,6 +192,38 @@ pub fn hostile_comment_corpus() -> Vec<HostileCommentCase> {
             expects_bidi_warning: false,
             is_non_ascii: false,
         },
+        HostileCommentCase {
+            id: "c3_cpp_phase2_spliced_block_closer",
+            style: CommentStyle::Line,
+            placement: CommentPlacement::Leading,
+            text: "*\\\n/".to_owned(),
+            expects_bidi_warning: false,
+            is_non_ascii: false,
+        },
+        HostileCommentCase {
+            id: "c3_cpp_doc_line_collision_slash",
+            style: CommentStyle::Line,
+            placement: CommentPlacement::Leading,
+            text: "/ slash".to_owned(),
+            expects_bidi_warning: false,
+            is_non_ascii: false,
+        },
+        HostileCommentCase {
+            id: "c3_cpp_doc_line_collision_bang",
+            style: CommentStyle::Line,
+            placement: CommentPlacement::Leading,
+            text: "! bang".to_owned(),
+            expects_bidi_warning: false,
+            is_non_ascii: false,
+        },
+        HostileCommentCase {
+            id: "c3_cpp_doc_block_collision_star",
+            style: CommentStyle::Block,
+            placement: CommentPlacement::Leading,
+            text: "* star".to_owned(),
+            expects_bidi_warning: false,
+            is_non_ascii: false,
+        },
     ]
 }
 
@@ -283,6 +315,7 @@ fn verify_rendered_comment_lexes_cleanly(
         LanguageId::Cpp => {
             let mut cur = Cursor::new(rendered);
             let mut count = 0usize;
+            let mut first_style: Option<CommentStyle> = None;
             while !cur.is_eof() {
                 let Some((body, style, _)) = lex_cpp_comment(&mut cur).map_err(|d| d.message)?
                 else {
@@ -291,11 +324,27 @@ fn verify_rendered_comment_lexes_cleanly(
                         cur.remaining()
                     ));
                 };
+                if let Some(prev_style) = first_style {
+                    if prev_style != style {
+                        return Err(format!(
+                            "C++ multi-line projection split styles: {prev_style:?} vs {style:?}"
+                        ));
+                    }
+                } else {
+                    first_style = Some(style);
+                }
                 if matches!(style, CommentStyle::Line | CommentStyle::DocLine)
                     && has_cpp_line_splice_hazard(&body)
                 {
                     return Err(format!(
                         "C++ line-splice backslash hazard survived in line comment: {body:?}"
+                    ));
+                }
+                if matches!(style, CommentStyle::Block | CommentStyle::DocBlock)
+                    && has_cpp_block_comment_hazard(&body)
+                {
+                    return Err(format!(
+                        "C++ block/phase-2 delimiter hazard survived in block comment: {body:?}"
                     ));
                 }
                 count = count.saturating_add(1);

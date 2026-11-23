@@ -22,13 +22,13 @@ pub mod pratt;
 pub mod traits;
 
 pub use comments::{
-    RawComment, ascii_fold, contains_bidi_control, escape_bidi_controls, escape_c_block_delimiters,
-    escape_st_paren_delimiters, has_balanced_paren_delimiters, has_cpp_line_splice_hazard,
-    is_bidi_control, lex_c_block_comment, lex_cpp_comment, lex_nested_paren_comment,
-    lex_slash_line_comment, lex_st_comment, matches_comment_with_caps, matches_comment_with_ctx,
-    merge_contiguous_leading_comments, normalize_eol_to_lf, orphan_comments_for_deleted_nodes,
-    orphan_comments_to_parent, relocate_inner_comments, render_comment_for_language, restore_eol,
-    unwrap_comment_delimiters,
+    RawComment, ascii_fold, contains_bidi_control, cpp_phase2_spliced, escape_bidi_controls,
+    escape_c_block_delimiters, escape_st_paren_delimiters, has_balanced_paren_delimiters,
+    has_cpp_block_comment_hazard, has_cpp_line_splice_hazard, is_bidi_control, lex_c_block_comment,
+    lex_cpp_comment, lex_nested_paren_comment, lex_slash_line_comment, lex_st_comment,
+    matches_comment_with_caps, matches_comment_with_ctx, merge_contiguous_leading_comments,
+    normalize_eol_to_lf, orphan_comments_for_deleted_nodes, orphan_comments_to_parent,
+    relocate_inner_comments, render_comment_for_language, restore_eol, unwrap_comment_delimiters,
 };
 pub use conformance::{
     FeatureMatrixCollector, FeatureMatrixEntry, FeatureSupport, HostileCommentCase,

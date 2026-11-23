@@ -67,9 +67,14 @@ pub struct ReducedRationalPlan {
     pub gcd: u64,
     /// Destination native maximum magnitude (`n_max2`).
     pub n_max2: u64,
-    /// `true` iff range analysis requires clamping to `n_max2` (always true for `span -> binned`).
+    /// `true` iff range analysis requires clamping (always true for `span -> binned` and
+    /// `span_bipolar -> unipolar`).
     pub needs_clamp: bool,
-    /// `true` iff either codec is `CodecKind::SpanBipolar` (requires signed truncation toward zero).
+    /// `true` iff source codec is `CodecKind::SpanBipolar` (inputs may be negative).
+    pub src_is_signed: bool,
+    /// `true` iff destination codec is `CodecKind::SpanBipolar` (lower clamp is `-n_max2`, else `0`).
+    pub dst_is_signed: bool,
+    /// `true` iff intermediate arithmetic must be signed (`src_is_signed || dst_is_signed`).
     pub is_signed: bool,
     /// Selected intermediate width (`Bits32` vs `Bits64`) guaranteed free of overflow.
     pub int_width: EmitIntWidth,
@@ -93,7 +98,9 @@ impl ReducedRationalPlan {
         let d1_red = src.d / g;
         let d2_red = dst.d / g;
 
-        let is_signed = src.kind == CodecKind::SpanBipolar || dst.kind == CodecKind::SpanBipolar;
+        let src_is_signed = src.kind == CodecKind::SpanBipolar;
+        let dst_is_signed = dst.kind == CodecKind::SpanBipolar;
+        let is_signed = src_is_signed || dst_is_signed;
 
         let max_product = u128::from(src.n_max) * u128::from(d2_red);
         let int_width = if is_signed {
@@ -109,7 +116,10 @@ impl ReducedRationalPlan {
         };
 
         let max_unclamped = max_product / u128::from(d1_red);
-        let needs_clamp = max_unclamped > u128::from(dst.n_max);
+        // Clamping is required whenever upper bound can exceed n_max2 OR whenever a bipolar
+        // (potentially negative) source feeds a unipolar [0, n_max2] destination.
+        let needs_clamp =
+            max_unclamped > u128::from(dst.n_max) || (src_is_signed && !dst_is_signed);
 
         // Right-shift optimization is valid ONLY for unsigned/unipolar codecs (signed right shift
         // of negative numbers rounds toward -infinity instead of truncating toward zero).
@@ -128,6 +138,8 @@ impl ReducedRationalPlan {
             gcd: g,
             n_max2: dst.n_max,
             needs_clamp,
+            src_is_signed,
+            dst_is_signed,
             is_signed,
             int_width,
             right_shift,
@@ -190,8 +202,9 @@ impl ReducedRationalPlan {
                 n.saturating_mul(mul) / div
             }
         };
+        let min_i = if self.dst_is_signed { -max_i } else { 0 };
         if self.needs_clamp {
-            raw.clamp(-max_i, max_i)
+            raw.clamp(min_i, max_i)
         } else {
             raw
         }
@@ -238,8 +251,13 @@ impl ReducedRationalPlan {
         let scaled = scale_var("_v");
         let nmax = self.n_max2;
         if self.is_signed {
+            let min_bound = if self.dst_is_signed {
+                format!("-{nmax}{suf}")
+            } else {
+                format!("0{suf}")
+            };
             format!(
-                "([]({ty} _v) -> {ty} {{ {ty} _q = {scaled}; return _q > {nmax}{suf} ? {nmax}{suf} : (_q < -{nmax}{suf} ? -{nmax}{suf} : _q); }})(static_cast<{ty}>({expr}))"
+                "([]({ty} _v) -> {ty} {{ {ty} _q = {scaled}; return _q > {nmax}{suf} ? {nmax}{suf} : (_q < {min_bound} ? {min_bound} : _q); }})(static_cast<{ty}>({expr}))"
             )
         } else {
             format!(
@@ -285,10 +303,12 @@ impl ReducedRationalPlan {
         }
 
         if self.is_signed {
-            format!(
-                "LIMIT({ty}#-{}, {scaled}, {ty}#{})",
-                self.n_max2, self.n_max2
-            )
+            let min_bound = if self.dst_is_signed {
+                format!("{ty}#-{}", self.n_max2)
+            } else {
+                format!("{ty}#0")
+            };
+            format!("LIMIT({min_bound}, {scaled}, {ty}#{})", self.n_max2)
         } else {
             format!("MIN({ty}#{}, {scaled})", self.n_max2)
         }
@@ -422,6 +442,52 @@ mod tests {
         assert_eq!(plan.eval_bipolar(27_648), 6_912);
         assert!(plan.emit_cpp("v").contains("int32_t"));
         assert!(plan.emit_st("v").contains("DINT#4"));
+    }
+
+    #[test]
+    fn bipolar_to_unipolar_clamps_negative_values_to_zero_and_is_never_identity() {
+        let bip = Codec::new("plc_bipolar_27648", CodecKind::SpanBipolar, 27_648, 27_648).unwrap();
+        let span = Codec::new("plc_span_27648", CodecKind::Span, 27_648, 27_648).unwrap();
+        let uno = Codec::new("uno_10bit", CodecKind::Binned, 1024, 1023).unwrap();
+
+        // Same D (27648 == 27648), bipolar -> unipolar MUST NOT be identity!
+        let p_span = ReducedRationalPlan::compute(&bip, &span).unwrap();
+        assert!(p_span.src_is_signed);
+        assert!(!p_span.dst_is_signed);
+        assert!(p_span.needs_clamp);
+        assert!(!p_span.is_identity);
+        assert_eq!(p_span.eval_bipolar(-27_648), 0);
+        assert_eq!(p_span.eval_bipolar(-100), 0);
+        assert_eq!(p_span.eval_bipolar(0), 0);
+        assert_eq!(p_span.eval_bipolar(13_824), 13_824);
+        assert_eq!(p_span.eval_bipolar(27_648), 27_648);
+        let cpp_span = p_span.emit_cpp("v");
+        let st_span = p_span.emit_st("v");
+        assert!(cpp_span.contains("_q < 0L ? 0L"));
+        assert!(!cpp_span.contains("-27648L"));
+        assert!(st_span.contains("LIMIT(DINT#0, TO_DINT(v), DINT#27648)"));
+        assert!(!contains_analog_full_scale_literal(&cpp_span));
+        assert!(!contains_analog_full_scale_literal(&st_span));
+
+        // Bipolar -> binned (uno_10bit): clamps both negative -> 0 AND top 27648 -> 1023
+        let p_uno = ReducedRationalPlan::compute(&bip, &uno).unwrap();
+        assert!(p_uno.src_is_signed);
+        assert!(!p_uno.dst_is_signed);
+        assert!(p_uno.needs_clamp);
+        assert!(!p_uno.is_identity);
+        assert_eq!(p_uno.eval_bipolar(-27_648), 0);
+        assert_eq!(p_uno.eval_bipolar(-1), 0);
+        assert_eq!(p_uno.eval_bipolar(0), 0);
+        assert_eq!(p_uno.eval_bipolar(13_824), 512);
+        assert_eq!(p_uno.eval_bipolar(27_648), 1023);
+        let cpp_uno = p_uno.emit_cpp("v");
+        let st_uno = p_uno.emit_st("v");
+        assert!(cpp_uno.contains("_q < 0L ? 0L"));
+        assert!(!cpp_uno.contains("-1023L"));
+        assert!(st_uno.contains("LIMIT(DINT#0,"));
+        assert!(st_uno.contains("DINT#1023)"));
+        assert!(!contains_analog_full_scale_literal(&cpp_uno));
+        assert!(!contains_analog_full_scale_literal(&st_uno));
     }
 
     #[test]

@@ -184,20 +184,74 @@ pub fn has_balanced_paren_delimiters(text: &str) -> bool {
     depth == 0
 }
 
-/// Non-destructively escapes C-style block delimiters (`/*`, `*/`, and trailing `/`) so the
-/// result can be safely enclosed in `/* ... */` even under `-Wall -Wextra -Werror`.
+/// Consumes a C++ translation-phase-2 line splice (`\` followed by optional horizontal
+/// whitespace and `\r\n` or `\n`) from `cursor`, returning the matched raw splice slice.
+fn consume_cpp_phase2_splice<'a>(cursor: &mut Cursor<'a>) -> Option<&'a str> {
+    if cursor.peek() != Some('\\') {
+        return None;
+    }
+    let cp = cursor.checkpoint();
+    let _ = cursor.bump();
+    let _ = cursor.skip_horizontal_whitespace();
+    if cursor.eat_newline().is_some() {
+        Some(cursor.slice_from(cp.byte_offset()))
+    } else {
+        cursor.restore(cp);
+        None
+    }
+}
+
+/// Simulates C++ translation phase 2 line splicing (`\[ \t]*\r?\n` removal) on `text`.
+#[must_use]
+pub fn cpp_phase2_spliced(text: &str) -> String {
+    let mut cur = Cursor::new(text);
+    let mut out = String::with_capacity(text.len());
+    while !cur.is_eof() {
+        if consume_cpp_phase2_splice(&mut cur).is_some() {
+            continue;
+        }
+        if let Some(ch) = cur.bump() {
+            out.push(ch);
+        }
+    }
+    out
+}
+
+/// Returns `true` iff `text` would create a `/*`, `*/`, or trailing `/` hazard inside a C++
+/// `/* ... */` block comment either physically OR after C++ translation-phase-2 line splicing
+/// (e.g. `*\\\n/` splicing into `*/`).
+#[must_use]
+pub fn has_cpp_block_comment_hazard(text: &str) -> bool {
+    if text.contains("*/") || text.contains("/*") || text.ends_with('/') {
+        return true;
+    }
+    let spliced = cpp_phase2_spliced(text);
+    spliced.contains("*/") || spliced.contains("/*") || spliced.ends_with('/')
+}
+
+/// Non-destructively escapes C-style block delimiters (`/*`, `*/`, trailing `/`, and C++
+/// phase-2 line-spliced `*\\\n/` / `/\\\n*`) so the result can be safely enclosed in
+/// `/* ... */` even under `-Wall -Wextra -Werror`.
 #[must_use]
 pub fn escape_c_block_delimiters(text: &str) -> String {
+    let mut cur = Cursor::new(text);
     let mut out = String::with_capacity(text.len().saturating_add(8));
-    let mut last: Option<char> = None;
-    for ch in text.chars() {
-        if (last == Some('/') && ch == '*') || (last == Some('*') && ch == '/') {
-            out.push('\\');
+    let mut last_logical: Option<char> = None;
+    while !cur.is_eof() {
+        if let Some(splice) = consume_cpp_phase2_splice(&mut cur) {
+            out.push_str(splice);
+            continue;
         }
-        out.push(ch);
-        last = Some(ch);
+        if let Some(ch) = cur.bump() {
+            if (last_logical == Some('/') && ch == '*') || (last_logical == Some('*') && ch == '/')
+            {
+                out.push('\\');
+            }
+            out.push(ch);
+            last_logical = Some(ch);
+        }
     }
-    if last == Some('/') {
+    if last_logical == Some('/') {
         out.push(' ');
     }
     out
@@ -514,6 +568,63 @@ pub fn render_comment_for_language(
     }
 }
 
+fn line_collides_with_cpp_prefix(prefix: &str, line: &str) -> bool {
+    match prefix {
+        "//" => (line.starts_with('/') && !line.starts_with("//")) || line.starts_with('!'),
+        "///" => line.starts_with('/'),
+        _ => false,
+    }
+}
+
+fn has_cpp_line_doc_collision(prefix: &str, text: &str) -> bool {
+    text.split('\n')
+        .any(|line| line_collides_with_cpp_prefix(prefix, line))
+}
+
+fn collides_with_c_block_open(open: &str, body: &str) -> bool {
+    let check = |s: &str| match open {
+        "/*" => (s.starts_with('*') && !s.starts_with("**")) || s.starts_with('!'),
+        // `/**` + `/` forms `/**/` which immediately closes the C++ block comment!
+        "/**" => s.is_empty() || s.starts_with('*') || s.starts_with('/'),
+        _ => false,
+    };
+    if check(body) {
+        return true;
+    }
+    let spliced = cpp_phase2_spliced(body);
+    check(&spliced)
+}
+
+fn render_cpp_slash_lines(prefix: &str, text: &str, degraded: &mut bool) -> String {
+    let mut out = String::with_capacity(text.len().saturating_add(16));
+    for (idx, line) in text.split('\n').enumerate() {
+        if idx > 0 {
+            out.push('\n');
+        }
+        out.push_str(prefix);
+        if line_collides_with_cpp_prefix(prefix, line) {
+            *degraded = true;
+            out.push(' ');
+        }
+        out.push_str(line);
+    }
+    out
+}
+
+fn render_cpp_block_safe(open: &str, projected: &str, degraded: &mut bool) -> String {
+    let mut body = if has_cpp_block_comment_hazard(projected) {
+        *degraded = true;
+        escape_c_block_delimiters(projected)
+    } else {
+        projected.to_owned()
+    };
+    if collides_with_c_block_open(open, &body) {
+        *degraded = true;
+        body.insert(0, ' ');
+    }
+    format!("{open}{body}*/")
+}
+
 fn render_cpp(
     projected: &str,
     style: CommentStyle,
@@ -524,19 +635,13 @@ fn render_cpp(
     let is_inner = matches!(placement, CommentPlacement::Inner { .. });
     let is_header = matches!(placement, CommentPlacement::Header);
     let has_backslash = has_cpp_line_splice_hazard(projected);
-    let has_c_block_hazard =
-        projected.contains("*/") || projected.contains("/*") || projected.ends_with('/');
+    let has_c_block_hazard = has_cpp_block_comment_hazard(projected);
 
     // Inner expression comments in C++ MUST stay inline block comments.
     if is_inner {
-        let body = if has_c_block_hazard {
-            degraded = true;
-            escape_c_block_delimiters(projected)
-        } else {
-            projected.to_owned()
-        };
+        let rendered = render_cpp_block_safe("/*", projected, &mut degraded);
         return RenderedComment {
-            rendered: format!("/*{body}*/"),
+            rendered,
             emitted_style: CommentStyle::Block,
             degraded,
             diagnostics,
@@ -545,83 +650,112 @@ fn render_cpp(
 
     match style {
         CommentStyle::Line | CommentStyle::DocLine | CommentStyle::Visual => {
-            if has_backslash {
-                // C++ hazard avoidance: `//` ending in `\` splices next line -> emit as block comment.
-                degraded = true;
-                let body = if has_c_block_hazard {
-                    escape_c_block_delimiters(projected)
-                } else {
-                    projected.to_owned()
-                };
+            let (prefix, line_style, block_open, block_style) = match style {
+                CommentStyle::DocLine => {
+                    if is_header {
+                        ("//!", CommentStyle::DocLine, "/*!", CommentStyle::DocBlock)
+                    } else {
+                        ("///", CommentStyle::DocLine, "/**", CommentStyle::DocBlock)
+                    }
+                }
+                CommentStyle::Line | CommentStyle::Visual => {
+                    ("//", CommentStyle::Line, "/*", CommentStyle::Block)
+                }
+                CommentStyle::Block | CommentStyle::ParenBlock | CommentStyle::DocBlock => {
+                    ("//", CommentStyle::Line, "/*", CommentStyle::Block)
+                }
+            };
+
+            let has_doc_collision = has_cpp_line_doc_collision(prefix, projected);
+
+            if !has_backslash && !has_doc_collision {
                 RenderedComment {
-                    rendered: format!("/*{body}*/"),
-                    emitted_style: CommentStyle::Block,
+                    rendered: render_prefixed_lines(prefix, projected),
+                    emitted_style: line_style,
+                    degraded,
+                    diagnostics,
+                }
+            } else if !has_c_block_hazard && !collides_with_c_block_open(block_open, projected) {
+                // Clean verbatim style switch (e.g., C++ `//` trailing `\`, `Line("/ slash")`,
+                // `DocLine("/ docslash")`) with zero character modification.
+                degraded = true;
+                RenderedComment {
+                    rendered: format!("{block_open}{projected}*/"),
+                    emitted_style: block_style,
+                    degraded,
+                    diagnostics,
+                }
+            } else if has_backslash {
+                // Must emit block comment to prevent C++ phase-2 line splicing, with full
+                // delimiter + phase-2 + doc-open protection.
+                degraded = true;
+                let rendered = render_cpp_block_safe(block_open, projected, &mut degraded);
+                RenderedComment {
+                    rendered,
+                    emitted_style: block_style,
                     degraded,
                     diagnostics,
                 }
             } else {
-                let (prefix, out_style) = match style {
-                    CommentStyle::DocLine => {
-                        (if is_header { "//!" } else { "///" }, CommentStyle::DocLine)
-                    }
-                    CommentStyle::Line | CommentStyle::Visual => ("//", CommentStyle::Line),
-                    CommentStyle::Block | CommentStyle::ParenBlock | CommentStyle::DocBlock => {
-                        ("//", CommentStyle::Line)
-                    }
-                };
+                // Pure doc-delimiter collision where block form also collides or has block hazard
+                // (e.g., `Line("! bang")`): insert non-destructive space after prefix.
+                let rendered = render_cpp_slash_lines(prefix, projected, &mut degraded);
                 RenderedComment {
-                    rendered: render_prefixed_lines(prefix, projected),
-                    emitted_style: out_style,
+                    rendered,
+                    emitted_style: line_style,
                     degraded,
                     diagnostics,
                 }
             }
         }
         CommentStyle::Block | CommentStyle::DocBlock | CommentStyle::ParenBlock => {
-            let paren_nested_to_cpp = matches!(style, CommentStyle::ParenBlock)
-                && (projected.contains("(*") || projected.contains("*)"));
-            let must_avoid_block = has_c_block_hazard || paren_nested_to_cpp;
-
-            if must_avoid_block {
-                if !has_backslash {
-                    // Project hazardous block / nested ST paren_block cleanly as C++ `//` line comments.
-                    RenderedComment {
-                        rendered: render_prefixed_lines("//", projected),
-                        emitted_style: CommentStyle::Line,
-                        degraded: true,
-                        diagnostics,
-                    }
-                } else {
-                    // Both block-delimiter hazard AND trailing `\`: non-destructive delimiter escape.
-                    degraded = true;
-                    let body = escape_c_block_delimiters(projected);
-                    RenderedComment {
-                        rendered: format!("/*{body}*/"),
-                        emitted_style: CommentStyle::Block,
-                        degraded,
-                        diagnostics,
+            let (open, block_style, line_prefix, line_style) = match style {
+                CommentStyle::DocBlock => {
+                    if is_header {
+                        ("/*!", CommentStyle::DocBlock, "//!", CommentStyle::DocLine)
+                    } else {
+                        ("/**", CommentStyle::DocBlock, "///", CommentStyle::DocLine)
                     }
                 }
+                CommentStyle::Block | CommentStyle::ParenBlock => {
+                    ("/*", CommentStyle::Block, "//", CommentStyle::Line)
+                }
+                CommentStyle::Line | CommentStyle::DocLine | CommentStyle::Visual => {
+                    ("/*", CommentStyle::Block, "//", CommentStyle::Line)
+                }
+            };
+
+            let paren_nested_to_cpp = matches!(style, CommentStyle::ParenBlock)
+                && (projected.contains("(*") || projected.contains("*)"));
+            let has_open_collision = collides_with_c_block_open(open, projected);
+            let must_avoid_raw_block =
+                has_c_block_hazard || has_open_collision || paren_nested_to_cpp;
+
+            if !must_avoid_raw_block {
+                RenderedComment {
+                    rendered: format!("{open}{projected}*/"),
+                    emitted_style: block_style,
+                    degraded,
+                    diagnostics,
+                }
+            } else if !has_backslash && !has_cpp_line_doc_collision(line_prefix, projected) {
+                // Clean verbatim projection to C++ line comments (handles `*/`, nested ST
+                // `(* *)`, `Block("* star")`, `DocBlock("* docstar")`).
+                degraded = true;
+                RenderedComment {
+                    rendered: render_prefixed_lines(line_prefix, projected),
+                    emitted_style: line_style,
+                    degraded,
+                    diagnostics,
+                }
             } else {
-                let (open, out_style) = match style {
-                    CommentStyle::DocBlock => (
-                        if is_header { "/*!" } else { "/**" },
-                        CommentStyle::DocBlock,
-                    ),
-                    CommentStyle::Block | CommentStyle::ParenBlock => ("/*", CommentStyle::Block),
-                    CommentStyle::Line | CommentStyle::DocLine | CommentStyle::Visual => {
-                        ("/*", CommentStyle::Block)
-                    }
-                };
-                // Guard empty `/**/` vs `/**` opening if body is empty on DocBlock
-                let rendered = if open == "/**" && projected.is_empty() {
-                    "/** */".to_owned()
-                } else {
-                    format!("{open}{projected}*/")
-                };
+                // Either trailing `\` forbids line comments OR line prefix also collides
+                // (e.g., `Block("! bang")`): emit fully hazard- and collision-safe block comment.
+                degraded = true;
+                let rendered = render_cpp_block_safe(open, projected, &mut degraded);
                 RenderedComment {
                     rendered,
-                    emitted_style: out_style,
+                    emitted_style: block_style,
                     degraded,
                     diagnostics,
                 }
@@ -1378,6 +1512,236 @@ mod tests {
             assert!(!escaped.contains("(*"), "{tricky:?} -> {escaped:?}");
             assert!(!escaped.contains("*)"), "{tricky:?} -> {escaped:?}");
             assert!(!escaped.ends_with('('), "{tricky:?} -> {escaped:?}");
+        }
+    }
+
+    #[test]
+    fn cpp_doc_delimiter_collisions_and_phase2_splice_hazards_never_corrupt() {
+        let ctx = test_ctx(CommentEncoding::Utf8Passthrough, StCommentDialect::RuSTy);
+
+        // 1. Line("/ slash") -> Block("/*/ slash*/") re-lexes verbatim without dropping `/`
+        let r_slash = render_comment_for_language(
+            LanguageId::Cpp,
+            "/ slash",
+            CommentStyle::Line,
+            CommentPlacement::Leading,
+            &ctx,
+        );
+        assert_eq!(r_slash.emitted_style, CommentStyle::Block);
+        let mut c1 = Cursor::new(&r_slash.rendered);
+        let (b1, s1, _) = lex_cpp_comment(&mut c1).unwrap().unwrap();
+        assert_eq!((s1, b1.as_str()), (CommentStyle::Block, "/ slash"));
+        assert!(matches_comment_with_ctx(
+            LanguageId::Cpp,
+            &ctx,
+            &b1,
+            "/ slash"
+        ));
+
+        // 2. Line("! bang") -> never drops `!` into DocLine
+        let r_bang = render_comment_for_language(
+            LanguageId::Cpp,
+            "! bang",
+            CommentStyle::Line,
+            CommentPlacement::Leading,
+            &ctx,
+        );
+        assert_eq!(r_bang.emitted_style, CommentStyle::Line);
+        let mut c2 = Cursor::new(&r_bang.rendered);
+        let (b2, s2, _) = lex_cpp_comment(&mut c2).unwrap().unwrap();
+        assert_eq!(s2, CommentStyle::Line);
+        assert!(b2.contains("! bang"));
+        assert!(matches_comment_with_ctx(
+            LanguageId::Cpp,
+            &ctx,
+            &b2,
+            "! bang"
+        ));
+
+        // 3. DocLine("/ docslash") -> never collapses into `////` (`Line`) or `/**/` (closed block!)
+        let r_doc_slash = render_comment_for_language(
+            LanguageId::Cpp,
+            "/ docslash",
+            CommentStyle::DocLine,
+            CommentPlacement::Leading,
+            &ctx,
+        );
+        assert_eq!(r_doc_slash.emitted_style, CommentStyle::DocLine);
+        let mut c3 = Cursor::new(&r_doc_slash.rendered);
+        let (b3, s3, _) = lex_cpp_comment(&mut c3).unwrap().unwrap();
+        assert!(c3.is_eof());
+        assert_eq!(s3, CommentStyle::DocLine);
+        assert!(b3.contains("/ docslash"));
+        assert!(matches_comment_with_ctx(
+            LanguageId::Cpp,
+            &ctx,
+            &b3,
+            "/ docslash"
+        ));
+
+        // 4. Block("* star") -> Line("//* star") verbatim without dropping `*`
+        let r_star = render_comment_for_language(
+            LanguageId::Cpp,
+            "* star",
+            CommentStyle::Block,
+            CommentPlacement::Leading,
+            &ctx,
+        );
+        assert_eq!(r_star.emitted_style, CommentStyle::Line);
+        let mut c4 = Cursor::new(&r_star.rendered);
+        let (b4, s4, _) = lex_cpp_comment(&mut c4).unwrap().unwrap();
+        assert_eq!((s4, b4.as_str()), (CommentStyle::Line, "* star"));
+        assert!(matches_comment_with_ctx(
+            LanguageId::Cpp,
+            &ctx,
+            &b4,
+            "* star"
+        ));
+
+        // 5. Block("! bang") -> never drops `!` into DocBlock
+        let r_block_bang = render_comment_for_language(
+            LanguageId::Cpp,
+            "! bang",
+            CommentStyle::Block,
+            CommentPlacement::Leading,
+            &ctx,
+        );
+        assert_eq!(r_block_bang.emitted_style, CommentStyle::Block);
+        let mut c5 = Cursor::new(&r_block_bang.rendered);
+        let (b5, s5, _) = lex_cpp_comment(&mut c5).unwrap().unwrap();
+        assert_eq!(s5, CommentStyle::Block);
+        assert!(b5.contains("! bang"));
+        assert!(matches_comment_with_ctx(
+            LanguageId::Cpp,
+            &ctx,
+            &b5,
+            "! bang"
+        ));
+
+        // 6. DocBlock("* docstar") -> DocLine("///* docstar") verbatim without adding `*`
+        let r_doc_star = render_comment_for_language(
+            LanguageId::Cpp,
+            "* docstar",
+            CommentStyle::DocBlock,
+            CommentPlacement::Leading,
+            &ctx,
+        );
+        assert_eq!(r_doc_star.emitted_style, CommentStyle::DocLine);
+        let mut c6 = Cursor::new(&r_doc_star.rendered);
+        let (b6, s6, _) = lex_cpp_comment(&mut c6).unwrap().unwrap();
+        assert_eq!((s6, b6.as_str()), (CommentStyle::DocLine, "* docstar"));
+        assert!(matches_comment_with_ctx(
+            LanguageId::Cpp,
+            &ctx,
+            &b6,
+            "* docstar"
+        ));
+
+        // 7. C++ phase-2 splice hazards inside block comments (`*\<newline>/`, `/\<newline>*`)
+        for hostile in ["*\\\n/", "*\\\n\\\n/", "*\\  \n/", "/\\\n*", "/\\\n"] {
+            let rendered = render_comment_for_language(
+                LanguageId::Cpp,
+                hostile,
+                CommentStyle::Line,
+                CommentPlacement::Leading,
+                &ctx,
+            );
+            assert_eq!(rendered.emitted_style, CommentStyle::Block);
+            let mut cur = Cursor::new(&rendered.rendered);
+            let (body, style, _) = lex_cpp_comment(&mut cur).unwrap().unwrap();
+            assert!(cur.is_eof());
+            assert_eq!(style, CommentStyle::Block);
+            assert!(
+                !has_cpp_block_comment_hazard(&body),
+                "hazard survived for {hostile:?} -> {:?}",
+                rendered.rendered
+            );
+            let spliced_full = cpp_phase2_spliced(&rendered.rendered);
+            let mut cur_spliced = Cursor::new(&spliced_full);
+            let parsed_spliced = lex_cpp_comment(&mut cur_spliced).unwrap().unwrap();
+            assert!(
+                cur_spliced.is_eof(),
+                "phase-2 splice prematurely closed comment for {hostile:?} -> {spliced_full:?}"
+            );
+            assert_eq!(parsed_spliced.1, CommentStyle::Block);
+            assert!(matches_comment_with_ctx(
+                LanguageId::Cpp,
+                &ctx,
+                &rendered.rendered,
+                hostile
+            ));
+            assert!(matches_comment_with_ctx(
+                LanguageId::Cpp,
+                &ctx,
+                &body,
+                hostile
+            ));
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn cpp_render_always_relexes_safely_physically_and_after_phase2_splicing(
+            raw in "[/*\\\\! \t\na]{0,48}",
+            style_idx in 0usize..6,
+            place_idx in 0usize..4,
+        ) {
+            let styles = [
+                CommentStyle::Line,
+                CommentStyle::Block,
+                CommentStyle::ParenBlock,
+                CommentStyle::DocLine,
+                CommentStyle::DocBlock,
+                CommentStyle::Visual,
+            ];
+            let placements = [
+                CommentPlacement::Leading,
+                CommentPlacement::Trailing,
+                CommentPlacement::Header,
+                CommentPlacement::Inner { token_ordinal: 1 },
+            ];
+            let style = styles[style_idx];
+            let placement = placements[place_idx];
+            let ctx = test_ctx(CommentEncoding::Utf8Passthrough, StCommentDialect::RuSTy);
+
+            let rendered = render_comment_for_language(LanguageId::Cpp, &raw, style, placement, &ctx);
+
+            // 1. Re-lex every comment piece cleanly with uniform style
+            let mut cur = Cursor::new(&rendered.rendered);
+            let mut pieces = Vec::new();
+            let mut first_style = None;
+            while !cur.is_eof() {
+                let (body, st, _) = lex_cpp_comment(&mut cur).unwrap().unwrap();
+                if let Some(prev) = first_style {
+                    prop_assert_eq!(prev, st, "split styles on {:?}", rendered.rendered);
+                } else {
+                    first_style = Some(st);
+                }
+                if matches!(st, CommentStyle::Line | CommentStyle::DocLine) {
+                    prop_assert!(!has_cpp_line_splice_hazard(&body));
+                } else {
+                    prop_assert!(!has_cpp_block_comment_hazard(&body));
+                    // Verify C++ phase-2 spliced block comment still parses as one complete comment
+                    let spliced_full = cpp_phase2_spliced(&rendered.rendered);
+                    let mut cur_sp = Cursor::new(&spliced_full);
+                    let (_, sp_style, _) = lex_cpp_comment(&mut cur_sp).unwrap().unwrap();
+                    prop_assert!(cur_sp.is_eof(), "phase-2 broke {:?}", rendered.rendered);
+                    prop_assert_eq!(sp_style, st);
+                }
+                pieces.push(body);
+                let _ = cur.eat_newline();
+            }
+            let reparsed = pieces.join("\n");
+            prop_assert_eq!(first_style, Some(rendered.emitted_style));
+
+            // 2. Non-degraded renders MUST round-trip exact verbatim text
+            if !rendered.degraded {
+                prop_assert_eq!(reparsed.as_str(), raw.as_str());
+            }
+
+            // 3. C4 idempotence MUST hold for both raw rendered and reparsed body
+            prop_assert!(matches_comment_with_ctx(LanguageId::Cpp, &ctx, &rendered.rendered, &raw));
+            prop_assert!(matches_comment_with_ctx(LanguageId::Cpp, &ctx, &reparsed, &raw));
         }
     }
 

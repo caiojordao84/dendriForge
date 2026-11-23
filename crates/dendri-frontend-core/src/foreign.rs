@@ -4,9 +4,9 @@
 use crate::comments::render_comment_for_language;
 use crate::traits::{BoardContext, CommentPlacement, LanguageId, RenderedComment};
 use dendri_ast::{
-    Assumption, BoardProgram, CommentStyle, Expr, ExprKind, ForeignFidelity, LadderBoxKind,
-    LadderCell, LadderCellKind, NodeId, PackLock, Pou, PouBody, ScalarType, Stmt, StmtKind,
-    TypeDecl, TypeRef, is_valid_profile_id,
+    Assumption, BoardProgram, CasePattern, CommentStyle, Expr, ExprKind, ForeignFidelity, LValue,
+    LadderBoxKind, LadderCell, LadderCellKind, NodeId, PackLock, Pou, PouBody, ScalarType, Stmt,
+    StmtKind, TypeDecl, TypeRef, is_valid_profile_id,
 };
 use dendri_span::{Diagnostic, ErrorCode, FileId, Span};
 use serde::{Deserialize, Serialize};
@@ -490,6 +490,9 @@ fn collect_from_pou<'a>(pou: &'a Pou, out: &mut Vec<ForeignSite<'a>>) {
                     if let Some(dur) = &action.duration {
                         collect_from_expr(dur, Some(&action.id), out);
                     }
+                    if let Some(target) = &action.target {
+                        collect_from_lvalue(target, Some(&action.id), out);
+                    }
                     collect_from_stmts(&action.body, out);
                 }
             }
@@ -503,17 +506,23 @@ fn collect_from_pou<'a>(pou: &'a Pou, out: &mut Vec<ForeignSite<'a>>) {
 fn collect_from_ladder_cells<'a>(cells: &'a [LadderCell], out: &mut Vec<ForeignSite<'a>>) {
     for cell in cells {
         match &cell.kind {
-            LadderCellKind::Empty
-            | LadderCellKind::Wire
-            | LadderCellKind::Contact { .. }
-            | LadderCellKind::Coil { .. } => {}
+            LadderCellKind::Empty | LadderCellKind::Wire => {}
+            LadderCellKind::Contact { kind: _, target }
+            | LadderCellKind::Coil { kind: _, target } => {
+                collect_from_lvalue(target, Some(&cell.id), out);
+            }
             LadderCellKind::ParallelOr { branches } => {
                 for branch in branches {
                     collect_from_ladder_cells(branch, out);
                 }
             }
             LadderCellKind::Box(box_kind) => match box_kind {
-                LadderBoxKind::Fb { inputs, .. } => {
+                LadderBoxKind::Fb {
+                    kind: _,
+                    instance,
+                    inputs,
+                } => {
+                    collect_from_lvalue(instance, Some(&cell.id), out);
                     for (_, expr) in inputs {
                         collect_from_expr(expr, Some(&cell.id), out);
                     }
@@ -522,9 +531,16 @@ fn collect_from_ladder_cells<'a>(cells: &'a [LadderCell], out: &mut Vec<ForeignS
                     collect_from_expr(left, Some(&cell.id), out);
                     collect_from_expr(right, Some(&cell.id), out);
                 }
-                LadderBoxKind::Call { args, .. } => {
+                LadderBoxKind::Call {
+                    callee: _,
+                    args,
+                    output,
+                } => {
                     for (_, expr) in args {
                         collect_from_expr(expr, Some(&cell.id), out);
+                    }
+                    if let Some(out_lv) = output {
+                        collect_from_lvalue(out_lv, Some(&cell.id), out);
                     }
                 }
                 LadderBoxKind::Foreign {
@@ -551,7 +567,8 @@ fn collect_from_ladder_cells<'a>(cells: &'a [LadderCell], out: &mut Vec<ForeignS
 fn collect_from_stmts<'a>(stmts: &'a [Stmt], out: &mut Vec<ForeignSite<'a>>) {
     for stmt in stmts {
         match &stmt.kind {
-            StmtKind::Assign { target: _, value } => {
+            StmtKind::Assign { target, value } => {
+                collect_from_lvalue(target, Some(&stmt.id), out);
                 collect_from_expr(value, Some(&stmt.id), out);
             }
             StmtKind::Call { callee: _, args } => {
@@ -559,10 +576,8 @@ fn collect_from_stmts<'a>(stmts: &'a [Stmt], out: &mut Vec<ForeignSite<'a>>) {
                     collect_from_expr(&arg.value, Some(&stmt.id), out);
                 }
             }
-            StmtKind::FbInvoke {
-                instance: _,
-                inputs,
-            } => {
+            StmtKind::FbInvoke { instance, inputs } => {
+                collect_from_lvalue(instance, Some(&stmt.id), out);
                 for (_, expr) in inputs {
                     collect_from_expr(expr, Some(&stmt.id), out);
                 }
@@ -588,6 +603,17 @@ fn collect_from_stmts<'a>(stmts: &'a [Stmt], out: &mut Vec<ForeignSite<'a>>) {
             } => {
                 collect_from_expr(scrutinee, Some(&stmt.id), out);
                 for case in cases {
+                    for pattern in &case.patterns {
+                        match pattern {
+                            CasePattern::Value(expr) => {
+                                collect_from_expr(expr, Some(&stmt.id), out);
+                            }
+                            CasePattern::Range { start, end } => {
+                                collect_from_expr(start, Some(&stmt.id), out);
+                                collect_from_expr(end, Some(&stmt.id), out);
+                            }
+                        }
+                    }
                     collect_from_stmts(&case.body, out);
                 }
                 if let Some(def_body) = default {
@@ -636,6 +662,31 @@ fn collect_from_stmts<'a>(stmts: &'a [Stmt], out: &mut Vec<ForeignSite<'a>>) {
                     span: stmt.span,
                 });
             }
+        }
+    }
+}
+
+fn collect_from_lvalue<'a>(
+    lvalue: &'a LValue,
+    enclosing_node: Option<&'a NodeId>,
+    out: &mut Vec<ForeignSite<'a>>,
+) {
+    match lvalue {
+        LValue::Var { .. } => {}
+        LValue::Index {
+            base,
+            index,
+            span: _,
+        } => {
+            collect_from_lvalue(base, enclosing_node, out);
+            collect_from_expr(index, enclosing_node, out);
+        }
+        LValue::Field {
+            base,
+            field: _,
+            span: _,
+        } => {
+            collect_from_lvalue(base, enclosing_node, out);
         }
     }
 }
@@ -1308,5 +1359,159 @@ doc = "Modbus TCP client FB."
         assert_eq!(sites[0].level, ForeignLevel::Stmt);
         assert_eq!(sites[1].level, ForeignLevel::Expr);
         assert_eq!(sites[2].level, ForeignLevel::Decl);
+    }
+
+    #[test]
+    fn collects_expr_foreign_inside_lvalue_index_and_switch_case_patterns() {
+        let foreign_expr = |text: &str, start: u32| {
+            Expr::new(
+                ExprKind::Foreign {
+                    language: "cpp".to_owned(),
+                    text: text.to_owned(),
+                },
+                Span::new(start, start + 8),
+            )
+        };
+        let indexed_lvalue = |base: &str, text: &str, start: u32| LValue::Index {
+            base: Box::new(LValue::Var {
+                name: base.to_owned(),
+                span: Span::new(start, start + 3),
+            }),
+            index: Box::new(foreign_expr(text, start + 4)),
+            span: Span::new(start, start + 14),
+        };
+
+        let program = BoardProgram {
+            imports: vec![],
+            hardware: vec![],
+            types: vec![],
+            data: vec![],
+            modules: vec![],
+            pous: vec![
+                Pou {
+                    id: NodeId::new("n_main"),
+                    name: "OB_MAIN".to_owned(),
+                    kind: PouKind::Ob { ob: ObKind::Main },
+                    preferred_view: None,
+                    params: vec![],
+                    locals: vec![],
+                    body: PouBody::Statements(vec![
+                        Stmt::new(
+                            NodeId::new("n_assign"),
+                            StmtKind::Assign {
+                                target: indexed_lvalue("arr", "idx()", 0),
+                                value: Expr::new(
+                                    ExprKind::Literal(dendri_ast::Literal::Int(1)),
+                                    Span::new(15, 16),
+                                ),
+                            },
+                            Span::new(0, 17),
+                        ),
+                        Stmt::new(
+                            NodeId::new("n_switch"),
+                            StmtKind::Switch {
+                                scrutinee: Expr::new(
+                                    ExprKind::Ident("mode".to_owned()),
+                                    Span::new(20, 24),
+                                ),
+                                cases: vec![dendri_ast::SwitchCase {
+                                    patterns: vec![
+                                        CasePattern::Value(foreign_expr("MY_CONST", 30)),
+                                        CasePattern::Range {
+                                            start: foreign_expr("LO_CONST", 40),
+                                            end: foreign_expr("HI_CONST", 50),
+                                        },
+                                    ],
+                                    body: vec![],
+                                }],
+                                default: None,
+                            },
+                            Span::new(20, 65),
+                        ),
+                        Stmt::new(
+                            NodeId::new("n_fb"),
+                            StmtKind::FbInvoke {
+                                instance: indexed_lvalue("timers", "t_idx()", 70),
+                                inputs: vec![],
+                            },
+                            Span::new(70, 90),
+                        ),
+                    ]),
+                    span: Span::default(),
+                },
+                Pou {
+                    id: NodeId::new("n_lad_lv"),
+                    name: "LAD_LV".to_owned(),
+                    kind: PouKind::Fb,
+                    preferred_view: None,
+                    params: vec![],
+                    locals: vec![],
+                    body: PouBody::Network(dendri_ast::LadderNetwork {
+                        rungs: vec![dendri_ast::LadderRung {
+                            id: NodeId::new("n_r1"),
+                            order: 0,
+                            cells: vec![LadderCell {
+                                id: NodeId::new("n_contact"),
+                                row: 0,
+                                col: 0,
+                                kind: LadderCellKind::Contact {
+                                    kind: dendri_ast::LadderContactKind::NormallyOpen,
+                                    target: indexed_lvalue("inputs", "pin_idx()", 100),
+                                },
+                            }],
+                        }],
+                    }),
+                    span: Span::default(),
+                },
+                Pou {
+                    id: NodeId::new("n_sfc_lv"),
+                    name: "SFC_LV".to_owned(),
+                    kind: PouKind::Fb,
+                    preferred_view: None,
+                    params: vec![],
+                    locals: vec![],
+                    body: PouBody::Chart(dendri_ast::SfcChart {
+                        steps: vec![dendri_ast::SfcStep {
+                            id: NodeId::new("n_s0"),
+                            name: "S0".to_owned(),
+                            initial: true,
+                            actions: vec![dendri_ast::SfcAction {
+                                id: NodeId::new("n_a0"),
+                                qualifier: dendri_ast::ActionQualifier::N,
+                                duration: None,
+                                target: Some(indexed_lvalue("coils", "coil_idx()", 120)),
+                                body: vec![],
+                            }],
+                            macro_chart: None,
+                        }],
+                        transitions: vec![],
+                        evolve_to_stability: false,
+                    }),
+                    span: Span::default(),
+                },
+            ],
+        };
+
+        let sites = collect_foreign_sites(&program);
+        let texts: Vec<&str> = sites.iter().map(|s| s.text).collect();
+        assert_eq!(
+            texts,
+            vec![
+                "idx()",
+                "MY_CONST",
+                "LO_CONST",
+                "HI_CONST",
+                "t_idx()",
+                "pin_idx()",
+                "coil_idx()",
+            ]
+        );
+        let ctx = BoardContext::arduino_uno_r3("mcu_1");
+        let errs = check_program_foreign_export(&program, LanguageId::St, &ctx).unwrap_err();
+        assert_eq!(errs.len(), 7);
+        assert!(
+            errs.iter()
+                .all(|d| d.code == ErrorCode::ErrForeignExportBlocked && is_four_part_diagnostic(d))
+        );
     }
 }
