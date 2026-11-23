@@ -14,6 +14,7 @@ members = [
     "crates/dendri-circuit",
     "crates/dendri-bus",
     "crates/dendri-physics",
+    "crates/dendri-frontend-core",
     "crates/dendri-cli",
 ]
 exclude = [
