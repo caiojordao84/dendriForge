@@ -1,0 +1,18 @@
+[package]
+name = "dendri-span"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Byte spans, UTF-8-safe SourceMap, Diagnostics, and frozen ErrorCode contract for dendriForge v2"
+
+[lints]
+workspace = true
+
+[dependencies]
+serde = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }

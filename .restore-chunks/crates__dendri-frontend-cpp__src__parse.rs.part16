@@ -1,5 +1,0 @@
-ASL [`Program`] AST.
-pub fn parse_cpp(src: &str) -> Result<Program, CppParseError> {
-    let mut p = Parser::from_src(src)?;
-    p.parse_translation_unit()
-}

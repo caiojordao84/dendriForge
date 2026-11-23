@@ -2,59 +2,46 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, v2]
   pull_request:
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
-  test:
+  hygiene-and-tests:
+    name: Gates 1-3, 5 & 12 (Hygiene, Lints, Tests, Provenance, Ledger)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: "1.100.0"
-      - name: cargo test
+          components: rustfmt, clippy
+
+      - name: Gate 1 — Formatting check
+        run: cargo fmt --all -- --check
+
+      - name: Gate 1 & 2 — Clippy strict lints (-D warnings, zero panics/wildcards/hash-iter)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Gate 1 — Single usvg version guard
+        run: |
+          count=$(cargo tree --workspace --duplicates 2>/dev/null | grep -c '^usvg ' || true)
+          if [ "$count" -gt 0 ]; then
+            echo "ERROR: Multiple usvg versions detected in workspace dependency graph!"
+            cargo tree --workspace --duplicates
+            exit 1
+          fi
+
+      - name: Gate 3 — Unit & property tests
         run: cargo test --workspace
-      - name: golden round-trip (CLI)
+
+      - name: Gate 5 — Standards & provenance/license check
         run: |
-          cargo build -p dendri-cli
-          for f in content/fixtures/golden/*.toml content/fixtures/examples/*.toml content/fixtures/sim/*.toml; do
-            echo "== roundtrip $f"
-            cargo run -q -p dendri-cli -- roundtrip "$f"
-          done
-          cargo run -q -p dendri-cli -- roundtrip content/fixtures/projects/P01-uno-led-blink.toml
-      - name: sim trace snapshots
-        run: cargo test -p dendri-sim --test trace_snapshots
-      - name: profiles MVP load
-        run: cargo run -q -p dendri-cli -- profiles
-      - name: canvas SVG sim snapshots
-        run: |
-          cargo test -p dendri-canvas
-          cargo run -q -p dendri-cli -- roundtrip content/fixtures/canvas/C01-button-led-logic.toml
-          cargo run -q -p dendri-cli -- roundtrip content/fixtures/canvas/C01-button-led.toml
-          cargo run -q -p dendri-cli -- canvas-sim content/fixtures/canvas/C01-button-led.toml --sequence 0,1,0
-      - name: frontend round-trips (C++ / MicroPython / ST / Rust / Ladder / SFC)
-        run: |
-          for lang in cpp micropython st rust ladder sfc; do
-            echo "== frontend-roundtrip $lang S01"
-            cargo run -q -p dendri-cli -- frontend-roundtrip --lang "$lang" content/fixtures/sim/S01-blink-set-bool-wait.toml
-          done
-          for lang in cpp micropython st rust; do
-            echo "== frontend-roundtrip $lang S02"
-            cargo run -q -p dendri-cli -- frontend-roundtrip --lang "$lang" content/fixtures/sim/S02-ton-on-delay.toml
-            echo "== frontend-roundtrip $lang S03"
-            cargo run -q -p dendri-cli -- frontend-roundtrip --lang "$lang" content/fixtures/sim/S03-control-flow-get-bool.toml
-            echo "== frontend-roundtrip $lang S04"
-            cargo run -q -p dendri-cli -- frontend-roundtrip --lang "$lang" content/fixtures/sim/S04-pwm-adc-map.toml
-            echo "== frontend-roundtrip $lang S05"
-            cargo run -q -p dendri-cli -- frontend-roundtrip --lang "$lang" content/fixtures/sim/S05-uart-i2c-spi.toml
-            echo "== frontend-roundtrip $lang S06"
-            cargo run -q -p dendri-cli -- frontend-roundtrip --lang "$lang" content/fixtures/sim/S06-iec-tof-trig.toml
-            echo "== frontend-roundtrip $lang S07"
-            cargo run -q -p dendri-cli -- frontend-roundtrip --lang "$lang" content/fixtures/sim/S07-iec-counters.toml
-          done
-          cargo test -p dendri-frontends --test frontend_acceptance
-          cargo test -p dendri-frontends --test visual_acceptance
-          cargo run -q -p dendri-cli -- sync-visual content/fixtures/projects/P01-uno-led-blink.toml
-      - name: build visual editor (iced)
-        run: cargo build -p dendri-editor
+          cargo run -q -p dendri-cli -- standards-check
+          cargo run -q -p dendri-cli -- provenance-check
+
+      - name: Gate 12 — Stub & deferral ledger check
+        run: cargo run -q -p dendri-cli -- ledger-check

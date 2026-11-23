@@ -1,0 +1,6 @@
+# Active development milestone for dendriForge v2.
+# Enforced against docs/deferrals.toml by `dendri ledger-check` (CI Gate 12).
+# Closed ordered enum:
+#   phase-0 < phase-1 < phase-2 < phase-3 < phase-4 < phase-5 < phase-6 < phase-6b
+#           < wave-1-exit < phase-7 < phase-8 < wave-2-gate < phase-9 < wave-3-exit < post-wave-3
+current = "phase-0"

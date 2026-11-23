@@ -1,0 +1,43 @@
+name: Weekly Mutation & Fuzz Verification
+
+on:
+  schedule:
+    # Every Sunday at 03:00 UTC
+    - cron: "0 3 * * 0"
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  mutation-tests:
+    name: Gate 11 — Weekly cargo-mutants (zero surviving mutants in tested code)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.100.0"
+
+      - name: Install cargo-mutants
+        run: cargo install --locked cargo-mutants
+
+      - name: Run mutation suite on core crates
+        run: cargo mutants --workspace --no-shuffle --timeout 120
+
+  fuzz-smoke:
+    name: Gate 11 — Weekly cargo-fuzz smoke run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@nightly
+
+      - name: Install cargo-fuzz
+        run: cargo install --locked cargo-fuzz
+
+      - name: Smoke fuzz ledger TOML parser
+        run: |
+          cd fuzz
+          cargo fuzz run ledger_toml -- -max_total_time=30

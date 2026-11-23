@@ -1,0 +1,102 @@
+# dendriForge v2 — Validated Engineering Standards Registry
+# Loaded and verified by `dendri-stdlib` and enforced on all assets by `dendri asset-check`.
+
+schema_version = "2.0"
+
+[[standards]]
+id           = "IEC 61131-3"
+title        = "Programmable controllers — Part 3: Programming languages"
+organization = "IEC"
+tier         = "core"
+scope        = "ASL type system, Organization Blocks/POUs, Structured Text, Ladder Diagram, SFC, standard FBs"
+
+[[standards]]
+id           = "IEC 61131-2"
+title        = "Programmable controllers — Part 2: Equipment requirements and tests"
+organization = "IEC"
+tier         = "core"
+scope        = "PLC electrical I/O thresholds, nominal voltages, analog channel bands"
+
+[[standards]]
+id           = "IEC 60848"
+title        = "GRAFCET specification language for sequential function charts"
+organization = "IEC"
+tier         = "core"
+scope        = "SFC/GRAFCET structural IR, Rule 5 two-phase evolution, OR priority, macro-steps"
+
+[[standards]]
+id           = "IEC 60617"
+title        = "Graphical symbols for diagrams"
+organization = "IEC"
+tier         = "reference"
+scope        = "Symbol identity reference only (symbol_ref) for original IEC 60617-style schematic drawings"
+
+[[standards]]
+id           = "IEC 61082"
+title        = "Preparation of documents used in electrotechnology"
+organization = "IEC"
+tier         = "reference"
+scope        = "Electrotechnical schematic layout and document-preparation conventions"
+
+[[standards]]
+id           = "IEC 81346"
+title        = "Industrial systems, installations and equipment — Structuring principles and reference designations"
+organization = "IEC"
+tier         = "reference"
+scope        = "Schematic reference designations (-S1, -H1, -R1, -K1; DEF-009)"
+
+[[standards]]
+id           = "IEC 60947-5-1"
+title        = "Low-voltage switchgear and controlgear — Control circuit devices and switching elements"
+organization = "IEC"
+tier         = "component"
+scope        = "Industrial pushbuttons (NO/NC), selector switches, limit switches, indicator lamps"
+
+[[standards]]
+id           = "IEC 60947-5-2"
+title        = "Low-voltage switchgear and controlgear — Proximity switches"
+organization = "IEC"
+tier         = "component"
+scope        = "Industrial inductive, capacitive, and photoelectric proximity sensors"
+
+[[standards]]
+id           = "IEC 60810"
+title        = "Lamps, light sources and LED packages for road vehicles and indicator applications"
+organization = "IEC"
+tier         = "component"
+scope        = "Indicator LED electrical and luminous parameters"
+
+[[standards]]
+id           = "IEC 60062"
+title        = "Marking codes for resistors and capacitors"
+organization = "IEC"
+tier         = "component"
+scope        = "Passive resistor and capacitor value markings and tolerances"
+
+[[standards]]
+id           = "IEC 60751"
+title        = "Industrial platinum resistance thermometers and platinum temperature sensors"
+organization = "IEC"
+tier         = "component"
+scope        = "RTD/PT100 industrial temperature transmitter curves"
+
+[[standards]]
+id           = "ISO 1219-1"
+title        = "Fluid power systems and components — Graphical symbols and circuit diagrams — Part 1"
+organization = "ISO"
+tier         = "component"
+scope        = "Pneumatic and hydraulic symbol style and port numbering (1/2/3/4/5, P/T/A/B)"
+
+[[standards]]
+id           = "IEEE 754"
+title        = "IEEE Standard for Floating-Point Arithmetic"
+organization = "IEEE"
+tier         = "core"
+scope        = "REAL (f32) and LREAL (f64) deterministic semantics without implicit FMA"
+
+[[standards]]
+id           = "Modbus TCP"
+title        = "Modbus Messaging on TCP/IP Implementation Guide"
+organization = "Modbus Organization"
+tier         = "protocol"
+scope        = "Virtual Ethernet / Modbus TCP client and server Function Blocks (FC1-6, FC15, FC16)"

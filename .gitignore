@@ -1,6 +1,11 @@
 /target/
+/build/
+/fuzz/target/
+/fuzz/corpus/
+/fuzz/artifacts/
+/mutants.out/
+/mutants.out.old/
 **/*.rs.bk
 .DS_Store
 *.swp
 *.swo
-build/

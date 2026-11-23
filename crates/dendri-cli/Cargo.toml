@@ -2,23 +2,25 @@
 name = "dendri-cli"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
-description = "dendri CLI — validate, roundtrip, sim, frontends"
-default-run = "dendri"
+authors.workspace = true
+repository.workspace = true
+description = "Command-line verification, governance, and simulation driver (`dendri`) for dendriForge v2"
 
 [[bin]]
 name = "dendri"
 path = "src/main.rs"
 
+[lints]
+workspace = true
+
 [dependencies]
 clap = { workspace = true }
-dendri-ast = { workspace = true }
-dendri-backend-st = { workspace = true }
-dendri-emit = { workspace = true }
-dendri-frontends = { workspace = true }
-dendri-parse = { workspace = true }
-dendri-canvas = { workspace = true }
-dendri-profiles = { workspace = true }
-dendri-sim = { workspace = true }
-dendri-sync = { workspace = true }
-dendri-validate = { workspace = true }
+dendri-stdlib = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+toml = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

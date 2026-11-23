@@ -2,9 +2,16 @@
 name = "dendri-stdlib"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
-description = "IEC 61131-3 stdlib catalog + aliases for ASL"
+authors.workspace = true
+repository.workspace = true
+description = "Domain-split ASL v2 standard library catalog (std.iec.* vs platform modules) and live validated standards.toml registry"
+
+[lints]
+workspace = true
 
 [dependencies]
 serde = { workspace = true }
+thiserror = { workspace = true }
 toml = { workspace = true }

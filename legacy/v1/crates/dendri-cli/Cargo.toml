@@ -1,0 +1,24 @@
+[package]
+name = "dendri-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "dendri CLI — validate, roundtrip, sim, frontends"
+default-run = "dendri"
+
+[[bin]]
+name = "dendri"
+path = "src/main.rs"
+
+[dependencies]
+clap = { workspace = true }
+dendri-ast = { workspace = true }
+dendri-backend-st = { workspace = true }
+dendri-emit = { workspace = true }
+dendri-frontends = { workspace = true }
+dendri-parse = { workspace = true }
+dendri-canvas = { workspace = true }
+dendri-profiles = { workspace = true }
+dendri-sim = { workspace = true }
+dendri-sync = { workspace = true }
+dendri-validate = { workspace = true }

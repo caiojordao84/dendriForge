@@ -1,0 +1,7 @@
+# dendriForge v2 — Clippy test carve-outs (CI Gate 2)
+# Production code forbids unwrap/expect/indexing/panic via [workspace.lints.clippy].
+# Verified on rustc 1.100.0 (clippy 0.1.100).
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-indexing-slicing-in-tests = true
+allow-panic-in-tests = true

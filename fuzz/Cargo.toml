@@ -1,0 +1,19 @@
+[package]
+name = "dendri-fuzz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+dendri-cli = { path = "../crates/dendri-cli" }
+
+[[bin]]
+name = "ledger_toml"
+path = "fuzz_targets/ledger_toml.rs"
+test = false
+doc = false
+bench = false

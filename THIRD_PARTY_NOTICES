@@ -1,0 +1,16 @@
+# Third-Party Notices — dendriForge v2
+
+This file records every third-party-derived asset, library, or artwork whose
+`[provenance]` metadata declares `source = "third-party"`.
+
+Original drawings (including original IEC 60617-style schematic SVGs) declare
+`source = "original"` and do not require an entry here.
+
+Enforcement: `dendri provenance-check` (and `dendri asset-check` from Phase 4)
+fails CI if any asset declares `source = "third-party"` without a matching entry
+in this file. Assets whose license restricts machine-learning use MUST set
+`ml_restricted = true` in `[provenance]` and are excluded from all AI/ML corpora.
+
+---
+
+*(No third-party-derived assets are currently registered in `assets/`.)*

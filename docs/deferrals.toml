@@ -1,0 +1,105 @@
+# dendriForge v2 — Normative Deferral Ledger (Principle P1, CI Gate 12)
+# Every deliberate deferral MUST appear here with an owner milestone, deadline milestone,
+# clear engineering reason, and valid references. Enforced by `dendri ledger-check`.
+
+schema_version = "2.0"
+
+[[deferral]]
+id                 = "DEF-001"
+title              = "PWM transfer functions per timer mode (Arduino Uno R3 first)"
+owner_milestone    = "phase-3"
+deadline_milestone = "phase-3"
+reason             = "Requires hardware datasheet and Arduino core source verification (e.g., AVR Fast PWM (OCR+1)/256 with 0/255 special cases)"
+refs               = [
+    "docs/architecture/01-asl-ir-and-project-schema.md#35-types-intrinsics--two-layer-separation",
+    "docs/architecture/02-simulation-and-electrical-engine.md#33-mcu--plc-pin-boundary-coupling--solver--asl-numeric-boundary",
+    "docs/architecture/03-asset-and-profile-contract.md#62-board-profile-profiletoml",
+]
+
+[[deferral]]
+id                 = "DEF-002"
+title              = "Channel band tables and bipolar truncation behavior (S7 AI and SM modules) from official manuals"
+owner_milestone    = "phase-4"
+deadline_milestone = "phase-4"
+reason             = "Secondary sources disagree on S7 underrange/overrange limits; every band limit and special fault code must cite the official Siemens module manual"
+refs               = [
+    "docs/architecture/01-asl-ir-and-project-schema.md#34-channel-ranges-band-layer--status",
+    "docs/architecture/03-asset-and-profile-contract.md#62-board-profile-profiletoml",
+]
+
+[[deferral]]
+id                 = "DEF-003"
+title              = "Toolchain selection for Phase 6b differential gate (AVR oracle simavr; matiec vs RuSTy; arduino-cli)"
+owner_milestone    = "phase-5"
+deadline_milestone = "phase-5"
+reason             = "Open evaluation decision (D7): benchmark CI image size, LLVM build overhead, and IEC ST dialect coverage before Phase 6b"
+refs               = [
+    "docs/architecture/00-overview-and-adrs.md#adr-004-early-real-toolchain-differential-verification-phase-6b",
+    "docs/architecture/05-ide-and-roadmap.md#4-twelve-gate-ci-verification-suite",
+]
+
+[[deferral]]
+id                 = "DEF-004"
+title              = "asl-oop capability design (IEC 61131-3 3rd-edition FB methods and interfaces)"
+owner_milestone    = "wave-2-gate"
+deadline_milestone = "wave-2-gate"
+reason             = "Prerequisite for MicroPython (Wave 2) and full C++ class-with-methods lifting; must close at wave-2-gate strictly prior to phase-9"
+refs               = [
+    "docs/architecture/01-asl-ir-and-project-schema.md#61-module-model-domain-split-stdlib--versioned-capabilities",
+    "docs/architecture/04-frontends-visual-and-sync.md#32-wave-1-module--domain-split-stdlib-mapping",
+    "docs/architecture/05-ide-and-roadmap.md#52-the-deferral-ledger-docsdeferralstoml--docsmilestonetoml",
+]
+
+[[deferral]]
+id                 = "DEF-005"
+title              = "asl-motion capability and task-based ExecutionKind (robotic languages horizon)"
+owner_milestone    = "post-wave-3"
+deadline_milestone = "post-wave-3"
+reason             = "Robotic languages are non-normative in Waves 1-3; reserved via non-exhaustive ExecutionKind and versioned requires capabilities"
+refs               = [
+    "docs/architecture/00-overview-and-adrs.md#adr-003-staged-rosetta-stone-language-rollout--robotics-horizon",
+    "docs/architecture/04-frontends-visual-and-sync.md#appendix-a--non-normative-horizon-notes",
+]
+
+[[deferral]]
+id                 = "DEF-006"
+title              = "Comment-style dialect table per IEC ST target"
+owner_milestone    = "phase-6"
+deadline_milestone = "phase-6"
+reason             = "Defines supported line/block/nested comment syntax per target ST dialect for LanguageCapabilities.comment_styles"
+refs               = [
+    "docs/architecture/01-asl-ir-and-project-schema.md#7-comments--first-class-verbatim-data-adr-027",
+    "docs/architecture/04-frontends-visual-and-sync.md#2-language-binding-contract-lbc",
+]
+
+[[deferral]]
+id                 = "DEF-007"
+title              = "Display charset tables (HD44780 LCD ROM variants)"
+owner_milestone    = "phase-5"
+deadline_milestone = "phase-5"
+reason             = "Authoritative glyph tables for display components that enforce display-sink ERR_STRING_CHARSET"
+refs               = [
+    "docs/architecture/01-asl-ir-and-project-schema.md#7-comments--first-class-verbatim-data-adr-027",
+    "docs/architecture/03-asset-and-profile-contract.md#61-component-profile-profiletoml",
+]
+
+[[deferral]]
+id                 = "DEF-008"
+title              = "Initial pack.toml set derived from Phase 6 scenario list"
+owner_milestone    = "phase-6"
+deadline_milestone = "phase-6"
+reason             = "Concrete F1/F2 packs are derived once the Wave 1 golden scenario set is authored"
+refs               = [
+    "docs/architecture/04-frontends-visual-and-sync.md#33-three-level-foreign-nodes-packs--cross-language-export",
+    "docs/architecture/05-ide-and-roadmap.md#6-multi-phase-master-implementation-roadmap-adr-024",
+]
+
+[[deferral]]
+id                 = "DEF-009"
+title              = "Reference-designation scheme for schematic labels (IEC 81346 / IEC 61082)"
+owner_milestone    = "phase-4"
+deadline_milestone = "phase-4"
+reason             = "Standardizes component reference designators (-S1, -H1, -R1, -K1) applied across original IEC 60617-style schematic SVGs"
+refs               = [
+    "docs/architecture/03-asset-and-profile-contract.md#32-symbology--copyright-policy-iec-60617-style--iec-61082",
+]

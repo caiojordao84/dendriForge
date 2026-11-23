@@ -1,38 +1,63 @@
-> **Status (2026-11):** Phase 0 **landed**; Phase 1 **core + text frontends (DEN-7) + Ladder/SFC sync (DEN-8)** — ASL = **Abstract Syntax Language**, structured in **TOML** (`.toml` programs; `.toml` single-file projects). ASL language tag **`0.0.1`** via `metadata.asl_version` / `dendri_ast::ASL_VERSION` (do not treat `0.1.0` / `0.1.1` / `v010` as current). MVP target: functional sim of MCU + PLC + peripherals on a single-file TOML project. Pure Rust stack — workspace: `dendri-parse` / `validate` / `emit` / `sim` / P1 frontends (C++ · MicroPython · ST · Ladder · SFC) + `dendri-sync` / iced `dendri-editor` + CLI `dendri`. Live contract: [`docs/phase-0/`](docs/phase-0/); Phase 1 notes: [`docs/phase-1/`](docs/phase-1/) ([frontends](docs/phase-1/frontends.md), [ladder-sfc](docs/phase-1/ladder-sfc.md)). Types: `crates/dendri-ast`. Fixtures: `content/fixtures/`. Legacy TOON under `core/` is **historical / read-only** — see [`legacy/toon/README.md`](legacy/toon/README.md).
+# dendriForge v2
+
+**A deterministic, 100% pure-Rust embedded & industrial automation simulation platform unifying MCUs, PLCs, textual languages, visual IEC editors, and SPICE-class electrical co-simulation under ASL (Abstract Syntax Language).**
+
+`dendriForge` is built around **ASL** in a dual role:
+1. **Foundation Stone:** Single strictly-typed executable intermediate representation (IR) driving the deterministic multi-board VM, static validator, and single-file `.toml` project format.
+2. **Rosetta Stone:** Lossless bidirectional bridge across embedded and industrial paradigms — Wave 1 pairs **C++ (Arduino subset)**, **IEC 61131-3 Structured Text (ST)**, **Ladder Diagram (LD)**, and **GRAFCET / SFC**, followed by **MicroPython** (Wave 2) and **Rust** (Wave 3).
 
 ---
 
-A plataforma consiste em um ecossistema integrado de desenvolvimento e simulação industrial, composto pelos seguintes módulos fundamentais:
+## Normative Architecture Specifications (`docs/architecture/`)
 
-* Core Parser onde transpila quaisquer linguagens previamente programadas para ASL (Abstract Syntax Language) estruturada em **TOML** com regras e bindings para mapear universalmente o comportamento do hardware.
-* Módulo de Simulação Baseado em Hardware Virtual: Ambiente de simulação de código com animação interativa em tempo real — inspirado nos conceitos de plataformas como Wokwi e Tinkercad —, expandido para suportar o comportamento dinâmico de microcontroladores e Controladores Lógicos Programáveis (PLCs).
-* Motor de Transpilação e Conformidade Normativa: Sistema de tradução de código que converte e adequa os algoritmos dos utilizadores aos padrões internacionais de automação (norma IEC 61131-3), utilizando a linguagem ASL (Abstract Syntax Language) como camada intermediária de abstração.
-* Modelagem Algorítmica via GRAFCET / SFC: Interface visual intuitiva baseada na metodologia GRAFCET para a concepção de lógicas sequenciais complexas, atuando como uma ferramenta de engenharia de software integrada à arquitetura ASL, com sincronização bidirecional em tempo real com o mesmo TOML do projeto.
-* Editor Visual de Diagramas de Contactos (Ladder): Ambiente gráfico interativo para a modelação de lógicas de controlo baseadas na norma IEC 61131-3 (Linguagem Ladder). O módulo permite o desenvolvimento visual através do arrasto e conexão de contactos, bobinas, blocos funcionais (temporizadores, contadores) e instruções avançadas, convertendo a representação gráfica diretamente na arquitetura ASL (TOML) para posterior simulação e execução, com sync bidirecional diagrama ↔ TOML.
-* Editor Unificado de Interfaces (HMI, SCADA e IoT): Ferramenta de prototipagem aberta e convergente baseada em arquiteturas orientadas a dados (Data-Driven), projetada para conceber tanto painéis de monitorização para a Internet das Coisas (IoT) quanto ecrãs de automação industrial tradicional (HMI/SCADA). O módulo permite instanciar elementos gráficos vetoriais (SVG) dinâmicos e vinculá-los diretamente a fluxos de dados em tempo real, suportando nativamente protocolos industriais e de telemetria em nuvem.
+All design decisions, formal schemas, contracts, and phased gates live in six authoritative specifications (RFC 2119 baseline, Rev 2):
 
-  
+| Document | Scope |
+|---|---|
+| [`00-overview-and-adrs.md`](docs/architecture/00-overview-and-adrs.md) | Product vision, Guiding Principles (`P1–P6`), 7 Engineering Invariants, ADR-001..ADR-030 |
+| [`01-asl-ir-and-project-schema.md`](docs/architecture/01-asl-ir-and-project-schema.md) | ASL v2 type system, `M = 10⁹` numeric contract, OBs/POUs (`Network`/`Chart`), modules/packs/`Foreign`, verbatim comments, Pratt expressions & 45 frozen diagnostic codes |
+| [`02-simulation-and-electrical-engine.md`](docs/architecture/02-simulation-and-electrical-engine.md) | Cycle-based microsecond kernel, SPICE-class event + transient MNA solver, physical-topology bus fabric & pluggable physics |
+| [`03-asset-and-profile-contract.md`](docs/architecture/03-asset-and-profile-contract.md) | 48×48 px grid, 8 px semantic `<g id="df-pins">`, original IEC 60617-style dual-view SVGs, provenance, sanitization & `dendri asset-check` |
+| [`04-frontends-visual-and-sync.md`](docs/architecture/04-frontends-visual-and-sync.md) | Pure-Rust frontend core (zero C FFI), Language Binding Contract (LBC), structural Ladder/GRAFCET, `dendri-sync` & non-normative Horizon Appendix |
+| [`05-ide-and-roadmap.md`](docs/architecture/05-ide-and-roadmap.md) | `egui`/`eframe` desktop IDE, 12-Gate CI suite, DoD templates, Deferral Ledger (`docs/deferrals.toml`) & Phases 0–9 (including Phase 6b) |
 
-Descrição Técnica da Plataforma de Desenvolvimento e Simulação Unificada  
-A presente plataforma propõe um ecossistema integrado para o desenvolvimento, simulação e interfaceamento de sistemas embarcados e de automação industrial. O núcleo do sistema é estritamente focado em simulação lógica e comportamental em tempo real, não necessitando de emulação de hardware de baixo nível (como arquiteturas AVR8 ou instâncias QEMU) . Esta abordagem elimina o overhead computacional e permite que o ambiente opere de forma leve e performática diretamente no sistema do utilizador .  
-A engenharia do sistema baseia-se em uma arquitetura agnóstica em relação à linguagem de programação (language agnostic) . Todo código fonte submetido — seja para microcontroladores ou controladores lógicos programáveis (CLPs) — é processado através de compiladores dedicados que geram uma Árvore de Sintaxe Abstrata (AST) . Esta árvore é convertida para uma linguagem mestre unificada denominada ASL (Abstract Syntax Language), que atua como uma camada de tradução universal . A ASL é inteiramente estruturada em **TOML** (ficheiros de programa `.toml`; perfis em `.toml`) .  
-O **MVP** cobre a simulação funcional de MCU + PLC + periféricos num **projeto TOML de ficheiro único** (hardware, ligações, scripts originais e representação ASL). Linguagens P1: C++, MicroPython, Structured Text (ST), Ladder e SFC/GRAFCET. Suporte a Rust como linguagem de scripting é **P2** (após o MVP). A stack da aplicação é **Rust puro**.  
-Essa padronização garante total interoperabilidade no ecossistema: um algoritmo concebido originalmente para uma arquitetura de microcontrolador pode orquestrar a lógica de um CLP, assim como um diagrama de contactos (Ladder) pode controlar um microcontrolador, eliminando a necessidade de reescrita manual de código . Adicionalmente, a plataforma mantém a compatibilidade nativa, assegurando que os scripts gerados possam ser compilados e descarregados diretamente no hardware físico original das placas e controladores suportados .  
-1\. Ambiente de Simulação Gráfica e Comportamental  
-A simulação visual ocorre em um canvas interativo onde todos os elementos são representados por gráficos vetoriais nativos (SVG) . A correlação entre os componentes, microcontroladores e CLPs é padronizada através de identificadores ASL no documento TOML . Os componentes são divididos em duas categorias estruturais:
-
-* Componentes Estáticos: Dispositivos sem animação mecânica ou de transição, encapsulados em um arquivo SVG único .  
-* Componentes Dinâmicos: Dispositivos que possuem animações de movimento ou mudança de estado, compostos por um ou mais arquivos interligados e sincronizados por elementos que compartilham o mesmo identificador ASL .
-
-As ligações elétricas e de sinal entre os pinos das placas e componentes são realizadas por fios virtuais baseados em algoritmos otimizados de roteamento ortogonal automático (ângulos estritos de 90º) . A fidelidade física e o comportamento dinâmico de toda a simulação são governados por equações matemáticas pré-estabelecidas e validadas academicamente, garantindo precisão científica aos resultados apresentados .  
-2\. Motor de Transpilação e Assistente de IA Inteligente (BYOK)  
-O motor de transpilação executa o processamento sintático utilizando parsers semânticos estruturados para mapear e traduzir de forma determinística as linguagens de programação mais difundidas no mercado tecnológico e industrial: C++, MicroPython, Structured Text (ST), Ladder e SFC/GRAFCET (P1); Rust com suporte a Embassy e HAL permanece como prioridade P2 pós-MVP .  
-Visando a extensibilidade, o ecossistema disponibiliza o módulo BYOK (Bring Your Own Key) . Esta funcionalidade permite que o utilizador integre sua própria chave de API de Inteligência Artificial ao aplicativo . A IA configurada atuará de forma consultiva e assistencial como um copiloto de engenharia, auxiliando na geração automatizada de trechos de código, refatoração e depuração (debugging), operando sob demanda em estrita conformidade com as diretrizes e regras textuais definidas em um markdown de treinamento customizado .  
-3\. Modelagem de Processos via GRAFCET  
-O módulo GRAFCET oferece um ambiente de programação visual baseado na norma IEC 61131-3 / IEC 60848 . A interface gráfica utiliza uma camada de modelagem intuitiva — inspirada em ferramentas de diagramação como o Draw.io —, estabelecendo uma ponte de comunicação direta que converte a representação gráfica do fluxo sequencial em objetos estruturados nativos do documento ASL em TOML, com sincronização bidirecional em tempo real diagrama ↔ TOML . Para a correta validação da lógica do GRAFCET, o utilizador deve obrigatoriamente realizar o preenchimento prévio de uma tabela de mapeamento de variáveis de entrada e saída (I/O) .  
-4\. Editor de Lógicas e Circuitos Ladder  
-O editor Ladder provê um ambiente gráfico para a modelação de diagramas de contactos também alinhados à norma IEC 61131-3 . Sua infraestrutura de dados baseia-se em uma matriz/grelha organizada em linhas e colunas . Cada linha (rung) é tratada como um objeto independente dentro de uma matriz (array), o que otimiza a reatividade da interface e viabiliza o cálculo instantâneo da continuidade elétrica virtual durante a simulação ativa .  
-O motor de execução do Ladder realiza a transpilação direta para o formato mestre ASL (TOML) através de mapeamento heurístico linear, com sync bidirecional em tempo real . Assim como no módulo GRAFCET, a declaração prévia das variáveis de I/O na tabela de atribuições é um pré-requisito mandatório para o funcionamento da lógica de automação .  
-5\. Desenvolvimento de Interfaces de Operação (HMI, SCADA e IoT)  
-O ambiente de criação de telas consolida o conceito de convergência tecnológica . A partir da mesma camada de base provida pela arquitetura ASL, o utilizador pode gerar, em poucos instantes, painéis de controle unificados para aplicações de Internet das Coisas (IoT) ou ecrãs de automação fabril tradicional (HMI/SCADA) . O sistema disponibiliza uma biblioteca nativa de elementos industriais e de telemetria prontos para uso, além de permitir o upload de novos arquivos SVG customizados . O utilizador pode vincular propriedades dinâmicas e animações a estes novos arquivos gráficos diretamente pela interface do aplicativo, associando-os aos fluxos de dados em tempo real da simulação ou dos dispositivos físicos .  
 ---
+
+## Workspace Architecture (Current Phase: Phase 0)
+
+The active milestone is tracked in [`docs/milestone.toml`](docs/milestone.toml) and all deliberate deferrals live in [`docs/deferrals.toml`](docs/deferrals.toml). Legacy v1 files are quarantined in `legacy/v1/` strictly as historical datasheet references.
+
+### Layer 0 — Foundations (Active in Phase 0)
+- `crates/dendri-span` — UTF-8-safe byte spans (`Span`), `SourceMap`, rich `Diagnostic` formatting, and the frozen 45-variant `ErrorCode` enum.
+- `crates/dendri-theme` — Pure-Rust **A11Y Slate** palette, 12 semantic `df-pin-*` classes, and automated WCAG 2.1 contrast verification (`AAA >= 7:1` on primary text, syntax tokens, primary buttons, and pin tokens).
+- `crates/dendri-stdlib` — Domain-split standard library (`std.iec.*` vs `std.arduino.*` / `std.siemens.*`) and live validated `assets/standards.toml` registry.
+
+### Layer 4 — CLI Governance & Verification
+- `crates/dendri-cli` (`dendri`) — Automated verification commands:
+  - `dendri ledger-check` — Enforces `docs/deferrals.toml` against `docs/milestone.toml` and forbids unreferenced `TODO`/`FIXME`/`XXX`, `todo!()`, `unimplemented!()`, or `#[ignore]` in workspace crates.
+  - `dendri provenance-check` — Enforces strict `[provenance]` metadata, `THIRD_PARTY_NOTICES` parity, and `ml_restricted` exclusion rules.
+  - `dendri standards-check` — Loads and validates `assets/standards.toml`.
+
+---
+
+## Development & Verification Commands
+
+Toolchain is pinned in [`rust-toolchain.toml`](rust-toolchain.toml) (`rustc 1.100.0` with `rustfmt` and `clippy`).
+
+```bash
+# Formatting & strict workspace lints (zero warnings, zero production panics/unwraps)
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets -- -D warnings
+
+# Unit & property tests (includes WCAG contrast tests, ErrorCode bijection, stdlib isolation)
+cargo test --workspace
+
+# Governance & policy gates
+cargo run -q -p dendri-cli -- ledger-check
+cargo run -q -p dendri-cli -- provenance-check
+cargo run -q -p dendri-cli -- standards-check
+```
+
+### Fuzzing & Mutation Testing Scaffolding
+- Fuzzing targets live in [`fuzz/`](fuzz/README.md) (built with `cargo fuzz` on nightly).
+- Weekly mutation testing (`cargo mutants`) and fuzz smoke checks are configured in [`.github/workflows/weekly.yml`](.github/workflows/weekly.yml).
