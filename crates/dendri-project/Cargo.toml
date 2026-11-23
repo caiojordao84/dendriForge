@@ -1,0 +1,23 @@
+[package]
+name = "dendri-project"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Strict single-file multi-board .toml project loader, canonical serializer, and atomic I/O for dendriForge v2"
+
+[lints]
+workspace = true
+
+[dependencies]
+dendri-ast = { workspace = true }
+dendri-expr = { workspace = true }
+dendri-span = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+toml = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

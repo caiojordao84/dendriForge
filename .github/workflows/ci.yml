@@ -10,7 +10,7 @@ env:
 
 jobs:
   hygiene-and-tests:
-    name: Gates 1-3, 5 & 12 (Hygiene, Lints, Tests, Provenance, Ledger)
+    name: Gates 1-5, 7-8 & 12 (Hygiene, Lints, Tests, Negative Corpus, Numerics, Comments, Ledger)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,8 +35,11 @@ jobs:
             exit 1
           fi
 
-      - name: Gate 3 — Unit & property tests
+      - name: Gate 3 & 4 — Unit, property tests & 45-code real negative corpus
         run: cargo test --workspace
+
+      - name: Gate 7 — Exhaustive release-mode numeric gate (T-NUM-1..5 incl. 2^24)
+        run: cargo test --release -p dendri-ast numeric::tests
 
       - name: Gate 5 — Standards & provenance/license check
         run: |

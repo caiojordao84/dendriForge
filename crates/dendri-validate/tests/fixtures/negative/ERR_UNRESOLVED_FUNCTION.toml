@@ -1,0 +1,26 @@
+[project]
+schema_version = "2.0"
+asl_version = "0.1.0"
+requires = ["asl-core@1"]
+name = "Fixture"
+
+[[boards]]
+id = "plc"
+profile = "siemens-s7-1200-cpu-1214c"
+authoring_language = "st"
+execution = "plc_scan"
+
+[boards.program]
+imports = ["std.iec.*"]
+
+[[boards.program.pous]]
+id = "n_p1"
+name = "Main"
+kind = { pou_kind = "ob", ob = { type = "main" } }
+body_kind = "statements"
+
+[[boards.program.pous.body]]
+kind = "call"
+id = "n_s1"
+callee = "DIGITAL_WRITE"
+args = [{ value = "1" }, { value = "true" }]

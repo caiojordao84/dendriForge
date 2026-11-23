@@ -1,8 +1,11 @@
-//! `dendri` command-line tool (Phase 0 governance & verification gates).
+//! `dendri` command-line tool (governance, project validation, and verification gates).
 
 use clap::{Parser, Subcommand};
 use dendri_cli::{ledger, provenance, resolve_assets_dir, resolve_workspace_root};
+use dendri_project::load_project_path;
+use dendri_span::{Severity, SourceMap};
 use dendri_stdlib::StandardsRegistry;
+use dendri_validate::{MemoryProfileCatalog, ValidateOptions, validate_project};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -36,6 +39,17 @@ enum Commands {
     /// Validate assets/standards.toml via dendri-stdlib (CI Gate 5).
     #[command(name = "standards-check")]
     Standards,
+    /// Parse and statically validate a v2 single-file `.toml` project (`dendri-project` + `dendri-validate`).
+    Validate {
+        /// Path to the `.toml` project file.
+        file: PathBuf,
+        /// Print summary of boards, comments, and active assumptions (blocks release mode if assumptions exist).
+        #[arg(long)]
+        report: bool,
+        /// Permit cross-language export of Foreign constructs.
+        #[arg(long)]
+        allow_foreign: bool,
+    },
 }
 
 fn main() -> ExitCode {
@@ -105,6 +119,57 @@ fn main() -> ExitCode {
                     eprintln!("standards-check ERROR: {err}");
                     ExitCode::FAILURE
                 }
+            }
+        }
+        Commands::Validate {
+            file,
+            report,
+            allow_foreign,
+        } => {
+            let mut sources = SourceMap::new();
+            let (fid, proj) = match load_project_path(&file, &mut sources) {
+                Ok(res) => res,
+                Err(err) => {
+                    if let Some(diag) = err.as_diagnostic() {
+                        eprintln!("{}", diag.render(Some(&sources)));
+                    } else {
+                        eprintln!("validate ERROR: {err}");
+                    }
+                    return ExitCode::FAILURE;
+                }
+            };
+            let catalog = MemoryProfileCatalog::builtin_reference();
+            let opts = ValidateOptions {
+                file_id: Some(fid),
+                allow_foreign_export: allow_foreign,
+                ..ValidateOptions::default()
+            };
+            let bag = validate_project(&proj, &catalog, &opts);
+            for diag in bag.all() {
+                eprintln!("{}", diag.render(Some(&sources)));
+            }
+            if report {
+                let total_comments: usize = proj.comments.len()
+                    + proj.boards.iter().map(|b| b.comments.len()).sum::<usize>();
+                let total_assumptions: usize =
+                    proj.boards.iter().map(|b| b.assumptions.len()).sum();
+                println!(
+                    "validate report | project={} | boards={} | components={} | wires={} | comments={} | assumptions={} | errors={} | warnings={}",
+                    proj.meta.name,
+                    proj.boards.len(),
+                    proj.components.len(),
+                    proj.wires.len(),
+                    total_comments,
+                    total_assumptions,
+                    bag.count_by_severity(Severity::Error),
+                    bag.count_by_severity(Severity::Warning),
+                );
+            }
+            if bag.has_errors() {
+                ExitCode::FAILURE
+            } else {
+                println!("validate OK | file={}", file.display());
+                ExitCode::SUCCESS
             }
         }
     }

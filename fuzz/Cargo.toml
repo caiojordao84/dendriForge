@@ -10,10 +10,26 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 dendri-cli = { path = "../crates/dendri-cli" }
+dendri-expr = { path = "../crates/dendri-expr" }
+dendri-project = { path = "../crates/dendri-project" }
 
 [[bin]]
 name = "ledger_toml"
 path = "fuzz_targets/ledger_toml.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "expr_parser"
+path = "fuzz_targets/expr_parser.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "project_toml"
+path = "fuzz_targets/project_toml.rs"
 test = false
 doc = false
 bench = false

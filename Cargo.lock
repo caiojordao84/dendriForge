@@ -198,11 +198,46 @@ dependencies = [
 ]
 
 [[package]]
+name = "dendri-ast"
+version = "0.1.0"
+dependencies = [
+ "dendri-span",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "dendri-cli"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "dendri-project",
+ "dendri-span",
  "dendri-stdlib",
+ "dendri-validate",
+ "serde",
+ "tempfile",
+ "thiserror",
+ "toml",
+]
+
+[[package]]
+name = "dendri-expr"
+version = "0.1.0"
+dependencies = [
+ "dendri-ast",
+ "dendri-span",
+ "proptest",
+ "thiserror",
+]
+
+[[package]]
+name = "dendri-project"
+version = "0.1.0"
+dependencies = [
+ "dendri-ast",
+ "dendri-expr",
+ "dendri-span",
  "serde",
  "tempfile",
  "thiserror",
@@ -232,6 +267,16 @@ version = "0.1.0"
 dependencies = [
  "libm",
  "serde",
+]
+
+[[package]]
+name = "dendri-validate"
+version = "0.1.0"
+dependencies = [
+ "dendri-ast",
+ "dendri-project",
+ "dendri-span",
+ "dendri-stdlib",
 ]
 
 [[package]]

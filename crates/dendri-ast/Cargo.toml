@@ -1,0 +1,17 @@
+[package]
+name = "dendri-ast"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "ASL v2 canonical typed IR, M = 10^9 numeric contract, structural Ladder/GRAFCET bodies, comments, modules, Foreign nodes, and multi-board Project"
+
+[lints]
+workspace = true
+
+[dependencies]
+dendri-span = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }

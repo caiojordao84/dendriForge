@@ -1,0 +1,32 @@
+[project]
+schema_version = "2.0"
+asl_version = "0.1.0"
+requires = ["asl-core@1"]
+name = "Fixture"
+
+[[boards]]
+id = "uno"
+profile = "arduino-uno-r3"
+authoring_language = "cpp"
+execution = "cooperative"
+
+[boards.program]
+imports = ["std.iec.convert"]
+
+[[boards.program.data]]
+id = "n_d1"
+name = "out"
+scope = "var"
+ty = { kind = "scalar", ty = { name = "int" } }
+
+[[boards.program.pous]]
+id = "n_p1"
+name = "Main"
+kind = { pou_kind = "ob", ob = { type = "main" } }
+body_kind = "statements"
+
+[[boards.program.pous.body]]
+kind = "assign"
+id = "n_s1"
+target = "out"
+value = "BOOL_TO_INT(\"not_a_bool\")"

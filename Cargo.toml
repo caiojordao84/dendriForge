@@ -4,6 +4,10 @@ members = [
     "crates/dendri-span",
     "crates/dendri-theme",
     "crates/dendri-stdlib",
+    "crates/dendri-ast",
+    "crates/dendri-expr",
+    "crates/dendri-project",
+    "crates/dendri-validate",
     "crates/dendri-cli",
 ]
 exclude = [
@@ -44,5 +48,10 @@ tempfile = "3"
 thiserror = "2"
 toml = "0.8"
 
-# Internal Layer 0 crates
+# Internal workspace crates
+dendri-span = { path = "crates/dendri-span" }
 dendri-stdlib = { path = "crates/dendri-stdlib" }
+dendri-ast = { path = "crates/dendri-ast" }
+dendri-expr = { path = "crates/dendri-expr" }
+dendri-project = { path = "crates/dendri-project" }
+dendri-validate = { path = "crates/dendri-validate" }

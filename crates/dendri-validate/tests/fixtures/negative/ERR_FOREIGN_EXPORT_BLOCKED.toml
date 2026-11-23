@@ -1,0 +1,24 @@
+[project]
+schema_version = "2.0"
+asl_version = "0.1.0"
+requires = ["asl-core@1"]
+name = "Fixture"
+
+[[boards]]
+id = "uno"
+profile = "arduino-uno-r3"
+authoring_language = "cpp"
+execution = "cooperative"
+
+[[boards.program.pous]]
+id = "n_p1"
+name = "Main"
+kind = { pou_kind = "ob", ob = { type = "main" } }
+body_kind = "statements"
+
+[[boards.program.pous.body]]
+kind = "foreign"
+id = "n_f1"
+language = "cpp"
+fidelity = "F0"
+text = "PORTB |= (1 << 5);"

@@ -23,18 +23,25 @@ All design decisions, formal schemas, contracts, and phased gates live in six au
 
 ---
 
-## Workspace Architecture (Current Phase: Phase 0)
+## Workspace Architecture (Current Phase: Phase 1)
 
 The active milestone is tracked in [`docs/milestone.toml`](docs/milestone.toml) and all deliberate deferrals live in [`docs/deferrals.toml`](docs/deferrals.toml). Legacy v1 files are quarantined in `legacy/v1/` strictly as historical datasheet references.
 
-### Layer 0 — Foundations (Active in Phase 0)
+### Layer 0 — Foundations
 - `crates/dendri-span` — UTF-8-safe byte spans (`Span`), `SourceMap`, rich `Diagnostic` formatting, and the frozen 45-variant `ErrorCode` enum.
 - `crates/dendri-theme` — Pure-Rust **A11Y Slate** palette, 12 semantic `df-pin-*` classes, and automated WCAG 2.1 contrast verification (`AAA >= 7:1` on primary text, syntax tokens, primary buttons, and pin tokens).
 - `crates/dendri-stdlib` — Domain-split standard library (`std.iec.*` vs `std.arduino.*` / `std.siemens.*`) and live validated `assets/standards.toml` registry.
 
+### Layer 1 — ASL v2 IR, Expressions, Project Schema & Validator
+- `crates/dendri-ast` — Canonical typed ASL v2 IR (`PouBody::{Statements, Network, Chart}`, fixed-width types, `M = 10⁹` numeric `Codec` & `ChannelBand`, verbatim comments, assumptions, modules/packs/3-level `Foreign`, multi-board `Project`).
+- `crates/dendri-expr` — Official 11-level Pratt expression parser & lossless canonical printer (`proptest`-verified `parse(print(e)) == e`).
+- `crates/dendri-project` — Strict single-file v2 `.toml` loader (`#[serde(deny_unknown_fields)]`), canonical serializer, and atomic disk persistence (`write temp -> sync -> rename`).
+- `crates/dendri-validate` — Full static typechecker, codec/band/comment/module/capability/OB/ISR/wiring validator with all **45 / 45 frozen `ErrorCode` variants live** and verified by a genuine 45-file negative corpus.
+
 ### Layer 4 — CLI Governance & Verification
 - `crates/dendri-cli` (`dendri`) — Automated verification commands:
-  - `dendri ledger-check` — Enforces `docs/deferrals.toml` against `docs/milestone.toml` and forbids unreferenced `TODO`/`FIXME`/`XXX`, `todo!()`, `unimplemented!()`, or `#[ignore]` in workspace crates.
+  - `dendri validate <file.toml> [--report] [--allow-foreign]` — Parse & statically validate a v2 project with rich caret snippets.
+  - `dendri ledger-check` — Enforces `docs/deferrals.toml` against `docs/milestone.toml` and forbids unreferenced stubs/markers in workspace crates.
   - `dendri provenance-check` — Enforces strict `[provenance]` metadata, `THIRD_PARTY_NOTICES` parity, and `ml_restricted` exclusion rules.
   - `dendri standards-check` — Loads and validates `assets/standards.toml`.
 
@@ -49,8 +56,11 @@ Toolchain is pinned in [`rust-toolchain.toml`](rust-toolchain.toml) (`rustc 1.10
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
 
-# Unit & property tests (includes WCAG contrast tests, ErrorCode bijection, stdlib isolation)
+# Unit, property tests & 45-code real negative corpus
 cargo test --workspace
+
+# Exhaustive release-mode numeric contract gate (T-NUM-1..5 incl. 2^24 codes)
+cargo test --release -p dendri-ast numeric::tests
 
 # Governance & policy gates
 cargo run -q -p dendri-cli -- ledger-check
