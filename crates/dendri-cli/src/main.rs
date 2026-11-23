@@ -3,6 +3,7 @@
 use clap::{Parser, Subcommand};
 use dendri_cli::{ledger, provenance, resolve_assets_dir, resolve_workspace_root};
 use dendri_project::load_project_path;
+use dendri_sim_kernel::{InputTimeline, KernelConfig, SimKernel};
 use dendri_span::{Severity, SourceMap};
 use dendri_stdlib::StandardsRegistry;
 use dendri_validate::{MemoryProfileCatalog, ValidateOptions, validate_project};
@@ -47,6 +48,20 @@ enum Commands {
         #[arg(long)]
         report: bool,
         /// Permit cross-language export of Foreign constructs.
+        #[arg(long)]
+        allow_foreign: bool,
+    },
+    /// Run a headless deterministic multi-board co-simulation (`dendri-sim-kernel` + `dendri-vm`).
+    Sim {
+        /// Path to the `.toml` project file.
+        file: PathBuf,
+        /// Virtual simulation duration in milliseconds.
+        #[arg(long, default_value_t = 100)]
+        duration_ms: u64,
+        /// Deterministic replay seed.
+        #[arg(long, default_value_t = 0)]
+        seed: u64,
+        /// Permit cross-language export of Foreign constructs during pre-run validation.
         #[arg(long)]
         allow_foreign: bool,
     },
@@ -171,6 +186,75 @@ fn main() -> ExitCode {
                 println!("validate OK | file={}", file.display());
                 ExitCode::SUCCESS
             }
+        }
+        Commands::Sim {
+            file,
+            duration_ms,
+            seed,
+            allow_foreign,
+        } => {
+            let mut sources = SourceMap::new();
+            let (fid, proj) = match load_project_path(&file, &mut sources) {
+                Ok(res) => res,
+                Err(err) => {
+                    if let Some(diag) = err.as_diagnostic() {
+                        eprintln!("{}", diag.render(Some(&sources)));
+                    } else {
+                        eprintln!("sim ERROR: {err}");
+                    }
+                    return ExitCode::FAILURE;
+                }
+            };
+            let catalog = MemoryProfileCatalog::builtin_reference();
+            let opts = ValidateOptions {
+                file_id: Some(fid),
+                allow_foreign_export: allow_foreign,
+                ..ValidateOptions::default()
+            };
+            let bag = validate_project(&proj, &catalog, &opts);
+            for diag in bag.all() {
+                eprintln!("{}", diag.render(Some(&sources)));
+            }
+            if bag.has_errors() {
+                return ExitCode::FAILURE;
+            }
+
+            let cfg = KernelConfig {
+                seed,
+                ..KernelConfig::default()
+            };
+            let mut kernel = match SimKernel::new(&proj, cfg, InputTimeline::new()) {
+                Ok(k) => k,
+                Err(err) => {
+                    eprintln!("sim ERROR: {err}");
+                    return ExitCode::FAILURE;
+                }
+            };
+            let target_us = duration_ms.saturating_mul(1_000);
+            if let Err(err) = kernel.run_until(target_us) {
+                eprintln!("sim RUNTIME ERROR: {err}");
+                return ExitCode::FAILURE;
+            }
+            let snap = kernel.snapshot();
+            println!(
+                "sim OK | project={} | time_us={} | boards={} | trace_events={}",
+                proj.meta.name,
+                snap.time_us,
+                snap.boards.len(),
+                snap.global_trace_len,
+            );
+            for (bid, bsnap) in &snap.boards {
+                println!(
+                    "  board={} | time_us={} | cycles={} | digital_out={:?} | analog_out={:?} | pwm_out={:?}",
+                    bid,
+                    bsnap.time_us,
+                    bsnap.fiber_cycles,
+                    bsnap.digital_outputs,
+                    bsnap.analog_outputs,
+                    bsnap.pwm_outputs,
+                );
+            }
+            ExitCode::SUCCESS
         }
     }
 }

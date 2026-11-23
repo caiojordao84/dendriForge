@@ -1,0 +1,23 @@
+[package]
+name = "dendri-vm"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Deterministic cycle-accurate ASL v2 virtual machine with lexical frames, exact IEC 61131-3 FBs, and load-time Ladder/GRAFCET lowering"
+
+[lints]
+workspace = true
+
+[dependencies]
+dendri-ast = { workspace = true }
+dendri-span = { workspace = true }
+libm = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+dendri-project = { workspace = true }
+proptest = { workspace = true }

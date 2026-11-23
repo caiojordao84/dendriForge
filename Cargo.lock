@@ -212,6 +212,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "dendri-project",
+ "dendri-sim-kernel",
  "dendri-span",
  "dendri-stdlib",
  "dendri-validate",
@@ -242,6 +243,18 @@ dependencies = [
  "tempfile",
  "thiserror",
  "toml",
+]
+
+[[package]]
+name = "dendri-sim-kernel"
+version = "0.1.0"
+dependencies = [
+ "dendri-ast",
+ "dendri-project",
+ "dendri-span",
+ "dendri-vm",
+ "serde",
+ "thiserror",
 ]
 
 [[package]]
@@ -277,6 +290,19 @@ dependencies = [
  "dendri-project",
  "dendri-span",
  "dendri-stdlib",
+]
+
+[[package]]
+name = "dendri-vm"
+version = "0.1.0"
+dependencies = [
+ "dendri-ast",
+ "dendri-project",
+ "dendri-span",
+ "libm",
+ "proptest",
+ "serde",
+ "thiserror",
 ]
 
 [[package]]

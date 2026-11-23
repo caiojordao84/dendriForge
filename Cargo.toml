@@ -8,6 +8,8 @@ members = [
     "crates/dendri-expr",
     "crates/dendri-project",
     "crates/dendri-validate",
+    "crates/dendri-vm",
+    "crates/dendri-sim-kernel",
     "crates/dendri-cli",
 ]
 exclude = [
@@ -55,3 +57,5 @@ dendri-ast = { path = "crates/dendri-ast" }
 dendri-expr = { path = "crates/dendri-expr" }
 dendri-project = { path = "crates/dendri-project" }
 dendri-validate = { path = "crates/dendri-validate" }
+dendri-vm = { path = "crates/dendri-vm" }
+dendri-sim-kernel = { path = "crates/dendri-sim-kernel" }

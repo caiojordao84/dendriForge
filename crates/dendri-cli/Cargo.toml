@@ -18,6 +18,7 @@ workspace = true
 [dependencies]
 clap = { workspace = true }
 dendri-project = { workspace = true }
+dendri-sim-kernel = { workspace = true }
 dendri-span = { workspace = true }
 dendri-stdlib = { workspace = true }
 dendri-validate = { workspace = true }

@@ -23,7 +23,7 @@ All design decisions, formal schemas, contracts, and phased gates live in six au
 
 ---
 
-## Workspace Architecture (Current Phase: Phase 1)
+## Workspace Architecture (Current Phase: Phase 2)
 
 The active milestone is tracked in [`docs/milestone.toml`](docs/milestone.toml) and all deliberate deferrals live in [`docs/deferrals.toml`](docs/deferrals.toml). Legacy v1 files are quarantined in `legacy/v1/` strictly as historical datasheet references.
 
@@ -38,9 +38,14 @@ The active milestone is tracked in [`docs/milestone.toml`](docs/milestone.toml) 
 - `crates/dendri-project` — Strict single-file v2 `.toml` loader (`#[serde(deny_unknown_fields)]`), canonical serializer, and atomic disk persistence (`write temp -> sync -> rename`).
 - `crates/dendri-validate` — Full static typechecker, codec/band/comment/module/capability/OB/ISR/wiring validator with all **45 / 45 frozen `ErrorCode` variants live** and verified by a genuine 45-file negative corpus.
 
-### Layer 4 — CLI Governance & Verification
-- `crates/dendri-cli` (`dendri`) — Automated verification commands:
+### Layer 2 — Deterministic Multi-Board VM & Co-Simulation Kernel
+- `crates/dendri-vm` — Cycle-accurate ASL v2 virtual machine (`fiber_cycles`/`clock_hz` in exact 128-bit arithmetic, `[execution.cost]`, pure-Rust `libm` transcendentals, ordered `BTreeMap` state, `INDETERMINATE` policy + `WARN_INDETERMINATE_LEVEL`, lexical frames, per-scan budget reset, `max_call_depth`, bounded `TraceRing`, exact IEC 61131-3 FBs `TON`/`TOF`/`TP`/`CTU`/`CTD`/`CTUD`/`R_TRIG`/`F_TRIG`/`SR`/`RS`, OBs `OB100`/`OB1`/`OB30`/`OB40`/`OB50`, load-time lowering of `PouBody::Network` & `PouBody::Chart`, cooperative `WAIT_TIME`/`WAIT_TIME_US` yield/resume).
+- `crates/dendri-sim-kernel` — Deterministic microsecond (`u64 time_us`) discrete-event orchestrator supporting heterogeneous multi-board co-simulation (`ExecutionKind::Cooperative` + `ExecutionKind::PlcScan`), pluggable `ElectricalBackend` (`DigitalWireFabric` wire-net Union-Find), bit-identical `InputTimeline` replay, and dedicated background `SimWorker` thread publishing immutable `Arc<SimSnapshot>` frames.
+
+### Layer 4 — CLI Governance, Verification & Headless Runner
+- `crates/dendri-cli` (`dendri`) — Automated verification & simulation commands:
   - `dendri validate <file.toml> [--report] [--allow-foreign]` — Parse & statically validate a v2 project with rich caret snippets.
+  - `dendri sim <file.toml> [--duration-ms <N>] [--seed <S>] [--allow-foreign]` — Validate and run a deterministic headless multi-board co-simulation.
   - `dendri ledger-check` — Enforces `docs/deferrals.toml` against `docs/milestone.toml` and forbids unreferenced stubs/markers in workspace crates.
   - `dendri provenance-check` — Enforces strict `[provenance]` metadata, `THIRD_PARTY_NOTICES` parity, and `ml_restricted` exclusion rules.
   - `dendri standards-check` — Loads and validates `assets/standards.toml`.

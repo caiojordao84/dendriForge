@@ -1,0 +1,22 @@
+[package]
+name = "dendri-sim-kernel"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Deterministic multi-board discrete-event co-simulation kernel with pluggable electrical backend and background snapshot worker"
+
+[lints]
+workspace = true
+
+[dependencies]
+dendri-ast = { workspace = true }
+dendri-vm = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+dendri-project = { workspace = true }
+dendri-span = { workspace = true }
