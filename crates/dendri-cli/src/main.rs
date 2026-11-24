@@ -3,7 +3,13 @@
 use clap::{Parser, Subcommand};
 use dendri_assets::{AssetCatalog, AssetCheckError, approve_asset_dir, validate_assets_dir};
 use dendri_circuit::SpiceCircuitBackend;
-use dendri_cli::{ledger, provenance, resolve_assets_dir, resolve_workspace_root};
+use dendri_cli::frontend::{
+    CliBoardProfile, CliLanguage, CliStDialect, FrontendCliError, build_board_context,
+    run_roundtrip, run_translate,
+};
+use dendri_cli::{
+    bench_spice, ledger, packs, provenance, resolve_assets_dir, resolve_workspace_root,
+};
 use dendri_project::load_project_path;
 use dendri_sim_kernel::{InputTimeline, KernelConfig, SimKernel};
 use dendri_span::{Severity, SourceMap};
@@ -42,6 +48,49 @@ enum Commands {
     /// Validate assets/standards.toml via dendri-stdlib (CI Gate 5).
     #[command(name = "standards-check")]
     Standards,
+    /// Validate hash-locked Wave 1 packs (`assets/packs/*.pack.toml` vs `checksums.toml`, DEF-008).
+    #[command(name = "packs-check")]
+    PacksCheck,
+    /// Run headless SPICE-class analytical physics benchmarks (`< 0.1%` error, CI Gate 6).
+    #[command(name = "bench-spice")]
+    BenchSpice,
+    /// Translate a Wave 1 source file across C++, IEC ST, Ladder, and GRAFCET/SFC via ASL IR.
+    Translate {
+        /// Path to the input source file.
+        file: PathBuf,
+        /// Source language (`cpp | st | ladder | sfc`).
+        #[arg(long)]
+        from: CliLanguage,
+        /// Target language (`cpp | st | ladder | sfc`).
+        #[arg(long)]
+        to: CliLanguage,
+        /// Target board profile (defaults to `arduino-uno-r3` for C++, `plc-1200-open-1214` for IEC).
+        #[arg(long)]
+        board: Option<CliBoardProfile>,
+        /// IEC 61131-3 ST comment dialect (`DEF-006`).
+        #[arg(long, default_value = "iec-ed3")]
+        st_dialect: CliStDialect,
+        /// Optional output file path (prints to stdout when omitted).
+        #[arg(long)]
+        out: Option<PathBuf>,
+        /// Permit cross-language export of `Foreign` constructs with `NOT TRANSLATED` markers.
+        #[arg(long)]
+        allow_foreign: bool,
+    },
+    /// Verify `LOSSLESS_ASL`, `C1`/`C5` comment conservation, and zero magic comments for a source file.
+    Roundtrip {
+        /// Path to the input source file.
+        file: PathBuf,
+        /// Source language (`cpp | st | ladder | sfc`).
+        #[arg(long)]
+        lang: CliLanguage,
+        /// Target board profile (defaults to `arduino-uno-r3` for C++, `plc-1200-open-1214` for IEC).
+        #[arg(long)]
+        board: Option<CliBoardProfile>,
+        /// IEC 61131-3 ST comment dialect (`DEF-006`).
+        #[arg(long, default_value = "iec-ed3")]
+        st_dialect: CliStDialect,
+    },
     /// Run all 13 asset contract rules across assets/{boards,components} (CI Gate 5).
     #[command(name = "asset-check")]
     AssetCheck,
@@ -155,6 +204,163 @@ fn main() -> ExitCode {
                 }
                 Err(err) => {
                     eprintln!("standards-check ERROR: {err}");
+                    ExitCode::FAILURE
+                }
+            }
+        }
+        Commands::PacksCheck => match packs::run_packs_check(&assets_dir) {
+            Ok(report) => {
+                println!(
+                    "packs-check OK | packs={} | symbols={} | ids={}",
+                    report.packs_verified,
+                    report.total_symbols,
+                    report.pack_ids.join(","),
+                );
+                ExitCode::SUCCESS
+            }
+            Err(packs::PacksCheckError::Violations(vs)) => {
+                for v in &vs {
+                    eprintln!("packs-check ERROR: {v}");
+                }
+                eprintln!("packs-check FAILED with {} violation(s).", vs.len());
+                ExitCode::FAILURE
+            }
+            Err(err) => {
+                eprintln!("packs-check ERROR: {err}");
+                ExitCode::FAILURE
+            }
+        },
+        Commands::BenchSpice => {
+            let report = bench_spice::run_bench_spice();
+            for r in &report.results {
+                let status = if r.passed { "PASS" } else { "FAIL" };
+                println!(
+                    "  [{status}] {:<36} sim={:.6} {} | exact={:.6} {} | rel_err={:.6}%",
+                    r.name,
+                    r.simulated,
+                    r.unit,
+                    r.analytical,
+                    r.unit,
+                    r.rel_error * 100.0,
+                );
+            }
+            if report.all_passed {
+                println!(
+                    "bench-spice OK | benchmarks={} | max_rel_error={:.6}% (< 0.1%)",
+                    report.results.len(),
+                    report.max_rel_error * 100.0,
+                );
+                ExitCode::SUCCESS
+            } else {
+                eprintln!(
+                    "bench-spice FAILED | max_rel_error={:.6}% (limit 0.1%)",
+                    report.max_rel_error * 100.0,
+                );
+                ExitCode::FAILURE
+            }
+        }
+        Commands::Translate {
+            file,
+            from,
+            to,
+            board,
+            st_dialect,
+            out,
+            allow_foreign,
+        } => {
+            let src = match std::fs::read_to_string(&file) {
+                Ok(s) => s,
+                Err(err) => {
+                    eprintln!("translate ERROR reading `{}`: {err}", file.display());
+                    return ExitCode::FAILURE;
+                }
+            };
+            let mut sources = SourceMap::new();
+            let fid = sources.add_file(file.display().to_string(), src.clone());
+            let profile = board.unwrap_or_else(|| from.default_board_profile());
+            let ctx = build_board_context(profile, st_dialect, allow_foreign, Some(&assets_dir));
+            match run_translate(&src, from, to, &ctx) {
+                Ok(res) => {
+                    for mut diag in res.diagnostics {
+                        if diag.file_id.is_none() {
+                            diag.file_id = Some(fid);
+                        }
+                        eprintln!("{}", diag.render(Some(&sources)));
+                    }
+                    if let Some(out_path) = out {
+                        if let Err(err) = std::fs::write(&out_path, &res.emitted) {
+                            eprintln!("translate ERROR writing `{}`: {err}", out_path.display());
+                            return ExitCode::FAILURE;
+                        }
+                        println!(
+                            "translate OK | from={} | to={} | out={} | pous={} | comments={}",
+                            from.to_language_id(),
+                            to.to_language_id(),
+                            out_path.display(),
+                            res.pou_count,
+                            res.comment_count,
+                        );
+                    } else {
+                        print!("{}", res.emitted);
+                    }
+                    ExitCode::SUCCESS
+                }
+                Err(FrontendCliError::Diagnostics(diags)) => {
+                    for mut diag in diags {
+                        if diag.file_id.is_none() {
+                            diag.file_id = Some(fid);
+                        }
+                        eprintln!("{}", diag.render(Some(&sources)));
+                    }
+                    ExitCode::FAILURE
+                }
+                Err(FrontendCliError::Conformance(msg)) => {
+                    eprintln!("translate ERROR: {msg}");
+                    ExitCode::FAILURE
+                }
+            }
+        }
+        Commands::Roundtrip {
+            file,
+            lang,
+            board,
+            st_dialect,
+        } => {
+            let src = match std::fs::read_to_string(&file) {
+                Ok(s) => s,
+                Err(err) => {
+                    eprintln!("roundtrip ERROR reading `{}`: {err}", file.display());
+                    return ExitCode::FAILURE;
+                }
+            };
+            let mut sources = SourceMap::new();
+            let fid = sources.add_file(file.display().to_string(), src.clone());
+            let profile = board.unwrap_or_else(|| lang.default_board_profile());
+            let ctx = build_board_context(profile, st_dialect, false, Some(&assets_dir));
+            match run_roundtrip(&src, lang, &ctx) {
+                Ok(report) => {
+                    println!(
+                        "roundtrip OK | lang={} | board={} | pous={} | comments={} | foreign={} | bytes={}",
+                        report.language,
+                        report.board_profile,
+                        report.pou_count,
+                        report.comment_count,
+                        report.foreign_count,
+                        report.emitted_bytes,
+                    );
+                    ExitCode::SUCCESS
+                }
+                Err(FrontendCliError::Diagnostics(diags)) => {
+                    for mut diag in diags {
+                        if diag.file_id.is_none() {
+                            diag.file_id = Some(fid);
+                        }
+                        eprintln!("{}", diag.render(Some(&sources)));
+                    }
+                    ExitCode::FAILURE
+                }
+                Err(FrontendCliError::Conformance(msg)) => {
+                    eprintln!("roundtrip ERROR: {msg}");
                     ExitCode::FAILURE
                 }
             }

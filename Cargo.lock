@@ -323,12 +323,19 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "dendri-assets",
+ "dendri-ast",
  "dendri-circuit",
+ "dendri-frontend-core",
+ "dendri-lang-cpp",
+ "dendri-lang-ladder",
+ "dendri-lang-sfc",
+ "dendri-lang-st",
  "dendri-project",
  "dendri-sim-kernel",
  "dendri-span",
  "dendri-stdlib",
  "dendri-validate",
+ "libm",
  "serde",
  "tempfile",
  "thiserror",
@@ -471,11 +478,18 @@ dependencies = [
 name = "dendri-sync"
 version = "0.1.0"
 dependencies = [
+ "dendri-assets",
  "dendri-ast",
  "dendri-frontend-core",
+ "dendri-lang-cpp",
+ "dendri-lang-ladder",
+ "dendri-lang-sfc",
+ "dendri-lang-st",
  "dendri-project",
+ "dendri-sim-kernel",
  "dendri-span",
  "dendri-validate",
+ "dendri-vm",
  "serde",
  "thiserror",
 ]

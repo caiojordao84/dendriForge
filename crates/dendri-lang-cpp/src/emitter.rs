@@ -324,12 +324,27 @@ impl<'a> Emitter<'a> {
 
         // 2. `#include` directives from `program.imports` + foreign `#include` decls
         let mut emitted_any_include = false;
+        let mut emitted_arduino_h = false;
         for imp in &prog.imports {
             if let Some(inc_line) = asl_import_to_cpp_include(imp) {
+                if inc_line == "#include <Arduino.h>" {
+                    emitted_arduino_h = true;
+                }
                 self.out.push_str(&inc_line);
                 self.out.push('\n');
                 emitted_any_include = true;
             }
+        }
+        // Derived projection from structural Ladder/SFC POUs with board hardware emits
+        // `pinMode` / `digitalRead` / `digitalWrite`, which require `#include <Arduino.h>`.
+        let has_derived_visual_hw = !prog.hardware.is_empty()
+            && prog
+                .pous
+                .iter()
+                .any(|p| matches!(p.body, PouBody::Network(_) | PouBody::Chart(_)));
+        if has_derived_visual_hw && !emitted_arduino_h {
+            self.out.push_str("#include <Arduino.h>\n");
+            emitted_any_include = true;
         }
         for td in &prog.types {
             if let TypeDecl::Foreign {
@@ -1482,7 +1497,7 @@ impl<'a> Emitter<'a> {
                 LadderCellKind::Empty => parts.push("false".to_owned()),
                 LadderCellKind::Wire => {}
                 LadderCellKind::Contact { kind, target } => {
-                    let t = self.format_lvalue(target)?;
+                    let t = self.format_ladder_contact_target(target)?;
                     parts.push(match kind {
                         LadderContactKind::NormallyClosed => format!("(!{t})"),
                         LadderContactKind::NormallyOpen
@@ -1534,6 +1549,16 @@ impl<'a> Emitter<'a> {
         }
     }
 
+    fn format_ladder_contact_target(&mut self, target: &LValue) -> Result<String, Vec<Diagnostic>> {
+        if let LValue::Var { name, .. } = target
+            && let Some(pin) = self.hw_pin_map.get(name)
+        {
+            let pin_arg = hardware_label_to_cpp_arg(name, pin);
+            return Ok(format!("digitalRead({pin_arg})"));
+        }
+        self.format_lvalue(target)
+    }
+
     fn emit_ladder_cell_projection(
         &mut self,
         cell: &LadderCell,
@@ -1547,7 +1572,7 @@ impl<'a> Emitter<'a> {
             }
             LadderCellKind::Wire => {}
             LadderCellKind::Contact { kind, target } => {
-                let t = self.format_lvalue(target)?;
+                let t = self.format_ladder_contact_target(target)?;
                 let expr = match kind {
                     LadderContactKind::NormallyOpen
                     | LadderContactKind::PositiveTransition
@@ -1600,22 +1625,48 @@ impl<'a> Emitter<'a> {
                 }
             }
             LadderCellKind::Coil { kind, target } => {
-                let t = self.format_lvalue(target)?;
                 self.push_indent(indent);
-                match kind {
-                    LadderCoilKind::Normal => {
-                        self.out.push_str(&format!("{t} = {rail_var};\n"));
+                if let LValue::Var { name, .. } = target
+                    && let Some(pin) = self.hw_pin_map.get(name)
+                {
+                    let pin_arg = hardware_label_to_cpp_arg(name, pin);
+                    match kind {
+                        LadderCoilKind::Normal => {
+                            self.out
+                                .push_str(&format!("digitalWrite({pin_arg}, {rail_var});\n"));
+                        }
+                        LadderCoilKind::Negated => {
+                            self.out
+                                .push_str(&format!("digitalWrite({pin_arg}, !{rail_var});\n"));
+                        }
+                        LadderCoilKind::Set | LadderCoilKind::PositiveTransition => {
+                            self.out.push_str(&format!(
+                                "if ({rail_var}) {{ digitalWrite({pin_arg}, HIGH); }}\n"
+                            ));
+                        }
+                        LadderCoilKind::Reset | LadderCoilKind::NegativeTransition => {
+                            self.out.push_str(&format!(
+                                "if ({rail_var}) {{ digitalWrite({pin_arg}, LOW); }}\n"
+                            ));
+                        }
                     }
-                    LadderCoilKind::Negated => {
-                        self.out.push_str(&format!("{t} = !{rail_var};\n"));
-                    }
-                    LadderCoilKind::Set | LadderCoilKind::PositiveTransition => {
-                        self.out
-                            .push_str(&format!("if ({rail_var}) {{ {t} = true; }}\n"));
-                    }
-                    LadderCoilKind::Reset | LadderCoilKind::NegativeTransition => {
-                        self.out
-                            .push_str(&format!("if ({rail_var}) {{ {t} = false; }}\n"));
+                } else {
+                    let t = self.format_lvalue(target)?;
+                    match kind {
+                        LadderCoilKind::Normal => {
+                            self.out.push_str(&format!("{t} = {rail_var};\n"));
+                        }
+                        LadderCoilKind::Negated => {
+                            self.out.push_str(&format!("{t} = !{rail_var};\n"));
+                        }
+                        LadderCoilKind::Set | LadderCoilKind::PositiveTransition => {
+                            self.out
+                                .push_str(&format!("if ({rail_var}) {{ {t} = true; }}\n"));
+                        }
+                        LadderCoilKind::Reset | LadderCoilKind::NegativeTransition => {
+                            self.out
+                                .push_str(&format!("if ({rail_var}) {{ {t} = false; }}\n"));
+                        }
                     }
                 }
             }

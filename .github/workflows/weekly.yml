@@ -37,9 +37,14 @@ jobs:
       - name: Install cargo-fuzz
         run: cargo install --locked cargo-fuzz
 
-      - name: Smoke fuzz ledger, expression, and project TOML parsers
+      - name: Smoke fuzz all parser targets (ledger, expr, project, assets, Wave 1 frontends)
         run: |
           cd fuzz
           cargo fuzz run ledger_toml -- -max_total_time=30
           cargo fuzz run expr_parser -- -max_total_time=30
           cargo fuzz run project_toml -- -max_total_time=30
+          cargo fuzz run asset_profile -- -max_total_time=30
+          cargo fuzz run lang_st -- -max_total_time=30
+          cargo fuzz run lang_cpp -- -max_total_time=30
+          cargo fuzz run lang_ladder -- -max_total_time=30
+          cargo fuzz run lang_sfc -- -max_total_time=30

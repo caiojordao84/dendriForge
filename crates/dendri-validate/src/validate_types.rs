@@ -34,6 +34,7 @@ pub(crate) enum SymbolEntry {
 pub(crate) struct BoardTypeEnv<'a> {
     pub board_id: &'a str,
     pub file_id: Option<FileId>,
+    pub allow_plc_direct_output_assign: bool,
     pub std_catalog: &'a StdCatalog,
     pub imports: Vec<String>,
     pub board_profile: Option<&'a BoardProfileMeta>,
@@ -250,9 +251,13 @@ impl<'a> BoardTypeEnv<'a> {
     ) {
         match &stmt.kind {
             StmtKind::Assign { target, value } => {
-                if let Some(target_ty) =
-                    self.check_lvalue_writable(target, stmt.span, locals, false, bag)
-                {
+                if let Some(target_ty) = self.check_lvalue_writable(
+                    target,
+                    stmt.span,
+                    locals,
+                    self.allow_plc_direct_output_assign,
+                    bag,
+                ) {
                     self.check_duty_overflow(&target_ty, value, stmt.span, bag);
                     if let Some(val_ty) = self.infer_expr(value, Some(&target_ty), locals, bag)
                         && !types_compatible(&target_ty, &val_ty)
@@ -748,7 +753,10 @@ impl<'a> BoardTypeEnv<'a> {
                 let can_coil_write = allow_writable_hardware_coil
                     && matches!(
                         binding.kind,
-                        HardwareKind::DigitalOut | HardwareKind::DigitalBidirectional
+                        HardwareKind::DigitalOut
+                            | HardwareKind::DigitalBidirectional
+                            | HardwareKind::AnalogOut
+                            | HardwareKind::PwmOut
                     );
                 if !can_coil_write {
                     self.push_diag(

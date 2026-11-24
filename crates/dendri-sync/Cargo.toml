@@ -13,9 +13,18 @@ workspace = true
 
 [dependencies]
 dendri-ast = { workspace = true }
-dendri-frontend-core = { path = "../dendri-frontend-core" }
+dendri-frontend-core = { workspace = true }
 dendri-project = { workspace = true }
 dendri-span = { workspace = true }
 dendri-validate = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
+
+[dev-dependencies]
+dendri-assets = { workspace = true }
+dendri-lang-cpp = { workspace = true }
+dendri-lang-ladder = { workspace = true }
+dendri-lang-sfc = { workspace = true }
+dendri-lang-st = { workspace = true }
+dendri-sim-kernel = { workspace = true }
+dendri-vm = { workspace = true }

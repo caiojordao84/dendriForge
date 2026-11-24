@@ -14,7 +14,7 @@ workspace = true
 [dependencies]
 dendri-ast = { workspace = true }
 dendri-expr = { workspace = true }
-dendri-frontend-core = { path = "../dendri-frontend-core" }
+dendri-frontend-core = { workspace = true }
 dendri-span = { workspace = true }
 dendri-stdlib = { workspace = true }
 

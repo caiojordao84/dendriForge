@@ -190,6 +190,78 @@ impl Value {
             ) => Self::Lword(v as u64),
             (
                 TypeRef::Scalar {
+                    ty: ScalarType::Sint,
+                },
+                Self::Code { value, .. },
+            ) => Self::Sint(value as i8),
+            (
+                TypeRef::Scalar {
+                    ty: ScalarType::Int,
+                },
+                Self::Code { value, .. },
+            ) => Self::Int(value as i16),
+            (
+                TypeRef::Scalar {
+                    ty: ScalarType::Dint,
+                },
+                Self::Code { value, .. },
+            ) => Self::Dint(value as i32),
+            (
+                TypeRef::Scalar {
+                    ty: ScalarType::Lint,
+                },
+                Self::Code { value, .. },
+            ) => Self::Lint(value),
+            (
+                TypeRef::Scalar {
+                    ty: ScalarType::Usint,
+                },
+                Self::Code { value, .. },
+            ) => Self::Usint(value as u8),
+            (
+                TypeRef::Scalar {
+                    ty: ScalarType::Uint,
+                },
+                Self::Code { value, .. },
+            ) => Self::Uint(value as u16),
+            (
+                TypeRef::Scalar {
+                    ty: ScalarType::Udint,
+                },
+                Self::Code { value, .. },
+            ) => Self::Udint(value as u32),
+            (
+                TypeRef::Scalar {
+                    ty: ScalarType::Ulint,
+                },
+                Self::Code { value, .. },
+            ) => Self::Ulint(value as u64),
+            (
+                TypeRef::Scalar {
+                    ty: ScalarType::Byte,
+                },
+                Self::Code { value, .. },
+            ) => Self::Byte(value as u8),
+            (
+                TypeRef::Scalar {
+                    ty: ScalarType::Word,
+                },
+                Self::Code { value, .. },
+            ) => Self::Word(value as u16),
+            (
+                TypeRef::Scalar {
+                    ty: ScalarType::Dword,
+                },
+                Self::Code { value, .. },
+            ) => Self::Dword(value as u32),
+            (
+                TypeRef::Scalar {
+                    ty: ScalarType::Lword,
+                },
+                Self::Code { value, .. },
+            ) => Self::Lword(value as u64),
+            (
+                TypeRef::Scalar {
                     ty: ScalarType::Real,
                 },
                 Self::Lreal(v),

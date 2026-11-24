@@ -79,3 +79,8 @@ dendri-vm = { path = "crates/dendri-vm" }
 dendri-sim-kernel = { path = "crates/dendri-sim-kernel" }
 dendri-circuit = { path = "crates/dendri-circuit" }
 dendri-bus = { path = "crates/dendri-bus" }
+dendri-frontend-core = { path = "crates/dendri-frontend-core" }
+dendri-lang-cpp = { path = "crates/dendri-lang-cpp" }
+dendri-lang-ladder = { path = "crates/dendri-lang-ladder" }
+dendri-lang-sfc = { path = "crates/dendri-lang-sfc" }
+dendri-lang-st = { path = "crates/dendri-lang-st" }

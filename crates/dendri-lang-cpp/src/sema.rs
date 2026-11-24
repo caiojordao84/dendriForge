@@ -3264,6 +3264,16 @@ impl<'a> Lowerer<'a> {
                 unsigned,
                 long_count,
             } => {
+                if let Some(TypeRef::Scalar {
+                    ty: ScalarType::Time,
+                }) = expected
+                    && let Ok(us) = i64::try_from(*value)
+                {
+                    return (
+                        Expr::new(ExprKind::Literal(Literal::TimeUs(us)), expr.span),
+                        Some(TypeRef::scalar(ScalarType::Time)),
+                    );
+                }
                 let ty = if let Some(exp) = expected
                     && is_int_like_type(exp)
                     && !*unsigned

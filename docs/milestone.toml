@@ -3,4 +3,4 @@
 # Closed ordered enum:
 #   phase-0 < phase-1 < phase-2 < phase-3 < phase-4 < phase-5 < phase-6 < phase-6b
 #           < wave-1-exit < phase-7 < phase-8 < wave-2-gate < phase-9 < wave-3-exit < post-wave-3
-current = "phase-5"
+current = "phase-6"

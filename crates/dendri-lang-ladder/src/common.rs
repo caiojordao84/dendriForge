@@ -185,11 +185,19 @@ pub(crate) fn parse_compare_op(raw: &str) -> Option<LadderCompareOp> {
     }
 }
 
-/// Shifts all byte spans inside `expr` by `offset`.
+/// Shifts all byte spans inside `expr` by `offset` and normalizes uppercase IEC
+/// boolean identifiers (`TRUE` / `FALSE`) into canonical [`dendri_ast::Literal::Bool`].
 pub(crate) fn shift_expr_spans(expr: &mut Expr, offset: u32) {
     expr.span = shift_span(expr.span, offset);
     match &mut expr.kind {
-        ExprKind::Literal(_) | ExprKind::Ident(_) | ExprKind::Foreign { .. } => {}
+        ExprKind::Literal(_) | ExprKind::Foreign { .. } => {}
+        ExprKind::Ident(name) => {
+            if name == "TRUE" {
+                expr.kind = ExprKind::Literal(dendri_ast::Literal::Bool(true));
+            } else if name == "FALSE" {
+                expr.kind = ExprKind::Literal(dendri_ast::Literal::Bool(false));
+            }
+        }
         ExprKind::Index { base, index } => {
             shift_expr_spans(base, offset);
             shift_expr_spans(index, offset);

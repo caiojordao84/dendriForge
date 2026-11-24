@@ -4,7 +4,10 @@
 //! paths resolve strictly from CLI flags, environment variables, executable
 //! ancestry, or the current working directory.
 
+pub mod bench_spice;
+pub mod frontend;
 pub mod ledger;
+pub mod packs;
 pub mod provenance;
 
 use std::path::{Path, PathBuf};

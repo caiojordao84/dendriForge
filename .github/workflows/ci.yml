@@ -41,11 +41,13 @@ jobs:
       - name: Gate 7 — Exhaustive release-mode numeric gate (T-NUM-1..5 incl. 2^24)
         run: cargo test --release -p dendri-ast numeric::tests
 
-      - name: Gate 5 — Standards, provenance/license & 13-rule asset-check
+      - name: Gate 5 & 6 — Standards, provenance/license, 13-rule asset-check, packs-check & SPICE benchmarks
         run: |
           cargo run -q -p dendri-cli -- standards-check
           cargo run -q -p dendri-cli -- provenance-check
           cargo run -q -p dendri-cli -- asset-check
+          cargo run -q -p dendri-cli -- packs-check
+          cargo run -q -p dendri-cli -- bench-spice
 
       - name: Gate 12 — Stub & deferral ledger check
         run: cargo run -q -p dendri-cli -- ledger-check

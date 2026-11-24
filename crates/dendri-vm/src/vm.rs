@@ -6,8 +6,8 @@ use crate::value::{Value, eval_binary, eval_stdlib_math, eval_unary};
 use crate::{IndeterminatePolicy, RuntimeError, TraceEvent, TraceEventKind, TraceRing, VmConfig};
 use dendri_ast::{
     ASL_ANALOG_FULL_SCALE, ActionQualifier, Assumption, AssumptionPolicy, BinaryOp, Board, CallArg,
-    CasePattern, Expr, ExprKind, FbKind, HardwareKind, InterruptEdge, LValue, LadderCoilKind,
-    LadderCompareOp, LadderContactKind, Literal, NodeId, TypeRef,
+    CasePattern, Codec, CodecKind, Expr, ExprKind, FbKind, HardwareKind, InterruptEdge, LValue,
+    LadderCoilKind, LadderCompareOp, LadderContactKind, Literal, NodeId, TypeRef,
 };
 use dendri_span::ErrorCode;
 use std::collections::{BTreeMap, BTreeSet};
@@ -297,7 +297,7 @@ impl BoardVm {
 
         // 2. Execute `OB_STARTUP` (`OB100`) if present
         if let Some(startup_idx) = self.compiled.startup_pou {
-            self.push_frame(startup_idx, BTreeMap::new())?;
+            self.push_frame(startup_idx, BTreeMap::new(), io)?;
             let _ = self.run_stack_until_yield_or_done(io)?;
         }
         Ok(())
@@ -338,7 +338,7 @@ impl BoardVm {
         if self.stack.is_empty()
             && let Some(main_idx) = self.compiled.main_pou
         {
-            self.push_frame(main_idx, BTreeMap::new())?;
+            self.push_frame(main_idx, BTreeMap::new(), io)?;
         }
 
         let outcome = self.run_stack_until_yield_or_done(io);
@@ -404,7 +404,7 @@ impl BoardVm {
         self.piq_pwm.clear();
 
         if let Some(main_idx) = self.compiled.main_pou {
-            self.push_frame(main_idx, BTreeMap::new())?;
+            self.push_frame(main_idx, BTreeMap::new(), io)?;
             let _ = self.run_stack_until_yield_or_done(io)?;
         }
 
@@ -471,7 +471,7 @@ impl BoardVm {
         self.budget_remaining = self.config.max_steps_per_scan;
 
         let res = (|| -> Result<(), RuntimeError> {
-            self.push_frame(pou_idx, BTreeMap::new())?;
+            self.push_frame(pou_idx, BTreeMap::new(), io)?;
             let _ = self.run_stack_until_yield_or_done(io)?;
             Ok(())
         })();
@@ -517,6 +517,7 @@ impl BoardVm {
         &mut self,
         pou_idx: usize,
         mut initial_locals: BTreeMap<String, Value>,
+        io: &mut dyn BoardIoInterface,
     ) -> Result<(), RuntimeError> {
         let Some(pou) = self.compiled.pous.get(pou_idx) else {
             return Err(RuntimeError::UnresolvedFunction(format!("pou#{pou_idx}")));
@@ -527,7 +528,9 @@ impl BoardVm {
                 limit: self.config.max_call_depth,
             });
         }
-        for local in &pou.locals {
+        let locals_meta = pou.locals.clone();
+        let rail_len = usize::try_from(pou.rail_count).unwrap_or(0);
+        for local in &locals_meta {
             initial_locals.entry(local.name.clone()).or_insert_with(|| {
                 Value::default_for_type(
                     &local.ty,
@@ -536,13 +539,43 @@ impl BoardVm {
                 )
             });
         }
-        let rail_len = usize::try_from(pou.rail_count).unwrap_or(0);
         self.stack.push(ExecFrame {
             pou_idx,
             pc: 0,
             locals: initial_locals,
             rails: vec![false; rail_len],
         });
+        for local in &locals_meta {
+            if let Some(init_expr) = &local.initial {
+                let evaluated = self.eval_expr(init_expr, io, 0);
+                let raw_val = match evaluated {
+                    Ok(v) => v,
+                    Err(e) => {
+                        let _ = self.stack.pop();
+                        return Err(e);
+                    }
+                };
+                let (coerced, duty_clamped) = match raw_val.coerce_to_type(&local.ty) {
+                    Ok(pair) => pair,
+                    Err(e) => {
+                        let _ = self.stack.pop();
+                        return Err(e);
+                    }
+                };
+                if duty_clamped {
+                    self.record_diag(
+                        ErrorCode::WarnDutyClamped,
+                        format!(
+                            "DUTY initializer for local `{}` clamped to [0, M]",
+                            local.name
+                        ),
+                    );
+                }
+                if let Some(frame) = self.stack.last_mut() {
+                    frame.locals.insert(local.name.clone(), coerced);
+                }
+            }
+        }
         Ok(())
     }
 
@@ -625,7 +658,7 @@ impl BoardVm {
                         .map(|p| p.params.clone())
                         .unwrap_or_default();
                     let bound = self.bind_call_args(&params, args, io, 0)?;
-                    self.push_frame(target_pou_idx, bound)?;
+                    self.push_frame(target_pou_idx, bound, io)?;
                 } else if callee == "WAIT_TIME" {
                     let ms = args.first().ok_or_else(|| {
                         RuntimeError::TypeError("WAIT_TIME expects ms".to_owned())
@@ -1578,7 +1611,7 @@ impl BoardVm {
                 .cloned()
                 .ok_or_else(|| RuntimeError::UnresolvedFunction(callee.to_owned()))?;
             let bound = self.bind_call_args(&pou.params, args, io, expr_depth.saturating_add(1))?;
-            self.push_frame(pou_idx, bound)?;
+            self.push_frame(pou_idx, bound, io)?;
 
             let mut ret_val = Value::Void;
             let base_depth = self.stack.len();
@@ -1678,7 +1711,7 @@ impl BoardVm {
                 } else {
                     io.read_analog(&hw.pin)
                 };
-                let code = codec.band_analog_to_code_i64(reading.analog);
+                let code = analog_to_codec_code(codec, reading.analog);
                 Ok(Value::Code {
                     value: code,
                     codec_id,
@@ -1843,7 +1876,7 @@ impl BoardVm {
                     .codecs
                     .get(&codec_id)
                     .ok_or_else(|| RuntimeError::UnknownCodec(codec_id.clone()))?;
-                let code = codec.band_analog_to_code_i64(a);
+                let code = analog_to_codec_code(codec, a);
                 Ok(Value::Code {
                     value: code,
                     codec_id,
@@ -2392,6 +2425,18 @@ fn coerce_like_existing(existing: &Value, incoming: Value) -> Result<Value, Runt
         (Value::Word(_), Value::Dint(n)) => Ok(Value::Word(n as u16)),
         (Value::Dword(_), Value::Dint(n)) => Ok(Value::Dword(n as u32)),
         (Value::Lword(_), Value::Dint(n)) => Ok(Value::Lword(n as u64)),
+        (Value::Sint(_), Value::Code { value, .. }) => Ok(Value::Sint(value as i8)),
+        (Value::Int(_), Value::Code { value, .. }) => Ok(Value::Int(value as i16)),
+        (Value::Dint(_), Value::Code { value, .. }) => Ok(Value::Dint(value as i32)),
+        (Value::Lint(_), Value::Code { value, .. }) => Ok(Value::Lint(value)),
+        (Value::Usint(_), Value::Code { value, .. }) => Ok(Value::Usint(value as u8)),
+        (Value::Uint(_), Value::Code { value, .. }) => Ok(Value::Uint(value as u16)),
+        (Value::Udint(_), Value::Code { value, .. }) => Ok(Value::Udint(value as u32)),
+        (Value::Ulint(_), Value::Code { value, .. }) => Ok(Value::Ulint(value as u64)),
+        (Value::Byte(_), Value::Code { value, .. }) => Ok(Value::Byte(value as u8)),
+        (Value::Word(_), Value::Code { value, .. }) => Ok(Value::Word(value as u16)),
+        (Value::Dword(_), Value::Code { value, .. }) => Ok(Value::Dword(value as u32)),
+        (Value::Lword(_), Value::Code { value, .. }) => Ok(Value::Lword(value as u64)),
         (Value::Real(_), Value::Lreal(f)) => Ok(Value::Real(f as f32)),
         (Value::Lreal(_), Value::Real(f)) => Ok(Value::Lreal(f64::from(f))),
         (Value::Analog(_), Value::Dint(n)) => Ok(Value::Analog(n)),
@@ -2434,4 +2479,17 @@ fn parse_assumption_value(raw: &str) -> Result<Value, RuntimeError> {
         text: trimmed.to_owned(),
         max_len: 255,
     })
+}
+
+/// Converts a normalized fixed-point `ANALOG` (`M = 10^9`) value to a native codec code (`01` §3.1–§3.4):
+/// - `CodecKind::Binned`: strictly clamps unipolar `[0, n_max]` (`T-NUM-2`/`T-NUM-3` mandatory `span -> binned` clamp).
+/// - `CodecKind::Span` / `CodecKind::SpanBipolar`: preserves signed band overrange/underrange codes with truncation toward zero.
+fn analog_to_codec_code(codec: &Codec, analog: i32) -> i64 {
+    match codec.kind {
+        CodecKind::Binned => {
+            let clamped_nonneg = u64::try_from(analog.max(0)).unwrap_or(0);
+            i64::try_from(codec.to_code_unipolar(clamped_nonneg)).unwrap_or(i64::MAX)
+        }
+        CodecKind::Span | CodecKind::SpanBipolar => codec.band_analog_to_code_i64(analog),
+    }
 }

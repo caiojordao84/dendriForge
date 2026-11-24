@@ -9,8 +9,15 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
+toml = "0.8"
+dendri-assets = { path = "../crates/dendri-assets" }
 dendri-cli = { path = "../crates/dendri-cli" }
 dendri-expr = { path = "../crates/dendri-expr" }
+dendri-frontend-core = { path = "../crates/dendri-frontend-core" }
+dendri-lang-cpp = { path = "../crates/dendri-lang-cpp" }
+dendri-lang-ladder = { path = "../crates/dendri-lang-ladder" }
+dendri-lang-sfc = { path = "../crates/dendri-lang-sfc" }
+dendri-lang-st = { path = "../crates/dendri-lang-st" }
 dendri-project = { path = "../crates/dendri-project" }
 
 [[bin]]
@@ -30,6 +37,41 @@ bench = false
 [[bin]]
 name = "project_toml"
 path = "fuzz_targets/project_toml.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "asset_profile"
+path = "fuzz_targets/asset_profile.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "lang_st"
+path = "fuzz_targets/lang_st.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "lang_cpp"
+path = "fuzz_targets/lang_cpp.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "lang_ladder"
+path = "fuzz_targets/lang_ladder.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "lang_sfc"
+path = "fuzz_targets/lang_sfc.rs"
 test = false
 doc = false
 bench = false

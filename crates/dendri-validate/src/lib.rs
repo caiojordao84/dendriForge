@@ -17,9 +17,9 @@ pub use profile_catalog::{
 use crate::validate_comments::{CommentValidationCtx, validate_comment};
 use crate::validate_types::{BoardTypeEnv, SymbolEntry, hardware_binding_type};
 use dendri_ast::{
-    AuthoringLanguage, Board, CodecError, CommentEncoding, Endpoint, Expr, ExprKind, HardwareKind,
-    LadderBoxKind, LadderCell, LadderCellKind, NodeId, ObKind, Pou, PouBody, PouKind, Project,
-    Stmt, StmtKind, TypeDecl, is_valid_instance_id, is_valid_profile_id,
+    AuthoringLanguage, Board, CodecError, CommentEncoding, Endpoint, ExecutionKind, Expr, ExprKind,
+    HardwareKind, LadderBoxKind, LadderCell, LadderCellKind, NodeId, ObKind, Pou, PouBody, PouKind,
+    Project, Stmt, StmtKind, TypeDecl, is_valid_instance_id, is_valid_profile_id,
 };
 use dendri_span::{Diagnostic, DiagnosticBag, ErrorCode, FileId, Span};
 use dendri_stdlib::StdCatalog;
@@ -599,6 +599,7 @@ fn validate_board(
     let mut env = BoardTypeEnv {
         board_id: bid,
         file_id: options.file_id,
+        allow_plc_direct_output_assign: board.execution == ExecutionKind::PlcScan,
         std_catalog,
         imports: board.program.imports.clone(),
         board_profile,
