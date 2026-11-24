@@ -15,6 +15,7 @@ members = [
     "crates/dendri-bus",
     "crates/dendri-physics",
     "crates/dendri-frontend-core",
+    "crates/dendri-lang-cpp",
     "crates/dendri-lang-ladder",
     "crates/dendri-lang-sfc",
     "crates/dendri-sync",
