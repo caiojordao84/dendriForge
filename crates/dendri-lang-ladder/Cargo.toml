@@ -1,0 +1,23 @@
+[package]
+name = "dendri-lang-ladder"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "100% pure-Rust IEC 61131-3 Ladder Diagram (LD) structural frontend implementing LanguageFrontend (PouBody::Network, conservative lifting, and deterministic derived projection)"
+
+[lints]
+workspace = true
+
+[dependencies]
+dendri-ast = { workspace = true }
+dendri-expr = { workspace = true }
+dendri-frontend-core = { path = "../dendri-frontend-core" }
+dendri-span = { workspace = true }
+dendri-stdlib = { workspace = true }
+
+[dev-dependencies]
+dendri-vm = { workspace = true }
+proptest = { workspace = true }
