@@ -1,0 +1,21 @@
+[package]
+name = "dendri-sync"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "100% pure-Rust non-destructive bidirectional sync engine, BoardDoc, and unified Undo/Redo stack"
+
+[lints]
+workspace = true
+
+[dependencies]
+dendri-ast = { workspace = true }
+dendri-frontend-core = { path = "../dendri-frontend-core" }
+dendri-project = { workspace = true }
+dendri-span = { workspace = true }
+dendri-validate = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
