@@ -1,14 +1,14 @@
 //! Comprehensive Wave 1 conformance suite for `dendri-lang-cpp` (`docs/lbc/cpp.md`, `04` §2–§4).
 
 use dendri_ast::{
-    ActionQualifier, AuthoringLanguage, BinaryOp, Board, BoardLayout, BoardProgram, Codec,
-    CodecKind, Comment, CommentAnchor, CommentEncoding, CommentOrigin,
+    ActionQualifier, AuthoringLanguage, BinaryOp, Board, BoardLayout, BoardProgram, CasePattern,
+    Codec, CodecKind, Comment, CommentAnchor, CommentEncoding, CommentOrigin,
     CommentPlacement as AstCommentPlacement, CommentStyle, DataDecl, EolStyle, ExecutionKind, Expr,
     ExprKind, ForeignFidelity, HardwareBinding, HardwareKind, InterruptEdge, LValue, LadderCell,
     LadderCellKind, LadderCoilKind, LadderContactKind, LadderNetwork, LadderRung, Literal, NodeId,
     ObKind, ParamDecl, ParamDirection, Pou, PouBody, PouKind, Project, ProjectMeta, PullMode,
     ScalarType, SfcAction, SfcChart, SfcStep, SfcTransition, Stmt, StmtKind, StorageScope,
-    TypeDecl, TypeRef,
+    SwitchCase, TypeDecl, TypeRef, UnaryOp,
 };
 use dendri_frontend_core::conformance::{
     FeatureMatrixCollector, assert_c1_multiset_invariant, assert_c2_orphan_preservation,
@@ -1396,7 +1396,9 @@ void loop() {
         .expect("derived Ladder/SFC projection")
         .value;
     assert!(!contains_banned_magic_comment(&emitted));
-    assert!(emitted.contains("motorOut = (startBtn);"));
+    assert!(emitted.contains("bool _rail = true;"));
+    assert!(emitted.contains("_rail = _rail && startBtn;"));
+    assert!(emitted.contains("motorOut = _rail;"));
     assert!(emitted.contains("if (S0.X)"));
 }
 
@@ -1819,6 +1821,486 @@ fn arb_board_bundle(int_bits: u8) -> impl Strategy<Value = BoardProgramBundle> {
                 })
             },
         )
+}
+
+#[test]
+fn do_while_continue_evaluates_condition_and_preserves_nested_loop_continue() {
+    let fe = CppFrontend::new();
+    let ctx = BoardContext::arduino_uno_r3("mcu_uno");
+    let src = r#"#include <Arduino.h>
+#include <stdint.h>
+
+int16_t x = 10;
+
+void loop() {
+  do {
+    if (x >= 10) {
+      continue;
+    }
+    for (int16_t i = 0; i < 3; i++) {
+      if (i == 1) {
+        continue;
+      }
+      x++;
+    }
+    x++;
+  } while (false);
+}
+"#;
+    let parsed = fe.parse(src, &ctx).expect("parse do-while with continue");
+    let loop_pou = parsed
+        .value
+        .program
+        .pous
+        .iter()
+        .find(|p| p.name == "OB_MAIN")
+        .expect("OB_MAIN");
+    let PouBody::Statements(stmts) = &loop_pou.body else {
+        panic!("expected statement body");
+    };
+    let StmtKind::While {
+        condition,
+        body: while_body,
+    } = &stmts[0].kind
+    else {
+        panic!("expected desugared While loop, got {:?}", stmts[0].kind);
+    };
+    assert_eq!(condition.kind, ExprKind::Literal(Literal::Bool(true)));
+
+    // 1. Direct `continue;` inside outer `if (x >= 10)` MUST be preceded by `if (!false) { break; }`
+    let StmtKind::If {
+        then_body: outer_if_body,
+        ..
+    } = &while_body[0].kind
+    else {
+        panic!("expected outer if, got {:?}", while_body[0].kind);
+    };
+    assert_eq!(
+        outer_if_body.len(),
+        2,
+        "continue must be preceded by condition break guard: {outer_if_body:?}"
+    );
+    let StmtKind::If {
+        condition: guard_cond,
+        then_body: guard_then,
+        ..
+    } = &outer_if_body[0].kind
+    else {
+        panic!(
+            "expected break guard before continue, got {:?}",
+            outer_if_body[0].kind
+        );
+    };
+    assert!(matches!(
+        &guard_cond.kind,
+        ExprKind::Unary {
+            op: UnaryOp::Not,
+            operand
+        } if operand.kind == ExprKind::Literal(Literal::Bool(false))
+    ));
+    assert!(matches!(guard_then[0].kind, StmtKind::Break));
+    assert!(matches!(outer_if_body[1].kind, StmtKind::Continue));
+
+    // 2. Nested `for` loop's `continue;` MUST NOT be rewritten with the outer do-while guard
+    let StmtKind::For { body: for_body, .. } = &while_body[1].kind else {
+        panic!("expected nested for loop, got {:?}", while_body[1].kind);
+    };
+    let StmtKind::If {
+        then_body: inner_if_body,
+        ..
+    } = &for_body[0].kind
+    else {
+        panic!("expected inner if inside for loop");
+    };
+    assert_eq!(
+        inner_if_body.len(),
+        1,
+        "nested loop continue must remain untouched: {inner_if_body:?}"
+    );
+    assert!(matches!(inner_if_body[0].kind, StmtKind::Continue));
+
+    // Round-trip AND full static validation must pass with zero errors
+    verify_frontend_roundtrip(&fe, &parsed.value, &ctx).expect("do-while roundtrip");
+
+    let catalog = MemoryProfileCatalog::builtin_reference();
+    let project = Project {
+        meta: ProjectMeta {
+            schema_version: "2.0".to_owned(),
+            asl_version: "2.0".to_owned(),
+            requires: vec!["asl-core@1".to_owned()],
+            name: "do_while_demo".to_owned(),
+            author: String::new(),
+            description: String::new(),
+        },
+        libraries: vec![],
+        packs: vec![],
+        comments: vec![],
+        boards: vec![Board {
+            id: "mcu_uno".to_owned(),
+            profile: "arduino-uno-r3".to_owned(),
+            authoring_language: AuthoringLanguage::Cpp,
+            execution: ExecutionKind::Cooperative,
+            scan_period_us: None,
+            layout: BoardLayout::default(),
+            program: parsed.value.program.clone(),
+            comments: parsed.value.comments.clone(),
+            assumptions: parsed.value.assumptions.clone(),
+            presentation: parsed.value.presentation.clone(),
+            span: Span::default(),
+        }],
+        components: vec![],
+        wires: vec![],
+    };
+    let bag = validate_project(&project, &catalog, &ValidateOptions::default());
+    assert!(
+        !bag.has_errors(),
+        "unexpected validator errors: {:?}",
+        bag.all()
+    );
+}
+
+#[test]
+fn switch_large_and_non_const_ranges_emit_if_else_chain_without_dropping_cases() {
+    let fe = CppFrontend::new();
+    let ctx = BoardContext::arduino_uno_r3("mcu_uno");
+
+    let program = BoardProgram {
+        imports: vec!["std.arduino.*".to_owned()],
+        hardware: vec![],
+        types: vec![],
+        data: vec![
+            DataDecl {
+                id: NodeId::new("n_x"),
+                name: "x".to_owned(),
+                scope: StorageScope::Var,
+                ty: TypeRef::scalar(ScalarType::Int),
+                initial: Some(Expr::new(
+                    ExprKind::Literal(Literal::Int(50)),
+                    Span::default(),
+                )),
+                span: Span::default(),
+            },
+            DataDecl {
+                id: NodeId::new("n_lo"),
+                name: "lo".to_owned(),
+                scope: StorageScope::Var,
+                ty: TypeRef::scalar(ScalarType::Int),
+                initial: Some(Expr::new(
+                    ExprKind::Literal(Literal::Int(5)),
+                    Span::default(),
+                )),
+                span: Span::default(),
+            },
+            DataDecl {
+                id: NodeId::new("n_hi"),
+                name: "hi".to_owned(),
+                scope: StorageScope::Var,
+                ty: TypeRef::scalar(ScalarType::Int),
+                initial: Some(Expr::new(
+                    ExprKind::Literal(Literal::Int(20)),
+                    Span::default(),
+                )),
+                span: Span::default(),
+            },
+            DataDecl {
+                id: NodeId::new("n_out"),
+                name: "outVal".to_owned(),
+                scope: StorageScope::Var,
+                ty: TypeRef::scalar(ScalarType::Int),
+                initial: Some(Expr::new(
+                    ExprKind::Literal(Literal::Int(0)),
+                    Span::default(),
+                )),
+                span: Span::default(),
+            },
+        ],
+        modules: vec![],
+        pous: vec![Pou {
+            id: NodeId::new("n_main"),
+            name: "OB_MAIN".to_owned(),
+            kind: PouKind::Ob { ob: ObKind::Main },
+            preferred_view: None,
+            params: vec![],
+            locals: vec![],
+            body: PouBody::Statements(vec![
+                // Switch 1: range `0..=100` (> 64 values) + discrete `200` + default
+                Stmt::new(
+                    NodeId::new("n_sw1"),
+                    StmtKind::Switch {
+                        scrutinee: Expr::new(ExprKind::Ident("x".to_owned()), Span::default()),
+                        cases: vec![
+                            SwitchCase {
+                                patterns: vec![CasePattern::Range {
+                                    start: Expr::new(
+                                        ExprKind::Literal(Literal::Int(0)),
+                                        Span::default(),
+                                    ),
+                                    end: Expr::new(
+                                        ExprKind::Literal(Literal::Int(100)),
+                                        Span::default(),
+                                    ),
+                                }],
+                                body: vec![Stmt::new(
+                                    NodeId::new("n_a1"),
+                                    StmtKind::Assign {
+                                        target: LValue::Var {
+                                            name: "outVal".to_owned(),
+                                            span: Span::default(),
+                                        },
+                                        value: Expr::new(
+                                            ExprKind::Literal(Literal::Int(1)),
+                                            Span::default(),
+                                        ),
+                                    },
+                                    Span::default(),
+                                )],
+                            },
+                            SwitchCase {
+                                patterns: vec![CasePattern::Value(Expr::new(
+                                    ExprKind::Literal(Literal::Int(200)),
+                                    Span::default(),
+                                ))],
+                                body: vec![Stmt::new(
+                                    NodeId::new("n_a2"),
+                                    StmtKind::Assign {
+                                        target: LValue::Var {
+                                            name: "outVal".to_owned(),
+                                            span: Span::default(),
+                                        },
+                                        value: Expr::new(
+                                            ExprKind::Literal(Literal::Int(2)),
+                                            Span::default(),
+                                        ),
+                                    },
+                                    Span::default(),
+                                )],
+                            },
+                        ],
+                        default: Some(vec![Stmt::new(
+                            NodeId::new("n_a3"),
+                            StmtKind::Assign {
+                                target: LValue::Var {
+                                    name: "outVal".to_owned(),
+                                    span: Span::default(),
+                                },
+                                value: Expr::new(
+                                    ExprKind::Literal(Literal::Int(3)),
+                                    Span::default(),
+                                ),
+                            },
+                            Span::default(),
+                        )]),
+                    },
+                    Span::default(),
+                ),
+                // Switch 2: non-const range `lo..=hi` with compound scrutinee `(x + 1)`
+                Stmt::new(
+                    NodeId::new("n_sw2"),
+                    StmtKind::Switch {
+                        scrutinee: Expr::new(
+                            ExprKind::Binary {
+                                op: BinaryOp::Add,
+                                left: Box::new(Expr::new(
+                                    ExprKind::Ident("x".to_owned()),
+                                    Span::default(),
+                                )),
+                                right: Box::new(Expr::new(
+                                    ExprKind::Literal(Literal::Int(1)),
+                                    Span::default(),
+                                )),
+                            },
+                            Span::default(),
+                        ),
+                        cases: vec![SwitchCase {
+                            patterns: vec![CasePattern::Range {
+                                start: Expr::new(ExprKind::Ident("lo".to_owned()), Span::default()),
+                                end: Expr::new(ExprKind::Ident("hi".to_owned()), Span::default()),
+                            }],
+                            body: vec![Stmt::new(
+                                NodeId::new("n_a4"),
+                                StmtKind::Assign {
+                                    target: LValue::Var {
+                                        name: "outVal".to_owned(),
+                                        span: Span::default(),
+                                    },
+                                    value: Expr::new(
+                                        ExprKind::Literal(Literal::Int(4)),
+                                        Span::default(),
+                                    ),
+                                },
+                                Span::default(),
+                            )],
+                        }],
+                        default: None,
+                    },
+                    Span::default(),
+                ),
+            ]),
+            span: Span::default(),
+        }],
+    };
+
+    let bundle = BoardProgramBundle::new(program);
+    let emitted = fe.emit(&bundle, &ctx).expect("emit switch ranges").value;
+    assert!(!contains_banned_magic_comment(&emitted));
+    assert!(
+        !emitted.contains("case 0:"),
+        "0..=100 must NOT degrade into single `case 0:`: {emitted}"
+    );
+    assert!(
+        emitted.contains("if (((x >= 0) && (x <= 100)))"),
+        "expected full inclusive range check 0..=100, got:\n{emitted}"
+    );
+    assert!(
+        emitted.contains("else if ((x == 200))"),
+        "expected discrete arm in else-if chain, got:\n{emitted}"
+    );
+    assert!(
+        emitted.contains("else {"),
+        "expected default else arm, got:\n{emitted}"
+    );
+    assert!(
+        emitted.contains("auto _switch_val = (x + 1);"),
+        "expected single-eval temporary for non-ident scrutinee, got:\n{emitted}"
+    );
+    assert!(
+        emitted.contains("if (((_switch_val >= lo) && (_switch_val <= hi)))"),
+        "expected non-const range bounds check, got:\n{emitted}"
+    );
+
+    // Emitted C++ must re-parse cleanly with zero errors
+    let reparsed = fe
+        .parse(&emitted, &ctx)
+        .expect("emitted if/else chain must parse");
+    assert!(!reparsed.value.program.pous.is_empty());
+}
+
+#[test]
+fn ladder_projection_sorts_cells_and_materializes_rail_against_mid_rung_reset() {
+    let fe = CppFrontend::new();
+    let ctx = BoardContext::arduino_uno_r3("mcu_uno");
+
+    // Deliberately supply cells out of `(col, row)` order for `[a] --(R a)-- (b)`
+    let bundle = BoardProgramBundle::new(BoardProgram {
+        imports: vec!["std.arduino.*".to_owned()],
+        hardware: vec![],
+        types: vec![],
+        data: vec![
+            DataDecl {
+                id: NodeId::new("n_a"),
+                name: "a".to_owned(),
+                scope: StorageScope::Var,
+                ty: TypeRef::scalar(ScalarType::Bool),
+                initial: Some(Expr::new(
+                    ExprKind::Literal(Literal::Bool(true)),
+                    Span::default(),
+                )),
+                span: Span::default(),
+            },
+            DataDecl {
+                id: NodeId::new("n_b"),
+                name: "b".to_owned(),
+                scope: StorageScope::Var,
+                ty: TypeRef::scalar(ScalarType::Bool),
+                initial: Some(Expr::new(
+                    ExprKind::Literal(Literal::Bool(false)),
+                    Span::default(),
+                )),
+                span: Span::default(),
+            },
+        ],
+        modules: vec![],
+        pous: vec![Pou {
+            id: NodeId::new("n_main"),
+            name: "OB_MAIN".to_owned(),
+            kind: PouKind::Ob { ob: ObKind::Main },
+            preferred_view: Some(AuthoringLanguage::Ladder),
+            params: vec![],
+            locals: vec![],
+            body: PouBody::Network(LadderNetwork {
+                rungs: vec![LadderRung {
+                    id: NodeId::new("n_r0"),
+                    order: 0,
+                    cells: vec![
+                        // col 2 first (unsorted!)
+                        LadderCell {
+                            id: NodeId::new("n_c2"),
+                            row: 0,
+                            col: 2,
+                            kind: LadderCellKind::Coil {
+                                kind: LadderCoilKind::Normal,
+                                target: LValue::Var {
+                                    name: "b".to_owned(),
+                                    span: Span::default(),
+                                },
+                            },
+                        },
+                        // col 1 second
+                        LadderCell {
+                            id: NodeId::new("n_c1"),
+                            row: 0,
+                            col: 1,
+                            kind: LadderCellKind::Coil {
+                                kind: LadderCoilKind::Reset,
+                                target: LValue::Var {
+                                    name: "a".to_owned(),
+                                    span: Span::default(),
+                                },
+                            },
+                        },
+                        // col 0 last
+                        LadderCell {
+                            id: NodeId::new("n_c0"),
+                            row: 0,
+                            col: 0,
+                            kind: LadderCellKind::Contact {
+                                kind: LadderContactKind::NormallyOpen,
+                                target: LValue::Var {
+                                    name: "a".to_owned(),
+                                    span: Span::default(),
+                                },
+                            },
+                        },
+                    ],
+                }],
+            }),
+            span: Span::default(),
+        }],
+    });
+
+    let emitted = fe
+        .emit(&bundle, &ctx)
+        .expect("emit ladder projection")
+        .value;
+    assert!(!contains_banned_magic_comment(&emitted));
+
+    let pos_decl = emitted
+        .find("bool _rail = true;")
+        .expect("must declare materialized local _rail");
+    let pos_contact = emitted
+        .find("_rail = _rail && a;")
+        .expect("must update _rail from [a]");
+    let pos_reset = emitted
+        .find("if (_rail) { a = false; }")
+        .expect("must reset a using materialized _rail");
+    let pos_coil_b = emitted
+        .find("b = _rail;")
+        .expect("must assign b from pre-reset materialized _rail");
+
+    assert!(
+        pos_decl < pos_contact && pos_contact < pos_reset && pos_reset < pos_coil_b,
+        "cells must execute in sorted (col, row) order with pre-reset _rail:\n{emitted}"
+    );
+    assert!(
+        !emitted.contains("b = (a);"),
+        "b must NOT re-read post-reset `a`:\n{emitted}"
+    );
+
+    // Projected C++ must also parse cleanly as valid C++
+    let reparsed = fe
+        .parse(&emitted, &ctx)
+        .expect("projected Ladder C++ must parse");
+    assert!(!reparsed.value.program.pous.is_empty());
 }
 
 proptest! {

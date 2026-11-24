@@ -19,7 +19,7 @@ use dendri_ast::{
     ForeignFidelity, HardwareBinding, HardwareKind, InterruptEdge, LValue, LadderBoxKind,
     LadderCell, LadderCellKind, LadderCoilKind, LadderCompareOp, LadderContactKind, LadderNetwork,
     Literal, NodeId, ObKind, Pou, PouBody, PouKind, PullMode, SfcChart, Stmt, StmtKind,
-    StorageScope, TypeDecl, UnaryOp,
+    StorageScope, SwitchCase, TypeDecl, UnaryOp,
 };
 use dendri_frontend_core::comments::{
     relocate_inner_comments, render_comment_for_language, restore_eol,
@@ -672,7 +672,8 @@ impl<'a> Emitter<'a> {
                 }
             }
             PouBody::Network(net) => {
-                self.emit_ladder_projection(net, 1)?;
+                let rail_var = self.choose_ladder_rail_name(pou);
+                self.emit_ladder_projection(net, &rail_var, 1)?;
             }
             PouBody::Chart(chart) => {
                 self.emit_chart_projection(chart, 1)?;
@@ -763,69 +764,69 @@ impl<'a> Emitter<'a> {
                 cases,
                 default,
             } => {
-                let scrut_s = self.format_expr(scrutinee)?;
-                self.push_indent(indent);
-                self.out.push_str(&format!("switch ({scrut_s}) {{\n"));
-                for c in cases {
-                    for pat in &c.patterns {
-                        match pat {
-                            CasePattern::Value(v) => {
-                                let vs = self.format_expr(v)?;
-                                self.push_indent(indent.saturating_add(1));
-                                self.out.push_str(&format!("case {vs}:\n"));
-                            }
-                            CasePattern::Range { start, end } => {
-                                if let (
-                                    ExprKind::Literal(Literal::Int(lo)),
-                                    ExprKind::Literal(Literal::Int(hi)),
-                                ) = (&start.kind, &end.kind)
-                                    && *lo <= *hi
-                                    && hi.saturating_sub(*lo) <= 64
-                                {
-                                    let mut n = *lo;
-                                    while n <= *hi {
-                                        self.push_indent(indent.saturating_add(1));
-                                        self.out.push_str(&format!("case {n}:\n"));
-                                        n = n.saturating_add(1);
-                                    }
-                                } else {
-                                    let lo_s = self.format_expr(start)?;
+                if switch_requires_if_chain(cases) {
+                    self.emit_switch_as_if_chain(
+                        stmt,
+                        scrutinee,
+                        cases,
+                        default.as_deref(),
+                        indent,
+                    )?;
+                } else {
+                    let scrut_s = self.format_expr(scrutinee)?;
+                    self.push_indent(indent);
+                    self.out.push_str(&format!("switch ({scrut_s}) {{\n"));
+                    for c in cases {
+                        for pat in &c.patterns {
+                            match pat {
+                                CasePattern::Value(v) => {
+                                    let vs = self.format_expr(v)?;
                                     self.push_indent(indent.saturating_add(1));
-                                    self.out.push_str(&format!("case {lo_s}:\n"));
+                                    self.out.push_str(&format!("case {vs}:\n"));
+                                }
+                                CasePattern::Range { start, end } => {
+                                    if let Some((lo, hi)) = small_const_switch_range(start, end) {
+                                        let mut n = lo;
+                                        while n <= hi {
+                                            self.push_indent(indent.saturating_add(1));
+                                            self.out.push_str(&format!("case {n}:\n"));
+                                            n = n.saturating_add(1);
+                                        }
+                                    }
                                 }
                             }
                         }
+                        for s in &c.body {
+                            self.emit_stmt(s, indent.saturating_add(2))?;
+                        }
+                        let ends_with_return = c
+                            .body
+                            .last()
+                            .is_some_and(|s| matches!(s.kind, StmtKind::Return { .. }));
+                        if !ends_with_return {
+                            self.push_indent(indent.saturating_add(2));
+                            self.out.push_str("break;\n");
+                        }
                     }
-                    for s in &c.body {
-                        self.emit_stmt(s, indent.saturating_add(2))?;
+                    if let Some(def_body) = default {
+                        self.push_indent(indent.saturating_add(1));
+                        self.out.push_str("default:\n");
+                        for s in def_body {
+                            self.emit_stmt(s, indent.saturating_add(2))?;
+                        }
+                        let ends_with_return = def_body
+                            .last()
+                            .is_some_and(|s| matches!(s.kind, StmtKind::Return { .. }));
+                        if !ends_with_return {
+                            self.push_indent(indent.saturating_add(2));
+                            self.out.push_str("break;\n");
+                        }
                     }
-                    let ends_with_return = c
-                        .body
-                        .last()
-                        .is_some_and(|s| matches!(s.kind, StmtKind::Return { .. }));
-                    if !ends_with_return {
-                        self.push_indent(indent.saturating_add(2));
-                        self.out.push_str("break;\n");
-                    }
+                    self.emit_dangling_comments(&stmt.id, indent.saturating_add(1));
+                    self.push_indent(indent);
+                    self.out.push('}');
+                    self.emit_trailing_comments(&stmt.id, indent);
                 }
-                if let Some(def_body) = default {
-                    self.push_indent(indent.saturating_add(1));
-                    self.out.push_str("default:\n");
-                    for s in def_body {
-                        self.emit_stmt(s, indent.saturating_add(2))?;
-                    }
-                    let ends_with_return = def_body
-                        .last()
-                        .is_some_and(|s| matches!(s.kind, StmtKind::Return { .. }));
-                    if !ends_with_return {
-                        self.push_indent(indent.saturating_add(2));
-                        self.out.push_str("break;\n");
-                    }
-                }
-                self.emit_dangling_comments(&stmt.id, indent.saturating_add(1));
-                self.push_indent(indent);
-                self.out.push('}');
-                self.emit_trailing_comments(&stmt.id, indent);
             }
             StmtKind::While { condition, body } => {
                 let cond_s = self.format_expr(condition)?;
@@ -1317,34 +1318,233 @@ impl<'a> Emitter<'a> {
         }
     }
 
+    /// Emits a `Switch` containing large (> 64 values) or non-constant `CasePattern::Range`
+    /// arms as a standard ISO C++ `if / else if / else` chain so zero range values are dropped.
+    fn emit_switch_as_if_chain(
+        &mut self,
+        stmt: &Stmt,
+        scrutinee: &Expr,
+        cases: &[SwitchCase],
+        default: Option<&[Stmt]>,
+        indent: usize,
+    ) -> Result<(), Vec<Diagnostic>> {
+        let scrut_raw = self.format_expr(scrutinee)?;
+        let wrap_block = !matches!(scrutinee.kind, ExprKind::Ident(_) | ExprKind::Literal(_));
+        let (scrut_ref, body_indent) = if wrap_block {
+            self.push_indent(indent);
+            self.out.push_str("{\n");
+            let inner_indent = indent.saturating_add(1);
+            self.push_indent(inner_indent);
+            self.out
+                .push_str(&format!("auto _switch_val = {scrut_raw};\n"));
+            ("_switch_val".to_owned(), inner_indent)
+        } else {
+            (scrut_raw, indent)
+        };
+
+        for (i, c) in cases.iter().enumerate() {
+            let mut pat_conds = Vec::with_capacity(c.patterns.len());
+            for pat in &c.patterns {
+                match pat {
+                    CasePattern::Value(v) => {
+                        let vs = self.format_expr(v)?;
+                        pat_conds.push(format!("({scrut_ref} == {vs})"));
+                    }
+                    CasePattern::Range { start, end } => {
+                        let lo_s = self.format_expr(start)?;
+                        let hi_s = self.format_expr(end)?;
+                        pat_conds.push(format!(
+                            "(({scrut_ref} >= {lo_s}) && ({scrut_ref} <= {hi_s}))"
+                        ));
+                    }
+                }
+            }
+            let cond = if pat_conds.is_empty() {
+                "false".to_owned()
+            } else {
+                pat_conds.join(" || ")
+            };
+            if i == 0 {
+                self.push_indent(body_indent);
+                self.out.push_str(&format!("if ({cond}) {{\n"));
+            } else {
+                self.out.push_str(&format!(" else if ({cond}) {{\n"));
+            }
+            for s in &c.body {
+                self.emit_stmt(s, body_indent.saturating_add(1))?;
+            }
+            self.push_indent(body_indent);
+            self.out.push('}');
+        }
+
+        if let Some(def_body) = default {
+            if cases.is_empty() {
+                for s in def_body {
+                    self.emit_stmt(s, body_indent)?;
+                }
+            } else {
+                self.out.push_str(" else {\n");
+                for s in def_body {
+                    self.emit_stmt(s, body_indent.saturating_add(1))?;
+                }
+                self.push_indent(body_indent);
+                self.out.push('}');
+            }
+        }
+
+        if wrap_block {
+            self.out.push('\n');
+            self.emit_dangling_comments(&stmt.id, body_indent);
+            self.push_indent(indent);
+            self.out.push('}');
+        } else {
+            self.emit_dangling_comments(&stmt.id, indent.saturating_add(1));
+        }
+        self.emit_trailing_comments(&stmt.id, indent);
+        Ok(())
+    }
+
+    /// Chooses a collision-free local boolean rail variable name for Ladder projection.
+    fn choose_ladder_rail_name(&self, pou: &Pou) -> String {
+        let mut taken: BTreeSet<&str> = BTreeSet::new();
+        for hw in &self.bundle.program.hardware {
+            taken.insert(&hw.label);
+        }
+        for d in &self.bundle.program.data {
+            taken.insert(&d.name);
+        }
+        for p in &pou.params {
+            taken.insert(&p.name);
+        }
+        for l in &pou.locals {
+            taken.insert(&l.name);
+        }
+        if !taken.contains("_rail") {
+            return "_rail".to_owned();
+        }
+        let mut n = 1usize;
+        loop {
+            let candidate = format!("_rail_{n}");
+            if !taken.contains(candidate.as_str()) {
+                return candidate;
+            }
+            n = n.saturating_add(1);
+        }
+    }
+
     /// Derived readable C++ projection for cross-view Ladder Diagram (`PouBody::Network`).
+    ///
+    /// Sorts rungs by `order` and cells by `(col, row)`, and materializes a strictly local
+    /// C++ power-rail boolean (`bool _rail = true;`) so mid-rung side effects like
+    /// `[a] --(R a)-- (b)` preserve pre-reset power flow (`04` §5.1).
     fn emit_ladder_projection(
         &mut self,
         net: &LadderNetwork,
+        rail_var: &str,
         indent: usize,
     ) -> Result<(), Vec<Diagnostic>> {
         let mut sorted_rungs: Vec<&_> = net.rungs.iter().collect();
         sorted_rungs.sort_by_key(|r| r.order);
+        if sorted_rungs.is_empty() {
+            return Ok(());
+        }
 
-        for rung in sorted_rungs {
+        self.push_indent(indent);
+        self.out.push_str(&format!("bool {rail_var} = true;\n"));
+
+        for (rung_idx, rung) in sorted_rungs.into_iter().enumerate() {
             self.emit_leading_comments(&rung.id, indent);
-            let mut conds: Vec<String> = Vec::new();
-            for cell in &rung.cells {
+            if rung_idx > 0 {
+                self.push_indent(indent);
+                self.out.push_str(&format!("{rail_var} = true;\n"));
+            }
+            let mut sorted_cells: Vec<&LadderCell> = rung.cells.iter().collect();
+            sorted_cells.sort_by_key(|c| (c.col, c.row));
+            for cell in sorted_cells {
                 self.emit_leading_comments(&cell.id, indent);
-                self.emit_ladder_cell_projection(cell, &mut conds, indent)?;
+                self.emit_ladder_cell_projection(cell, rail_var, indent)?;
             }
         }
         Ok(())
     }
 
+    fn format_pure_ladder_branch(
+        &mut self,
+        branch: &[LadderCell],
+        indent: usize,
+    ) -> Result<String, Vec<Diagnostic>> {
+        let mut sorted: Vec<&LadderCell> = branch.iter().collect();
+        sorted.sort_by_key(|c| (c.col, c.row));
+        let mut parts = Vec::new();
+        for c in sorted {
+            self.emit_leading_comments(&c.id, indent);
+            match &c.kind {
+                LadderCellKind::Empty => parts.push("false".to_owned()),
+                LadderCellKind::Wire => {}
+                LadderCellKind::Contact { kind, target } => {
+                    let t = self.format_lvalue(target)?;
+                    parts.push(match kind {
+                        LadderContactKind::NormallyClosed => format!("(!{t})"),
+                        LadderContactKind::NormallyOpen
+                        | LadderContactKind::PositiveTransition
+                        | LadderContactKind::NegativeTransition => t,
+                    });
+                }
+                LadderCellKind::Box(LadderBoxKind::Compare { op, left, right }) => {
+                    let l = self.format_expr(left)?;
+                    let r = self.format_expr(right)?;
+                    let sym = match op {
+                        LadderCompareOp::Eq => "==",
+                        LadderCompareOp::Ne => "!=",
+                        LadderCompareOp::Lt => "<",
+                        LadderCompareOp::Le => "<=",
+                        LadderCompareOp::Gt => ">",
+                        LadderCompareOp::Ge => ">=",
+                    };
+                    parts.push(format!("({l} {sym} {r})"));
+                }
+                LadderCellKind::ParallelOr { branches } => {
+                    if branches.is_empty() {
+                        parts.push("false".to_owned());
+                    } else {
+                        let mut sub = Vec::with_capacity(branches.len());
+                        for b in branches {
+                            sub.push(self.format_pure_ladder_branch(b, indent)?);
+                        }
+                        parts.push(format!("({})", sub.join(" || ")));
+                    }
+                }
+                LadderCellKind::Coil { .. }
+                | LadderCellKind::Box(
+                    LadderBoxKind::Fb { .. }
+                    | LadderBoxKind::Call { .. }
+                    | LadderBoxKind::Foreign { .. },
+                ) => {}
+            }
+        }
+        if parts.is_empty() {
+            Ok("true".to_owned())
+        } else if parts.len() == 1 {
+            Ok(parts
+                .into_iter()
+                .next()
+                .unwrap_or_else(|| "true".to_owned()))
+        } else {
+            Ok(format!("({})", parts.join(" && ")))
+        }
+    }
+
     fn emit_ladder_cell_projection(
         &mut self,
         cell: &LadderCell,
-        conds: &mut Vec<String>,
+        rail_var: &str,
         indent: usize,
     ) -> Result<(), Vec<Diagnostic>> {
         match &cell.kind {
-            LadderCellKind::Empty => conds.push("false".to_owned()),
+            LadderCellKind::Empty => {
+                self.push_indent(indent);
+                self.out.push_str(&format!("{rail_var} = false;\n"));
+            }
             LadderCellKind::Wire => {}
             LadderCellKind::Contact { kind, target } => {
                 let t = self.format_lvalue(target)?;
@@ -1354,57 +1554,68 @@ impl<'a> Emitter<'a> {
                     | LadderContactKind::NegativeTransition => t,
                     LadderContactKind::NormallyClosed => format!("(!{t})"),
                 };
-                conds.push(expr);
+                self.push_indent(indent);
+                self.out
+                    .push_str(&format!("{rail_var} = {rail_var} && {expr};\n"));
             }
             LadderCellKind::ParallelOr { branches } => {
-                let mut br_exprs = Vec::new();
-                for br in branches {
-                    let mut sub = Vec::new();
-                    for c in br {
-                        if let LadderCellKind::Contact { kind, target } = &c.kind {
-                            let t = self.format_lvalue(target)?;
-                            sub.push(match kind {
-                                LadderContactKind::NormallyClosed => format!("(!{t})"),
-                                LadderContactKind::NormallyOpen
-                                | LadderContactKind::PositiveTransition
-                                | LadderContactKind::NegativeTransition => t,
-                            });
-                        } else if matches!(c.kind, LadderCellKind::Empty) {
-                            sub.push("false".to_owned());
+                if branches.is_empty() {
+                    self.push_indent(indent);
+                    self.out.push_str(&format!("{rail_var} = false;\n"));
+                } else if branches.iter().all(|br| br.iter().all(is_pure_ladder_cell)) {
+                    let mut br_exprs = Vec::with_capacity(branches.len());
+                    for br in branches {
+                        br_exprs.push(self.format_pure_ladder_branch(br, indent)?);
+                    }
+                    self.push_indent(indent);
+                    self.out.push_str(&format!(
+                        "{rail_var} = {rail_var} && ({});\n",
+                        br_exprs.join(" || ")
+                    ));
+                } else {
+                    self.push_indent(indent);
+                    self.out.push_str("{\n");
+                    let inner = indent.saturating_add(1);
+                    self.push_indent(inner);
+                    self.out.push_str(&format!("bool _br_in = {rail_var};\n"));
+                    self.push_indent(inner);
+                    self.out.push_str("bool _br_out = false;\n");
+                    for br in branches {
+                        self.push_indent(inner);
+                        self.out.push_str(&format!("{rail_var} = _br_in;\n"));
+                        let mut sorted_br: Vec<&LadderCell> = br.iter().collect();
+                        sorted_br.sort_by_key(|c| (c.col, c.row));
+                        for c in sorted_br {
+                            self.emit_leading_comments(&c.id, inner);
+                            self.emit_ladder_cell_projection(c, rail_var, inner)?;
                         }
+                        self.push_indent(inner);
+                        self.out
+                            .push_str(&format!("_br_out = _br_out || {rail_var};\n"));
                     }
-                    if sub.is_empty() {
-                        br_exprs.push("true".to_owned());
-                    } else {
-                        br_exprs.push(format!("({})", sub.join(" && ")));
-                    }
-                }
-                if !br_exprs.is_empty() {
-                    conds.push(format!("({})", br_exprs.join(" || ")));
+                    self.push_indent(inner);
+                    self.out.push_str(&format!("{rail_var} = _br_out;\n"));
+                    self.push_indent(indent);
+                    self.out.push_str("}\n");
                 }
             }
             LadderCellKind::Coil { kind, target } => {
-                let rail = if conds.is_empty() {
-                    "true".to_owned()
-                } else {
-                    conds.join(" && ")
-                };
                 let t = self.format_lvalue(target)?;
                 self.push_indent(indent);
                 match kind {
                     LadderCoilKind::Normal => {
-                        self.out.push_str(&format!("{t} = ({rail});\n"));
+                        self.out.push_str(&format!("{t} = {rail_var};\n"));
                     }
                     LadderCoilKind::Negated => {
-                        self.out.push_str(&format!("{t} = !({rail});\n"));
+                        self.out.push_str(&format!("{t} = !{rail_var};\n"));
                     }
                     LadderCoilKind::Set | LadderCoilKind::PositiveTransition => {
                         self.out
-                            .push_str(&format!("if ({rail}) {{ {t} = true; }}\n"));
+                            .push_str(&format!("if ({rail_var}) {{ {t} = true; }}\n"));
                     }
                     LadderCoilKind::Reset | LadderCoilKind::NegativeTransition => {
                         self.out
-                            .push_str(&format!("if ({rail}) {{ {t} = false; }}\n"));
+                            .push_str(&format!("if ({rail_var}) {{ {t} = false; }}\n"));
                     }
                 }
             }
@@ -1420,7 +1631,9 @@ impl<'a> Emitter<'a> {
                         LadderCompareOp::Gt => ">",
                         LadderCompareOp::Ge => ">=",
                     };
-                    conds.push(format!("({l} {sym} {r})"));
+                    self.push_indent(indent);
+                    self.out
+                        .push_str(&format!("{rail_var} = {rail_var} && ({l} {sym} {r});\n"));
                 }
                 LadderBoxKind::Fb {
                     instance, inputs, ..
@@ -1433,18 +1646,15 @@ impl<'a> Emitter<'a> {
                     self.push_indent(indent);
                     self.out
                         .push_str(&format!("{inst}({{{}}});\n", parts.join(", ")));
-                    conds.push(format!("{inst}.Q"));
+                    self.push_indent(indent);
+                    self.out
+                        .push_str(&format!("{rail_var} = {rail_var} && {inst}.Q;\n"));
                 }
                 LadderBoxKind::Call {
                     callee,
                     args,
                     output,
                 } => {
-                    let rail = if conds.is_empty() {
-                        "true".to_owned()
-                    } else {
-                        conds.join(" && ")
-                    };
                     let call_args: Vec<CallArg> = args
                         .iter()
                         .map(|(n, e)| CallArg {
@@ -1458,9 +1668,10 @@ impl<'a> Emitter<'a> {
                     if let Some(out_lv) = output {
                         let ol = self.format_lvalue(out_lv)?;
                         self.out
-                            .push_str(&format!("if ({rail}) {{ {ol} = {call_s}; }}\n"));
+                            .push_str(&format!("if ({rail_var}) {{ {ol} = {call_s}; }}\n"));
                     } else {
-                        self.out.push_str(&format!("if ({rail}) {{ {call_s}; }}\n"));
+                        self.out
+                            .push_str(&format!("if ({rail_var}) {{ {call_s}; }}\n"));
                     }
                 }
                 LadderBoxKind::Foreign {
@@ -1469,6 +1680,8 @@ impl<'a> Emitter<'a> {
                     text,
                     pack_hint,
                 } => {
+                    self.push_indent(indent);
+                    self.out.push_str(&format!("if ({rail_var}) {{\n"));
                     self.emit_foreign_node(
                         ForeignLevel::Stmt,
                         Some(&cell.id),
@@ -1477,9 +1690,11 @@ impl<'a> Emitter<'a> {
                         text,
                         pack_hint.as_deref(),
                         Span::default(),
-                        indent,
+                        indent.saturating_add(1),
                     )?;
                     self.out.push('\n');
+                    self.push_indent(indent);
+                    self.out.push_str("}\n");
                 }
             },
         }
@@ -1730,5 +1945,47 @@ fn collect_used_hw_in_expr(expr: &Expr, out: &mut BTreeSet<String>) {
             collect_used_hw_in_expr(right, out);
         }
         ExprKind::Literal(_) | ExprKind::Ident(_) | ExprKind::Foreign { .. } => {}
+    }
+}
+
+/// Returns `Some((lo, hi))` iff a `CasePattern::Range` has integer literal bounds spanning
+/// at most 64 discrete values (`lo <= hi` and `hi - lo < 64`).
+fn small_const_switch_range(start: &Expr, end: &Expr) -> Option<(i128, i128)> {
+    if let (ExprKind::Literal(Literal::Int(lo)), ExprKind::Literal(Literal::Int(hi))) =
+        (&start.kind, &end.kind)
+        && *lo <= *hi
+        && hi.saturating_sub(*lo) < 64
+    {
+        Some((*lo, *hi))
+    } else {
+        None
+    }
+}
+
+/// Returns `true` iff any arm of a `Switch` contains a `CasePattern::Range` exceeding 64
+/// discrete values, inverted bounds, or non-constant bounds (requiring ISO C++ `if/else if`).
+fn switch_requires_if_chain(cases: &[SwitchCase]) -> bool {
+    cases.iter().any(|c| {
+        c.patterns.iter().any(|p| match p {
+            CasePattern::Value(_) => false,
+            CasePattern::Range { start, end } => small_const_switch_range(start, end).is_none(),
+        })
+    })
+}
+
+/// Returns `true` iff `cell` is a pure boolean power-flow element with no side effects.
+fn is_pure_ladder_cell(cell: &LadderCell) -> bool {
+    match &cell.kind {
+        LadderCellKind::Empty
+        | LadderCellKind::Wire
+        | LadderCellKind::Contact { .. }
+        | LadderCellKind::Box(LadderBoxKind::Compare { .. }) => true,
+        LadderCellKind::ParallelOr { branches } => {
+            branches.iter().all(|br| br.iter().all(is_pure_ladder_cell))
+        }
+        LadderCellKind::Coil { .. }
+        | LadderCellKind::Box(
+            LadderBoxKind::Fb { .. } | LadderBoxKind::Call { .. } | LadderBoxKind::Foreign { .. },
+        ) => false,
     }
 }

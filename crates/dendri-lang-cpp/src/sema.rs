@@ -2012,13 +2012,12 @@ impl<'a> Lowerer<'a> {
                 let prev_loop = fn_ctx.in_loop;
                 fn_ctx.in_loop = true;
                 scopes.push(BTreeMap::new());
-                let mut body_stmts = self.lower_stmts(body, fn_ctx, scopes, pou_locals);
+                let body_stmts = self.lower_stmts(body, fn_ctx, scopes, pou_locals);
                 let _ = scopes.pop();
                 fn_ctx.in_loop = prev_loop;
 
-                // Preserve exact do-while semantics: execute body, then break if !cond.
-                let break_id = self.fresh_id();
-                let guard_id = self.fresh_id();
+                // Preserve exact do-while semantics: execute body, evaluate `cond` on every
+                // direct `continue;` as well as at end of body, and break if `!cond`.
                 let not_cond = Expr::new(
                     ExprKind::Unary {
                         op: UnaryOp::Not,
@@ -2026,6 +2025,10 @@ impl<'a> Lowerer<'a> {
                     },
                     condition.span,
                 );
+                let mut body_stmts =
+                    self.rewrite_do_while_continues(body_stmts, &not_cond, condition.span);
+                let break_id = self.fresh_id();
+                let guard_id = self.fresh_id();
                 body_stmts.push(Stmt::new(
                     guard_id,
                     StmtKind::If {
@@ -2169,6 +2172,77 @@ impl<'a> Lowerer<'a> {
                 )]
             }
         }
+    }
+
+    /// Rewrites direct `continue;` statements inside a `do { ... } while (cond);` body
+    /// (without descending into nested loops) so `continue` always evaluates `cond`
+    /// before starting the next iteration.
+    fn rewrite_do_while_continues(
+        &mut self,
+        stmts: Vec<Stmt>,
+        not_cond: &Expr,
+        cond_span: Span,
+    ) -> Vec<Stmt> {
+        let mut out = Vec::with_capacity(stmts.len());
+        for mut stmt in stmts {
+            match &mut stmt.kind {
+                StmtKind::Continue => {
+                    let guard_id = self.fresh_id();
+                    let break_id = self.fresh_id();
+                    out.push(Stmt::new(
+                        guard_id,
+                        StmtKind::If {
+                            condition: not_cond.clone(),
+                            then_body: vec![Stmt::new(break_id, StmtKind::Break, cond_span)],
+                            elif_arms: Vec::new(),
+                            else_body: Vec::new(),
+                        },
+                        cond_span,
+                    ));
+                    out.push(stmt);
+                }
+                StmtKind::If {
+                    then_body,
+                    elif_arms,
+                    else_body,
+                    ..
+                } => {
+                    let tb = std::mem::take(then_body);
+                    *then_body = self.rewrite_do_while_continues(tb, not_cond, cond_span);
+                    for arm in elif_arms {
+                        let ab = std::mem::take(&mut arm.body);
+                        arm.body = self.rewrite_do_while_continues(ab, not_cond, cond_span);
+                    }
+                    let eb = std::mem::take(else_body);
+                    *else_body = self.rewrite_do_while_continues(eb, not_cond, cond_span);
+                    out.push(stmt);
+                }
+                StmtKind::Switch { cases, default, .. } => {
+                    for case in cases {
+                        let cb = std::mem::take(&mut case.body);
+                        case.body = self.rewrite_do_while_continues(cb, not_cond, cond_span);
+                    }
+                    if let Some(def) = default {
+                        let db = std::mem::take(def);
+                        *def = self.rewrite_do_while_continues(db, not_cond, cond_span);
+                    }
+                    out.push(stmt);
+                }
+                // Nested loops own their own `continue;` statements — never descend.
+                StmtKind::For { .. }
+                | StmtKind::While { .. }
+                | StmtKind::Assign { .. }
+                | StmtKind::Call { .. }
+                | StmtKind::FbInvoke { .. }
+                | StmtKind::Break
+                | StmtKind::Return { .. }
+                | StmtKind::Wait { .. }
+                | StmtKind::Foreign { .. } => {
+                    out.push(stmt);
+                }
+            }
+        }
+        out
     }
 
     #[allow(clippy::too_many_arguments)]
