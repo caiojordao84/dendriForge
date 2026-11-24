@@ -2650,3 +2650,537 @@ fn edge_cases_node_id_remap_parallel_or_orphan_module_pou_delete_and_ladder_fore
     assert!(allowed.value.contains("NOT TRANSLATED"));
     assert!(allowed.value.contains("PORTB |= (1<<5);"));
 }
+
+// ---------------------------------------------------------------------------
+// 9. Real-Frontend Regenerated Child NodeIds & Comment IDs + Named Child
+//    Stability (`locals`, `SfcStep`, `SfcTransition`) + `UpsertDataDecl` ID Change
+// ---------------------------------------------------------------------------
+
+#[test]
+fn regenerated_child_node_ids_and_comment_ids_rebind_cleanly_preserve_coords_and_orphan_only_deleted()
+ {
+    let catalog = MemoryProfileCatalog::builtin_reference();
+    let mut ctx = BoardContext::arduino_uno_r3("mcu_cell");
+    ctx.comment_encoding = CommentEncoding::AsciiFold;
+    ctx.st_dialect = StCommentDialect::StrictEd2;
+    let engine = SyncEngine::new();
+
+    let mut board = make_rich_uno_board();
+
+    let verbatim_c4 = " Motor ação \u{202E}24V ±5%";
+    let verbatim_inner = " gain /* factor */";
+    let verbatim_deleted = " genuinely deleted statement note";
+
+    // Add a POU with a named local variable + 3 statements (2 kept with regenerated IDs, 1 deleted).
+    board.program.pous.push(Pou {
+        id: NodeId::new("n_pou_regen"),
+        name: "RegenSt".to_owned(),
+        kind: PouKind::Fc {
+            return_type: TypeRef::Void,
+        },
+        preferred_view: Some(AuthoringLanguage::St),
+        params: vec![],
+        locals: vec![DataDecl {
+            id: NodeId::new("n_local_tmp"),
+            name: "tmp_flag".to_owned(),
+            scope: StorageScope::Temp,
+            ty: TypeRef::scalar(ScalarType::Bool),
+            initial: Some(Expr::new(
+                ExprKind::Literal(Literal::Bool(false)),
+                Span::default(),
+            )),
+            span: Span::default(),
+        }],
+        body: PouBody::Statements(vec![
+            assign_bool_stmt("n_old_s1", "tmp_flag", true),
+            assign_bool_stmt("n_old_s2", "motor_run", true),
+            assign_bool_stmt("n_old_s3_del", "fault_latched", false),
+        ]),
+        span: Span::default(),
+    });
+    board.comments.extend([
+        Comment {
+            id: "c_local_orig".to_owned(),
+            anchor: CommentAnchor::Node {
+                id: NodeId::new("n_local_tmp"),
+            },
+            placement: AstCommentPlacement::Leading,
+            token_ordinal: None,
+            text: " Scratch flag local".to_owned(),
+            origin: CommentOrigin {
+                language: "st".to_owned(),
+                style: CommentStyle::ParenBlock,
+            },
+            span: Span::default(),
+        },
+        Comment {
+            id: "c_s1_degraded".to_owned(),
+            anchor: CommentAnchor::Node {
+                id: NodeId::new("n_old_s1"),
+            },
+            placement: AstCommentPlacement::Leading,
+            token_ordinal: None,
+            text: verbatim_c4.to_owned(),
+            origin: CommentOrigin {
+                language: "cpp".to_owned(),
+                style: CommentStyle::Line,
+            },
+            span: Span::default(),
+        },
+        Comment {
+            id: "c_s2_inner".to_owned(),
+            anchor: CommentAnchor::Node {
+                id: NodeId::new("n_old_s2"),
+            },
+            placement: AstCommentPlacement::Inner,
+            token_ordinal: Some(3),
+            text: verbatim_inner.to_owned(),
+            origin: CommentOrigin {
+                language: "cpp".to_owned(),
+                style: CommentStyle::Block,
+            },
+            span: Span::default(),
+        },
+        Comment {
+            id: "c_s3_deleted".to_owned(),
+            anchor: CommentAnchor::Node {
+                id: NodeId::new("n_old_s3_del"),
+            },
+            placement: AstCommentPlacement::Leading,
+            token_ordinal: None,
+            text: verbatim_deleted.to_owned(),
+            origin: CommentOrigin {
+                language: "st".to_owned(),
+                style: CommentStyle::ParenBlock,
+            },
+            span: Span::default(),
+        },
+        Comment {
+            id: "c_data_run".to_owned(),
+            anchor: CommentAnchor::Node {
+                id: NodeId::new("n_d_run"),
+            },
+            placement: AstCommentPlacement::Body,
+            token_ordinal: None,
+            text: " Main motor run coil state".to_owned(),
+            origin: CommentOrigin {
+                language: "asl".to_owned(),
+                style: CommentStyle::Visual,
+            },
+            span: Span::default(),
+        },
+    ]);
+
+    let initial_multiset: BTreeMap<String, usize> = comment_multiset(&board.comments)
+        .into_iter()
+        .map(|(k, v)| (k.to_owned(), v))
+        .collect();
+    let initial_comment_count = board.comments.len();
+    let mut doc = BoardDoc::new(board);
+
+    let degraded_s1 = render_comment_for_language(
+        LanguageId::St,
+        verbatim_c4,
+        CommentStyle::Line,
+        CommentPlacement::Leading,
+        &ctx,
+    );
+    assert!(degraded_s1.degraded);
+    let degraded_s2 = render_comment_for_language(
+        LanguageId::St,
+        verbatim_inner,
+        CommentStyle::Block,
+        CommentPlacement::Leading,
+        &ctx,
+    );
+
+    let degraded_s1_str = degraded_s1.rendered;
+    let degraded_s2_str = degraded_s2.rendered;
+
+    // 1. Mock ST frontend synthesizes brand-new POU/local/statement NodeIds AND brand-new comment IDs,
+    //    while keeping stmt 1 + stmt 2 and genuinely deleting stmt 3!
+    let st_regen = MockFrontend::new(
+        LanguageId::St,
+        Paradigm::Textual,
+        LanguageCapabilities::st(StCommentDialect::StrictEd2, CommentEncoding::AsciiFold),
+        move |_src, _ctx| {
+            let pou = Pou {
+                id: NodeId::new("n_st_synth_pou"),
+                name: "RegenSt".to_owned(),
+                kind: PouKind::Fc {
+                    return_type: TypeRef::Void,
+                },
+                preferred_view: None,
+                params: vec![],
+                locals: vec![DataDecl {
+                    id: NodeId::new("n_st_synth_local"),
+                    name: "tmp_flag".to_owned(),
+                    scope: StorageScope::Temp,
+                    ty: TypeRef::scalar(ScalarType::Bool),
+                    initial: Some(Expr::new(
+                        ExprKind::Literal(Literal::Bool(false)),
+                        Span::default(),
+                    )),
+                    span: Span::default(),
+                }],
+                body: PouBody::Statements(vec![
+                    assign_bool_stmt("n_st_synth_s1", "tmp_flag", true),
+                    assign_bool_stmt("n_st_synth_s2", "motor_run", true),
+                ]),
+                span: Span::default(),
+            };
+            let mut bundle = BoardProgramBundle::new(BoardProgram {
+                pous: vec![pou],
+                ..BoardProgram::default()
+            });
+            bundle.comments = vec![
+                Comment {
+                    id: "c_synth_1".to_owned(),
+                    anchor: CommentAnchor::Node {
+                        id: NodeId::new("n_st_synth_local"),
+                    },
+                    placement: AstCommentPlacement::Leading,
+                    token_ordinal: None,
+                    text: " Scratch flag local".to_owned(),
+                    origin: CommentOrigin {
+                        language: "st".to_owned(),
+                        style: CommentStyle::ParenBlock,
+                    },
+                    span: Span::default(),
+                },
+                Comment {
+                    id: "c_synth_2".to_owned(),
+                    anchor: CommentAnchor::Node {
+                        id: NodeId::new("n_st_synth_s1"),
+                    },
+                    placement: AstCommentPlacement::Leading,
+                    token_ordinal: None,
+                    text: degraded_s1_str.clone(),
+                    origin: CommentOrigin {
+                        language: "st".to_owned(),
+                        style: CommentStyle::ParenBlock,
+                    },
+                    span: Span::default(),
+                },
+                // Relocated Inner comment parsed back as Leading on regenerated statement NodeId!
+                Comment {
+                    id: "c_synth_3".to_owned(),
+                    anchor: CommentAnchor::Node {
+                        id: NodeId::new("n_st_synth_s2"),
+                    },
+                    placement: AstCommentPlacement::Leading,
+                    token_ordinal: None,
+                    text: degraded_s2_str.clone(),
+                    origin: CommentOrigin {
+                        language: "st".to_owned(),
+                        style: CommentStyle::ParenBlock,
+                    },
+                    span: Span::default(),
+                },
+            ];
+            Ok(FrontendOutput::ok(bundle))
+        },
+    );
+
+    let r1 = engine
+        .apply_view_edit(
+            &mut doc,
+            "st:RegenSt",
+            "regenerated",
+            &st_regen,
+            &ctx,
+            &catalog,
+        )
+        .unwrap();
+
+    // Exact 0 duplicate comments and exact C1 multiset conservation!
+    assert_eq!(doc.board.comments.len(), initial_comment_count);
+    let after_ms: BTreeMap<String, usize> = comment_multiset(&doc.board.comments)
+        .into_iter()
+        .map(|(k, v)| (k.to_owned(), v))
+        .collect();
+    assert_eq!(after_ms, initial_multiset);
+
+    // Exact 1 INFO_COMMENT_ORPHANED diagnostic (for genuinely deleted stmt 3 ONLY — 0 false orphans!).
+    let orphan_diags: Vec<&Diagnostic> = r1
+        .diagnostics
+        .iter()
+        .filter(|d| d.code == ErrorCode::InfoCommentOrphaned)
+        .collect();
+    assert_eq!(
+        orphan_diags.len(),
+        1,
+        "expected exactly 1 orphan diag, got: {orphan_diags:?}"
+    );
+    assert!(orphan_diags[0].message.contains("c_s3_deleted"));
+
+    // Named local variable `tmp_flag` preserved its stable NodeId `n_local_tmp`!
+    let regen_pou = doc
+        .board
+        .program
+        .pous
+        .iter()
+        .find(|p| p.name == "RegenSt")
+        .unwrap();
+    assert_eq!(regen_pou.id, NodeId::new("n_pou_regen"));
+    assert_eq!(regen_pou.locals[0].id, NodeId::new("n_local_tmp"));
+    let c_local = doc
+        .board
+        .comments
+        .iter()
+        .find(|c| c.id == "c_local_orig")
+        .unwrap();
+    assert_eq!(
+        c_local.anchor,
+        CommentAnchor::Node {
+            id: NodeId::new("n_local_tmp")
+        }
+    );
+    assert_eq!(c_local.placement, AstCommentPlacement::Leading);
+
+    // Stmt 1 C4 degraded comment re-bound cleanly onto `n_st_synth_s1` keeping verbatim original!
+    let c_s1 = doc
+        .board
+        .comments
+        .iter()
+        .find(|c| c.id == "c_s1_degraded")
+        .unwrap();
+    assert_eq!(
+        c_s1.anchor,
+        CommentAnchor::Node {
+            id: NodeId::new("n_st_synth_s1")
+        }
+    );
+    assert_eq!(c_s1.placement, AstCommentPlacement::Leading);
+    assert_eq!(c_s1.text, verbatim_c4);
+    assert_eq!(c_s1.origin.language, "cpp");
+    assert_eq!(c_s1.origin.style, CommentStyle::Line);
+
+    // Stmt 2 relocated Inner comment re-bound onto `n_st_synth_s2` keeping Inner + token_ordinal(3)!
+    let c_s2 = doc
+        .board
+        .comments
+        .iter()
+        .find(|c| c.id == "c_s2_inner")
+        .unwrap();
+    assert_eq!(
+        c_s2.anchor,
+        CommentAnchor::Node {
+            id: NodeId::new("n_st_synth_s2")
+        }
+    );
+    assert_eq!(c_s2.placement, AstCommentPlacement::Inner);
+    assert_eq!(c_s2.token_ordinal, Some(3));
+    assert_eq!(c_s2.text, verbatim_inner);
+
+    // Genuinely deleted stmt 3 comment transitioned to Dangling on `n_pou_regen`!
+    let c_s3 = doc
+        .board
+        .comments
+        .iter()
+        .find(|c| c.id == "c_s3_deleted")
+        .unwrap();
+    assert_eq!(
+        c_s3.anchor,
+        CommentAnchor::Node {
+            id: NodeId::new("n_pou_regen")
+        }
+    );
+    assert_eq!(c_s3.placement, AstCommentPlacement::Dangling);
+    assert_eq!(c_s3.text, verbatim_deleted);
+
+    // 2. Mock SFC frontend regenerates fresh SfcStep, SfcTransition, SfcAction NodeIds AND fresh comment IDs:
+    //    Named steps (`S0`, `S1`) and transitions (`T0`) MUST retain stable NodeIds so `node_coords` stay attached!
+    let sfc_regen = MockFrontend::new(
+        LanguageId::Sfc,
+        Paradigm::Grafcet,
+        LanguageCapabilities::sfc(CommentEncoding::Utf8Passthrough),
+        |_src, _ctx| {
+            let chart_pou = Pou {
+                id: NodeId::new("n_sfc_synth_pou"),
+                name: "CycleChart".to_owned(),
+                kind: PouKind::Fb,
+                preferred_view: None,
+                params: vec![],
+                locals: vec![],
+                body: PouBody::Chart(SfcChart {
+                    steps: vec![
+                        SfcStep {
+                            id: NodeId::new("n_sfc_synth_s0"),
+                            name: "S0".to_owned(),
+                            initial: true,
+                            actions: vec![SfcAction {
+                                id: NodeId::new("n_sfc_synth_act0"),
+                                qualifier: ActionQualifier::N,
+                                duration: None,
+                                target: Some(LValue::Var {
+                                    name: "motor_run".to_owned(),
+                                    span: Span::default(),
+                                }),
+                                body: vec![],
+                            }],
+                            macro_chart: None,
+                        },
+                        SfcStep {
+                            id: NodeId::new("n_sfc_synth_s1"),
+                            name: "S1".to_owned(),
+                            initial: false,
+                            actions: vec![SfcAction {
+                                id: NodeId::new("n_sfc_synth_act1"),
+                                qualifier: ActionQualifier::S,
+                                duration: None,
+                                target: Some(LValue::Var {
+                                    name: "fault_latched".to_owned(),
+                                    span: Span::default(),
+                                }),
+                                body: vec![],
+                            }],
+                            macro_chart: None,
+                        },
+                    ],
+                    transitions: vec![SfcTransition {
+                        id: NodeId::new("n_sfc_synth_t0"),
+                        name: "T0".to_owned(),
+                        from_steps: vec!["S0".to_owned()],
+                        to_steps: vec!["S1".to_owned()],
+                        priority: 0,
+                        receptivity: Expr::new(
+                            ExprKind::Ident("START_BTN".to_owned()),
+                            Span::default(),
+                        ),
+                    }],
+                    evolve_to_stability: true,
+                }),
+                span: Span::default(),
+            };
+            let mut bundle = BoardProgramBundle::new(BoardProgram {
+                pous: vec![chart_pou],
+                ..BoardProgram::default()
+            });
+            bundle.comments = vec![
+                Comment {
+                    id: "c_sfc_synth_1".to_owned(),
+                    anchor: CommentAnchor::Node {
+                        id: NodeId::new("n_sfc_synth_s1"),
+                    },
+                    placement: AstCommentPlacement::Body,
+                    token_ordinal: None,
+                    text: " Fault state in GRAFCET".to_owned(),
+                    origin: CommentOrigin {
+                        language: "sfc".to_owned(),
+                        style: CommentStyle::Visual,
+                    },
+                    span: Span::default(),
+                },
+                Comment {
+                    id: "c_sfc_synth_2".to_owned(),
+                    anchor: CommentAnchor::Node {
+                        id: NodeId::new("n_sfc_synth_act1"),
+                    },
+                    placement: AstCommentPlacement::Body,
+                    token_ordinal: None,
+                    text: " Latch fault output".to_owned(),
+                    origin: CommentOrigin {
+                        language: "sfc".to_owned(),
+                        style: CommentStyle::Visual,
+                    },
+                    span: Span::default(),
+                },
+            ];
+            Ok(FrontendOutput::ok(bundle))
+        },
+    );
+
+    let r2 = engine
+        .apply_view_edit(
+            &mut doc,
+            "sfc:CycleChart",
+            "regen chart",
+            &sfc_regen,
+            &ctx,
+            &catalog,
+        )
+        .unwrap();
+
+    // Zero new orphans (only the pre-existing `c_s3_deleted` dangling info from validator).
+    assert!(
+        !r2.diagnostics
+            .iter()
+            .any(|d| d.code == ErrorCode::InfoCommentOrphaned && d.message.contains("c_step_1"))
+    );
+    assert!(
+        !r2.diagnostics
+            .iter()
+            .any(|d| d.code == ErrorCode::InfoCommentOrphaned && d.message.contains("c_act_1"))
+    );
+    // Zero comment duplication!
+    assert_eq!(doc.board.comments.len(), initial_comment_count);
+
+    // S0, S1, and T0 retained their exact stable NodeIds (`n_step_0`, `n_step_1`, `n_trans_0`),
+    // keeping `[boards.presentation].node_coords` attached!
+    let sfc_pou = doc
+        .board
+        .program
+        .pous
+        .iter()
+        .find(|p| p.name == "CycleChart")
+        .unwrap();
+    if let PouBody::Chart(chart) = &sfc_pou.body {
+        assert_eq!(chart.steps[0].id, NodeId::new("n_step_0"));
+        assert_eq!(chart.steps[1].id, NodeId::new("n_step_1"));
+        assert_eq!(chart.transitions[0].id, NodeId::new("n_trans_0"));
+        assert_eq!(
+            doc.board.presentation.node_coords.get(&chart.steps[0].id),
+            Some(&[120.0, 48.0])
+        );
+        assert_eq!(
+            doc.board.presentation.node_coords.get(&chart.steps[1].id),
+            Some(&[120.0, 160.0])
+        );
+    } else {
+        panic!("expected SfcChart body");
+    }
+    // Action comment re-bound onto regenerated `n_sfc_synth_act1` cleanly without orphaning!
+    let c_act = doc
+        .board
+        .comments
+        .iter()
+        .find(|c| c.id == "c_act_1")
+        .unwrap();
+    assert_eq!(
+        c_act.anchor,
+        CommentAnchor::Node {
+            id: NodeId::new("n_sfc_synth_act1")
+        }
+    );
+    assert_eq!(c_act.placement, AstCommentPlacement::Body);
+
+    // 3. `SyncCommand::UpsertDataDecl` matching by `name` with a changed `id` orphans comments on old ID
+    //    cleanly instead of failing with ERR_COMMENT_ANCHOR!
+    let r3 = engine
+        .upsert_data_decl(
+            &mut doc,
+            bool_data("n_d_run_v2", "motor_run", true),
+            &ctx,
+            &catalog,
+        )
+        .unwrap();
+    assert!(
+        r3.diagnostics
+            .iter()
+            .any(|d| d.code == ErrorCode::InfoCommentOrphaned && d.message.contains("c_data_run"))
+    );
+    let c_data = doc
+        .board
+        .comments
+        .iter()
+        .find(|c| c.id == "c_data_run")
+        .unwrap();
+    assert_eq!(c_data.text, " Main motor run coil state");
+    assert_eq!(
+        c_data.anchor,
+        CommentAnchor::Board {
+            id: "mcu_cell".to_owned()
+        }
+    );
+}

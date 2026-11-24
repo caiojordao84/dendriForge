@@ -749,15 +749,33 @@ fn apply_command_to_candidate(
             candidate.assumptions.retain(|a| &a.node != id);
         }
         SyncCommand::UpsertDataDecl(decl) => {
-            if let Some(slot) = candidate
+            let before_topo = collect_board_topology(candidate);
+            let replaced_id = if let Some(slot) = candidate
                 .program
                 .data
                 .iter_mut()
                 .find(|d| d.id == decl.id || d.name == decl.name)
             {
+                let old_id = slot.id.clone();
                 *slot = decl.clone();
+                (old_id != decl.id).then_some(old_id)
             } else {
                 candidate.program.data.push(decl.clone());
+                None
+            };
+            if let Some(old_id) = replaced_id {
+                let after_topo = collect_board_topology(candidate);
+                let deleted: BTreeSet<NodeId> = [old_id.clone()].into_iter().collect();
+                let (diags, newly_orphaned) = orphan_comments_for_deleted_set(
+                    &mut candidate.comments,
+                    &deleted,
+                    &before_topo.parent_of,
+                    &after_topo.all_nodes,
+                    &candidate.id,
+                );
+                pre_diags.extend(diags);
+                orphaned_ids.extend(newly_orphaned);
+                candidate.assumptions.retain(|a| a.node != old_id);
             }
         }
         SyncCommand::RemoveDataDecl { id } => {

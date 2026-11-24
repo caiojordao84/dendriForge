@@ -280,7 +280,10 @@ pub(crate) fn merge_bundle_into_board(
     let parsed_nodes = collect_program_node_ids(&parsed.program);
 
     let mut id_remap: BTreeMap<NodeId, NodeId> = BTreeMap::new();
+    let mut claimed_targets: BTreeSet<NodeId> = BTreeSet::new();
     let mut old_edited_scope = NodeTopology::default();
+    let mut old_edited_pou_of: BTreeMap<NodeId, NodeId> = BTreeMap::new();
+    let mut new_edited_pou_of: BTreeMap<NodeId, NodeId> = BTreeMap::new();
     let mut updated_pous: Vec<String> = Vec::new();
 
     // 1. Imports (union-merge preserving insertion order)
@@ -296,6 +299,7 @@ pub(crate) fn merge_bundle_into_board(
             &mut candidate.program.hardware,
             inc_hw,
             &parsed_nodes,
+            &mut claimed_targets,
             &mut id_remap,
         );
     }
@@ -306,6 +310,7 @@ pub(crate) fn merge_bundle_into_board(
             &mut candidate.program.types,
             inc_td,
             &parsed_nodes,
+            &mut claimed_targets,
             &mut id_remap,
         );
     }
@@ -316,6 +321,7 @@ pub(crate) fn merge_bundle_into_board(
             &mut candidate.program.data,
             inc_data,
             &parsed_nodes,
+            &mut claimed_targets,
             &mut id_remap,
         );
     }
@@ -323,18 +329,38 @@ pub(crate) fn merge_bundle_into_board(
     // 5. Top-level POUs (and single-POU edits targeting a module-owned POU)
     for inc_pou in &parsed.program.pous {
         if let Some(slot) = find_pou_mut(&mut candidate.program.pous, inc_pou) {
-            collect_pou_topology(slot, None, &mut old_edited_scope);
-            let merged = reconcile_pou(slot, inc_pou, &parsed_nodes, &mut id_remap);
+            record_pou_membership(slot, None, &mut old_edited_scope, &mut old_edited_pou_of);
+            let merged = reconcile_pou(
+                slot,
+                inc_pou,
+                &parsed_nodes,
+                &mut claimed_targets,
+                &mut id_remap,
+            );
+            record_new_pou_membership(&merged, &mut new_edited_pou_of);
             updated_pous.push(merged.name.clone());
             *slot = merged;
         } else if let Some((module_id, slot)) =
             find_module_pou_mut(&mut candidate.program.modules, inc_pou)
         {
-            collect_pou_topology(slot, Some(&module_id), &mut old_edited_scope);
-            let merged = reconcile_pou(slot, inc_pou, &parsed_nodes, &mut id_remap);
+            record_pou_membership(
+                slot,
+                Some(&module_id),
+                &mut old_edited_scope,
+                &mut old_edited_pou_of,
+            );
+            let merged = reconcile_pou(
+                slot,
+                inc_pou,
+                &parsed_nodes,
+                &mut claimed_targets,
+                &mut id_remap,
+            );
+            record_new_pou_membership(&merged, &mut new_edited_pou_of);
             updated_pous.push(merged.name.clone());
             *slot = merged;
         } else {
+            record_new_pou_membership(inc_pou, &mut new_edited_pou_of);
             updated_pous.push(inc_pou.name.clone());
             candidate.program.pous.push(inc_pou.clone());
         }
@@ -344,7 +370,10 @@ pub(crate) fn merge_bundle_into_board(
     for inc_mod in &parsed.program.modules {
         if let Some(slot) = find_module_mut(&mut candidate.program.modules, inc_mod) {
             let stable_mod_id = slot.id.clone();
-            if inc_mod.id != stable_mod_id && !parsed_nodes.contains(&stable_mod_id) {
+            if inc_mod.id != stable_mod_id
+                && !parsed_nodes.contains(&stable_mod_id)
+                && claimed_targets.insert(stable_mod_id.clone())
+            {
                 id_remap.insert(inc_mod.id.clone(), stable_mod_id.clone());
             }
             for imp in &inc_mod.imports {
@@ -358,24 +387,50 @@ pub(crate) fn merge_bundle_into_board(
                 }
             }
             for inc_td in &inc_mod.types {
-                merge_type_decl(&mut slot.types, inc_td, &parsed_nodes, &mut id_remap);
+                merge_type_decl(
+                    &mut slot.types,
+                    inc_td,
+                    &parsed_nodes,
+                    &mut claimed_targets,
+                    &mut id_remap,
+                );
             }
             for inc_data in &inc_mod.data {
-                merge_data_decl(&mut slot.data, inc_data, &parsed_nodes, &mut id_remap);
+                merge_data_decl(
+                    &mut slot.data,
+                    inc_data,
+                    &parsed_nodes,
+                    &mut claimed_targets,
+                    &mut id_remap,
+                );
             }
             for inc_pou in &inc_mod.pous {
                 if let Some(pou_slot) = find_pou_mut(&mut slot.pous, inc_pou) {
-                    collect_pou_topology(pou_slot, Some(&stable_mod_id), &mut old_edited_scope);
-                    let merged = reconcile_pou(pou_slot, inc_pou, &parsed_nodes, &mut id_remap);
+                    record_pou_membership(
+                        pou_slot,
+                        Some(&stable_mod_id),
+                        &mut old_edited_scope,
+                        &mut old_edited_pou_of,
+                    );
+                    let merged = reconcile_pou(
+                        pou_slot,
+                        inc_pou,
+                        &parsed_nodes,
+                        &mut claimed_targets,
+                        &mut id_remap,
+                    );
+                    record_new_pou_membership(&merged, &mut new_edited_pou_of);
                     updated_pous.push(merged.name.clone());
                     *pou_slot = merged;
                 } else {
+                    record_new_pou_membership(inc_pou, &mut new_edited_pou_of);
                     updated_pous.push(inc_pou.name.clone());
                     slot.pous.push(inc_pou.clone());
                 }
             }
         } else {
             for pou in &inc_mod.pous {
+                record_new_pou_membership(pou, &mut new_edited_pou_of);
                 updated_pous.push(pou.name.clone());
             }
             candidate.program.modules.push(inc_mod.clone());
@@ -410,11 +465,13 @@ pub(crate) fn merge_bundle_into_board(
         }
     }
 
-    // 9. Merge comments with C4 re-import idempotence and C2 orphan preservation
+    // 9. Merge comments with C4 re-import idempotence, fresh-NodeId re-binding, and C2 orphan preservation
     let (merged_comments, diagnostics, orphaned_comment_ids) = merge_comments(
         &existing.comments,
         &incoming_comments,
         &old_edited_scope.all_nodes,
+        &old_edited_pou_of,
+        &new_edited_pou_of,
         &deleted_to_parent,
         &new_topology.all_nodes,
         frontend,
@@ -485,10 +542,54 @@ fn set_type_decl_id(td: &mut TypeDecl, new_id: NodeId) {
     }
 }
 
+fn record_pou_membership(
+    pou: &Pou,
+    parent_module: Option<&NodeId>,
+    scope: &mut NodeTopology,
+    pou_of: &mut BTreeMap<NodeId, NodeId>,
+) {
+    let mut local = NodeTopology::default();
+    collect_pou_topology(pou, parent_module, &mut local);
+    for node_id in &local.all_nodes {
+        scope.all_nodes.insert(node_id.clone());
+        pou_of.insert(node_id.clone(), pou.id.clone());
+    }
+    for (child, parent) in local.parent_of {
+        scope.parent_of.insert(child, parent);
+    }
+}
+
+fn record_new_pou_membership(pou: &Pou, pou_of: &mut BTreeMap<NodeId, NodeId>) {
+    let mut local = NodeTopology::default();
+    collect_pou_topology(pou, None, &mut local);
+    for node_id in local.all_nodes {
+        pou_of.insert(node_id, pou.id.clone());
+    }
+}
+
+fn try_remap_stable_id(
+    incoming_id: &NodeId,
+    existing_id: &NodeId,
+    parsed_nodes: &BTreeSet<NodeId>,
+    claimed_targets: &mut BTreeSet<NodeId>,
+    id_remap: &mut BTreeMap<NodeId, NodeId>,
+) -> Option<NodeId> {
+    if incoming_id != existing_id
+        && !parsed_nodes.contains(existing_id)
+        && claimed_targets.insert(existing_id.clone())
+    {
+        id_remap.insert(incoming_id.clone(), existing_id.clone());
+        Some(existing_id.clone())
+    } else {
+        None
+    }
+}
+
 fn merge_hardware_binding(
     target: &mut Vec<HardwareBinding>,
     incoming: &HardwareBinding,
     parsed_nodes: &BTreeSet<NodeId>,
+    claimed_targets: &mut BTreeSet<NodeId>,
     id_remap: &mut BTreeMap<NodeId, NodeId>,
 ) {
     let matched_idx = target
@@ -500,9 +601,14 @@ fn merge_hardware_binding(
         && let Some(existing) = target.get_mut(idx)
     {
         let mut merged = incoming.clone();
-        if merged.id != existing.id && !parsed_nodes.contains(&existing.id) {
-            id_remap.insert(merged.id.clone(), existing.id.clone());
-            merged.id = existing.id.clone();
+        if let Some(stable) = try_remap_stable_id(
+            &merged.id,
+            &existing.id,
+            parsed_nodes,
+            claimed_targets,
+            id_remap,
+        ) {
+            merged.id = stable;
         }
         if merged.kind == existing.kind {
             if merged.codec.is_none() {
@@ -522,6 +628,7 @@ fn merge_type_decl(
     target: &mut Vec<TypeDecl>,
     incoming: &TypeDecl,
     parsed_nodes: &BTreeSet<NodeId>,
+    claimed_targets: &mut BTreeSet<NodeId>,
     id_remap: &mut BTreeMap<NodeId, NodeId>,
 ) {
     let inc_id = type_decl_id(incoming);
@@ -538,9 +645,14 @@ fn merge_type_decl(
     {
         let existing_id = type_decl_id(existing).clone();
         let mut merged = incoming.clone();
-        if type_decl_id(&merged) != &existing_id && !parsed_nodes.contains(&existing_id) {
-            id_remap.insert(type_decl_id(&merged).clone(), existing_id.clone());
-            set_type_decl_id(&mut merged, existing_id);
+        if let Some(stable) = try_remap_stable_id(
+            type_decl_id(&merged),
+            &existing_id,
+            parsed_nodes,
+            claimed_targets,
+            id_remap,
+        ) {
+            set_type_decl_id(&mut merged, stable);
         }
         *existing = merged;
     } else {
@@ -552,6 +664,7 @@ fn merge_data_decl(
     target: &mut Vec<DataDecl>,
     incoming: &DataDecl,
     parsed_nodes: &BTreeSet<NodeId>,
+    claimed_targets: &mut BTreeSet<NodeId>,
     id_remap: &mut BTreeMap<NodeId, NodeId>,
 ) {
     let matched_idx = target
@@ -563,9 +676,14 @@ fn merge_data_decl(
         && let Some(existing) = target.get_mut(idx)
     {
         let mut merged = incoming.clone();
-        if merged.id != existing.id && !parsed_nodes.contains(&existing.id) {
-            id_remap.insert(merged.id.clone(), existing.id.clone());
-            merged.id = existing.id.clone();
+        if let Some(stable) = try_remap_stable_id(
+            &merged.id,
+            &existing.id,
+            parsed_nodes,
+            claimed_targets,
+            id_remap,
+        ) {
+            merged.id = stable;
         }
         *existing = merged;
     } else {
@@ -631,16 +749,74 @@ fn reconcile_pou(
     existing: &Pou,
     incoming: &Pou,
     parsed_nodes: &BTreeSet<NodeId>,
+    claimed_targets: &mut BTreeSet<NodeId>,
     id_remap: &mut BTreeMap<NodeId, NodeId>,
 ) -> Pou {
     let mut merged = incoming.clone();
-    if merged.id != existing.id && !parsed_nodes.contains(&existing.id) {
-        id_remap.insert(merged.id.clone(), existing.id.clone());
-        merged.id = existing.id.clone();
+    if let Some(stable) = try_remap_stable_id(
+        &merged.id,
+        &existing.id,
+        parsed_nodes,
+        claimed_targets,
+        id_remap,
+    ) {
+        merged.id = stable;
     }
     if merged.preferred_view.is_none() {
         merged.preferred_view = existing.preferred_view;
     }
+
+    // Preserve stable NodeIds for semantically named POU locals (`by name`).
+    for local in &mut merged.locals {
+        if let Some(existing_local) = existing.locals.iter().find(|l| l.name == local.name)
+            && let Some(stable) = try_remap_stable_id(
+                &local.id,
+                &existing_local.id,
+                parsed_nodes,
+                claimed_targets,
+                id_remap,
+            )
+        {
+            local.id = stable;
+        }
+    }
+
+    // Preserve stable NodeIds for semantically named GRAFCET/SFC steps and transitions (`by name`)
+    // so `[boards.presentation].node_coords`, comments, and assumptions remain attached across re-parses.
+    if let (PouBody::Chart(existing_chart), PouBody::Chart(merged_chart)) =
+        (&existing.body, &mut merged.body)
+    {
+        for step in &mut merged_chart.steps {
+            if let Some(existing_step) = existing_chart.steps.iter().find(|s| s.name == step.name)
+                && let Some(stable) = try_remap_stable_id(
+                    &step.id,
+                    &existing_step.id,
+                    parsed_nodes,
+                    claimed_targets,
+                    id_remap,
+                )
+            {
+                step.id = stable;
+            }
+        }
+        for trans in &mut merged_chart.transitions {
+            if let Some(existing_trans) = existing_chart
+                .transitions
+                .iter()
+                .find(|t| t.name == trans.name)
+                && let Some(stable) = try_remap_stable_id(
+                    &trans.id,
+                    &existing_trans.id,
+                    parsed_nodes,
+                    claimed_targets,
+                    id_remap,
+                )
+            {
+                trans.id = stable;
+            }
+        }
+    }
+
     merged
 }
 
@@ -719,6 +895,8 @@ fn merge_comments(
     existing: &[Comment],
     incoming: &[Comment],
     old_edited_nodes: &BTreeSet<NodeId>,
+    old_edited_pou_of: &BTreeMap<NodeId, NodeId>,
+    new_edited_pou_of: &BTreeMap<NodeId, NodeId>,
     deleted_to_parent: &BTreeMap<NodeId, NodeId>,
     surviving_nodes: &BTreeSet<NodeId>,
     frontend: &dyn LanguageFrontend,
@@ -731,7 +909,7 @@ fn merge_comments(
     let mut diagnostics: Vec<Diagnostic> = Vec::new();
     let mut orphaned_ids: BTreeSet<String> = BTreeSet::new();
 
-    // Pass 1a: Exact ID + exact anchor match across all existing comments (applies C4 idempotence).
+    // Pass 1a: Exact ID + exact surviving anchor match across all existing comments (C4 idempotence).
     // Requiring matching anchor avoids false collisions when a parser reuses sequential IDs like
     // `"c_1"` after deleting an earlier node.
     for (idx, ec) in existing.iter().enumerate() {
@@ -759,8 +937,8 @@ fn merge_comments(
         }
     }
 
-    // Pass 1b: Explicit ID move across anchors ONLY when text still matches via C4 (never steals
-    // an unrelated comment whose parser recycled a sequential ID).
+    // Pass 1b: Explicit ID move across surviving anchors ONLY when text still matches via C4
+    // (never steals an unrelated comment whose parser recycled a sequential ID).
     for (idx, ec) in existing.iter().enumerate() {
         if !matches!(decisions.get(idx), Some(ExistingCommentDecision::Pending)) {
             continue;
@@ -774,8 +952,12 @@ fn merge_comments(
             consumed_incoming.insert(in_idx);
             let mut updated = ec.clone();
             updated.anchor = pc.anchor.clone();
-            updated.placement = pc.placement;
-            updated.token_ordinal = pc.token_ordinal;
+            if ec.placement != AstCommentPlacement::Inner
+                || pc.placement == AstCommentPlacement::Inner
+            {
+                updated.placement = pc.placement;
+                updated.token_ordinal = pc.token_ordinal;
+            }
             updated.span = pc.span;
             if let Some(slot) = decisions.get_mut(idx) {
                 *slot = ExistingCommentDecision::Keep(updated);
@@ -783,79 +965,41 @@ fn merge_comments(
         }
     }
 
-    // Pass 2: Handle deleted-node C2 orphan preservation and untouched-scope preservation.
+    // Pass 2: Untouched-scope preservation (non-node anchors & nodes outside edited POUs).
+    // Never drop; consume matching incoming projections on identical anchors to prevent duplication.
     for (idx, ec) in existing.iter().enumerate() {
         if !matches!(decisions.get(idx), Some(ExistingCommentDecision::Pending)) {
             continue;
         }
-        match &ec.anchor {
-            CommentAnchor::Node { id } if deleted_to_parent.contains_key(id) => {
-                // C2: anchored node was deleted -> transition to `dangling` on surviving parent scope!
-                let mut batch = [ec.clone()];
-                let orphan_diags = orphan_comments_for_deleted_nodes(
-                    &mut batch,
-                    deleted_to_parent,
-                    Some(board_id),
-                );
-                diagnostics.extend(orphan_diags);
-                orphaned_ids.insert(ec.id.clone());
-
-                if let Some(orphaned) = batch.into_iter().next() {
-                    // Avoid duplicating if the frontend already emitted a matching dangling comment on parent.
-                    if let Some(in_idx) = incoming.iter().enumerate().find_map(|(i, pc)| {
-                        (!consumed_incoming.contains(&i)
-                            && pc.anchor == orphaned.anchor
-                            && pc.placement == AstCommentPlacement::Dangling
-                            && comment_matches_stored(frontend, ctx, &pc.text, &orphaned.text))
-                        .then_some(i)
-                    }) {
-                        consumed_incoming.insert(in_idx);
-                    }
-                    if let Some(slot) = decisions.get_mut(idx) {
-                        *slot = ExistingCommentDecision::Keep(orphaned);
-                    }
-                }
-            }
-            CommentAnchor::Node { id } if !old_edited_nodes.contains(id) => {
-                // Outside edited POU scope (untouched OBs/POUs, hardware, types, data): NEVER drop!
-                // Consume any matching incoming projection to avoid duplicates (preserving verbatim original).
-                if let Some(in_idx) = incoming.iter().enumerate().find_map(|(i, pc)| {
-                    (!consumed_incoming.contains(&i)
-                        && pc.anchor == ec.anchor
-                        && comment_matches_stored(frontend, ctx, &pc.text, &ec.text))
-                    .then_some(i)
-                }) {
-                    consumed_incoming.insert(in_idx);
-                }
-                if let Some(slot) = decisions.get_mut(idx) {
-                    *slot = ExistingCommentDecision::Keep(ec.clone());
-                }
-            }
+        let is_untouched = match &ec.anchor {
+            CommentAnchor::Node { id } => !old_edited_nodes.contains(id),
             CommentAnchor::Project
             | CommentAnchor::Board { .. }
             | CommentAnchor::Component { .. }
-            | CommentAnchor::Wire { .. } => {
-                if let Some(in_idx) = incoming.iter().enumerate().find_map(|(i, pc)| {
-                    (!consumed_incoming.contains(&i)
-                        && pc.anchor == ec.anchor
-                        && comment_matches_stored(frontend, ctx, &pc.text, &ec.text))
-                    .then_some(i)
-                }) {
-                    consumed_incoming.insert(in_idx);
-                }
-                if let Some(slot) = decisions.get_mut(idx) {
-                    *slot = ExistingCommentDecision::Keep(ec.clone());
-                }
+            | CommentAnchor::Wire { .. } => true,
+        };
+        if is_untouched {
+            if let Some(in_idx) = incoming.iter().enumerate().find_map(|(i, pc)| {
+                (!consumed_incoming.contains(&i)
+                    && pc.anchor == ec.anchor
+                    && comment_matches_stored(frontend, ctx, &pc.text, &ec.text))
+                .then_some(i)
+            }) {
+                consumed_incoming.insert(in_idx);
             }
-            CommentAnchor::Node { .. } => {
-                // Surviving node inside edited POU scope -> resolved in Passes 3 & 4.
+            if let Some(slot) = decisions.get_mut(idx) {
+                *slot = ExistingCommentDecision::Keep(ec.clone());
             }
         }
     }
 
-    // Pass 3a: C4 idempotent match on surviving edited-scope nodes with identical (anchor, placement, ordinal).
+    // Pass 3a: C4 idempotent match on SURVIVING edited-scope nodes with identical (anchor, placement, ordinal).
+    // Runs BEFORE deleted-node re-binding/orphaning so surviving anchors claim identical texts first.
     for (idx, ec) in existing.iter().enumerate() {
         if !matches!(decisions.get(idx), Some(ExistingCommentDecision::Pending)) {
+            continue;
+        }
+        if !anchor_is_valid(&ec.anchor, surviving_nodes) {
             continue;
         }
         if let Some((in_idx, pc)) = incoming.iter().enumerate().find(|(i, pc)| {
@@ -874,9 +1018,12 @@ fn merge_comments(
         }
     }
 
-    // Pass 3b: C4 idempotent match on surviving edited-scope nodes with same anchor (e.g. relocated Inner).
+    // Pass 3b: C4 idempotent match on SURVIVING edited-scope nodes with same anchor (e.g. relocated Inner).
     for (idx, ec) in existing.iter().enumerate() {
         if !matches!(decisions.get(idx), Some(ExistingCommentDecision::Pending)) {
+            continue;
+        }
+        if !anchor_is_valid(&ec.anchor, surviving_nodes) {
             continue;
         }
         if let Some((in_idx, pc)) = incoming.iter().enumerate().find(|(i, pc)| {
@@ -893,7 +1040,118 @@ fn merge_comments(
         }
     }
 
-    // Pass 4: Positional text edit on surviving edited-scope nodes when parser regenerated comment IDs,
+    // Pass 4a: Fresh child-NodeId re-binding (same edited POU, matching placement + token_ordinal, C4 match).
+    // Real textual frontends regenerate fresh statement/rung/step NodeIds on re-parse; re-bind those
+    // comments cleanly instead of falsely orphaning and duplicating them!
+    for (idx, ec) in existing.iter().enumerate() {
+        if !matches!(decisions.get(idx), Some(ExistingCommentDecision::Pending)) {
+            continue;
+        }
+        let CommentAnchor::Node { id: old_id } = &ec.anchor else {
+            continue;
+        };
+        if !deleted_to_parent.contains_key(old_id) {
+            continue;
+        }
+        let Some(old_pou_id) = old_edited_pou_of.get(old_id) else {
+            continue;
+        };
+        if let Some((in_idx, pc)) = incoming.iter().enumerate().find(|(i, pc)| {
+            !consumed_incoming.contains(i)
+                && pc.placement == ec.placement
+                && pc.token_ordinal == ec.token_ordinal
+                && matches!(
+                    &pc.anchor,
+                    CommentAnchor::Node { id: new_id }
+                        if new_edited_pou_of.get(new_id) == Some(old_pou_id)
+                            && surviving_nodes.contains(new_id)
+                )
+                && comment_matches_stored(frontend, ctx, &pc.text, &ec.text)
+        }) {
+            consumed_incoming.insert(in_idx);
+            let mut rebound = ec.clone();
+            rebound.anchor = pc.anchor.clone();
+            rebound.span = pc.span;
+            if let Some(slot) = decisions.get_mut(idx) {
+                *slot = ExistingCommentDecision::Keep(rebound);
+            }
+        }
+    }
+
+    // Pass 4b: Fresh child-NodeId re-binding (same edited POU, any placement — e.g. cross-language
+    // relocated Inner comment on a regenerated statement NodeId — matching via C4).
+    for (idx, ec) in existing.iter().enumerate() {
+        if !matches!(decisions.get(idx), Some(ExistingCommentDecision::Pending)) {
+            continue;
+        }
+        let CommentAnchor::Node { id: old_id } = &ec.anchor else {
+            continue;
+        };
+        if !deleted_to_parent.contains_key(old_id) {
+            continue;
+        }
+        let Some(old_pou_id) = old_edited_pou_of.get(old_id) else {
+            continue;
+        };
+        if let Some((in_idx, pc)) = incoming.iter().enumerate().find(|(i, pc)| {
+            !consumed_incoming.contains(i)
+                && matches!(
+                    &pc.anchor,
+                    CommentAnchor::Node { id: new_id }
+                        if new_edited_pou_of.get(new_id) == Some(old_pou_id)
+                            && surviving_nodes.contains(new_id)
+                )
+                && comment_matches_stored(frontend, ctx, &pc.text, &ec.text)
+        }) {
+            consumed_incoming.insert(in_idx);
+            let mut rebound = ec.clone();
+            rebound.anchor = pc.anchor.clone();
+            if ec.placement != AstCommentPlacement::Inner
+                || pc.placement == AstCommentPlacement::Inner
+            {
+                rebound.placement = pc.placement;
+                rebound.token_ordinal = pc.token_ordinal;
+            }
+            rebound.span = pc.span;
+            if let Some(slot) = decisions.get_mut(idx) {
+                *slot = ExistingCommentDecision::Keep(rebound);
+            }
+        }
+    }
+
+    // Pass 5: True C2 orphan preservation for genuinely deleted nodes whose comments were not
+    // re-bound onto any surviving or freshly synthesized node inside the edited POU.
+    for (idx, ec) in existing.iter().enumerate() {
+        if !matches!(decisions.get(idx), Some(ExistingCommentDecision::Pending)) {
+            continue;
+        }
+        if let CommentAnchor::Node { id } = &ec.anchor
+            && deleted_to_parent.contains_key(id)
+        {
+            let mut batch = [ec.clone()];
+            let orphan_diags =
+                orphan_comments_for_deleted_nodes(&mut batch, deleted_to_parent, Some(board_id));
+            diagnostics.extend(orphan_diags);
+            orphaned_ids.insert(ec.id.clone());
+
+            if let Some(orphaned) = batch.into_iter().next() {
+                if let Some(in_idx) = incoming.iter().enumerate().find_map(|(i, pc)| {
+                    (!consumed_incoming.contains(&i)
+                        && pc.anchor == orphaned.anchor
+                        && pc.placement == AstCommentPlacement::Dangling
+                        && comment_matches_stored(frontend, ctx, &pc.text, &orphaned.text))
+                    .then_some(i)
+                }) {
+                    consumed_incoming.insert(in_idx);
+                }
+                if let Some(slot) = decisions.get_mut(idx) {
+                    *slot = ExistingCommentDecision::Keep(orphaned);
+                }
+            }
+        }
+    }
+
+    // Pass 6: Positional text edit on surviving edited-scope nodes when parser regenerated comment IDs,
     // plus unconditional preservation of existing `Dangling` comments.
     for (idx, ec) in existing.iter().enumerate() {
         if !matches!(decisions.get(idx), Some(ExistingCommentDecision::Pending)) {
@@ -937,7 +1195,7 @@ fn merge_comments(
         }
     }
 
-    // Pass 5: Append genuinely new incoming comments, guaranteeing unique comment IDs.
+    // Pass 7: Append genuinely new incoming comments, guaranteeing unique comment IDs.
     let mut next_sync_seq: u64 = 1;
     for (in_idx, pc) in incoming.iter().enumerate() {
         if consumed_incoming.contains(&in_idx) {
