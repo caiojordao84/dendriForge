@@ -1,0 +1,23 @@
+[package]
+name = "dendri-lang-sfc"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "100% pure-Rust IEC 60848 / IEC 61131-3 GRAFCET / Sequential Function Chart (SFC) frontend for dendriForge v2"
+
+[lints]
+workspace = true
+
+[dependencies]
+dendri-ast = { workspace = true }
+dendri-frontend-core = { path = "../dendri-frontend-core" }
+dendri-span = { workspace = true }
+dendri-stdlib = { workspace = true }
+
+[dev-dependencies]
+dendri-validate = { workspace = true }
+dendri-vm = { workspace = true }
+proptest = { workspace = true }
