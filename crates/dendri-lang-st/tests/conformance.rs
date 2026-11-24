@@ -1731,7 +1731,10 @@ fn st_visual_pou_derived_projection() {
 
     let emitted = frontend.emit(&bundle, &ctx).unwrap().value;
     assert!(!contains_banned_magic_comment(&emitted));
-    assert!(emitted.contains("MotorOut := (StartBtn AND (10 >= 5));"));
+    assert!(emitted.contains("_rail : BOOL;"));
+    assert!(emitted.contains("_rail := _rail AND StartBtn;"));
+    assert!(emitted.contains("_rail := _rail AND (10 >= 5);"));
+    assert!(emitted.contains("MotorOut := _rail;"));
     assert!(emitted.contains("IF S0.X THEN"));
     // Derived ST parses back cleanly as valid IEC 61131-3 ST!
     assert!(frontend.parse(&emitted, &ctx).is_ok());
@@ -2546,4 +2549,796 @@ END_PROGRAM
     let fe = StFrontend::new();
     let parsed_sym = fe.parse(sym_src, &default_ctx).unwrap();
     let _ = verify_frontend_roundtrip(&fe, &parsed_sym.value, &default_ctx).unwrap();
+}
+
+// ---------------------------------------------------------------------------
+// 17. Verifier Regressions (#43 Fixes 1–6)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn st_regression_1_negative_typed_literals_roundtrip_all_signed_and_float_types() {
+    let ctx = plc_ctx();
+    let frontend = StFrontend::new();
+    let src = r#"
+FUNCTION NegInt : INT
+VAR_INPUT
+    a : INT;
+    r : REAL;
+END_VAR
+    IF a < INT#-5 THEN
+        NegInt := INT#-9;
+        RETURN;
+    END_IF;
+    IF REAL#-2.0 < r THEN
+        NegInt := a + INT#-1;
+        RETURN;
+    END_IF;
+    NegInt := INT#-3;
+END_FUNCTION
+
+FUNCTION NegReal : REAL
+VAR_INPUT
+    v : REAL;
+END_VAR
+    NegReal := v + REAL#-1.5;
+END_FUNCTION
+
+FUNCTION_BLOCK OffsetFb
+VAR_INPUT
+    delta : INT;
+    gain : REAL;
+END_VAR
+VAR_OUTPUT
+    scaled : REAL;
+END_VAR
+    scaled := gain + REAL#-0.25;
+END_FUNCTION_BLOCK
+
+PROGRAM OB_MAIN
+VAR
+    s : SINT := SINT#-4;
+    i : INT := INT#-10;
+    r : REAL := REAL#-0.5;
+    c : CTU;
+    off : OffsetFb;
+    flag : BOOL := FALSE;
+END_VAR
+    s := SINT#-7;
+    i := INT#-5;
+    r := REAL#-1.5;
+    i := NegInt(INT#-2, REAL#-0.25);
+    r := NegReal(REAL#-3.5);
+    c(CU := flag, R := FALSE, PV := DINT#-1);
+    off(delta := INT#-3, gain := REAL#-0.75);
+    CASE i OF
+        INT#-10..INT#-1:
+            s := SINT#-2;
+        ELSE
+            s := SINT#-1;
+    END_CASE;
+    FOR i := INT#10 TO INT#-2 BY INT#-2 DO
+        r := r + REAL#-0.5;
+    END_FOR;
+    FOR s := SINT#4 TO SINT#-4 BY SINT#-1 DO
+        flag := TRUE;
+    END_FOR;
+END_PROGRAM
+"#;
+
+    let parsed = frontend.parse(src, &ctx).unwrap();
+    let emitted = frontend.emit(&parsed.value, &ctx).unwrap().value;
+    assert!(emitted.contains("s := SINT#-7;"), "emitted:\n{emitted}");
+    assert!(emitted.contains("i := INT#-5;"), "emitted:\n{emitted}");
+    assert!(emitted.contains("r := REAL#-1.5;"), "emitted:\n{emitted}");
+    assert!(emitted.contains("BY INT#-2 DO"), "emitted:\n{emitted}");
+    assert!(emitted.contains("BY SINT#-1 DO"), "emitted:\n{emitted}");
+    assert!(emitted.contains("NegInt := INT#-9;"), "emitted:\n{emitted}");
+    assert!(
+        emitted.contains("off(delta := INT#-3, gain := REAL#-0.75);"),
+        "emitted:\n{emitted}"
+    );
+    let _reparsed = verify_frontend_roundtrip(&frontend, &parsed.value, &ctx).unwrap();
+}
+
+#[test]
+fn st_regression_2_repeat_until_continue_checks_exit_and_preserves_nested_continue() {
+    let ctx = plc_ctx();
+    let frontend = StFrontend::new();
+    let src = r#"
+PROGRAM OB_MAIN
+VAR
+    x : DINT := 0;
+    j : DINT := 0;
+END_VAR
+    REPEAT
+        IF x = 0 THEN
+            CONTINUE;
+        END_IF;
+        FOR j := 0 TO 2 DO
+            IF j = 1 THEN
+                CONTINUE;
+            END_IF;
+        END_FOR;
+        x := x + 1;
+    UNTIL TRUE
+    END_REPEAT;
+END_PROGRAM
+"#;
+
+    let parsed = frontend.parse(src, &ctx).unwrap();
+    let PouBody::Statements(stmts) = &parsed.value.program.pous[0].body else {
+        panic!("expected statements");
+    };
+    let StmtKind::While { body, .. } = &stmts[0].kind else {
+        panic!("REPEAT must lower to While");
+    };
+    // Outer `IF x = 0 THEN CONTINUE; END_IF;` must have `IF TRUE THEN EXIT; END_IF;` immediately before `CONTINUE;`
+    let StmtKind::If { then_body, .. } = &body[0].kind else {
+        panic!("expected outer IF");
+    };
+    assert_eq!(
+        then_body.len(),
+        2,
+        "outer CONTINUE must be preceded by UNTIL guard"
+    );
+    assert!(matches!(
+        &then_body[0].kind,
+        StmtKind::If {
+            condition: Expr { kind: ExprKind::Literal(Literal::Bool(true)), .. },
+            then_body: inner_then,
+            ..
+        } if matches!(inner_then.first().map(|s| &s.kind), Some(StmtKind::Break))
+    ));
+    assert!(matches!(then_body[1].kind, StmtKind::Continue));
+
+    // Nested `FOR j := 0 TO 2` CONTINUE must remain untouched (1 stmt, NOT rewritten with outer UNTIL)
+    let StmtKind::For { body: for_body, .. } = &body[1].kind else {
+        panic!("expected nested FOR");
+    };
+    let StmtKind::If {
+        then_body: inner_for_then,
+        ..
+    } = &for_body[0].kind
+    else {
+        panic!("expected inner IF");
+    };
+    assert_eq!(
+        inner_for_then.len(),
+        1,
+        "nested loop CONTINUE must NOT be rewritten with outer REPEAT UNTIL check"
+    );
+    assert!(matches!(inner_for_then[0].kind, StmtKind::Continue));
+
+    // Full LOSSLESS_ASL roundtrip of lowered While form
+    let _reparsed = verify_frontend_roundtrip(&frontend, &parsed.value, &ctx).unwrap();
+}
+
+#[test]
+fn st_regression_3_for_exclusive_negative_and_nonconst_step() {
+    let ctx = plc_ctx();
+    let frontend = StFrontend::new();
+
+    let bundle = BoardProgramBundle::new(BoardProgram {
+        pous: vec![Pou {
+            id: NodeId::new("pou_main"),
+            name: "OB_MAIN".to_owned(),
+            kind: PouKind::Ob { ob: ObKind::Main },
+            preferred_view: None,
+            params: vec![],
+            locals: vec![
+                DataDecl {
+                    id: NodeId::new("v_i"),
+                    name: "i".to_owned(),
+                    scope: StorageScope::Var,
+                    ty: TypeRef::scalar(ScalarType::Int),
+                    initial: Some(Expr::new(
+                        ExprKind::Literal(Literal::Int(0)),
+                        Span::default(),
+                    )),
+                    span: Span::default(),
+                },
+                DataDecl {
+                    id: NodeId::new("v_s"),
+                    name: "s".to_owned(),
+                    scope: StorageScope::Var,
+                    ty: TypeRef::scalar(ScalarType::Int),
+                    initial: Some(Expr::new(
+                        ExprKind::Literal(Literal::Int(-2)),
+                        Span::default(),
+                    )),
+                    span: Span::default(),
+                },
+                DataDecl {
+                    id: NodeId::new("v_acc"),
+                    name: "acc".to_owned(),
+                    scope: StorageScope::Var,
+                    ty: TypeRef::scalar(ScalarType::Int),
+                    initial: Some(Expr::new(
+                        ExprKind::Literal(Literal::Int(0)),
+                        Span::default(),
+                    )),
+                    span: Span::default(),
+                },
+            ],
+            body: PouBody::Statements(vec![
+                // 1. Exclusive negative const step: 10 down to 0 (exclusive) -> TO (0 + 1) BY INT#-1
+                Stmt::new(
+                    NodeId::new("for_neg"),
+                    StmtKind::For {
+                        counter: "i".to_owned(),
+                        from: Expr::new(ExprKind::Literal(Literal::Int(10)), Span::default()),
+                        to: Expr::new(ExprKind::Literal(Literal::Int(0)), Span::default()),
+                        step: Expr::new(ExprKind::Literal(Literal::Int(-1)), Span::default()),
+                        inclusive: false,
+                        body: vec![Stmt::new(
+                            NodeId::new("s1"),
+                            StmtKind::Assign {
+                                target: LValue::Var {
+                                    name: "acc".to_owned(),
+                                    span: Span::default(),
+                                },
+                                value: Expr::new(
+                                    ExprKind::Binary {
+                                        op: BinaryOp::Add,
+                                        left: Box::new(Expr::new(
+                                            ExprKind::Ident("acc".to_owned()),
+                                            Span::default(),
+                                        )),
+                                        right: Box::new(Expr::new(
+                                            ExprKind::Ident("i".to_owned()),
+                                            Span::default(),
+                                        )),
+                                    },
+                                    Span::default(),
+                                ),
+                            },
+                            Span::default(),
+                        )],
+                    },
+                    Span::default(),
+                ),
+                // 2. Exclusive positive const step: 0 to 10 (exclusive) BY 2 -> TO (10 - 1) BY 2
+                Stmt::new(
+                    NodeId::new("for_pos"),
+                    StmtKind::For {
+                        counter: "i".to_owned(),
+                        from: Expr::new(ExprKind::Literal(Literal::Int(0)), Span::default()),
+                        to: Expr::new(ExprKind::Literal(Literal::Int(10)), Span::default()),
+                        step: Expr::new(ExprKind::Literal(Literal::Int(2)), Span::default()),
+                        inclusive: false,
+                        body: vec![],
+                    },
+                    Span::default(),
+                ),
+                // 3. Exclusive unknown-sign non-const step `s` with CONTINUE -> WHILE loop
+                Stmt::new(
+                    NodeId::new("for_dyn"),
+                    StmtKind::For {
+                        counter: "i".to_owned(),
+                        from: Expr::new(ExprKind::Literal(Literal::Int(10)), Span::default()),
+                        to: Expr::new(ExprKind::Literal(Literal::Int(0)), Span::default()),
+                        step: Expr::new(ExprKind::Ident("s".to_owned()), Span::default()),
+                        inclusive: false,
+                        body: vec![Stmt::new(
+                            NodeId::new("s_if"),
+                            StmtKind::If {
+                                condition: Expr::new(
+                                    ExprKind::Binary {
+                                        op: BinaryOp::Eq,
+                                        left: Box::new(Expr::new(
+                                            ExprKind::Ident("i".to_owned()),
+                                            Span::default(),
+                                        )),
+                                        right: Box::new(Expr::new(
+                                            ExprKind::Literal(Literal::Int(4)),
+                                            Span::default(),
+                                        )),
+                                    },
+                                    Span::default(),
+                                ),
+                                then_body: vec![Stmt::new(
+                                    NodeId::new("s_cont"),
+                                    StmtKind::Continue,
+                                    Span::default(),
+                                )],
+                                elif_arms: vec![],
+                                else_body: vec![],
+                            },
+                            Span::default(),
+                        )],
+                    },
+                    Span::default(),
+                ),
+            ]),
+            span: Span::default(),
+        }],
+        ..BoardProgram::default()
+    });
+
+    let emitted = frontend.emit(&bundle, &ctx).unwrap().value;
+    assert!(
+        emitted.contains("FOR i := 10 TO (0 + 1) BY INT#-1 DO"),
+        "expected `(0 + 1) BY INT#-1`, got:\n{emitted}"
+    );
+    assert!(
+        emitted.contains("FOR i := 0 TO (10 - 1) BY 2 DO"),
+        "expected `(10 - 1) BY 2`, got:\n{emitted}"
+    );
+    assert!(
+        emitted.contains("WHILE ((s > 0) AND (i < 0)) OR ((s < 0) AND (i > 0)) DO"),
+        "expected signed-direction WHILE lowering, got:\n{emitted}"
+    );
+    assert!(
+        emitted.contains("i := i + s;\n            CONTINUE;"),
+        "expected counter update before CONTINUE in WHILE lowering, got:\n{emitted}"
+    );
+    assert!(
+        frontend.parse(&emitted, &ctx).is_ok(),
+        "emitted ST must parse cleanly:\n{emitted}"
+    );
+}
+
+#[test]
+fn st_regression_4_nontail_function_return_assignments_and_bare_return() {
+    let ctx = plc_ctx();
+    let frontend = StFrontend::new();
+    let src = r#"
+FUNCTION ClampPos : INT
+VAR_INPUT
+    x : INT;
+END_VAR
+    ClampPos := 0;
+    IF x > 0 THEN
+        ClampPos := x;
+    END_IF;
+END_FUNCTION
+
+FUNCTION EarlyExit : INT
+VAR_INPUT
+    x : INT;
+END_VAR
+    EarlyExit := 42;
+    IF x = 0 THEN
+        RETURN;
+    END_IF;
+    EarlyExit := x;
+END_FUNCTION
+
+FUNCTION SumTo : INT
+VAR_INPUT
+    n : INT;
+END_VAR
+VAR
+    _ret : INT := 0;
+    i : INT := 0;
+END_VAR
+    SumTo := 0;
+    FOR i := 1 TO n DO
+        SumTo := SumTo + i;
+    END_FOR;
+END_FUNCTION
+
+PROGRAM OB_MAIN
+VAR
+    a : INT := 0;
+    b : INT := 0;
+    c : INT := 0;
+END_VAR
+    a := ClampPos(5);
+    b := EarlyExit(0);
+    c := SumTo(4);
+END_PROGRAM
+"#;
+
+    let parsed = frontend.parse(src, &ctx).unwrap();
+    let emitted = frontend.emit(&parsed.value, &ctx).unwrap().value;
+
+    // Must NOT emit a premature `ClampPos := 0;\n    RETURN;` before `IF x > 0`!
+    assert!(
+        !emitted.contains("ClampPos := 0;\n    RETURN;"),
+        "non-tail return assignment must not insert premature RETURN:\n{emitted}"
+    );
+    assert!(
+        emitted.contains("_ret := 0;\n    IF x > 0 THEN\n        _ret := x;"),
+        "emitted:\n{emitted}"
+    );
+    assert!(emitted.contains("ClampPos := _ret;"), "emitted:\n{emitted}");
+    // Bare `RETURN;` inside EarlyExit must return the slot `_ret`!
+    assert!(
+        emitted.contains("EarlyExit := _ret;\n        RETURN;"),
+        "emitted:\n{emitted}"
+    );
+    // Collision-avoidance: SumTo already declared `_ret`, so slot must be `_ret_1`!
+    assert!(emitted.contains("_ret_1 : INT;"), "emitted:\n{emitted}");
+    assert!(emitted.contains("SumTo := _ret_1;"), "emitted:\n{emitted}");
+
+    // Full LOSSLESS_ASL round-trip on the lowered program!
+    let _reparsed = verify_frontend_roundtrip(&frontend, &parsed.value, &ctx).unwrap();
+}
+
+#[test]
+fn st_regression_5_f1_pack_expr_call_validates_arity_types_and_undeclared() {
+    let mut ctx = plc_ctx();
+    let custom_pack_toml = r#"
+schema_version = "2.0"
+
+[pack]
+id = "vendor-crc-helper"
+name = "Vendor CRC Helper"
+version = "1.0.0"
+language = "st"
+fidelity = "f1_declared"
+standards = ["IEC 61131-3"]
+
+[[symbols]]
+name = "CRC16_CALC"
+kind = "function"
+return_ty = "WORD"
+params = [
+    { name = "data", ty = "WORD" },
+    { name = "len", ty = "UINT" },
+]
+"#;
+    let pack = PackManifest::parse_str(custom_pack_toml).unwrap();
+    ctx.loaded_packs.push(pack);
+
+    let frontend = StFrontend::new();
+
+    // 1. Arity mismatch + undeclared identifier in expression position
+    let bad_arity_and_undeclared = r#"
+PROGRAM OB_MAIN
+VAR
+    w : WORD := WORD#0;
+END_VAR
+    w := CRC16_CALC(TRUE, ghost_var, 123);
+END_PROGRAM
+"#;
+    let errs = frontend.parse(bad_arity_and_undeclared, &ctx).unwrap_err();
+    assert!(
+        errs.iter().any(|d| d.code == ErrorCode::ErrArityMismatch),
+        "expected ERR_ARITY_MISMATCH, got: {errs:?}"
+    );
+    assert!(
+        errs.iter()
+            .any(|d| d.code == ErrorCode::ErrUndeclaredSymbol),
+        "expected ERR_UNDECLARED_SYMBOL for ghost_var, got: {errs:?}"
+    );
+
+    // 2. Argument type mismatch in expression position
+    let bad_type = r#"
+PROGRAM OB_MAIN
+VAR
+    w : WORD := WORD#0;
+END_VAR
+    w := CRC16_CALC(TRUE, UINT#4);
+END_PROGRAM
+"#;
+    assert_parse_error(bad_type, &ctx, ErrorCode::ErrTypeMismatch);
+
+    // 3. Undeclared symbol with matching arity
+    let bad_undecl = r#"
+PROGRAM OB_MAIN
+VAR
+    w : WORD := WORD#0;
+END_VAR
+    w := CRC16_CALC(ghost_var, UINT#4);
+END_PROGRAM
+"#;
+    assert_parse_error(bad_undecl, &ctx, ErrorCode::ErrUndeclaredSymbol);
+
+    // 4. Valid call still succeeds cleanly
+    let good = r#"
+PROGRAM OB_MAIN
+VAR
+    w : WORD := WORD#0;
+END_VAR
+    w := CRC16_CALC(WORD#16#1234, UINT#4);
+END_PROGRAM
+"#;
+    assert!(frontend.parse(good, &ctx).is_ok());
+}
+
+#[test]
+fn st_regression_6_derived_ladder_sorting_midrung_reset_fb_pins_and_parallel_or() {
+    let ctx = plc_ctx();
+    let frontend = StFrontend::new();
+
+    let bundle = BoardProgramBundle::new(BoardProgram {
+        hardware: vec![
+            HardwareBinding {
+                id: NodeId::new("hw1"),
+                label: "StartBtn".to_owned(),
+                pin: "Ia.0".to_owned(),
+                kind: HardwareKind::DigitalIn,
+                pull: PullMode::None,
+                active_low: false,
+                codec: None,
+                range: None,
+                span: Span::default(),
+            },
+            HardwareBinding {
+                id: NodeId::new("hw2"),
+                label: "MotorOut".to_owned(),
+                pin: "Qa.0".to_owned(),
+                kind: HardwareKind::DigitalOut,
+                pull: PullMode::None,
+                active_low: false,
+                codec: None,
+                range: None,
+                span: Span::default(),
+            },
+        ],
+        pous: vec![Pou {
+            id: NodeId::new("lad_pou"),
+            name: "OB_MAIN".to_owned(),
+            kind: PouKind::Ob { ob: ObKind::Main },
+            preferred_view: None,
+            params: vec![],
+            locals: vec![
+                // Deliberately declare `_rail` to verify collision-guarded VAR_TEMP naming!
+                DataDecl {
+                    id: NodeId::new("v_rail"),
+                    name: "_rail".to_owned(),
+                    scope: StorageScope::Var,
+                    ty: TypeRef::scalar(ScalarType::Bool),
+                    initial: Some(Expr::new(
+                        ExprKind::Literal(Literal::Bool(false)),
+                        Span::default(),
+                    )),
+                    span: Span::default(),
+                },
+                DataDecl {
+                    id: NodeId::new("v_a"),
+                    name: "a".to_owned(),
+                    scope: StorageScope::Var,
+                    ty: TypeRef::scalar(ScalarType::Bool),
+                    initial: Some(Expr::new(
+                        ExprKind::Literal(Literal::Bool(true)),
+                        Span::default(),
+                    )),
+                    span: Span::default(),
+                },
+                DataDecl {
+                    id: NodeId::new("v_b"),
+                    name: "b".to_owned(),
+                    scope: StorageScope::Var,
+                    ty: TypeRef::scalar(ScalarType::Bool),
+                    initial: Some(Expr::new(
+                        ExprKind::Literal(Literal::Bool(false)),
+                        Span::default(),
+                    )),
+                    span: Span::default(),
+                },
+                DataDecl {
+                    id: NodeId::new("v_x"),
+                    name: "x".to_owned(),
+                    scope: StorageScope::Var,
+                    ty: TypeRef::scalar(ScalarType::Int),
+                    initial: Some(Expr::new(
+                        ExprKind::Literal(Literal::Int(10)),
+                        Span::default(),
+                    )),
+                    span: Span::default(),
+                },
+                DataDecl {
+                    id: NodeId::new("v_cnt"),
+                    name: "cnt1".to_owned(),
+                    scope: StorageScope::Var,
+                    ty: TypeRef::Fb {
+                        fb_kind: FbKind::Ctu,
+                    },
+                    initial: None,
+                    span: Span::default(),
+                },
+                DataDecl {
+                    id: NodeId::new("v_sr"),
+                    name: "latch1".to_owned(),
+                    scope: StorageScope::Var,
+                    ty: TypeRef::Fb {
+                        fb_kind: FbKind::Sr,
+                    },
+                    initial: None,
+                    span: Span::default(),
+                },
+            ],
+            body: PouBody::Network(LadderNetwork {
+                rungs: vec![
+                    // Rung 0: Unsorted `[a] --(R a)-- (b)` — MUST sort by (col, row) and preserve pre-reset power flow!
+                    LadderRung {
+                        id: NodeId::new("r0"),
+                        order: 0,
+                        cells: vec![
+                            LadderCell {
+                                id: NodeId::new("r0_b"),
+                                row: 0,
+                                col: 2,
+                                kind: LadderCellKind::Coil {
+                                    kind: LadderCoilKind::Normal,
+                                    target: LValue::Var {
+                                        name: "b".to_owned(),
+                                        span: Span::default(),
+                                    },
+                                },
+                            },
+                            LadderCell {
+                                id: NodeId::new("r0_reset"),
+                                row: 0,
+                                col: 1,
+                                kind: LadderCellKind::Coil {
+                                    kind: LadderCoilKind::Reset,
+                                    target: LValue::Var {
+                                        name: "a".to_owned(),
+                                        span: Span::default(),
+                                    },
+                                },
+                            },
+                            LadderCell {
+                                id: NodeId::new("r0_contact"),
+                                row: 0,
+                                col: 0,
+                                kind: LadderCellKind::Contact {
+                                    kind: LadderContactKind::NormallyOpen,
+                                    target: LValue::Var {
+                                        name: "a".to_owned(),
+                                        span: Span::default(),
+                                    },
+                                },
+                            },
+                        ],
+                    },
+                    // Rung 1: ParallelOr with Compare + CTU + SR FB boxes (plus unsorted branch cells)
+                    LadderRung {
+                        id: NodeId::new("r1"),
+                        order: 1,
+                        cells: vec![
+                            LadderCell {
+                                id: NodeId::new("r1_par"),
+                                row: 0,
+                                col: 0,
+                                kind: LadderCellKind::ParallelOr {
+                                    branches: vec![
+                                        // Branch 0: Compare box (`x > 5`)
+                                        vec![LadderCell {
+                                            id: NodeId::new("r1_cmp"),
+                                            row: 0,
+                                            col: 0,
+                                            kind: LadderCellKind::Box(LadderBoxKind::Compare {
+                                                op: LadderCompareOp::Gt,
+                                                left: Expr::new(
+                                                    ExprKind::Ident("x".to_owned()),
+                                                    Span::default(),
+                                                ),
+                                                right: Expr::new(
+                                                    ExprKind::Literal(Literal::Int(5)),
+                                                    Span::default(),
+                                                ),
+                                            }),
+                                        }],
+                                        // Branch 1 (unsorted): Contact StartBtn (col 0) -> SR FB box (col 1)
+                                        vec![
+                                            LadderCell {
+                                                id: NodeId::new("r1_sr"),
+                                                row: 1,
+                                                col: 1,
+                                                kind: LadderCellKind::Box(LadderBoxKind::Fb {
+                                                    kind: FbKind::Sr,
+                                                    instance: LValue::Var {
+                                                        name: "latch1".to_owned(),
+                                                        span: Span::default(),
+                                                    },
+                                                    inputs: vec![(
+                                                        "R".to_owned(),
+                                                        Expr::new(
+                                                            ExprKind::Literal(Literal::Bool(false)),
+                                                            Span::default(),
+                                                        ),
+                                                    )],
+                                                }),
+                                            },
+                                            LadderCell {
+                                                id: NodeId::new("r1_start"),
+                                                row: 1,
+                                                col: 0,
+                                                kind: LadderCellKind::Contact {
+                                                    kind: LadderContactKind::NormallyOpen,
+                                                    target: LValue::Var {
+                                                        name: "StartBtn".to_owned(),
+                                                        span: Span::default(),
+                                                    },
+                                                },
+                                            },
+                                        ],
+                                    ],
+                                },
+                            },
+                            LadderCell {
+                                id: NodeId::new("r1_ctu"),
+                                row: 0,
+                                col: 1,
+                                kind: LadderCellKind::Box(LadderBoxKind::Fb {
+                                    kind: FbKind::Ctu,
+                                    instance: LValue::Var {
+                                        name: "cnt1".to_owned(),
+                                        span: Span::default(),
+                                    },
+                                    inputs: vec![
+                                        (
+                                            "R".to_owned(),
+                                            Expr::new(
+                                                ExprKind::Literal(Literal::Bool(false)),
+                                                Span::default(),
+                                            ),
+                                        ),
+                                        (
+                                            "PV".to_owned(),
+                                            Expr::new(
+                                                ExprKind::Literal(Literal::Int(3)),
+                                                Span::default(),
+                                            ),
+                                        ),
+                                    ],
+                                }),
+                            },
+                            LadderCell {
+                                id: NodeId::new("r1_out"),
+                                row: 0,
+                                col: 2,
+                                kind: LadderCellKind::Coil {
+                                    kind: LadderCoilKind::Normal,
+                                    target: LValue::Var {
+                                        name: "MotorOut".to_owned(),
+                                        span: Span::default(),
+                                    },
+                                },
+                            },
+                        ],
+                    },
+                ],
+            }),
+            span: Span::default(),
+        }],
+        ..BoardProgram::default()
+    });
+
+    let emitted = frontend.emit(&bundle, &ctx).unwrap().value;
+
+    // 1. Collision guard: user declared `_rail`, so materialized rail temp MUST be `_rail_1`!
+    assert!(emitted.contains("_rail_1 : BOOL;"), "emitted:\n{emitted}");
+    // 2. Sorting & pre-reset preservation: Contact(a) before Reset(a) before Normal(b), all using `_rail_1`
+    let pos_contact = emitted.find("_rail_1 := _rail_1 AND a;").unwrap();
+    let pos_reset = emitted.find("IF _rail_1 THEN a := FALSE; END_IF;").unwrap();
+    let pos_coil = emitted.find("b := _rail_1;").unwrap();
+    assert!(
+        pos_contact < pos_reset && pos_reset < pos_coil,
+        "emitted:\n{emitted}"
+    );
+    // 3. Correct FB rail pins & outputs: SR uses S1/.Q1, CTU uses CU/.Q
+    assert!(
+        emitted.contains("latch1(S1 := _rail_br, R := FALSE);"),
+        "emitted:\n{emitted}"
+    );
+    assert!(
+        emitted.contains("_rail_br := latch1.Q1;"),
+        "emitted:\n{emitted}"
+    );
+    assert!(
+        emitted.contains("cnt1(CU := _rail_1, R := FALSE, PV := 3);"),
+        "emitted:\n{emitted}"
+    );
+    assert!(
+        emitted.contains("_rail_1 := cnt1.Q;"),
+        "emitted:\n{emitted}"
+    );
+    // 4. Compare box inside ParallelOr is emitted (not dropped!)
+    assert!(
+        emitted.contains("_rail_br := _rail_br AND (x > 5);"),
+        "emitted:\n{emitted}"
+    );
+    // 5. Full emitted ST parses cleanly via StFrontend::parse with ZERO errors!
+    let reparsed = frontend.parse(&emitted, &ctx);
+    assert!(
+        reparsed.is_ok(),
+        "derived Ladder ST must parse cleanly via StFrontend::parse, got: {:?}\nEmitted:\n{emitted}",
+        reparsed.err()
+    );
 }

@@ -22,7 +22,7 @@ use std::collections::{BTreeMap, BTreeSet};
 pub(crate) struct ParsedSt {
     pub bundle: BoardProgramBundle,
     pub typed_literals: BTreeMap<Span, ScalarType>,
-    pub pack_expr_types: BTreeMap<Span, (String, PackSymbol)>,
+    pub pack_expr_calls: BTreeMap<Span, (String, PackSymbol, Vec<CallArg>)>,
     pub pack_stmt_calls: BTreeMap<Span, (String, PackSymbol, Vec<CallArg>)>,
 }
 
@@ -50,7 +50,7 @@ pub(crate) fn parse_st(src: &str, ctx: &BoardContext) -> Result<ParsedSt, Vec<Di
         diagnostics: Vec::new(),
         anchors: Vec::new(),
         typed_literals: BTreeMap::new(),
-        pack_expr_types: BTreeMap::new(),
+        pack_expr_calls: BTreeMap::new(),
         pack_stmt_calls: BTreeMap::new(),
         current_fn_name: None,
     };
@@ -59,6 +59,11 @@ pub(crate) fn parse_st(src: &str, ctx: &BoardContext) -> Result<ParsedSt, Vec<Di
     if !parser.diagnostics.is_empty() {
         return Err(parser.diagnostics);
     }
+
+    // Lower IEC 61131-3 FUNCTION return assignments (`MyFunc := expr;`):
+    // tail/fused assignments lower directly to `StmtKind::Return`; non-tail or read-back
+    // return assignments allocate a collision-free local `VAR_TEMP` return slot.
+    lower_all_function_returns(&mut program, &mut || parser.alloc_id());
 
     // Post-parse resolution:
     // 1. Convert `TypeRef::Named` referring to declared `FUNCTION_BLOCK`s / pack FBs to `TypeRef::Fb`.
@@ -100,7 +105,7 @@ pub(crate) fn parse_st(src: &str, ctx: &BoardContext) -> Result<ParsedSt, Vec<Di
     Ok(ParsedSt {
         bundle,
         typed_literals: parser.typed_literals,
-        pack_expr_types: parser.pack_expr_types,
+        pack_expr_calls: parser.pack_expr_calls,
         pack_stmt_calls: parser.pack_stmt_calls,
     })
 }
@@ -114,7 +119,7 @@ struct Parser<'a> {
     diagnostics: Vec<Diagnostic>,
     anchors: Vec<AnchorSite>,
     typed_literals: BTreeMap<Span, ScalarType>,
-    pack_expr_types: BTreeMap<Span, (String, PackSymbol)>,
+    pack_expr_calls: BTreeMap<Span, (String, PackSymbol, Vec<CallArg>)>,
     pack_stmt_calls: BTreeMap<Span, (String, PackSymbol, Vec<CallArg>)>,
     current_fn_name: Option<String>,
 }
@@ -1527,13 +1532,21 @@ impl<'a> Parser<'a> {
     fn parse_and_maybe_fuse_stmt(&mut self) -> Result<Stmt, Diagnostic> {
         let mut stmt = self.parse_stmt()?;
         // Fuse `MyFunc := expr; RETURN;` inside a FUNCTION into a single `StmtKind::Return { value: Some(expr) }`
-        if self.current_fn_name.is_some()
-            && matches!(stmt.kind, StmtKind::Return { value: Some(_) })
+        if let Some(fn_name) = &self.current_fn_name
             && matches!(self.peek_kind(), TokenKind::Return)
             && matches!(self.peek_nth_kind(1), TokenKind::Semicolon)
+            && matches!(
+                &stmt.kind,
+                StmtKind::Assign {
+                    target: LValue::Var { name, .. },
+                    ..
+                } if name.eq_ignore_ascii_case(fn_name)
+            )
+            && let StmtKind::Assign { value, .. } = stmt.kind
         {
             let _ = self.bump(); // RETURN
             let semi_span = self.bump().span; // ;
+            stmt.kind = StmtKind::Return { value: Some(value) };
             stmt.span = stmt.span.merge(semi_span);
             let new_end = self.last_tok_idx();
             let end_line = self.tokens.get(new_end).map(|t| t.end_line);
@@ -1648,14 +1661,6 @@ impl<'a> Parser<'a> {
             let _ = self.expect_semicolon()?;
             let id = self.alloc_id();
             let span = self.record_anchor(&id, first_idx, self.last_tok_idx(), false);
-
-            // IEC 61131-3 function return assignment: `MyFunc := expr;`
-            if let Some(fn_name) = &self.current_fn_name
-                && let LValue::Var { name, .. } = &lvalue
-                && name.eq_ignore_ascii_case(fn_name)
-            {
-                return Ok(Stmt::new(id, StmtKind::Return { value: Some(value) }, span));
-            }
 
             return Ok(Stmt::new(
                 id,
@@ -2148,6 +2153,11 @@ impl<'a> Parser<'a> {
         let _ = self.bump();
         let _ = self.expect_semicolon()?;
 
+        // Rewrite direct `CONTINUE;` statements inside the REPEAT body (descending into
+        // `If`/`Switch`, NOT nested `For`/`While` loops) so `CONTINUE` evaluates the `UNTIL`
+        // exit condition before jumping to the next iteration.
+        rewrite_repeat_continues(&mut body, &until_cond, until_span, &mut || self.alloc_id());
+
         let break_id = self.alloc_id();
         let if_id = self.alloc_id();
         body.push(Stmt::new(
@@ -2404,8 +2414,8 @@ impl PrattDriver for StPrattDriver<'_, '_> {
                 {
                     let text = span.slice(self.parser.src).unwrap_or("").to_owned();
                     self.parser
-                        .pack_expr_types
-                        .insert(span, (pack.pack.id.clone(), sym.clone()));
+                        .pack_expr_calls
+                        .insert(span, (pack.pack.id.clone(), sym.clone(), args));
                     return Ok(Expr::new(
                         ExprKind::Foreign {
                             language: "st".to_owned(),
@@ -3325,6 +3335,543 @@ fn innermost_enclosing<'a>(
                 && span.end <= a.span.end
         })
         .min_by_key(|a| a.span.len())
+}
+
+fn rewrite_repeat_continues<F>(
+    stmts: &mut Vec<Stmt>,
+    until_cond: &Expr,
+    until_span: Span,
+    alloc_id: &mut F,
+) where
+    F: FnMut() -> NodeId,
+{
+    let old = std::mem::take(stmts);
+    let mut out = Vec::with_capacity(old.len());
+    for mut stmt in old {
+        match &mut stmt.kind {
+            StmtKind::Continue => {
+                let break_id = alloc_id();
+                let if_id = alloc_id();
+                out.push(Stmt::new(
+                    if_id,
+                    StmtKind::If {
+                        condition: until_cond.clone(),
+                        then_body: vec![Stmt::new(break_id, StmtKind::Break, until_span)],
+                        elif_arms: Vec::new(),
+                        else_body: Vec::new(),
+                    },
+                    until_span,
+                ));
+                out.push(stmt);
+            }
+            StmtKind::If {
+                then_body,
+                elif_arms,
+                else_body,
+                ..
+            } => {
+                rewrite_repeat_continues(then_body, until_cond, until_span, alloc_id);
+                for arm in elif_arms {
+                    rewrite_repeat_continues(&mut arm.body, until_cond, until_span, alloc_id);
+                }
+                rewrite_repeat_continues(else_body, until_cond, until_span, alloc_id);
+                out.push(stmt);
+            }
+            StmtKind::Switch { cases, default, .. } => {
+                for c in cases {
+                    rewrite_repeat_continues(&mut c.body, until_cond, until_span, alloc_id);
+                }
+                if let Some(def) = default {
+                    rewrite_repeat_continues(def, until_cond, until_span, alloc_id);
+                }
+                out.push(stmt);
+            }
+            // Do NOT descend into nested loops: their `CONTINUE` targets the inner loop!
+            StmtKind::For { .. }
+            | StmtKind::While { .. }
+            | StmtKind::Assign { .. }
+            | StmtKind::Call { .. }
+            | StmtKind::FbInvoke { .. }
+            | StmtKind::Break
+            | StmtKind::Return { .. }
+            | StmtKind::Wait { .. }
+            | StmtKind::Foreign { .. } => {
+                out.push(stmt);
+            }
+        }
+    }
+    *stmts = out;
+}
+
+fn lower_all_function_returns<F>(program: &mut BoardProgram, alloc_id: &mut F)
+where
+    F: FnMut() -> NodeId,
+{
+    let mut global_names = BTreeSet::new();
+    for hw in &program.hardware {
+        global_names.insert(hw.label.to_ascii_uppercase());
+    }
+    for d in &program.data {
+        global_names.insert(d.name.to_ascii_uppercase());
+    }
+    for td in &program.types {
+        match td {
+            TypeDecl::Struct { name, .. } => {
+                global_names.insert(name.to_ascii_uppercase());
+            }
+            TypeDecl::Enum { name, variants, .. } => {
+                global_names.insert(name.to_ascii_uppercase());
+                for v in variants {
+                    global_names.insert(v.name.to_ascii_uppercase());
+                }
+            }
+            TypeDecl::Foreign { name, .. } => {
+                if let Some(n) = name {
+                    global_names.insert(n.to_ascii_uppercase());
+                }
+            }
+        }
+    }
+    for pou in &program.pous {
+        global_names.insert(pou.name.to_ascii_uppercase());
+    }
+    for m in &program.modules {
+        for d in &m.data {
+            global_names.insert(d.name.to_ascii_uppercase());
+        }
+        for pou in &m.pous {
+            global_names.insert(pou.name.to_ascii_uppercase());
+        }
+    }
+
+    for pou in &mut program.pous {
+        lower_pou_function_returns(pou, &global_names, alloc_id);
+    }
+    for m in &mut program.modules {
+        for pou in &mut m.pous {
+            lower_pou_function_returns(pou, &global_names, alloc_id);
+        }
+    }
+}
+
+#[derive(Default)]
+struct FnReturnUsage {
+    any_fn_assign: bool,
+    has_non_tail_fn_assign: bool,
+    has_fn_read_or_partial_write: bool,
+    has_bare_return: bool,
+}
+
+fn lower_pou_function_returns<F>(pou: &mut Pou, global_names: &BTreeSet<String>, alloc_id: &mut F)
+where
+    F: FnMut() -> NodeId,
+{
+    let return_type = match &pou.kind {
+        PouKind::Fc { return_type } => return_type.clone(),
+        PouKind::Ob { .. } | PouKind::Fb => return,
+    };
+    let PouBody::Statements(stmts) = &mut pou.body else {
+        return;
+    };
+
+    let fn_name = pou.name.clone();
+    let mut usage = FnReturnUsage::default();
+    scan_fn_return_usage(stmts, &fn_name, true, &mut usage);
+
+    if !usage.any_fn_assign && !usage.has_fn_read_or_partial_write {
+        return;
+    }
+
+    if usage.any_fn_assign
+        && !usage.has_non_tail_fn_assign
+        && !usage.has_fn_read_or_partial_write
+        && !usage.has_bare_return
+    {
+        // Fast pure-tail path: every `MyFunc := expr;` is strictly in tail position -> lower directly to `StmtKind::Return`.
+        rewrite_tail_fn_assigns_to_return(stmts, &fn_name);
+        return;
+    }
+
+    // Non-tail assignment, read-back, or bare `RETURN;` alongside `MyFunc := expr;`:
+    // allocate a collision-free local `VAR_TEMP` return slot.
+    let mut used = global_names.clone();
+    used.insert(fn_name.to_ascii_uppercase());
+    for p in &pou.params {
+        used.insert(p.name.to_ascii_uppercase());
+    }
+    for l in &pou.locals {
+        used.insert(l.name.to_ascii_uppercase());
+    }
+    let slot_name = pick_fresh_name("_ret", &used);
+
+    pou.locals.push(DataDecl {
+        id: alloc_id(),
+        name: slot_name.clone(),
+        scope: StorageScope::Temp,
+        ty: return_type,
+        initial: None,
+        span: pou.span,
+    });
+
+    rewrite_fn_slot_in_stmts(stmts, &fn_name, &slot_name);
+
+    let ends_with_return = matches!(stmts.last().map(|s| &s.kind), Some(StmtKind::Return { .. }));
+    if !ends_with_return {
+        stmts.push(Stmt::new(
+            alloc_id(),
+            StmtKind::Return {
+                value: Some(Expr::new(ExprKind::Ident(slot_name), pou.span)),
+            },
+            pou.span,
+        ));
+    }
+}
+
+fn pick_fresh_name(base: &str, used_upper: &BTreeSet<String>) -> String {
+    if !used_upper.contains(&base.to_ascii_uppercase()) {
+        return base.to_owned();
+    }
+    let mut suffix = 1u32;
+    loop {
+        let candidate = format!("{base}_{suffix}");
+        if !used_upper.contains(&candidate.to_ascii_uppercase()) {
+            return candidate;
+        }
+        suffix = suffix.saturating_add(1);
+    }
+}
+
+fn scan_fn_return_usage(
+    stmts: &[Stmt],
+    fn_name: &str,
+    list_is_tail: bool,
+    usage: &mut FnReturnUsage,
+) {
+    let last_idx = stmts.len().saturating_sub(1);
+    for (idx, stmt) in stmts.iter().enumerate() {
+        let is_tail = list_is_tail && idx == last_idx;
+        match &stmt.kind {
+            StmtKind::Assign { target, value } => {
+                scan_expr_for_fn_read(value, fn_name, usage);
+                match target {
+                    LValue::Var { name, .. } if name.eq_ignore_ascii_case(fn_name) => {
+                        usage.any_fn_assign = true;
+                        if !is_tail {
+                            usage.has_non_tail_fn_assign = true;
+                        }
+                    }
+                    LValue::Var { .. } => {}
+                    LValue::Index { .. } | LValue::Field { .. } => {
+                        if target.root_name().eq_ignore_ascii_case(fn_name) {
+                            usage.has_fn_read_or_partial_write = true;
+                        }
+                        scan_lvalue_indices_for_fn_read(target, fn_name, usage);
+                    }
+                }
+            }
+            StmtKind::Call { args, .. } => {
+                for arg in args {
+                    scan_expr_for_fn_read(&arg.value, fn_name, usage);
+                }
+            }
+            StmtKind::FbInvoke { instance, inputs } => {
+                scan_lvalue_indices_for_fn_read(instance, fn_name, usage);
+                for (_, expr) in inputs {
+                    scan_expr_for_fn_read(expr, fn_name, usage);
+                }
+            }
+            StmtKind::If {
+                condition,
+                then_body,
+                elif_arms,
+                else_body,
+            } => {
+                scan_expr_for_fn_read(condition, fn_name, usage);
+                scan_fn_return_usage(then_body, fn_name, is_tail, usage);
+                for arm in elif_arms {
+                    scan_expr_for_fn_read(&arm.condition, fn_name, usage);
+                    scan_fn_return_usage(&arm.body, fn_name, is_tail, usage);
+                }
+                scan_fn_return_usage(else_body, fn_name, is_tail, usage);
+            }
+            StmtKind::Switch {
+                scrutinee,
+                cases,
+                default,
+            } => {
+                scan_expr_for_fn_read(scrutinee, fn_name, usage);
+                for c in cases {
+                    for pat in &c.patterns {
+                        match pat {
+                            CasePattern::Value(e) => scan_expr_for_fn_read(e, fn_name, usage),
+                            CasePattern::Range { start, end } => {
+                                scan_expr_for_fn_read(start, fn_name, usage);
+                                scan_expr_for_fn_read(end, fn_name, usage);
+                            }
+                        }
+                    }
+                    scan_fn_return_usage(&c.body, fn_name, is_tail, usage);
+                }
+                if let Some(def) = default {
+                    scan_fn_return_usage(def, fn_name, is_tail, usage);
+                }
+            }
+            StmtKind::While { condition, body } => {
+                scan_expr_for_fn_read(condition, fn_name, usage);
+                // Inside loops is NEVER tail position
+                scan_fn_return_usage(body, fn_name, false, usage);
+            }
+            StmtKind::For {
+                from,
+                to,
+                step,
+                body,
+                ..
+            } => {
+                scan_expr_for_fn_read(from, fn_name, usage);
+                scan_expr_for_fn_read(to, fn_name, usage);
+                scan_expr_for_fn_read(step, fn_name, usage);
+                scan_fn_return_usage(body, fn_name, false, usage);
+            }
+            StmtKind::Return { value } => match value {
+                Some(e) => scan_expr_for_fn_read(e, fn_name, usage),
+                None => usage.has_bare_return = true,
+            },
+            StmtKind::Wait { duration } => {
+                scan_expr_for_fn_read(duration, fn_name, usage);
+            }
+            StmtKind::Break | StmtKind::Continue | StmtKind::Foreign { .. } => {}
+        }
+    }
+}
+
+fn scan_lvalue_indices_for_fn_read(lv: &LValue, fn_name: &str, usage: &mut FnReturnUsage) {
+    match lv {
+        LValue::Var { .. } => {}
+        LValue::Index { base, index, .. } => {
+            scan_lvalue_indices_for_fn_read(base, fn_name, usage);
+            scan_expr_for_fn_read(index, fn_name, usage);
+        }
+        LValue::Field { base, .. } => {
+            scan_lvalue_indices_for_fn_read(base, fn_name, usage);
+        }
+    }
+}
+
+fn scan_expr_for_fn_read(expr: &Expr, fn_name: &str, usage: &mut FnReturnUsage) {
+    match &expr.kind {
+        ExprKind::Ident(name) => {
+            if name.eq_ignore_ascii_case(fn_name) {
+                usage.has_fn_read_or_partial_write = true;
+            }
+        }
+        ExprKind::Index { base, index } => {
+            scan_expr_for_fn_read(base, fn_name, usage);
+            scan_expr_for_fn_read(index, fn_name, usage);
+        }
+        ExprKind::Field { base, .. } => {
+            scan_expr_for_fn_read(base, fn_name, usage);
+        }
+        ExprKind::Call { args, .. } => {
+            for arg in args {
+                scan_expr_for_fn_read(&arg.value, fn_name, usage);
+            }
+        }
+        ExprKind::Unary { operand, .. } => {
+            scan_expr_for_fn_read(operand, fn_name, usage);
+        }
+        ExprKind::Binary { left, right, .. } => {
+            scan_expr_for_fn_read(left, fn_name, usage);
+            scan_expr_for_fn_read(right, fn_name, usage);
+        }
+        ExprKind::Literal(_) | ExprKind::Foreign { .. } => {}
+    }
+}
+
+fn rewrite_tail_fn_assigns_to_return(stmts: &mut [Stmt], fn_name: &str) {
+    let Some(last) = stmts.last_mut() else {
+        return;
+    };
+    let is_fn_assign = matches!(
+        &last.kind,
+        StmtKind::Assign {
+            target: LValue::Var { name, .. },
+            ..
+        } if name.eq_ignore_ascii_case(fn_name)
+    );
+    if is_fn_assign {
+        let prev = std::mem::replace(&mut last.kind, StmtKind::Break);
+        if let StmtKind::Assign { value, .. } = prev {
+            last.kind = StmtKind::Return { value: Some(value) };
+        }
+        return;
+    }
+    match &mut last.kind {
+        StmtKind::If {
+            then_body,
+            elif_arms,
+            else_body,
+            ..
+        } => {
+            rewrite_tail_fn_assigns_to_return(then_body, fn_name);
+            for arm in elif_arms {
+                rewrite_tail_fn_assigns_to_return(&mut arm.body, fn_name);
+            }
+            rewrite_tail_fn_assigns_to_return(else_body, fn_name);
+        }
+        StmtKind::Switch { cases, default, .. } => {
+            for c in cases {
+                rewrite_tail_fn_assigns_to_return(&mut c.body, fn_name);
+            }
+            if let Some(def) = default {
+                rewrite_tail_fn_assigns_to_return(def, fn_name);
+            }
+        }
+        StmtKind::Assign { .. }
+        | StmtKind::Call { .. }
+        | StmtKind::FbInvoke { .. }
+        | StmtKind::While { .. }
+        | StmtKind::For { .. }
+        | StmtKind::Break
+        | StmtKind::Continue
+        | StmtKind::Return { .. }
+        | StmtKind::Wait { .. }
+        | StmtKind::Foreign { .. } => {}
+    }
+}
+
+fn rewrite_fn_slot_in_stmts(stmts: &mut [Stmt], fn_name: &str, slot_name: &str) {
+    for stmt in stmts {
+        let span = stmt.span;
+        match &mut stmt.kind {
+            StmtKind::Assign { target, value } => {
+                rewrite_fn_slot_in_lvalue(target, fn_name, slot_name);
+                rewrite_fn_slot_in_expr(value, fn_name, slot_name);
+            }
+            StmtKind::Call { args, .. } => {
+                for arg in args {
+                    rewrite_fn_slot_in_expr(&mut arg.value, fn_name, slot_name);
+                }
+            }
+            StmtKind::FbInvoke { instance, inputs } => {
+                rewrite_fn_slot_in_lvalue(instance, fn_name, slot_name);
+                for (_, expr) in inputs {
+                    rewrite_fn_slot_in_expr(expr, fn_name, slot_name);
+                }
+            }
+            StmtKind::If {
+                condition,
+                then_body,
+                elif_arms,
+                else_body,
+            } => {
+                rewrite_fn_slot_in_expr(condition, fn_name, slot_name);
+                rewrite_fn_slot_in_stmts(then_body, fn_name, slot_name);
+                for arm in elif_arms {
+                    rewrite_fn_slot_in_expr(&mut arm.condition, fn_name, slot_name);
+                    rewrite_fn_slot_in_stmts(&mut arm.body, fn_name, slot_name);
+                }
+                rewrite_fn_slot_in_stmts(else_body, fn_name, slot_name);
+            }
+            StmtKind::Switch {
+                scrutinee,
+                cases,
+                default,
+            } => {
+                rewrite_fn_slot_in_expr(scrutinee, fn_name, slot_name);
+                for c in cases {
+                    for pat in &mut c.patterns {
+                        match pat {
+                            CasePattern::Value(e) => {
+                                rewrite_fn_slot_in_expr(e, fn_name, slot_name);
+                            }
+                            CasePattern::Range { start, end } => {
+                                rewrite_fn_slot_in_expr(start, fn_name, slot_name);
+                                rewrite_fn_slot_in_expr(end, fn_name, slot_name);
+                            }
+                        }
+                    }
+                    rewrite_fn_slot_in_stmts(&mut c.body, fn_name, slot_name);
+                }
+                if let Some(def) = default {
+                    rewrite_fn_slot_in_stmts(def, fn_name, slot_name);
+                }
+            }
+            StmtKind::While { condition, body } => {
+                rewrite_fn_slot_in_expr(condition, fn_name, slot_name);
+                rewrite_fn_slot_in_stmts(body, fn_name, slot_name);
+            }
+            StmtKind::For {
+                from,
+                to,
+                step,
+                body,
+                ..
+            } => {
+                rewrite_fn_slot_in_expr(from, fn_name, slot_name);
+                rewrite_fn_slot_in_expr(to, fn_name, slot_name);
+                rewrite_fn_slot_in_expr(step, fn_name, slot_name);
+                rewrite_fn_slot_in_stmts(body, fn_name, slot_name);
+            }
+            StmtKind::Return { value } => match value {
+                Some(e) => rewrite_fn_slot_in_expr(e, fn_name, slot_name),
+                None => {
+                    *value = Some(Expr::new(ExprKind::Ident(slot_name.to_owned()), span));
+                }
+            },
+            StmtKind::Wait { duration } => {
+                rewrite_fn_slot_in_expr(duration, fn_name, slot_name);
+            }
+            StmtKind::Break | StmtKind::Continue | StmtKind::Foreign { .. } => {}
+        }
+    }
+}
+
+fn rewrite_fn_slot_in_lvalue(lv: &mut LValue, fn_name: &str, slot_name: &str) {
+    match lv {
+        LValue::Var { name, .. } => {
+            if name.eq_ignore_ascii_case(fn_name) {
+                *name = slot_name.to_owned();
+            }
+        }
+        LValue::Index { base, index, .. } => {
+            rewrite_fn_slot_in_lvalue(base, fn_name, slot_name);
+            rewrite_fn_slot_in_expr(index, fn_name, slot_name);
+        }
+        LValue::Field { base, .. } => {
+            rewrite_fn_slot_in_lvalue(base, fn_name, slot_name);
+        }
+    }
+}
+
+fn rewrite_fn_slot_in_expr(expr: &mut Expr, fn_name: &str, slot_name: &str) {
+    match &mut expr.kind {
+        ExprKind::Ident(name) => {
+            if name.eq_ignore_ascii_case(fn_name) {
+                *name = slot_name.to_owned();
+            }
+        }
+        ExprKind::Index { base, index } => {
+            rewrite_fn_slot_in_expr(base, fn_name, slot_name);
+            rewrite_fn_slot_in_expr(index, fn_name, slot_name);
+        }
+        ExprKind::Field { base, .. } => {
+            rewrite_fn_slot_in_expr(base, fn_name, slot_name);
+        }
+        ExprKind::Call { args, .. } => {
+            for arg in args {
+                rewrite_fn_slot_in_expr(&mut arg.value, fn_name, slot_name);
+            }
+        }
+        ExprKind::Unary { operand, .. } => {
+            rewrite_fn_slot_in_expr(operand, fn_name, slot_name);
+        }
+        ExprKind::Binary { left, right, .. } => {
+            rewrite_fn_slot_in_expr(left, fn_name, slot_name);
+            rewrite_fn_slot_in_expr(right, fn_name, slot_name);
+        }
+        ExprKind::Literal(_) | ExprKind::Foreign { .. } => {}
+    }
 }
 
 static EOF_FALLBACK: Token = Token {

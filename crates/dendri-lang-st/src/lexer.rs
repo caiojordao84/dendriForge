@@ -794,6 +794,8 @@ fn parse_int_or_bitstring_scalar(upper: &str) -> Option<ScalarType> {
         "WORD" => Some(ScalarType::Word),
         "DWORD" => Some(ScalarType::Dword),
         "LWORD" => Some(ScalarType::Lword),
+        "ANALOG" => Some(ScalarType::Analog),
+        "DUTY" => Some(ScalarType::Duty),
         _ => None,
     }
 }

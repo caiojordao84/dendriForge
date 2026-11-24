@@ -1207,8 +1207,11 @@ impl<'a> StChecker<'a> {
                 self.check_binary_op(*op, left, right, expected, expr.span, locals, sctx)
             }
             ExprKind::Foreign { language, text } => {
-                if let Some((_pack_id, sym)) = self.parsed.pack_expr_types.get(&expr.span) {
-                    return sym.return_type_ref();
+                if let Some((_pack_id, sym, args)) = self.parsed.pack_expr_calls.get(&expr.span) {
+                    let sym_clone = sym.clone();
+                    let args_clone = args.clone();
+                    self.check_pack_call_args(&sym_clone, &args_clone, expr.span, locals, sctx);
+                    return sym_clone.return_type_ref();
                 }
                 if let Some(exp) = expected {
                     Some(exp.clone())
@@ -1817,9 +1820,36 @@ impl<'a> StChecker<'a> {
                     args.len()
                 ),
             );
+            // Still validate every supplied argument expression so undeclared symbols & type errors surface.
+            for arg in args {
+                let _ = self.infer_expr(&arg.value, None, locals, sctx);
+            }
             return;
         }
-        for (arg, param) in args.iter().zip(sym.params.iter()) {
+        for (idx, arg) in args.iter().enumerate() {
+            let param = if let Some(aname) = &arg.name {
+                let Some(found) = sym
+                    .params
+                    .iter()
+                    .find(|p| p.name.eq_ignore_ascii_case(aname))
+                else {
+                    self.push_diag(
+                        ErrorCode::ErrArityMismatch,
+                        arg.span,
+                        format!(
+                            "unknown named argument `{aname}` in F1 pack call `{}`",
+                            sym.name
+                        ),
+                    );
+                    let _ = self.infer_expr(&arg.value, None, locals, sctx);
+                    continue;
+                };
+                found
+            } else if let Some(p) = sym.params.get(idx) {
+                p
+            } else {
+                continue;
+            };
             if let Some(expected_ty) = param.type_ref()
                 && let Some(actual) = self.infer_expr(&arg.value, Some(&expected_ty), locals, sctx)
                 && !types_compatible(&expected_ty, &actual)
