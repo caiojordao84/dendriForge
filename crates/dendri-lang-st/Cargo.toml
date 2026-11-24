@@ -1,0 +1,22 @@
+[package]
+name = "dendri-lang-st"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "100% pure-Rust IEC 61131-3 Structured Text (ST) frontend implementing LanguageFrontend with DEF-006 comment dialects, ADR-027 verbatim comments, iec_address mapping, reduced-rational numeric emission, and three-level Foreign preservation"
+
+[lints]
+workspace = true
+
+[dependencies]
+dendri-ast = { workspace = true }
+dendri-frontend-core = { path = "../dendri-frontend-core" }
+dendri-span = { workspace = true }
+dendri-stdlib = { workspace = true }
+
+[dev-dependencies]
+dendri-validate = { workspace = true }
+proptest = { workspace = true }

@@ -18,6 +18,7 @@ members = [
     "crates/dendri-lang-cpp",
     "crates/dendri-lang-ladder",
     "crates/dendri-lang-sfc",
+    "crates/dendri-lang-st",
     "crates/dendri-sync",
     "crates/dendri-cli",
 ]
