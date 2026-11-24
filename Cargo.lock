@@ -361,6 +361,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "dendri-lang-ladder"
+version = "0.1.0"
+dependencies = [
+ "dendri-ast",
+ "dendri-expr",
+ "dendri-frontend-core",
+ "dendri-span",
+ "dendri-stdlib",
+ "dendri-vm",
+ "proptest",
+]
+
+[[package]]
 name = "dendri-physics"
 version = "0.1.0"
 dependencies = [
