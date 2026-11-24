@@ -325,6 +325,7 @@ dependencies = [
  "dendri-assets",
  "dendri-ast",
  "dendri-circuit",
+ "dendri-diff",
  "dendri-frontend-core",
  "dendri-lang-cpp",
  "dendri-lang-ladder",
@@ -340,6 +341,25 @@ dependencies = [
  "tempfile",
  "thiserror",
  "toml",
+]
+
+[[package]]
+name = "dendri-diff"
+version = "0.1.0"
+dependencies = [
+ "dendri-assets",
+ "dendri-ast",
+ "dendri-circuit",
+ "dendri-frontend-core",
+ "dendri-lang-cpp",
+ "dendri-lang-ladder",
+ "dendri-lang-sfc",
+ "dendri-lang-st",
+ "dendri-span",
+ "dendri-validate",
+ "dendri-vm",
+ "tempfile",
+ "thiserror",
 ]
 
 [[package]]

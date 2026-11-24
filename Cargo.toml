@@ -20,6 +20,7 @@ members = [
     "crates/dendri-lang-sfc",
     "crates/dendri-lang-st",
     "crates/dendri-sync",
+    "crates/dendri-diff",
     "crates/dendri-cli",
 ]
 exclude = [
@@ -84,3 +85,4 @@ dendri-lang-cpp = { path = "crates/dendri-lang-cpp" }
 dendri-lang-ladder = { path = "crates/dendri-lang-ladder" }
 dendri-lang-sfc = { path = "crates/dendri-lang-sfc" }
 dendri-lang-st = { path = "crates/dendri-lang-st" }
+dendri-diff = { path = "crates/dendri-diff" }

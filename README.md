@@ -23,9 +23,9 @@ All design decisions, formal schemas, contracts, and phased gates live in six au
 
 ---
 
-## Workspace Architecture (Current Phase: Phase 6 — 20 Crates)
+## Workspace Architecture (Current Milestone: Wave 1 Exit / Phase 6b — 21 Crates)
 
-The active milestone is tracked in [`docs/milestone.toml`](docs/milestone.toml) and all deliberate deferrals live in [`docs/deferrals.toml`](docs/deferrals.toml) (`DEF-001` closed in Phase 3; `DEF-002` & `DEF-009` closed in Phase 4; `DEF-003` & `DEF-007` closed in Phase 5; `DEF-006` & `DEF-008` closed in Phase 6 — only `DEF-004` at `wave-2-gate` and `DEF-005` at `post-wave-3` remain open). Legacy v1 files are quarantined in `legacy/v1/` strictly as historical datasheet references.
+The active milestone is tracked in [`docs/milestone.toml`](docs/milestone.toml) (`wave-1-exit`) and all deliberate deferrals live in [`docs/deferrals.toml`](docs/deferrals.toml) (`DEF-001` closed in Phase 3; `DEF-002` & `DEF-009` closed in Phase 4; `DEF-003` & `DEF-007` closed in Phase 5; `DEF-006` & `DEF-008` closed in Phase 6 — only `DEF-004` at `wave-2-gate` and `DEF-005` at `post-wave-3` remain open). Legacy v1 files are quarantined in `legacy/v1/` strictly as historical datasheet references.
 
 ### Layer 0 — Foundations
 - `crates/dendri-span` — UTF-8-safe byte spans (`Span`), `SourceMap`, rich `Diagnostic` formatting, and the frozen 45-variant `ErrorCode` enum.
@@ -58,6 +58,7 @@ The active milestone is tracked in [`docs/milestone.toml`](docs/milestone.toml) 
 - `crates/dendri-lang-ladder` — Structural IEC 61131-3 Ladder Diagram frontend (`PouBody::Network`, zero `__rail_N` in ASL, all contacts/coils/branches/FB/Compare/Call/Foreign cells, conservative lifting, derived projection with bit-for-bit `dendri-vm` parity).
 - `crates/dendri-lang-sfc` — Structural IEC 60848 GRAFCET/SFC frontend (`PouBody::Chart`, zero `__sfc_*` in ASL, Rule 5 two-phase evolution, OR priority & AND sync, all 8 Table 47 qualifiers `N/S/R/L/D/P/P1/P0`, `<Step>.X`/`.T`/`<Macro>.DONE`, macro-steps, derived ST/ASL projection ready for RuSTy Phase 6b).
 - `crates/dendri-sync` — Non-destructive per-board/per-POU revisioned `BoardDoc`, `SyncEngine`, dirty-buffer preservation, C2/C4 comment orphan & child-`NodeId` re-binding, unified Undo/Redo transactions, cross-language `Foreign` export gate, and the 9-scenario Wave 1 Golden Equivalence Suite (`tests/wave1_golden_equivalence.rs`).
+- `crates/dendri-diff` — Phase 6b Real-Toolchain Differential Gate (`ADR-004`, `DEF-003`, CI Gate 10): compiles and executes emitted Wave 1 C++ (`g++` deterministic host Arduino shim + `arduino-cli` `arduino:avr:uno` core + `avr-gcc`/`simavr` ATmega328P ground-truth oracle for 16-bit `int`, 10-bit ADC, Timer 0/1 PWM `DEF-001`, and `PORTB`) and emitted IEC ST / Ladder / GRAFCET (**RuSTy** `plc` v1.0.8 compiling directly to native LLVM machine code with zero C transpilation), including the full `C3` hostile comment corpus, verifying bit-identical traces against `dendri-vm`.
 - [`docs/lbc/`](docs/lbc/feature-matrix.md) — Normative Language Binding Contracts ([`st.md`](docs/lbc/st.md), [`cpp.md`](docs/lbc/cpp.md), [`ladder.md`](docs/lbc/ladder.md), [`sfc.md`](docs/lbc/sfc.md)) and the **auto-generated** Wave 1 feature matrix ([`feature-matrix.md`](docs/lbc/feature-matrix.md), drift-checked in CI).
 - `assets/packs/` — Hash-locked Wave 1 `F1` packs (`arduino-wire`, `arduino-spi`, `arduino-servo`, `plc-modbus-tcp`) pinned in `assets/packs/checksums.toml` (`DEF-008`).
 
@@ -67,6 +68,7 @@ The active milestone is tracked in [`docs/milestone.toml`](docs/milestone.toml) 
   - `dendri asset-approve <dir> --reviewer <name>` — Explicitly signs off an inspected asset directory, writing canonical render SHA-256 hashes to `review.toml`.
   - `dendri packs-check` — Verifies strict 1:1 bijection, schema validity, and SHA-256 checksums across `assets/packs/*.pack.toml` and `checksums.toml` (`DEF-008`).
   - `dendri bench-spice` — Runs the headless SPICE-class analytical physics benchmark suite (`< 0.1%` relative error, CI Gate 6).
+  - `dendri diff-check [--suite <pr|cpp-host|rusty-st|arduino-cli|avr-simavr|all>]` — Runs the Phase 6b Real-Toolchain Differential Gate across host `g++`, RuSTy `plc` (LLVM native), `arduino-cli`, and `avr-gcc`+`simavr` (CI Gate 10).
   - `dendri translate <file> --from <lang> --to <lang> [--board <profile>] [--st-dialect <d>] [--allow-foreign] [--out <path>]` — Translates Wave 1 sources across C++, IEC ST, Ladder, and GRAFCET/SFC via ASL IR.
   - `dendri roundtrip <file> --lang <lang> [--board <profile>] [--st-dialect <d>]` — Verifies `LOSSLESS_ASL`, `C1`/`C5` comment conservation, zero magic comments, and zero `M = 10⁹` leakage.
   - `dendri validate <file.toml> [--report] [--allow-foreign]` — Parse & statically validate a v2 project against the live certified `AssetCatalog`.
@@ -98,6 +100,7 @@ cargo run -q -p dendri-cli -- provenance-check
 cargo run -q -p dendri-cli -- asset-check
 cargo run -q -p dendri-cli -- packs-check
 cargo run -q -p dendri-cli -- bench-spice
+cargo run -q -p dendri-cli -- diff-check --suite all
 cargo run -q -p dendri-cli -- ledger-check
 ```
 

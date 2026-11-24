@@ -1749,6 +1749,49 @@ impl BoardVm {
                 self.charge_step(self.config.cost.stmt_cycles)?;
                 Ok(Value::Udint(self.time_us() as u32))
             }
+            "Serial.begin" | "Serial.flush" | "Serial.end" => {
+                self.charge_step(self.config.cost.io_write_cycles)?;
+                Ok(Value::Void)
+            }
+            "Serial.print" | "Serial.println" => {
+                self.charge_step(self.config.cost.io_write_cycles)?;
+                let mut payload = if let Some(arg) = args.first() {
+                    let v = self.eval_expr(&arg.value, io, expr_depth)?;
+                    format_serial_value(&v)
+                } else {
+                    String::new()
+                };
+                if callee == "Serial.println" {
+                    payload.push('\n');
+                }
+                let _ = io.uart_send("Serial", &payload);
+                Ok(Value::Void)
+            }
+            "Serial.write" => {
+                self.charge_step(self.config.cost.io_write_cycles)?;
+                let payload = if let Some(arg) = args.first() {
+                    let v = self.eval_expr(&arg.value, io, expr_depth)?;
+                    format_serial_value(&v)
+                } else {
+                    String::new()
+                };
+                let len = i32::try_from(payload.len()).unwrap_or(i32::MAX);
+                let _ = io.uart_send("Serial", &payload);
+                Ok(Value::Dint(len))
+            }
+            "Serial.available" => {
+                self.charge_step(self.config.cost.io_read_cycles)?;
+                Ok(Value::Dint(0))
+            }
+            "Serial.read" => {
+                self.charge_step(self.config.cost.io_read_cycles)?;
+                if let Some(s) = io.uart_recv("Serial")
+                    && let Some(b) = s.as_bytes().first()
+                {
+                    return Ok(Value::Dint(i32::from(*b)));
+                }
+                Ok(Value::Dint(-1))
+            }
             "DISPLAY_PRINT" => {
                 self.charge_step(self.config.cost.io_write_cycles)?;
                 let target = self
@@ -2034,15 +2077,28 @@ impl BoardVm {
             HardwareKind::DigitalIn
             | HardwareKind::DigitalOut
             | HardwareKind::DigitalBidirectional => {
-                if self.in_plc_scan
-                    && let Some(&b) = self.pii_digital.get(&hw.pin)
-                {
-                    return Ok(Value::Bool(b));
+                if self.in_plc_scan {
+                    if matches!(
+                        hw.kind,
+                        HardwareKind::DigitalOut | HardwareKind::DigitalBidirectional
+                    ) && let Some(&b) = self.piq_digital.get(&hw.pin)
+                    {
+                        return Ok(Value::Bool(b));
+                    }
+                    if let Some(&b) = self.pii_digital.get(&hw.pin) {
+                        return Ok(Value::Bool(b));
+                    }
                 }
                 let level = io.read_digital(&hw.pin);
                 Ok(Value::Bool(self.resolve_digital_level(&hw.pin, level)))
             }
             HardwareKind::AnalogIn | HardwareKind::AnalogOut => {
+                if self.in_plc_scan
+                    && hw.kind == HardwareKind::AnalogOut
+                    && let Some(&a) = self.piq_analog.get(&hw.pin)
+                {
+                    return Ok(Value::Analog(a));
+                }
                 let reading = if self.in_plc_scan {
                     self.pii_analog.get(&hw.pin).copied().unwrap_or_default()
                 } else {
@@ -2050,7 +2106,14 @@ impl BoardVm {
                 };
                 Ok(Value::Analog(reading.analog))
             }
-            HardwareKind::PwmOut => Ok(Value::Duty(0)),
+            HardwareKind::PwmOut => {
+                if self.in_plc_scan
+                    && let Some(&duty) = self.piq_pwm.get(&hw.pin)
+                {
+                    return Ok(Value::Duty(duty));
+                }
+                Ok(Value::Duty(0))
+            }
             HardwareKind::BusPin => Ok(Value::Byte(0)),
         }
     }
@@ -2479,6 +2542,38 @@ fn parse_assumption_value(raw: &str) -> Result<Value, RuntimeError> {
         text: trimmed.to_owned(),
         max_len: 255,
     })
+}
+
+fn format_serial_value(val: &Value) -> String {
+    match val {
+        Value::String { text, .. } => text.clone(),
+        Value::Bool(b) => {
+            if *b {
+                "1".to_owned()
+            } else {
+                "0".to_owned()
+            }
+        }
+        Value::Sint(n) => n.to_string(),
+        Value::Int(n) => n.to_string(),
+        Value::Dint(n) => n.to_string(),
+        Value::Lint(n) => n.to_string(),
+        Value::Usint(n) => n.to_string(),
+        Value::Uint(n) => n.to_string(),
+        Value::Udint(n) => n.to_string(),
+        Value::Ulint(n) => n.to_string(),
+        Value::Byte(n) => n.to_string(),
+        Value::Word(n) => n.to_string(),
+        Value::Dword(n) => n.to_string(),
+        Value::Lword(n) => n.to_string(),
+        Value::Real(f) => format!("{f}"),
+        Value::Lreal(f) => format!("{f}"),
+        Value::TimeUs(us) => us.to_string(),
+        Value::Analog(a) => a.to_string(),
+        Value::Duty(d) => d.to_string(),
+        Value::Code { value, .. } => value.to_string(),
+        Value::Void | Value::Array(_) | Value::Struct(_) | Value::Fb(_) => String::new(),
+    }
 }
 
 /// Converts a normalized fixed-point `ANALOG` (`M = 10^9`) value to a native codec code (`01` §3.1–§3.4):

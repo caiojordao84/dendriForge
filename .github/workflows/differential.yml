@@ -1,0 +1,64 @@
+name: Differential Gate (Phase 6b — ADR-004)
+
+on:
+  push:
+    branches: [main, v2]
+  pull_request:
+  schedule:
+    # Nightly full AVR / Arduino Core verification at 04:00 UTC
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTY_VERSION: "v1.0.8"
+
+jobs:
+  pr-differential-gate:
+    name: Gate 10 (PR) — Host g++ Arduino Shim & RuSTy LLVM Native (ST / Ladder / SFC + C3)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.100.0"
+
+      - name: Install RuSTy (plc LLVM native IEC 61131-3 compiler, DEF-003)
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl -fL --retry 3 -o "$HOME/.local/bin/plc" \
+            "https://github.com/PLC-lang/rusty/releases/download/${RUSTY_VERSION}/plc-linux-x86_64"
+          chmod +x "$HOME/.local/bin/plc"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/plc" --version
+
+      - name: Run Phase 6b PR Differential Gate (g++ host + RuSTy LLVM)
+        run: cargo run -q -p dendri-cli -- diff-check --suite pr
+
+  nightly-avr-and-arduino-core:
+    name: Gate 10 (Nightly) — arduino-cli Uno Core & avr-gcc + simavr ATmega328P Oracle
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.100.0"
+
+      - name: Install avr-gcc, avr-libc, simavr, and arduino-cli
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-avr avr-libc simavr curl
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | BINDIR="$HOME/.local/bin" sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/arduino-cli" core update-index
+          "$HOME/.local/bin/arduino-cli" core install arduino:avr
+
+      - name: Run Official Arduino Uno Core compile gate (arduino-cli)
+        run: cargo run -q -p dendri-cli -- diff-check --suite arduino-cli
+
+      - name: Run Independent ATmega328P Oracle (avr-gcc + simavr)
+        run: cargo run -q -p dendri-cli -- diff-check --suite avr-simavr

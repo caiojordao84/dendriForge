@@ -35,7 +35,15 @@ jobs:
             exit 1
           fi
 
-      - name: Gate 3 & 4 — Unit, property tests & 45-code real negative corpus
+      - name: Install RuSTy (plc LLVM compiler for Gate 10 differential tests)
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl -fL --retry 3 -o "$HOME/.local/bin/plc" \
+            "https://github.com/PLC-lang/rusty/releases/download/v1.0.8/plc-linux-x86_64"
+          chmod +x "$HOME/.local/bin/plc"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Gate 3, 4 & 10 — Unit, property tests, 45-code negative corpus & Phase 6b PR differential gate
         run: cargo test --workspace
 
       - name: Gate 7 — Exhaustive release-mode numeric gate (T-NUM-1..5 incl. 2^24)

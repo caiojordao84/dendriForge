@@ -518,6 +518,50 @@ static ARDUINO_TIME_FNS: &[StdFnSig] = &[
     },
 ];
 
+// --- std.arduino.serial ---
+static ARDUINO_SERIAL_FNS: &[StdFnSig] = &[
+    StdFnSig {
+        name: "Serial.begin",
+        params: &[p("BAUD", ParamDir::In, StdTypeRef::Udint)],
+        return_type: StdTypeRef::Void,
+    },
+    StdFnSig {
+        name: "Serial.print",
+        params: &[p("VAL", ParamDir::In, StdTypeRef::String)],
+        return_type: StdTypeRef::Void,
+    },
+    StdFnSig {
+        name: "Serial.println",
+        params: &[p("VAL", ParamDir::In, StdTypeRef::String)],
+        return_type: StdTypeRef::Void,
+    },
+    StdFnSig {
+        name: "Serial.write",
+        params: &[p("DATA", ParamDir::In, StdTypeRef::Byte)],
+        return_type: StdTypeRef::Dint,
+    },
+    StdFnSig {
+        name: "Serial.flush",
+        params: &[],
+        return_type: StdTypeRef::Void,
+    },
+    StdFnSig {
+        name: "Serial.end",
+        params: &[],
+        return_type: StdTypeRef::Void,
+    },
+    StdFnSig {
+        name: "Serial.available",
+        params: &[],
+        return_type: StdTypeRef::Dint,
+    },
+    StdFnSig {
+        name: "Serial.read",
+        params: &[],
+        return_type: StdTypeRef::Dint,
+    },
+];
+
 // --- std.plc.scale ---
 static PLC_SCALE_FNS: &[StdFnSig] = &[
     StdFnSig {
@@ -593,6 +637,12 @@ static BUILTIN_MODULES: &[StdModule] = &[
         path: "std.arduino.time",
         domain: StdDomain::Arduino,
         functions: ARDUINO_TIME_FNS,
+        function_blocks: &[],
+    },
+    StdModule {
+        path: "std.arduino.serial",
+        domain: StdDomain::Arduino,
+        functions: ARDUINO_SERIAL_FNS,
         function_blocks: &[],
     },
     StdModule {
@@ -694,6 +744,7 @@ mod tests {
         // Platform isolation invariant (01 §6.1): Arduino & PLC platform APIs MUST NOT leak!
         assert_eq!(cat.resolve_symbol(plc_imports, "DIGITAL_READ"), None);
         assert_eq!(cat.resolve_symbol(plc_imports, "MILLIS"), None);
+        assert_eq!(cat.resolve_symbol(plc_imports, "Serial.println"), None);
         assert_eq!(cat.resolve_symbol(plc_imports, "NORM_X"), None);
     }
 

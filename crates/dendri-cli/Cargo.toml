@@ -20,6 +20,7 @@ clap = { workspace = true }
 dendri-assets = { workspace = true }
 dendri-ast = { workspace = true }
 dendri-circuit = { workspace = true }
+dendri-diff = { workspace = true }
 dendri-frontend-core = { workspace = true }
 dendri-lang-cpp = { workspace = true }
 dendri-lang-ladder = { workspace = true }

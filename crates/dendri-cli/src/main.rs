@@ -1,6 +1,6 @@
 //! `dendri` command-line tool (governance, project validation, and verification gates).
 
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use dendri_assets::{AssetCatalog, AssetCheckError, approve_asset_dir, validate_assets_dir};
 use dendri_circuit::SpiceCircuitBackend;
 use dendri_cli::frontend::{
@@ -10,6 +10,7 @@ use dendri_cli::frontend::{
 use dendri_cli::{
     bench_spice, ledger, packs, provenance, resolve_assets_dir, resolve_workspace_root,
 };
+use dendri_diff::{DiffSuite, Toolchains, run_differential_suite};
 use dendri_project::load_project_path;
 use dendri_sim_kernel::{InputTimeline, KernelConfig, SimKernel};
 use dendri_span::{Severity, SourceMap};
@@ -37,6 +38,39 @@ struct Cli {
     command: Commands,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum CliDiffSuite {
+    /// PR gate: host `g++` Arduino shim + RuSTy `plc` (LLVM native ST/Ladder/SFC).
+    Pr,
+    /// Host `g++` + deterministic Arduino API shim only.
+    #[value(name = "cpp-host")]
+    CppHost,
+    /// RuSTy `plc` (LLVM native) ST/Ladder/SFC only.
+    #[value(name = "rusty-st")]
+    RustySt,
+    /// Official `arduino-cli` (`arduino:avr:uno`) compile-only gate.
+    #[value(name = "arduino-cli")]
+    ArduinoCli,
+    /// Independent ATmega328P oracle (`avr-gcc` + `simavr`).
+    #[value(name = "avr-simavr")]
+    AvrSimavr,
+    /// Full Phase 6b Wave 1 Exit gate across all 4 external toolchains.
+    All,
+}
+
+impl CliDiffSuite {
+    const fn to_diff_suite(self) -> DiffSuite {
+        match self {
+            Self::Pr => DiffSuite::PrGate,
+            Self::CppHost => DiffSuite::CppHost,
+            Self::RustySt => DiffSuite::RustySt,
+            Self::ArduinoCli => DiffSuite::ArduinoCli,
+            Self::AvrSimavr => DiffSuite::AvrSimavr,
+            Self::All => DiffSuite::All,
+        }
+    }
+}
+
 #[derive(Debug, Subcommand)]
 enum Commands {
     /// Enforce docs/deferrals.toml against docs/milestone.toml and scan for stubs or untracked markers (CI Gate 12).
@@ -54,6 +88,13 @@ enum Commands {
     /// Run headless SPICE-class analytical physics benchmarks (`< 0.1%` error, CI Gate 6).
     #[command(name = "bench-spice")]
     BenchSpice,
+    /// Run Phase 6b Real-Toolchain Differential Gate (`g++`, RuSTy `plc`, `arduino-cli`, `avr-gcc`+`simavr`, CI Gate 10).
+    #[command(name = "diff-check")]
+    DiffCheck {
+        /// Differential suite to run (`pr | cpp-host | rusty-st | arduino-cli | avr-simavr | all`).
+        #[arg(long, default_value = "pr")]
+        suite: CliDiffSuite,
+    },
     /// Translate a Wave 1 source file across C++, IEC ST, Ladder, and GRAFCET/SFC via ASL IR.
     Translate {
         /// Path to the input source file.
@@ -257,6 +298,28 @@ fn main() -> ExitCode {
                     report.max_rel_error * 100.0,
                 );
                 ExitCode::FAILURE
+            }
+        }
+        Commands::DiffCheck { suite } => {
+            let toolchains = Toolchains::discover();
+            match run_differential_suite(suite.to_diff_suite(), &toolchains) {
+                Ok(report) => {
+                    for out in &report.outcomes {
+                        println!(
+                            "  [PASS] {:<12} {:<34} {}",
+                            out.suite, out.scenario, out.detail
+                        );
+                    }
+                    println!(
+                        "diff-check OK | scenarios={} | mismatches=0",
+                        report.outcomes.len()
+                    );
+                    ExitCode::SUCCESS
+                }
+                Err(err) => {
+                    eprintln!("diff-check FAILED: {err}");
+                    ExitCode::FAILURE
+                }
             }
         }
         Commands::Translate {
