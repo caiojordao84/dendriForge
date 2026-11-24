@@ -444,6 +444,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "dendri-sync"
+version = "0.1.0"
+dependencies = [
+ "dendri-ast",
+ "dendri-frontend-core",
+ "dendri-project",
+ "dendri-span",
+ "dendri-validate",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "dendri-theme"
 version = "0.1.0"
 dependencies = [

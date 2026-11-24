@@ -17,6 +17,7 @@ members = [
     "crates/dendri-frontend-core",
     "crates/dendri-lang-ladder",
     "crates/dendri-lang-sfc",
+    "crates/dendri-sync",
     "crates/dendri-cli",
 ]
 exclude = [
