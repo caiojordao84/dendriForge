@@ -1,0 +1,22 @@
+[package]
+name = "dendri-lang-cpp"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "100% pure-Rust Arduino C++ subset frontend implementing LanguageFrontend for dendriForge v2"
+
+[lints]
+workspace = true
+
+[dependencies]
+dendri-ast = { workspace = true }
+dendri-frontend-core = { path = "../dendri-frontend-core" }
+dendri-span = { workspace = true }
+dendri-stdlib = { workspace = true }
+
+[dev-dependencies]
+dendri-validate = { workspace = true }
+proptest = { workspace = true }
