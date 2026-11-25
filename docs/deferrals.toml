@@ -57,3 +57,13 @@ refs               = [
     "docs/architecture/00-overview-and-adrs.md#adr-003-staged-rosetta-stone-language-rollout--robotics-horizon",
     "docs/architecture/04-frontends-visual-and-sync.md#appendix-a--non-normative-horizon-notes",
 ]
+
+[[deferral]]
+id                 = "DEF-010"
+title              = "Files app (dendri-files): in-app project manager"
+owner_milestone    = "phase-7"
+deadline_milestone = "phase-8"
+reason             = "Not in the original roadmap; design closes in Phase 7 (docs/ui/DESIGN.md §7), implementation in Phase 8. Phase 7 ships working File > Open/Save/Save As via rfd instead of a placeholder."
+refs               = [
+    "docs/ui/DESIGN.md#7-files-app-dendri-files--planning",
+]

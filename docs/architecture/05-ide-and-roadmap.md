@@ -6,58 +6,65 @@
 
 ---
 
-## 1. Desktop IDE Architecture (`dendri-editor`, ADR-021)
+## 1. Desktop IDE Architecture (`dendri-wm` + `dendri-editor`, ADR-021 — Amended)
 
-`dendri-editor` v2 is a 100% pure-Rust engineering IDE built on **`egui` / `eframe`** (`wgpu` / `glow` GPU backend), eliminating v1's `iced` state-duplication, overlay event leaks, `static_cache` desyncs, dual `usvg` dependency conflicts, and missing CAD/oscilloscope primitives.
+`dendri-editor` v2 is a 100% pure-Rust engineering workstation shell built on **`egui` / `eframe`** (`wgpu` / `glow` GPU backend) and **`dendri-wm`**, eliminating v1's `iced` state-duplication, overlay event leaks, `static_cache` desyncs, dual `usvg` dependency conflicts, and missing CAD/oscilloscope primitives. Full UI/UX, window-manager, accessibility, and app contracts live in [`docs/ui/DESIGN.md`](../ui/DESIGN.md).
 
 ### Core UI Stack (Zero WebView / JS)
-- **Windowing & Rendering:** `eframe` + `egui` with built-in **AccessKit** screen-reader and keyboard navigation support.
-- **Docking Workspace:** `egui_dock` providing resizable, dockable panels (Component Palette, Simulation Canvas, Multi-Board Explorer, Code/Ladder/GRAFCET tabs, Board I/O Tag Table, Live Diagnostics, Comments Panel, Assumptions & Packs Panel, Virtual Oscilloscope / Logic Analyzer) with zero click/scroll leakage through overlays.
-- **Plotting & Probes:** `egui_plot` rendering real-time multi-channel voltage/current waveforms and digital logic traces directly from `dendri-circuit` / `dendri-sim-kernel` probe buffers.
-- **File Dialogs & Atomic I/O:** `rfd` native OS dialogs + atomic persistence (`write temp -> rename`) preventing partial/corrupted `.toml` saves on crash.
-- **Runtime Asset Resolution:** Resolves asset root via `--assets-dir` → `DENDRIFORGE_ASSETS` env var → `<exe_dir>/assets` → CWD fallback. **Zero `env!("CARGO_MANIFEST_DIR")` in binaries.**
-- **Theme (`dendri-theme`):** Single source of truth for the **A11Y Slate** palette, verified by automated WCAG contrast unit tests (minimum WCAG AA 4.5:1 text / 3:1 non-text UI, AAA 7:1 on primary text & pin tokens).
-- **Single `usvg` Pipeline:** Parses each SVG **once** per loaded asset into cached base GPU textures (`TextureHandle`), cached dynamic path geometry (`PreparedLayer`), and parsed `<g id="df-pins">` 8 px pin anchors painted natively via `egui::Painter` colored by `dendri-theme`.
+- **Windowing & Rendering:** `eframe` + `egui` with built-in **AccessKit** screen-reader and keyboard navigation support (plus a keyboard-navigable **scene outline** for the custom-painted `Simulation` canvas).
+- **Workstation Shell & Window Manager (`dendri-wm`):** Pure-Rust, zero-`egui` crate operating in integer logical pixels and owning **Floating** (default, z-ordered overlapping windows) and **Tiling (dwindle)** (binary split tree) per workspace, enforced by property tests (`I1–I6`) and fuzzing. **`egui_dock` is restricted strictly to tab groups inside an app window** (e.g., `CodeStudio` tabs) and does not drive the outer shell.
+- **Plotting & Probes:** `egui_plot` rendering real-time multi-channel voltage/current waveforms and digital logic traces directly from `dendri-circuit` / `dendri-sim-kernel` probe buffers inside the `Simulation` app's Oscilloscope / Logic Analyzer dock panel.
+- **File Dialogs & Atomic I/O:** `rfd` native OS dialogs + atomic persistence (`write temp -> sync -> rename`) preventing partial/corrupted `.toml` saves on crash. User preferences (layout, keymap, `startup_behavior`) live in versioned, strict `workspace.toml` under the platform config directory — never inside project `.toml` files.
+- **Runtime Asset Resolution:** Resolves fonts (`assets/fonts/` — Noto Sans & Noto Sans Mono, SIL OFL 1.1), original UI icons (`assets/icons/`), starter templates (`assets/templates/`), and certified hardware assets via `--assets-dir` → `DENDRIFORGE_ASSETS` env var → `<exe_dir>/assets` → CWD fallback. **Zero `env!("CARGO_MANIFEST_DIR")` in binaries.**
+- **Theme (`dendri-theme`):** Single source of truth for the **A11Y Slate** palette, verified by automated WCAG contrast unit tests (minimum WCAG AA 4.5:1 text / 3:1 non-text UI, AAA 7:1 on primary text & pin tokens). One adapter module in `dendri-editor` converts `Color` → `egui::Color32`; CI fails on color literals outside that adapter.
+- **Single `usvg` Pipeline:** Parses every hardware SVG and UI icon SVG **once** via `dendri-assets` (`usvg` / `resvg`) into cached base GPU textures (`TextureHandle`), cached dynamic path geometry (`PreparedLayer`), and parsed `<g id="df-pins">` 8 px pin anchors painted natively via `egui::Painter` colored by `dendri-theme`. `egui_extras`'s `svg` feature MUST stay disabled.
 - **Decoupled Simulation Worker Thread:**
-  - `dendri-sim-kernel` runs off the UI thread, publishing immutable `Arc<SimSnapshot>` frames and waking UI via `ctx.request_repaint()` **only** when visual state advances.
+  - `dendri-sim-kernel` runs off the UI thread, publishing immutable `Arc<SimSnapshot>` frames and waking UI via `ctx.request_repaint()` **only** when visual state or user input advances.
   - Zero per-pixel disk I/O during drag (pre-loaded in-memory `AssetRegistry`); zero deep-cloning of `SimulationProject` at 60 FPS.
   - Editing canvas/wires while paused **stays paused**.
   - Unified `UndoStack` covering Canvas, Wiring, I/O Tag Table, Code, Ladder, GRAFCET, Comments, and Assumptions.
 
 ---
 
-## 2. IDE Screen & View Contracts (ADR-022)
+## 2. IDE Screen & App Contracts (ADR-022 — Amended)
 
-Views roll out sequentially by foundation — **no fake/hardcoded placeholder diagrams allowed**. All IDE UI surfaces (including Comments, Assumptions, `Foreign`, and Packs) are implemented ONLY in Phases 7–8 **after Phase 6b (Wave 1 real-toolchain differential gate) is 100% green**.
+Views roll out as workstation-shell **apps** sequentially by foundation — **no fake/hardcoded placeholder diagrams, stub screens, or dead dock icons allowed** (see [`docs/ui/DESIGN.md`](../ui/DESIGN.md#4-apps)). All IDE UI surfaces (including Comments, Assumptions, `Foreign`, and Packs) are implemented ONLY in Phases 7–8 **after Phase 6b (Wave 1 real-toolchain differential gate) is 100% green**.
 
-### Wave A — Core Engineering Workspace (Phase 7)
-1. **Simulation Canvas View (`Physical 48×48 px` + `IEC 60617-Style / IEC 61082 Schematic` Toggle):**
-   - Cursor-anchored pan/zoom, zoom-to-fit, 48×48 px grid & snap, multi-select, copy/cut/paste/duplicate, rotate 90° (`R`), mirror (`X`/`Y`) using unified transform matrix $\mathbf{M}$ (zero drift between hit-testing and visuals).
-   - **Batched Multi-Wire Orthogonal Routing:** Routes all scene wires simultaneously onto clean non-overlapping channels with jump arcs/junction dots, draggable waypoints, and `Escape` cancellation.
-   - **Live Interactive Actuators & Probes:** Momentary/latched NO/NC pushbuttons, live potentiometer wipers, 4–20 mA sensor sliders, LED luminosity/color/burn, electrical fault badges, and Voltage/Current/Logic Probes feeding the Oscilloscope dock.
+### Wave A — Core Engineering Shell & Apps (Phase 7, Slices 7a–7e)
+1. **Workstation Shell (`dendri-wm` + Top Bar, Dock/Taskbar, Status Bar, Keymap & Preferences):**
+   - Floating (default) and Tiling (dwindle) per numbered workspace; native outer OS window decoration with custom inner-window chrome; solid 2 px `DF_ACCENT_SKY` focused border; compact EDA density (targets ≥ 24×24 logical px); opaque surfaces and `reduce_motion`.
+   - Configurable keyboard chords (`Ctrl`/`Cmd` + `Alt`/`Shift` combos, no `Super`), scoped to shell / focused app / text editor and verified by automated conflict tests (`U6a`).
+   - Working `File → Open / Save / Save As` via `rfd` and atomic persistence (no placeholder `Files` icon until Phase 8 / `DEF-010`).
+2. **`Simulation` App (`Physical 48×48 px` + `IEC 60617-Style / IEC 61082 Schematic` Toggle + Oscilloscope Dock):**
+   - Cursor-anchored pan/zoom, zoom-to-fit, zoom-thresholded grid (none at low zoom, 48 px module grid at medium zoom, 24 px sub-grid at high zoom only), multi-select, copy/cut/paste/duplicate, rotate 90° (`R`), mirror (`X`/`Y`) using unified transform matrix $\mathbf{M}$ (zero drift between hit-testing and visuals).
+   - **Batched Multi-Wire Orthogonal Routing:** Routes all scene wires simultaneously onto clean non-overlapping channels with jump arcs/junction dots, draggable waypoints, and `Escape` cancellation (never curved wires or signal-particle animations).
+   - **Live Interactive Actuators, Probes & Oscilloscope Dock:** Momentary/latched NO/NC pushbuttons, live potentiometer wipers, 4–20 mA sensor sliders, LED luminosity/color/burn, electrical fault badges, Voltage/Current/Logic Probes feeding the dockable Oscilloscope / Logic Analyzer panel, and an AccessKit keyboard-navigable **scene outline**.
    - **Multi-Board Selector:** Clicking any board on the canvas (`plc_main`, `mcu_sensor`, …) focuses its POUs, I/O Tag Table, Code, Ladder, or GRAFCET views seamlessly.
-2. **Code Editor, Board I/O Tag Table & Diagnostics Dock:**
+3. **`CodeStudio` App (Code Editor, ASL Tab, Board I/O Tag Table & Governance Panels):**
    - A11Y Slate syntax highlighting, line numbers, inline squiggles and hover tooltips backed by live `dendri-validate` spans (`ERR_*`).
-   - Instant per-POU view/language switcher (`C++` ↔ `IEC ST` ↔ `ASL`, later `MicroPython` / `Rust`) retaining unsaved dirty buffers with inline errors on tab switch.
+   - Instant per-POU view/language switcher (**`C++`** ↔ **`IEC 61131-3 ST`** ↔ **`ASL`**, plus read-only derived projections, later `MicroPython` / `Rust`) retaining unsaved dirty buffers with inline errors on tab switch.
    - Dedicated **Board I/O Tag Table** binding logical tags to physical ports (`D13`, `A0`, `Ia.0 ⇄ %IX0.0`, `Qa.0 ⇄ %QX0.0`, `IW64`) with live electrical readouts.
-3. **Comments, Assumptions, `Foreign` & Packs Surfaces:**
    - **Comments Panel:** Inspect, edit, filter, and re-attach `[[boards.comments]]` and top-level `[[comments]]`, including orphaned `dangling` comments (`INFO_COMMENT_ORPHANED`).
    - **Assumptions Panel & Badges:** Visibly badges every active `[[boards.assumptions]]` entry (`WARN_ASSUMPTION_ACTIVE`), displays rationale/policy, and blocks "release" export mode while any assumption is active.
    - **`Foreign` Locked Boxes:** Displays `Decl`/`Stmt`/`Expr::Foreign` nodes clearly in foreign views with source language, fidelity badge (`F0`/`F1`/`F2`), and 4-part actionable guidance (what / where / why / what now).
    - **Packs & Capabilities Inspector:** Displays version/hash-locked `pack.toml` dependencies and project `requires` capabilities.
+4. **`Console` App:**
+   - Live Serial monitor and structured diagnostics log matching the headless runner.
 
-### Wave B — Native Visual IEC Editors (Phase 8)
-4. **Visual Ladder Diagram Editor (IEC 61131-3 LD):**
+### Wave B — Native Visual IEC Editors & In-App Project Manager (Phase 8)
+5. **`LadderPLC` App (Visual Ladder Diagram Editor — IEC 61131-3 LD):**
    - Real grid editor backed directly by `PouBody::Network` + `dendri-sync` (multi-OB/POU sheets; zero stored `__rail_N` temporaries).
    - Drag-and-drop & keyboard editing of NO/NC/P/N contacts, Normal/Negated/S/R/P/N coils, parallel OR branches, Timers/Counters/Triggers/Bistables (`EN`/`ENO`/`Q`), Compare/Math/Move/Comm boxes, callable `Structured POU` boxes, `Foreign` locked boxes, and network title/body/element comments.
    - **Live Simulation Overlay:** Energized power rails and active contacts/coils illuminate in real time alongside live `.ET` / `.CV` values.
-5. **Visual GRAFCET / SFC Editor (IEC 60848):**
+6. **`GRAFCET` App (Visual GRAFCET / SFC Editor — IEC 60848):**
    - Interactive node-graph editor (Draw.io UX) backed directly by `PouBody::Chart` + `dendri-sync` for initial/normal/macro-steps (with drill-down), transitions (explicit OR priority badges), AND/OR divergence & convergence bars, `N/S/R/L/D/P/P1/P0` action blocks, and step/transition/action comments.
    - **Live Simulation Overlay:** Active step tokens glow in real time alongside live `<Step>.T` elapsed timers and transition receptivity states.
+7. **`Files` App (`dendri-files`, `DEF-010`):**
+   - Headless workspace index, bundle-aware move/rename/duplicate (`.toml` + `.dendrilib` locks), hash-locked templates (`assets/templates/`), last-5 rolling backups in platform user-data dir, portable `.dendri-trash/` with restore, off-thread validation/assumption/`Foreign` badges, safe external-change detection, and fuzzed canonical path confinement ([`docs/ui/DESIGN.md`](../ui/DESIGN.md#7-files-app-dendri-files--planning)).
 
 ### Wave C — Convergence & Extensibility (Phase 9)
-6. **Unified HMI / SCADA / IoT Builder:** Data-driven dashboard canvas binding validated SVG gauges, numeric displays, trend charts, alarm lists, and operator buttons directly to any board's ASL tags and virtual Modbus/telemetry bus.
-7. **AI Engineering Copilot (BYOK):** Provider-agnostic Bring-Your-Own-Key assistant (OpenAI / Anthropic / Gemini / local Ollama); **every generated edit MUST pass `dendri-validate` before one-click apply**, and all assets flagged `ml_restricted = true` MUST be excluded from every index, prompt context, and embedding corpus.
+8. **Unified HMI / SCADA / IoT Builder:** Data-driven dashboard canvas binding validated SVG gauges, numeric displays, trend charts, alarm lists, and operator buttons directly to any board's ASL tags and virtual Modbus/telemetry bus.
+9. **AI Engineering Copilot (BYOK):** Provider-agnostic Bring-Your-Own-Key assistant (OpenAI / Anthropic / Gemini / local Ollama); **every generated edit MUST pass `dendri-validate` before one-click apply**, and all assets flagged `ml_restricted = true` MUST be excluded from every index, prompt context, and embedding corpus.
 
 ---
 
@@ -92,10 +99,13 @@ Layer 3 (Polyglot Pure-Rust Frontends & Sync)
 ├── dendri-sync           Non-destructive per-board/per-POU revisioned BoardDoc & unified undo transactions
 └── [Wave 2 / Wave 3]     dendri-lang-micropython (post Wave 1 + DEF-004), dendri-lang-rust (post Wave 2)
 
-Layer 4 (Canvas & Applications)
-├── dendri-canvas         48×48px Scene graph, unified transform M, batched wire routing, cached usvg layers
-├── dendri-cli            `dendri` CLI (asset-check, validate, ledger-check, sim, bench-spice, translate, roundtrip)
-└── dendri-editor         `egui`/`eframe` desktop IDE (Simulation, Code, Ladder, GRAFCET, Comments/Packs, HMI, BYOK)
+Layer 4 (Shell, Canvas & Applications)
+├── dendri-wm             Pure-Rust floating z-order, dwindle split tree & workspaces (zero egui; Slice 7a)
+├── dendri-canvas         48×48px Scene graph, unified transform M, batched wire routing, cached usvg layers (Slice 7c)
+├── dendri-diff           Real-toolchain differential verification harness (g++, RuSTy, arduino-cli, simavr)
+├── dendri-cli            `dendri` CLI (asset-check, validate, ledger-check, sim, bench-spice, translate, roundtrip, diff-check)
+├── dendri-editor         `egui`/`eframe` workstation shell & apps (Simulation, CodeStudio, Console, LadderPLC, GRAFCET, Files, HMI, BYOK)
+└── [Phase 8 / DEF-010]   dendri-files (headless workspace index, bundles, templates, rolling backups, portable trash, path safety)
 ```
 
 ---
@@ -194,7 +204,8 @@ The active milestone is recorded in `docs/milestone.toml`. `dendri ledger-check`
 | `DEF-006` | Comment-style dialect table per IEC ST target | `phase-6` | `phase-6` | Feeds `LanguageCapabilities.comment_styles` |
 | `DEF-007` | Display charset tables (HD44780 LCD ROM variants) | `phase-5` | `phase-5` | Feeds display-sink `ERR_STRING_CHARSET` |
 | `DEF-008` | Initial `pack.toml` set derived from Phase 6 scenario list | `phase-6` | `phase-6` | `F1`/`F2` packs for Wave 1 scenarios |
-| `DEF-009` | Reference-designation scheme for schematic labels (IEC 81346 / IEC 61082) | `phase-4` | `phase-4` | Applied across schematic SVGs |
+| `DEF-009` | Reference-designation scheme for schematic labels (IEC 81346 / IEC 61082) | `phase-4` | `phase-4` | Applied across schematic SVGs (Closed) |
+| `DEF-010` | `Files` app (`dendri-files`): in-app project manager | `phase-7` | `phase-8` | Design ratified in `docs/ui/DESIGN.md` §7; Phase 7 ships `File → Open/Save/Save As` via `rfd` |
 
 ---
 
@@ -212,6 +223,6 @@ We NEVER advance to Phase $N+1$ until Phase $N$ meets its full DoD (§5.1) with 
 | **Phase 5** | **Virtual Bus Fabric, Pluggable Physics & Subsystem Batch Certification** | `dendri-bus` (UART, I2C, SPI w/ CS, Virtual Ethernet / Modbus TCP FC1–6/15/16) + `dendri-physics` (Pneumatics 5/2 valve + DA cylinder + limit switches, Thermal, Tank, Display framebuffers w/ charset tables closing `DEF-007`) + **Batch Certification** of bus, display, and pneumatic components under the full `03` §1.1 unit + finalize differential gate toolchains (closing `DEF-003` / D7). | Multi-board Uno ↔ `plc-1200-open-1214` UART & Modbus co-sim green; electro-pneumatic `A+ B+ A- B-` closed-loop physical stroke + limit switches green; `DEF-003` & `DEF-007` closed; batch assets pass `dendri asset-check`. |
 | **Phase 6** | **Rosetta Stone Wave 1 Frontends, LBCs & Non-Destructive Sync** | `dendri-frontend-core`, `dendri-lang-st` (real IEC ST, `iec_address`, comment dialects closing `DEF-006`), `dendri-lang-cpp` (Arduino C++, `[cpu] int_bits`, multi-tab, zero `ASL_HW`), `dendri-lang-ladder` (`PouBody::Network` + conservative lifting), `dendri-lang-sfc` (`PouBody::Chart`), `dendri-sync` (revisioned `BoardDoc` preserving comments/assumptions/`Foreign`/POUs), LBC docs + auto-generated feature matrix, initial packs (closing `DEF-008`). | Shared conformance suite green for all 4 Wave 1 frontends; `C1–C5` & `T-NUM-*` green; Golden Equivalence Suite green across C++, ST, Ladder, GRAFCET; `DEF-006` & `DEF-008` closed. |
 | **Phase 6b** | **Real-Toolchain Differential Gate (Wave 1 Exit — ADR-004)** | Automated compile-and-execute differential harness running emitted Wave 1 C++ (host deterministic Arduino shim + nightly `arduino-cli` + AVR oracle per `DEF-003`) and emitted IEC ST (selected open ST compiler + I/O shim per `DEF-003`, also verifying Ladder & GRAFCET via emitted ST) against `dendri-vm` traces, including full hostile comment corpus (`C3`). | **Wave 1 Exit Gate:** 100% differential trace match on all Wave 1 golden scenarios + hostile comment corpus compiles & runs cleanly across real toolchains. |
-| **Phase 7** | **`dendri-editor` v2 (`egui`/`eframe`) — Wave A Workspace** | `dendri-canvas` (48×48 px scene, unified transform $\mathbf{M}$, batched wire routing, cached `usvg` layers + native 8 px `dendri-theme` pins) + `egui`/`eframe` docking IDE: Physical & IEC 60617-style Schematic Canvas, actuators/probes/oscilloscope, multi-board selector, Code Editor w/ live `dendri-validate` spans, Board I/O Tag Table, Comments Panel (incl. orphans), Assumptions Panel & badges, `Foreign` locked boxes, Packs Inspector, unified Undo/Redo, native `rfd` atomic Save/Open. | Zero disk I/O during drag; worker thread decoupled from UI; pause preserved across edits; multi-board interactive demo green; zero warnings. |
-| **Phase 8** | **`dendri-editor` v2 — Wave B (Visual Ladder & GRAFCET Editors)** | Interactive grid Ladder editor (`PouBody::Network`, drag-and-drop, multi-OB/POU sheets, live rail energization & `.ET`/`.CV` overlay, comments & `Foreign` boxes) + interactive GRAFCET/SFC graph editor (`PouBody::Chart`, Draw.io UX, macro-step drill-down, live active tokens & `<Step>.T`), backed cleanly by `dendri-sync`. | Visual edits update Code/ASL live and vice-versa with zero comment/assumption/POU loss; live energization verified in end-to-end tests. |
+| **Phase 7** | **`dendri-wm`, `dendri-canvas` & `dendri-editor` v2 (`egui`/`eframe`) — Wave A Shell & Apps (Slices 7a–7e)** | See [`docs/ui/DESIGN.md`](../ui/DESIGN.md#82-slices): **7a** `dendri-wm` (Floating + Dwindle, `I1–I6` proptests + fuzz); **7b** single theme adapter, shell (top bar, dock, status bar), runtime Noto fonts + original SVG icons + `provenance-check` extension, `assets/templates/uno-button-led.toml`, keymap w/ conflict test (`U6a`), `workspace.toml` prefs (`startup_behavior`), `File → Open/Save/Save As`; **7c** `Simulation` app (`dendri-canvas`, zoom-thresholded grid, batched orthogonal wires, actuators/probes, Oscilloscope dock panel, AccessKit scene outline); **7d** `CodeStudio` (`C++`, `IEC ST`, `ASL` tabs + derived projections, Board I/O Tag Table, Comments/Assumptions/`Foreign`/Packs, diagnostics); **7e** `Console` (Serial + diagnostics). | All 7a–7e slice gates green: zero color literals outside adapter; `I1–I6` proptests + fuzz green; `U6a` keymap conflict test green; zero disk I/O during drag; worker thread decoupled; pause preserved; headless tracer-bullet oracle + roundtrip/comment suites green; zero warnings. |
+| **Phase 8** | **`dendri-editor` v2 — Wave B (`LadderPLC`, `GRAFCET` & `Files` [`DEF-010`])** | Interactive grid `LadderPLC` app (`PouBody::Network`, drag-and-drop, multi-OB/POU sheets, live rail energization & `.ET`/`.CV` overlay, comments & `Foreign` boxes) + interactive `GRAFCET` app (`PouBody::Chart`, Draw.io UX, macro-step drill-down, live active tokens & `<Step>.T`) backed cleanly by `dendri-sync` + `Files` app (`dendri-files`, closing `DEF-010`: bundle-aware ops, `assets/templates/`, rolling backups, `.dendri-trash/`, off-thread badges, external-change detection, path-safety fuzz target). | Visual edits update Code/ASL live and vice-versa with zero comment/assumption/POU loss; live energization verified in end-to-end tests; `Files` DoD green and `DEF-010` closed. |
 | **Phase 9** | **Waves 2–3 Languages, ESP32/Pico, HMI/SCADA & AI Copilot (BYOK)** | **Pre-entry (`wave-2-gate`):** Close `DEF-004` (`asl-oop`) + certify `esp32-devkitc-v4` & `raspberry-pi-pico` (exact port `read_u16`/`duty_u16` from source).<br>**Phase 9:** `dendri-lang-micropython` (Wave 2 + differential gate), `dendri-lang-rust` (Wave 3 + differential gate), HMI/SCADA/IoT data-driven builder, AI BYOK copilot gated by `dendri-validate` (excluding `ml_restricted` assets). Long-tail & robotic languages remain in Non-Normative Horizon Appendix (`04` Appendix A, `DEF-005`). | `DEF-004` closed before Wave 2 opens; every expansion crate & board passes the exact same 12-Gate CI suite as Wave 1 before merge. |
