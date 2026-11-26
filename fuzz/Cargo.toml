@@ -19,6 +19,7 @@ dendri-lang-ladder = { path = "../crates/dendri-lang-ladder" }
 dendri-lang-sfc = { path = "../crates/dendri-lang-sfc" }
 dendri-lang-st = { path = "../crates/dendri-lang-st" }
 dendri-project = { path = "../crates/dendri-project" }
+dendri-wm = { path = "../crates/dendri-wm" }
 
 [[bin]]
 name = "ledger_toml"
@@ -72,6 +73,13 @@ bench = false
 [[bin]]
 name = "lang_sfc"
 path = "fuzz_targets/lang_sfc.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "wm_ops"
+path = "fuzz_targets/wm_ops.rs"
 test = false
 doc = false
 bench = false

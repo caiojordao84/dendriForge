@@ -21,6 +21,7 @@ members = [
     "crates/dendri-lang-st",
     "crates/dendri-sync",
     "crates/dendri-diff",
+    "crates/dendri-wm",
     "crates/dendri-cli",
 ]
 exclude = [

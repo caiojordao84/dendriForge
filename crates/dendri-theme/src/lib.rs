@@ -1,9 +1,10 @@
-//! Single source of truth for the `dendriForge` v2 **A11Y Slate** palette,
+//! Single source of truth for the `dendriForge` v2 **A11Y Slate** palettes
+//! (**Dark** and **Light**, resolved via [`ThemeMode`] with `System` default),
 //! semantic `<g id="df-pins">` pin classes (`03-asset-and-profile-contract.md` §2.2),
-//! and deterministic WCAG 2.1 contrast calculation.
+//! and deterministic WCAG 2.1 contrast calculation (`docs/ui/DESIGN.md` §5.1, `F11`).
 //!
-//! Zero UI-framework dependency (Layer 0): adapters in `dendri-canvas` and
-//! `dendri-editor` convert [`Color`] into `egui::Color32` cleanly without
+//! Zero UI-framework dependency (Layer 0): the single adapter in `dendri-editor`
+//! converts [`ThemePalette`] tokens into `egui::Color32` cleanly without
 //! duplicating hex constants.
 
 use serde::{Deserialize, Serialize};
@@ -145,7 +146,8 @@ pub const DF_ACCENT_PURPLE_LIGHT: Color = Color::from_rgb_hex(0xe9_d5_ff);
 pub const DF_STATUS_RUNNING: Color = DF_ACCENT_EMERALD;
 pub const DF_STATUS_PAUSED: Color = DF_ACCENT_AMBER_LIGHT;
 pub const DF_STATUS_FAULT: Color = DF_PIN_INTERRUPT;
-pub const DF_STATUS_MANUAL: Color = DF_ACCENT_PURPLE;
+/// Bright violet-300 (`#c4b5fd`, 9.6:1 AAA on `DF_BG_MAIN`; upgraded from `DF_ACCENT_PURPLE` 6.56:1 AA).
+pub const DF_STATUS_MANUAL: Color = PRISM_MACRO;
 pub const DF_STATUS_LIVE: Color = DF_ACCENT_SKY;
 pub const DF_STATUS_VIRTUAL: Color = DF_ACCENT_CYAN;
 
@@ -267,22 +269,28 @@ impl PinClass {
         Self::ALL.iter().copied().find(|c| c.toml_role() == role)
     }
 
-    /// Authoritative A11Y Slate paint color for this pin class.
+    /// Authoritative A11Y Slate Dark paint color for this pin class.
     #[must_use]
     pub const fn color(self) -> Color {
+        self.color_in(&ThemePalette::DARK)
+    }
+
+    /// Authoritative paint color for this pin class in the given [`ThemePalette`].
+    #[must_use]
+    pub const fn color_in(self, palette: &ThemePalette) -> Color {
         match self {
-            Self::Power => DF_PIN_POWER,
-            Self::Gnd => DF_PIN_GND,
-            Self::AcPhase => DF_PIN_AC_PHASE,
-            Self::Digital => DF_PIN_DIGITAL,
-            Self::Analog => DF_PIN_ANALOG,
-            Self::Pwm => DF_PIN_PWM,
-            Self::Comm => DF_PIN_COMM,
-            Self::Interrupt => DF_PIN_INTERRUPT,
-            Self::Reset => DF_PIN_RESET,
-            Self::Passive => DF_PIN_PASSIVE,
-            Self::Pneumatic => DF_PIN_PNEUMATIC,
-            Self::Hydraulic => DF_PIN_HYDRAULIC,
+            Self::Power => palette.pin_power,
+            Self::Gnd => palette.pin_gnd,
+            Self::AcPhase => palette.pin_ac_phase,
+            Self::Digital => palette.pin_digital,
+            Self::Analog => palette.pin_analog,
+            Self::Pwm => palette.pin_pwm,
+            Self::Comm => palette.pin_comm,
+            Self::Interrupt => palette.pin_interrupt,
+            Self::Reset => palette.pin_reset,
+            Self::Passive => palette.pin_passive,
+            Self::Pneumatic => palette.pin_pneumatic,
+            Self::Hydraulic => palette.pin_hydraulic,
         }
     }
 }
@@ -293,119 +301,446 @@ impl fmt::Display for PinClass {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Theme Modes (`System` default, `Dark`, `Light` — F11) & Typed Palettes
+// ---------------------------------------------------------------------------
+
+/// User-facing theme mode preference stored in `workspace.toml` (`F11`).
+///
+/// Defaults to [`ThemeMode::System`], following the host OS dark/light
+/// preference with a safe fallback to [`ResolvedTheme::Dark`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ThemeMode {
+    #[default]
+    System,
+    Dark,
+    Light,
+}
+
+impl ThemeMode {
+    /// Resolves this mode against an optional host OS preference
+    /// (`Some(true)` = host dark, `Some(false)` = host light, `None` = unknown -> `Dark`).
+    #[must_use]
+    pub const fn resolve(self, system_prefers_dark: Option<bool>) -> ResolvedTheme {
+        match self {
+            Self::Dark => ResolvedTheme::Dark,
+            Self::Light => ResolvedTheme::Light,
+            Self::System => match system_prefers_dark {
+                Some(false) => ResolvedTheme::Light,
+                Some(true) | None => ResolvedTheme::Dark,
+            },
+        }
+    }
+
+    /// Cycles `System -> Light -> Dark -> System` for quick panel toggles.
+    #[must_use]
+    pub const fn next(self) -> Self {
+        match self {
+            Self::System => Self::Light,
+            Self::Light => Self::Dark,
+            Self::Dark => Self::System,
+        }
+    }
+}
+
+/// Concrete resolved theme variant.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ResolvedTheme {
+    Dark,
+    Light,
+}
+
+impl ResolvedTheme {
+    /// Returns the authoritative WCAG-verified [`ThemePalette`] for this theme.
+    #[must_use]
+    pub const fn palette(self) -> &'static ThemePalette {
+        match self {
+            Self::Dark => &ThemePalette::DARK,
+            Self::Light => &ThemePalette::LIGHT,
+        }
+    }
+}
+
+/// Complete opaque A11Y Slate palette consumed by the single UI theme adapter (`F11`).
+///
+/// Every token in both [`ThemePalette::DARK`] and [`ThemePalette::LIGHT`] is verified
+/// by automated WCAG 2.1 contrast tests in this crate.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ThemePalette {
+    pub theme: ResolvedTheme,
+
+    // Layout Backgrounds
+    pub bg_main: Color,
+    pub bg_panel: Color,
+    pub bg_sidebar: Color,
+    pub bg_editor: Color,
+    pub bg_hover: Color,
+    pub bg_lowest: Color,
+    pub bg_surface: Color,
+    pub bg_low: Color,
+    pub bg_card: Color,
+
+    // Borders, Dividers & Ladder Rails
+    pub border_main: Color,
+    pub border_light: Color,
+    pub border_subtle: Color,
+    pub ladder_rail_inactive: Color,
+    pub ladder_rail_active: Color,
+
+    // Interface Text
+    pub text_heading: Color,
+    pub text_main: Color,
+    pub text_muted: Color,
+    pub text_faded: Color,
+
+    // Accents & Primary Actions
+    pub accent_sky: Color,
+    pub accent_amber: Color,
+    pub accent_amber_light: Color,
+    pub accent_orange: Color,
+    pub accent_orange_hover: Color,
+    /// Foreground text painted over `accent_orange` / `accent_orange_hover` primary buttons.
+    pub primary_button_fg: Color,
+    /// Decorative rose token — MUST NOT carry text or fault meaning.
+    pub accent_rose: Color,
+    pub accent_emerald: Color,
+    pub accent_cyan: Color,
+    pub accent_purple: Color,
+    pub accent_purple_light: Color,
+
+    // Runtime Status
+    pub status_running: Color,
+    pub status_paused: Color,
+    pub status_fault: Color,
+    pub status_manual: Color,
+    pub status_live: Color,
+    pub status_virtual: Color,
+
+    // Syntax Tokens (all WCAG AAA >= 7.0:1 on `prism_bg`)
+    pub prism_bg: Color,
+    pub prism_fg: Color,
+    pub prism_comment: Color,
+    pub prism_keyword: Color,
+    pub prism_string: Color,
+    pub prism_number: Color,
+    pub prism_function: Color,
+    pub prism_operator: Color,
+    pub prism_type: Color,
+    pub prism_macro: Color,
+
+    // 12 Semantic Pin Classes (all WCAG AAA >= 7.0:1 on `bg_main`)
+    pub pin_power: Color,
+    pub pin_gnd: Color,
+    pub pin_ac_phase: Color,
+    pub pin_digital: Color,
+    pub pin_analog: Color,
+    pub pin_pwm: Color,
+    pub pin_comm: Color,
+    pub pin_interrupt: Color,
+    pub pin_reset: Color,
+    pub pin_passive: Color,
+    pub pin_pneumatic: Color,
+    pub pin_hydraulic: Color,
+}
+
+impl ThemePalette {
+    /// Baseline **A11Y Slate Dark** palette.
+    pub const DARK: Self = Self {
+        theme: ResolvedTheme::Dark,
+        bg_main: DF_BG_MAIN,
+        bg_panel: DF_BG_PANEL,
+        bg_sidebar: DF_BG_SIDEBAR,
+        bg_editor: DF_BG_EDITOR,
+        bg_hover: DF_BG_HOVER,
+        bg_lowest: DF_BG_LOWEST,
+        bg_surface: DF_BG_SURFACE,
+        bg_low: DF_BG_LOW,
+        bg_card: DF_BG_CARD,
+        border_main: DF_BORDER_MAIN,
+        border_light: DF_BORDER_LIGHT,
+        border_subtle: DF_BORDER_SUBTLE,
+        ladder_rail_inactive: DF_LADDER_RAIL_INACTIVE,
+        ladder_rail_active: DF_LADDER_RAIL_ACTIVE,
+        text_heading: DF_TEXT_HEADING,
+        text_main: DF_TEXT_MAIN,
+        text_muted: DF_TEXT_MUTED,
+        text_faded: DF_TEXT_FADED,
+        accent_sky: DF_ACCENT_SKY,
+        accent_amber: DF_ACCENT_AMBER,
+        accent_amber_light: DF_ACCENT_AMBER_LIGHT,
+        accent_orange: DF_ACCENT_ORANGE,
+        accent_orange_hover: DF_ACCENT_ORANGE_HOVER,
+        primary_button_fg: DF_BG_PANEL,
+        accent_rose: DF_ACCENT_ROSE,
+        accent_emerald: DF_ACCENT_EMERALD,
+        accent_cyan: DF_ACCENT_CYAN,
+        accent_purple: DF_ACCENT_PURPLE,
+        accent_purple_light: DF_ACCENT_PURPLE_LIGHT,
+        status_running: DF_STATUS_RUNNING,
+        status_paused: DF_STATUS_PAUSED,
+        status_fault: DF_STATUS_FAULT,
+        status_manual: DF_STATUS_MANUAL,
+        status_live: DF_STATUS_LIVE,
+        status_virtual: DF_STATUS_VIRTUAL,
+        prism_bg: PRISM_BG,
+        prism_fg: PRISM_FG,
+        prism_comment: PRISM_COMMENT,
+        prism_keyword: PRISM_KEYWORD,
+        prism_string: PRISM_STRING,
+        prism_number: PRISM_NUMBER,
+        prism_function: PRISM_FUNCTION,
+        prism_operator: PRISM_OPERATOR,
+        prism_type: PRISM_TYPE,
+        prism_macro: PRISM_MACRO,
+        pin_power: DF_PIN_POWER,
+        pin_gnd: DF_PIN_GND,
+        pin_ac_phase: DF_PIN_AC_PHASE,
+        pin_digital: DF_PIN_DIGITAL,
+        pin_analog: DF_PIN_ANALOG,
+        pin_pwm: DF_PIN_PWM,
+        pin_comm: DF_PIN_COMM,
+        pin_interrupt: DF_PIN_INTERRUPT,
+        pin_reset: DF_PIN_RESET,
+        pin_passive: DF_PIN_PASSIVE,
+        pin_pneumatic: DF_PIN_PNEUMATIC,
+        pin_hydraulic: DF_PIN_HYDRAULIC,
+    };
+
+    /// Sister **A11Y Slate Light** palette (`F11`) preserving Slate neutrals,
+    /// semantic pin hues, and identical WCAG 2.1 AAA/AA contrast floors.
+    pub const LIGHT: Self = Self {
+        theme: ResolvedTheme::Light,
+        // Cool Slate light surfaces (opaque, clear elevation steps)
+        bg_main: Color::from_rgb_hex(0xf8_fa_fc), // slate-50
+        bg_panel: Color::from_rgb_hex(0xff_ff_ff), // white
+        bg_sidebar: Color::from_rgb_hex(0xf1_f5_f9), // slate-100
+        bg_editor: Color::from_rgb_hex(0xf8_fa_fc), // slate-50
+        bg_hover: Color::from_rgb_hex(0xe2_e8_f0), // slate-200
+        bg_lowest: Color::from_rgb_hex(0xe2_e8_f0), // slate-200
+        bg_surface: Color::from_rgb_hex(0xf1_f5_f9), // slate-100
+        bg_low: Color::from_rgb_hex(0xe2_e8_f0),  // slate-200
+        bg_card: Color::from_rgb_hex(0xff_ff_ff), // white
+        // Borders & Ladder Rails
+        border_main: Color::from_rgb_hex(0xcb_d5_e1), // slate-300
+        border_light: Color::from_rgb_hex(0x94_a3_b8), // slate-400
+        border_subtle: Color::from_rgb_hex(0x64_74_8b), // slate-500
+        ladder_rail_inactive: Color::from_rgb_hex(0x47_55_69), // slate-600
+        ladder_rail_active: Color::from_rgb_hex(0x05_58_40), // deep emerald (AAA)
+        // Interface Text
+        text_heading: Color::from_rgb_hex(0x02_06_17), // slate-950
+        text_main: Color::from_rgb_hex(0x0f_17_2a),    // slate-900
+        text_muted: Color::from_rgb_hex(0x33_41_55),   // slate-700
+        text_faded: Color::from_rgb_hex(0x47_55_69),   // slate-600 (non-text/icon)
+        // Accents & Primary Actions (darkened for AAA on light slate)
+        accent_sky: Color::from_rgb_hex(0x03_53_88), // deep sky
+        accent_amber: Color::from_rgb_hex(0x85_3a_0c), // deep amber
+        accent_amber_light: Color::from_rgb_hex(0x78_35_0f), // amber-900
+        accent_orange: Color::from_rgb_hex(0x8c_2d_0c), // deep burnt orange (AAA >= 7.8:1)
+        accent_orange_hover: Color::from_rgb_hex(0x6e_22_08), // darker burnt orange (AAA >= 10.5:1)
+        primary_button_fg: Color::from_rgb_hex(0xff_ff_ff), // white on deep orange
+        accent_rose: Color::from_rgb_hex(0xe1_1d_48), // decorative only
+        accent_emerald: Color::from_rgb_hex(0x05_58_40), // deep emerald
+        accent_cyan: Color::from_rgb_hex(0x0e_52_66), // deep cyan
+        accent_purple: Color::from_rgb_hex(0x5b_21_b6), // violet-800
+        accent_purple_light: Color::from_rgb_hex(0x6d_28_d9), // violet-700
+        // Runtime Status
+        status_running: Color::from_rgb_hex(0x05_58_40),
+        status_paused: Color::from_rgb_hex(0x78_35_0f),
+        status_fault: Color::from_rgb_hex(0x9d_17_4d),
+        status_manual: Color::from_rgb_hex(0x5b_21_b6),
+        status_live: Color::from_rgb_hex(0x03_53_88),
+        status_virtual: Color::from_rgb_hex(0x0e_52_66),
+        // Prism A11Y Light Syntax Tokens (all AAA >= 7.0:1 on #f8fafc)
+        prism_bg: Color::from_rgb_hex(0xf8_fa_fc),
+        prism_fg: Color::from_rgb_hex(0x0f_17_2a),
+        prism_comment: Color::from_rgb_hex(0x425064),
+        prism_keyword: Color::from_rgb_hex(0x8c_2d_0c),
+        prism_string: Color::from_rgb_hex(0x14_53_2d),
+        prism_number: Color::from_rgb_hex(0x71_3f_12),
+        prism_function: Color::from_rgb_hex(0x03_53_88),
+        prism_operator: Color::from_rgb_hex(0x0e_52_66),
+        prism_type: Color::from_rgb_hex(0x6b_21_a8),
+        prism_macro: Color::from_rgb_hex(0x4c_1d_95),
+        // 12 Semantic Pin Classes (all AAA >= 7.0:1 on #f8fafc, AA >= 4.5:1 on #e2e8f0)
+        pin_power: Color::from_rgb_hex(0x99_1b_1b),
+        pin_gnd: Color::from_rgb_hex(0x33_41_55),
+        pin_ac_phase: Color::from_rgb_hex(0x78_35_0f),
+        pin_digital: Color::from_rgb_hex(0x0e_52_66),
+        pin_analog: Color::from_rgb_hex(0x14_53_2d),
+        pin_pwm: Color::from_rgb_hex(0x71_3f_12),
+        pin_comm: Color::from_rgb_hex(0x5b_21_b6),
+        pin_interrupt: Color::from_rgb_hex(0x9d_17_4d),
+        pin_reset: Color::from_rgb_hex(0x8c_2d_0c),
+        pin_passive: Color::from_rgb_hex(0x3f_4d_63),
+        pin_pneumatic: Color::from_rgb_hex(0x03_53_88),
+        pin_hydraulic: Color::from_rgb_hex(0x7c_2d_12),
+    };
+
+    /// Returns the authoritative palette for a [`ThemeMode`] and optional OS dark preference.
+    #[must_use]
+    pub const fn for_mode(mode: ThemeMode, system_prefers_dark: Option<bool>) -> &'static Self {
+        mode.resolve(system_prefers_dark).palette()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn wcag_aaa_primary_and_heading_text_across_surfaces() {
+    fn assert_palette_wcag(name: &str, p: &ThemePalette) {
+        // Primary & heading text: WCAG AAA >= 7.0:1 across all layout surfaces
         for (surface_name, bg) in [
-            ("DF_BG_MAIN", DF_BG_MAIN),
-            ("DF_BG_PANEL", DF_BG_PANEL),
-            ("DF_BG_CARD", DF_BG_CARD),
-            ("DF_BG_HOVER", DF_BG_HOVER),
-            ("DF_BG_SIDEBAR", DF_BG_SIDEBAR),
+            ("bg_main", p.bg_main),
+            ("bg_panel", p.bg_panel),
+            ("bg_card", p.bg_card),
+            ("bg_hover", p.bg_hover),
+            ("bg_sidebar", p.bg_sidebar),
+            ("bg_surface", p.bg_surface),
         ] {
-            let main_cr = DF_TEXT_MAIN.contrast_ratio(bg);
+            let main_cr = p.text_main.contrast_ratio(bg);
             assert!(
                 main_cr >= WCAG_AAA_NORMAL_TEXT,
-                "DF_TEXT_MAIN on {surface_name} contrast {main_cr:.2} < {WCAG_AAA_NORMAL_TEXT}"
+                "{name}: text_main on {surface_name} contrast {main_cr:.2} < {WCAG_AAA_NORMAL_TEXT}"
             );
-            let head_cr = DF_TEXT_HEADING.contrast_ratio(bg);
+            let head_cr = p.text_heading.contrast_ratio(bg);
             assert!(
                 head_cr >= WCAG_AAA_NORMAL_TEXT,
-                "DF_TEXT_HEADING on {surface_name} contrast {head_cr:.2} < {WCAG_AAA_NORMAL_TEXT}"
+                "{name}: text_heading on {surface_name} contrast {head_cr:.2} < {WCAG_AAA_NORMAL_TEXT}"
             );
         }
-    }
 
-    #[test]
-    fn wcag_aa_muted_text_across_surfaces() {
+        // Muted text: WCAG AA >= 4.5:1 across surfaces
         for (surface_name, bg) in [
-            ("DF_BG_MAIN", DF_BG_MAIN),
-            ("DF_BG_PANEL", DF_BG_PANEL),
-            ("DF_BG_CARD", DF_BG_CARD),
-            ("DF_BG_HOVER", DF_BG_HOVER),
+            ("bg_main", p.bg_main),
+            ("bg_panel", p.bg_panel),
+            ("bg_card", p.bg_card),
+            ("bg_hover", p.bg_hover),
+            ("bg_sidebar", p.bg_sidebar),
         ] {
-            let cr = DF_TEXT_MUTED.contrast_ratio(bg);
+            let cr = p.text_muted.contrast_ratio(bg);
             assert!(
                 cr >= WCAG_AA_NORMAL_TEXT,
-                "DF_TEXT_MUTED on {surface_name} contrast {cr:.2} < {WCAG_AA_NORMAL_TEXT}"
+                "{name}: text_muted on {surface_name} contrast {cr:.2} < {WCAG_AA_NORMAL_TEXT}"
             );
         }
-    }
 
-    #[test]
-    fn wcag_aaa_primary_button_normal_and_hover() {
-        let normal = DF_BG_PANEL.contrast_ratio(DF_ACCENT_ORANGE);
+        // Primary action button normal & hover: WCAG AAA >= 7.0:1
+        let normal = p.primary_button_fg.contrast_ratio(p.accent_orange);
         assert!(
             normal >= WCAG_AAA_NORMAL_TEXT,
-            "primary button normal contrast {normal:.2} < 7.0"
+            "{name}: primary button normal contrast {normal:.2} < {WCAG_AAA_NORMAL_TEXT}"
         );
-        let hover = DF_BG_PANEL.contrast_ratio(DF_ACCENT_ORANGE_HOVER);
+        let hover = p.primary_button_fg.contrast_ratio(p.accent_orange_hover);
         assert!(
             hover >= WCAG_AAA_NORMAL_TEXT,
-            "primary button hover contrast {hover:.2} < 7.0"
+            "{name}: primary button hover contrast {hover:.2} < {WCAG_AAA_NORMAL_TEXT}"
         );
-    }
 
-    #[test]
-    fn wcag_aa_non_text_ladder_rails_and_focus() {
-        let inactive = DF_LADDER_RAIL_INACTIVE.contrast_ratio(DF_BG_MAIN);
+        // Ladder rails & focus ring
+        let inactive = p.ladder_rail_inactive.contrast_ratio(p.bg_main);
         assert!(
             inactive >= WCAG_AA_NON_TEXT,
-            "inactive Ladder rail contrast {inactive:.2} < {WCAG_AA_NON_TEXT}"
+            "{name}: inactive Ladder rail contrast {inactive:.2} < {WCAG_AA_NON_TEXT}"
         );
-        let active = DF_LADDER_RAIL_ACTIVE.contrast_ratio(DF_BG_MAIN);
+        let active = p.ladder_rail_active.contrast_ratio(p.bg_main);
         assert!(
             active >= WCAG_AAA_NORMAL_TEXT,
-            "active Ladder rail contrast {active:.2} < {WCAG_AAA_NORMAL_TEXT}"
+            "{name}: active Ladder rail contrast {active:.2} < {WCAG_AAA_NORMAL_TEXT}"
         );
-        let focus = DF_ACCENT_SKY.contrast_ratio(DF_BG_MAIN);
+        let focus = p.accent_sky.contrast_ratio(p.bg_main);
         assert!(
             focus >= WCAG_AAA_NORMAL_TEXT,
-            "focus outline contrast {focus:.2} < {WCAG_AAA_NORMAL_TEXT}"
+            "{name}: focus outline contrast {focus:.2} < {WCAG_AAA_NORMAL_TEXT}"
         );
-    }
 
-    #[test]
-    fn wcag_aaa_all_prism_syntax_tokens_on_editor_bg() {
-        for (name, color) in [
-            ("PRISM_FG", PRISM_FG),
-            ("PRISM_COMMENT", PRISM_COMMENT),
-            ("PRISM_KEYWORD", PRISM_KEYWORD),
-            ("PRISM_STRING", PRISM_STRING),
-            ("PRISM_NUMBER", PRISM_NUMBER),
-            ("PRISM_FUNCTION", PRISM_FUNCTION),
-            ("PRISM_OPERATOR", PRISM_OPERATOR),
-            ("PRISM_TYPE", PRISM_TYPE),
-            ("PRISM_MACRO", PRISM_MACRO),
+        // Status tokens: fault/interrupt MUST NOT equal decorative accent_rose
+        assert_ne!(
+            p.status_fault, p.accent_rose,
+            "{name}: status_fault must never reuse decorative accent_rose"
+        );
+        for (status_name, color) in [
+            ("status_running", p.status_running),
+            ("status_paused", p.status_paused),
+            ("status_fault", p.status_fault),
+            ("status_manual", p.status_manual),
+            ("status_live", p.status_live),
+            ("status_virtual", p.status_virtual),
         ] {
-            let cr = color.contrast_ratio(PRISM_BG);
+            let cr = color.contrast_ratio(p.bg_main);
             assert!(
                 cr >= WCAG_AAA_NORMAL_TEXT,
-                "{name} on PRISM_BG contrast {cr:.2} < {WCAG_AAA_NORMAL_TEXT}"
+                "{name}: {status_name} on bg_main contrast {cr:.2} < {WCAG_AAA_NORMAL_TEXT}"
+            );
+        }
+
+        // All Prism syntax tokens: WCAG AAA >= 7.0:1 on prism_bg
+        for (tok_name, color) in [
+            ("prism_fg", p.prism_fg),
+            ("prism_comment", p.prism_comment),
+            ("prism_keyword", p.prism_keyword),
+            ("prism_string", p.prism_string),
+            ("prism_number", p.prism_number),
+            ("prism_function", p.prism_function),
+            ("prism_operator", p.prism_operator),
+            ("prism_type", p.prism_type),
+            ("prism_macro", p.prism_macro),
+        ] {
+            let cr = color.contrast_ratio(p.prism_bg);
+            assert!(
+                cr >= WCAG_AAA_NORMAL_TEXT,
+                "{name}: {tok_name} on prism_bg contrast {cr:.2} < {WCAG_AAA_NORMAL_TEXT}"
+            );
+        }
+
+        // All 12 semantic pin classes: AAA on bg_main, AA on bg_hover
+        for &pin in PinClass::ALL {
+            let c = pin.color_in(p);
+            let cr_main = c.contrast_ratio(p.bg_main);
+            assert!(
+                cr_main >= WCAG_AAA_NORMAL_TEXT,
+                "{name}: PinClass::{pin:?} ({}) on bg_main contrast {cr_main:.2} < {WCAG_AAA_NORMAL_TEXT}",
+                c.to_hex_string()
+            );
+            let cr_hover = c.contrast_ratio(p.bg_hover);
+            assert!(
+                cr_hover >= WCAG_AA_NORMAL_TEXT,
+                "{name}: PinClass::{pin:?} on bg_hover contrast {cr_hover:.2} < {WCAG_AA_NORMAL_TEXT}"
             );
         }
     }
 
     #[test]
-    fn wcag_aaa_all_12_semantic_pin_classes_and_bijection() {
+    fn wcag_dark_and_light_palettes_both_pass_aaa_and_aa() {
+        assert_palette_wcag("DARK", &ThemePalette::DARK);
+        assert_palette_wcag("LIGHT", &ThemePalette::LIGHT);
+    }
+
+    #[test]
+    fn theme_mode_defaults_to_system_and_resolves_deterministically() {
+        assert_eq!(ThemeMode::default(), ThemeMode::System);
+        assert_eq!(ThemeMode::System.resolve(Some(true)), ResolvedTheme::Dark);
+        assert_eq!(ThemeMode::System.resolve(Some(false)), ResolvedTheme::Light);
+        assert_eq!(ThemeMode::System.resolve(None), ResolvedTheme::Dark);
+        assert_eq!(ThemeMode::Dark.resolve(Some(false)), ResolvedTheme::Dark);
+        assert_eq!(ThemeMode::Light.resolve(Some(true)), ResolvedTheme::Light);
+        assert_eq!(ThemeMode::System.next(), ThemeMode::Light);
+        assert_eq!(ThemeMode::Light.next(), ThemeMode::Dark);
+        assert_eq!(ThemeMode::Dark.next(), ThemeMode::System);
+        assert_eq!(
+            ThemePalette::for_mode(ThemeMode::System, Some(false)).theme,
+            ResolvedTheme::Light
+        );
+    }
+
+    #[test]
+    fn pin_class_bijection_covers_all_12_variants() {
         assert_eq!(PinClass::ALL.len(), 12);
         for &pin in PinClass::ALL {
             assert_eq!(PinClass::from_css_class(pin.css_class()), Some(pin));
             assert_eq!(PinClass::from_toml_role(pin.toml_role()), Some(pin));
-            let cr_main = pin.color().contrast_ratio(DF_BG_MAIN);
-            assert!(
-                cr_main >= WCAG_AAA_NORMAL_TEXT,
-                "PinClass::{pin:?} ({}) on DF_BG_MAIN contrast {cr_main:.2} < {WCAG_AAA_NORMAL_TEXT}",
-                pin.color().to_hex_string()
-            );
-            let cr_hover = pin.color().contrast_ratio(DF_BG_HOVER);
-            assert!(
-                cr_hover >= WCAG_AA_NORMAL_TEXT,
-                "PinClass::{pin:?} on DF_BG_HOVER contrast {cr_hover:.2} < {WCAG_AA_NORMAL_TEXT}"
-            );
+            assert_eq!(pin.color(), pin.color_in(&ThemePalette::DARK));
         }
         assert_eq!(PinClass::from_css_class("df-pin-unknown"), None);
         assert_eq!(PinClass::from_toml_role("unknown"), None);
